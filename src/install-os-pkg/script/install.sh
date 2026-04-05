@@ -169,6 +169,13 @@ fi
 if [[ -z "$DIR" && -z "$MANIFEST" ]]; then
     echo "⛔ At least one of 'DIR' or 'MANIFEST' must be provided." >&2; exit 1
 fi
+# Normalize: some environments (e.g. devcontainer CLI build args) serialize
+# multi-line strings with literal \n rather than real newlines.  Expand them
+# so inline-manifest detection works correctly.
+if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
+    MANIFEST="$(printf '%b' "$MANIFEST")"
+    echo "ℹ️  Expanded literal \\n escapes in MANIFEST value." >&2
+fi
 [ -n "${DIR-}" ] && [ ! -d "$DIR" ] && { echo "⛔ Directory argument to parameter 'DIR' not found: '$DIR'" >&2; exit 1; }
 [ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
 [ -z "${KEEP_REPOS-}" ] && { echo "ℹ️ Argument 'KEEP_REPOS' set to default value 'false'." >&2; KEEP_REPOS=false; }
