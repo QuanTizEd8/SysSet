@@ -169,6 +169,7 @@ if [ "$#" -gt 0 ]; then
   DIR=""
   INTERACTIVE=""
   KEEP_REPOS=""
+  LIFECYCLE_HOOK=""
   LOGFILE=""
   MANIFEST=""
   NO_CLEAN=""
@@ -180,6 +181,7 @@ if [ "$#" -gt 0 ]; then
       --install_self) shift; INSTALL_SELF="$1"; echo "📩 Read argument 'install_self': '"$INSTALL_SELF"'" >&2; shift;;
       --interactive) shift; INTERACTIVE=true; echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2;;
       --keep_repos) shift; KEEP_REPOS=true; echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2;;
+      --lifecycle_hook) shift; LIFECYCLE_HOOK="$1"; echo "📩 Read argument 'lifecycle_hook': '"$LIFECYCLE_HOOK"'" >&2; shift;;
       --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2; shift;;
       --manifest) shift; MANIFEST="$1"; echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2; shift;;
       --no_clean) shift; NO_CLEAN=true; echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2;;
@@ -194,6 +196,7 @@ else
   [ "${INSTALL_SELF+defined}" ] && echo "📩 Read argument 'install_self': '"$INSTALL_SELF"'" >&2
   [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2
   [ "${KEEP_REPOS+defined}" ] && echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2
+  [ "${LIFECYCLE_HOOK+defined}" ] && echo "📩 Read argument 'lifecycle_hook': '"$LIFECYCLE_HOOK"'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2
   [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2
   [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2
@@ -215,6 +218,16 @@ if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
 fi
 [ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
 [ -z "${KEEP_REPOS-}" ] && { echo "ℹ️ Argument 'KEEP_REPOS' set to default value 'false'." >&2; KEEP_REPOS=false; }
+[ -z "${LIFECYCLE_HOOK-}" ] && { echo "ℹ️ Argument 'LIFECYCLE_HOOK' set to default value ''." >&2; LIFECYCLE_HOOK=""; }
+if [[ -n "$LIFECYCLE_HOOK" ]]; then
+    case "$LIFECYCLE_HOOK" in
+        onCreate|updateContent|postCreate) ;;
+        *) echo "⛔ Invalid lifecycle_hook value: '$LIFECYCLE_HOOK'. Must be one of: onCreate, updateContent, postCreate." >&2; exit 1;;
+    esac
+    if [[ -z "$MANIFEST" ]]; then
+        echo "⛔ 'manifest' is required when 'lifecycle_hook' is set." >&2; exit 1
+    fi
+fi
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${NO_CLEAN-}" ] && { echo "ℹ️ Argument 'NO_CLEAN' set to default value 'false'." >&2; NO_CLEAN=false; }
 [ -z "${NO_UPDATE-}" ] && { echo "ℹ️ Argument 'NO_UPDATE' set to default value 'false'." >&2; NO_UPDATE=false; }
@@ -285,6 +298,34 @@ fi
 OS_RELEASE[pm]="$PKG_PREFIX"
 OS_RELEASE[arch]="$(uname -m)"
 echo "🔍 OS context: pm=${OS_RELEASE[pm]} arch=${OS_RELEASE[arch]} id=${OS_RELEASE[id]-} id_like=${OS_RELEASE[id_like]-} version_id=${OS_RELEASE[version_id]-} version_codename=${OS_RELEASE[version_codename]-}" >&2
+# When lifecycle_hook is set, write a hook script and exit without installing.
+if [[ -n "$LIFECYCLE_HOOK" ]]; then
+    _HOOK_DIR="/usr/local/share/install-os-pkg"
+    mkdir -p "$_HOOK_DIR"
+    _MANIFEST_ARG="$MANIFEST"
+    if [[ "$MANIFEST" == *$'\n'* ]]; then
+        printf '%s' "$MANIFEST" > "$_HOOK_DIR/manifest.txt"
+        _MANIFEST_ARG="$_HOOK_DIR/manifest.txt"
+        echo "ℹ️  Saved inline manifest to '$_MANIFEST_ARG'." >&2
+    fi
+    _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
+    [[ "$DEBUG" == true ]] && _HOOK_OPTS+=" --debug true"
+    [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive true"
+    [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos true"
+    [[ -n "$LOGFILE" ]] && _HOOK_OPTS+=" --logfile $(printf '%q' "$LOGFILE")"
+    [[ "$NO_CLEAN" == true ]] && _HOOK_OPTS+=" --no_clean true"
+    [[ "$NO_UPDATE" == true ]] && _HOOK_OPTS+=" --no_update true"
+    case "$LIFECYCLE_HOOK" in
+        onCreate)       _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
+        updateContent)  _HOOK_FILE="$_HOOK_DIR/update-content.sh" ;;
+        postCreate)     _HOOK_FILE="$_HOOK_DIR/post-create.sh" ;;
+    esac
+    printf '#!/bin/sh\nset -e\nexec bash "%s" %s\n' \
+        "/usr/local/lib/install-os-pkg/install.sh" "$_HOOK_OPTS" > "$_HOOK_FILE"
+    chmod +x "$_HOOK_FILE"
+    echo "✅ Registered lifecycle hook '$LIFECYCLE_HOOK': $_HOOK_FILE" >&2
+    exit 0
+fi
 # Resolve and parse manifest.
 _M_PRESCRIPT="" _M_REPO="" _M_PKG="" _M_SCRIPT=""
 if [[ -n "$MANIFEST" ]]; then
@@ -292,6 +333,8 @@ if [[ -n "$MANIFEST" ]]; then
         _MANIFEST_CONTENT="$MANIFEST"
     elif [[ -f "$MANIFEST" ]]; then
         _MANIFEST_CONTENT="$(<"$MANIFEST")"
+    elif [[ -n "$LIFECYCLE_HOOK" ]]; then
+        : # file will exist at hook runtime; skip existence check during build
     else
         echo "⛔ Manifest file not found: '$MANIFEST'" >&2; exit 1
     fi

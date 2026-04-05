@@ -24,6 +24,12 @@
          "description": "Keep added repositories after installation.\nBy default, any repository drop-in files written during installation\nare removed after the script finishes.\nSet this flag to keep them permanently.\n",
          "type": "boolean"
       },
+      "lifecycle_hook": {
+         "default": "",
+         "description": "Defer package installation to a devcontainer lifecycle hook.\nWhen set, the feature registers a hook script instead of installing\npackages at build time. The script is called by the devcontainer CLI\nat the specified lifecycle event.\nSupported values: onCreate, updateContent, postCreate.\nLeave empty (the default) to install packages immediately at build time.\n",
+         "proposals": ["", "onCreate", "updateContent", "postCreate"],
+         "type": "string"
+      },
       "logfile": {
          "default": "",
          "description": "Log all output (stdout + stderr) to this file in addition to console.",
@@ -44,5 +50,8 @@
          "description": "Do not update package lists before installation.\nBy default, package lists are refreshed before installing packages.\nThis option skips that step.\n",
          "type": "boolean"
       }
-   }
+   },
+   "onCreateCommand": "[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true",
+   "updateContentCommand": "[ -f /usr/local/share/install-os-pkg/update-content.sh ] && sh /usr/local/share/install-os-pkg/update-content.sh || true",
+   "postCreateCommand": "[ -f /usr/local/share/install-os-pkg/post-create.sh ] && sh /usr/local/share/install-os-pkg/post-create.sh || true"
 }
