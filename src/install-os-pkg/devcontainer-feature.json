@@ -1,0 +1,42 @@
+{
+   "id": "install-os-pkg",
+   "name": "OS Package Installer",
+   "options": {
+      "debug": {
+         "default": false,
+         "description": "Enable debug output.",
+         "type": "boolean"
+      },
+      "dir": {
+         "default": "",
+         "description": "Path to directory containing ecosystem-specific package files.\nPath to a directory containing files named '{prefix}-{type}', where\n'{prefix}' is one of: apt, apk, dnf, zypper, pacman \u2014 corresponding to the\ndetected package ecosystem \u2014 and '{type}' is one of:\n- prescript: executed before repository addition (e.g. GPG key import)\n- repo: repository definition, written verbatim as a drop-in config file\n- pkg: newline-separated package specifications to install\n- script: executed after package installation (e.g. post-install setup)\nAll files are optional. If none are found for the detected ecosystem,\nthe script exits successfully without doing anything.\nThe dnf prefix is shared by dnf, microdnf, and yum,\nas they all operate on the same package ecosystem.\n",
+         "type": "string"
+      },
+      "interactive": {
+         "default": false,
+         "description": "Run in interactive mode.\nBy default, the installation runs non-interactively.\nSet this flag to allow interactive prompts.\n",
+         "type": "boolean"
+      },
+      "keep_repos": {
+         "default": false,
+         "description": "Keep added repositories after installation.\nBy default, any repository drop-in files written during installation\nare removed after the script finishes.\nSet this flag to keep them permanently.\n",
+         "type": "boolean"
+      },
+      "logfile": {
+         "default": "",
+         "description": "Log all output (stdout + stderr) to this file in addition to console.",
+         "type": "string"
+      },
+      "no_clean": {
+         "default": false,
+         "description": "Do not clean the package manager cache after installation.\nBy default, the package manager's cache is cleaned after installation.\nThis option skips that step.\n",
+         "type": "boolean"
+      },
+      "no_update": {
+         "default": false,
+         "description": "Do not update package lists before installation.\nBy default, package lists are refreshed before installing packages.\nThis option skips that step.\n",
+         "type": "boolean"
+      }
+   },
+   "version": "0.1.0"
+}
