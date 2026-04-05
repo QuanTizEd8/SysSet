@@ -1,0 +1,74 @@
+{
+    "apt_installs_packages": {
+        "build": { "dockerfile": "Dockerfile.apt" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    },
+    "apt_no_update": {
+        "build": { "dockerfile": "Dockerfile.apt-preupdated" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data", "no_update": true }
+        }
+    },
+    "apt_no_clean": {
+        "build": { "dockerfile": "Dockerfile.apt" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data", "no_clean": true }
+        }
+    },
+    "apt_scripts": {
+        "build": { "dockerfile": "Dockerfile.apt-scripts" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    },
+    "apt_logfile": {
+        "build": { "dockerfile": "Dockerfile.apt" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data", "logfile": "/tmp/install-os-pkg.log" }
+        }
+    },
+    "apt_empty_dir": {
+        "build": { "dockerfile": "Dockerfile.apt-empty-dir" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    },
+    "no_matching_files": {
+        "build": { "dockerfile": "Dockerfile.no-match" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    },
+    "apk_installs_packages": {
+        "build": { "dockerfile": "Dockerfile.apk" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    },
+    "apk_no_update": {
+        "build": { "dockerfile": "Dockerfile.apk-preupdated" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data", "no_update": true }
+        }
+    },
+    "dnf_installs_packages": {
+        "build": { "dockerfile": "Dockerfile.dnf" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    },
+    "zypper_installs_packages": {
+        "build": { "dockerfile": "Dockerfile.zypper" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    },
+    "pacman_installs_packages": {
+        "build": { "dockerfile": "Dockerfile.pacman" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
+    }
+}
