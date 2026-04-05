@@ -27,7 +27,7 @@
       "lifecycle_hook": {
          "default": "",
          "description": "Defer package installation to a devcontainer lifecycle hook.\nWhen set, the feature registers a hook script instead of installing\npackages at build time. The script is called by the devcontainer CLI\nat the specified lifecycle event.\nSupported values: onCreate, updateContent, postCreate.\nLeave empty (the default) to install packages immediately at build time.\n",
-         "proposals": ["", "onCreate", "updateContent", "postCreate"],
+         "enum": ["", "onCreate", "updateContent", "postCreate"],
          "type": "string"
       },
       "logfile": {

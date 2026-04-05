@@ -142,5 +142,11 @@
         "features": {
             "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "postCreate" }
         }
+    },
+    "apt_lifecycle_hook_postcreate_debug": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "postCreate", "debug": true }
+        }
     }
 }
