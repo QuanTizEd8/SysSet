@@ -24,4 +24,18 @@ if ! command -v bash > /dev/null 2>&1; then
     fi
 fi
 
-exec bash "$(dirname "$0")/script/install.sh" "$@"
+# Install the system command so other features/scripts can call
+# 'install-os-pkg' directly after this feature has run.
+_SELF_DIR="$(dirname "$0")"
+_LIB_DIR="/usr/local/lib/install-os-pkg"
+_BIN="/usr/local/bin/install-os-pkg"
+if [ ! -x "$_BIN" ]; then
+    mkdir -p "$_LIB_DIR"
+    cp "$_SELF_DIR/script/install.sh" "$_LIB_DIR/install.sh"
+    chmod +x "$_LIB_DIR/install.sh"
+    printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" > "$_BIN"
+    chmod +x "$_BIN"
+    echo "✅ Installed system command: $_BIN" >&2
+fi
+
+exec bash "$_SELF_DIR/script/install.sh" "$@"
