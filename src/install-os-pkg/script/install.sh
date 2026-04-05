@@ -70,6 +70,58 @@ install() {
   "${INSTALL[@]}" "$@"
   echo "↩️ Function exit: install" >&2
 }
+# eval_selector_block "key=val,key=val,..."
+# Returns 0 if ALL conditions match OS_RELEASE, 1 otherwise.
+eval_selector_block() {
+  local block="$1"
+  local cond key val actual
+  IFS=',' read -ra _conds <<< "$block"
+  for cond in "${_conds[@]}"; do
+    cond="${cond// /}"   # strip spaces
+    key="${cond%%=*}"
+    val="${cond#*=}"
+    actual="${OS_RELEASE[$key]-}"
+    if [[ "${actual,,}" != "${val,,}" ]]; then
+      return 1
+    fi
+  done
+  return 0
+}
+# pkg_matches_selectors "raw pkg line"
+# Returns 0 if the line has no selector blocks, or if ANY block passes (OR logic).
+pkg_matches_selectors() {
+  local line="$1"
+  local -a blocks=()
+  local rest="$line"
+  while [[ "$rest" =~ \[([^]]+)\] ]]; do
+    blocks+=("${BASH_REMATCH[1]}")
+    rest="${rest#*]}"
+  done
+  if [[ ${#blocks[@]} -eq 0 ]]; then
+    return 0
+  fi
+  local block
+  for block in "${blocks[@]}"; do
+    if eval_selector_block "$block"; then
+      return 0
+    fi
+  done
+  return 1
+}
+# filter_pkg_lines <file>
+# Reads a pkg file, applies selector logic, prints matching package names.
+filter_pkg_lines() {
+  local file="$1"
+  local line pkg
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    if pkg_matches_selectors "$line"; then
+      pkg="${line%%\[*}"
+      pkg="${pkg%"${pkg##*[! $'\t']}"}"  # rtrim
+      [[ -n "$pkg" ]] && echo "$pkg"
+    fi
+  done < "$file"
+}
 _LOGFILE_TMP="$(mktemp)"
 exec 3>&1 4>&2
 exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
@@ -171,6 +223,19 @@ else
     echo "⛔ No supported package manager found." >&2
     exit 1
 fi
+# Load /etc/os-release into an associative array for selector evaluation.
+declare -A OS_RELEASE=()
+if [[ -f /etc/os-release ]]; then
+    while IFS='=' read -r _key _val; do
+        [[ -z "${_key-}" || "$_key" =~ ^# ]] && continue
+        _val="${_val#\"}" ; _val="${_val%\"}"   # strip double quotes
+        _val="${_val#\'}" ; _val="${_val%\'}"   # strip single quotes
+        OS_RELEASE["${_key,,}"]="$_val"
+    done < /etc/os-release
+fi
+OS_RELEASE[pm]="$PKG_PREFIX"
+OS_RELEASE[arch]="$(uname -m)"
+echo "🔍 OS context: pm=${OS_RELEASE[pm]} arch=${OS_RELEASE[arch]} id=${OS_RELEASE[id]-} id_like=${OS_RELEASE[id_like]-} version_id=${OS_RELEASE[version_id]-} version_codename=${OS_RELEASE[version_codename]-}" >&2
 PRESCRIPT_FILE="${DIR}/${PKG_PREFIX}-prescript"
 REPO_FILE="${DIR}/${PKG_PREFIX}-repo"
 PKG_FILE="${DIR}/${PKG_PREFIX}-pkg"
@@ -244,7 +309,7 @@ else
     echo "ℹ️  Package list update skipped (--no_update)." >&2
 fi
 if [[ -f "$PKG_FILE" ]]; then
-    mapfile -t PACKAGES < <(grep -Ev '^\s*(#|$)' "$PKG_FILE")
+    mapfile -t PACKAGES < <(filter_pkg_lines "$PKG_FILE")
     if [[ ${#PACKAGES[@]} -eq 0 ]]; then
         echo "⚠️  No packages found in '${PKG_FILE}' — skipping install." >&2
     else

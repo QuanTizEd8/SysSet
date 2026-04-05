@@ -70,5 +70,11 @@
         "features": {
             "install-os-pkg": { "dir": "/tmp/test-data" }
         }
+    },
+    "apt_pkg_selectors": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "dir": "/tmp/test-data" }
+        }
     }
 }
