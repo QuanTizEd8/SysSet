@@ -124,5 +124,17 @@
         "features": {
             "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
+    },
+    "install_self_false": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "install_self": false }
+        }
+    },
+    "install_self_only": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": {}
+        }
     }
 }

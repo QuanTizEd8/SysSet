@@ -177,6 +177,7 @@ if [ "$#" -gt 0 ]; then
     case $1 in
       --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '"$DEBUG"'" >&2;;
       --dir) shift; DIR="$1"; echo "📩 Read argument 'dir': '"$DIR"'" >&2; shift;;
+      --install_self) shift; INSTALL_SELF="$1"; echo "📩 Read argument 'install_self': '"$INSTALL_SELF"'" >&2; shift;;
       --interactive) shift; INTERACTIVE=true; echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2;;
       --keep_repos) shift; KEEP_REPOS=true; echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2;;
       --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2; shift;;
@@ -190,7 +191,7 @@ if [ "$#" -gt 0 ]; then
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '"$DEBUG"'" >&2
-  [ "${DIR+defined}" ] && echo "📩 Read argument 'dir': '"$DIR"'" >&2
+  [ "${INSTALL_SELF+defined}" ] && echo "📩 Read argument 'install_self': '"$INSTALL_SELF"'" >&2
   [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2
   [ "${KEEP_REPOS+defined}" ] && echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2
@@ -200,9 +201,10 @@ else
 fi
 [[ "$DEBUG" == true ]] && set -x
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
+[ -z "${INSTALL_SELF-}" ] && { echo "ℹ️ Argument 'INSTALL_SELF' set to default value 'true'." >&2; INSTALL_SELF=true; }
 [ -z "${MANIFEST-}" ] && { echo "ℹ️ Argument 'MANIFEST' set to default value ''." >&2; MANIFEST=""; }
-if [[ -z "$MANIFEST" ]]; then
-    echo "⛔ 'MANIFEST' is required." >&2; exit 1
+if [[ -z "$MANIFEST" && "$INSTALL_SELF" != true ]]; then
+    echo "⛔ 'MANIFEST' is required when 'install_self' is false." >&2; exit 1
 fi
 # Normalize: some environments (e.g. devcontainer CLI build args) serialize
 # multi-line strings with literal \n rather than real newlines.  Expand them

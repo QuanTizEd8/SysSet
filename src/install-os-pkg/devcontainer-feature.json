@@ -9,6 +9,11 @@
          "description": "Enable debug output.",
          "type": "boolean"
       },
+      "install_self": {
+         "default": true,
+         "description": "Install the 'install-os-pkg' system command.\nWhen true (the default), a wrapper script is written to\n/usr/local/bin/install-os-pkg so other features or scripts can invoke\nthe installer directly after this feature has run.\nSet to false to skip this step.\n",
+         "type": "boolean"
+      },
       "interactive": {
          "default": false,
          "description": "Run in interactive mode.\nBy default, the installation runs non-interactively.\nSet this flag to allow interactive prompts.\n",
