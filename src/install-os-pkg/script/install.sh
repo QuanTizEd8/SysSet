@@ -122,6 +122,42 @@ filter_pkg_lines() {
     fi
   done < "$file"
 }
+# parse_manifest <content>
+# Parses manifest content (passed as a single string argument) into four
+# newline-delimited output variables set in the caller's scope:
+#   _M_PRESCRIPT  _M_REPO  _M_PKG  _M_SCRIPT
+# Each variable holds the lines that belong to that section type and whose
+# header selector (if any) passes.  The implicit leading block is treated
+# as a pkg section.  Lines within each section are still subject to
+# per-line selector filtering for pkg; other section types emit raw lines.
+parse_manifest() {
+  local content="$1"
+  _M_PRESCRIPT="" _M_REPO="" _M_PKG="" _M_SCRIPT=""
+  local _type=pkg _active=true _line _mtype _mselectors _mpkg
+  while IFS= read -r _line || [[ -n "$_line" ]]; do
+    if [[ "$_line" =~ ^---[[:space:]]+(pkg|prescript|repo|script)(([[:space:]].*)?$) ]]; then
+      _mtype="${BASH_REMATCH[1]}"
+      _mselectors="${BASH_REMATCH[2]# }"
+      _type="$_mtype"
+      if pkg_matches_selectors "$_mselectors"; then _active=true; else _active=false; fi
+      continue
+    fi
+    [[ "$_active" == true ]] || continue
+    [[ "$_line" =~ ^[[:space:]]*(#|$) ]] && continue
+    case "$_type" in
+      pkg)
+        if pkg_matches_selectors "$_line"; then
+          _mpkg="${_line%%\[*}"
+          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"  # rtrim
+          [[ -n "$_mpkg" ]] && _M_PKG+="${_mpkg}"$'\n'
+        fi
+        ;;
+      prescript) _M_PRESCRIPT+="${_line}"$'\n' ;;
+      repo)      _M_REPO+="${_line}"$'\n'      ;;
+      script)    _M_SCRIPT+="${_line}"$'\n'    ;;
+    esac
+  done <<< "$content"
+}
 _LOGFILE_TMP="$(mktemp)"
 exec 3>&1 4>&2
 exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
@@ -263,49 +299,88 @@ if [[ -z "$MANIFEST" && ! -f "$PRESCRIPT_FILE" && ! -f "$REPO_FILE" && ! -f "$PK
     echo "ℹ️  No files found for ecosystem '${PKG_PREFIX}' in '${DIR}'. Nothing to do." >&2
     exit 0
 fi
-if [[ -f "$PRESCRIPT_FILE" ]]; then
-    echo "🚀 Running pre-installation script '${PRESCRIPT_FILE}'." >&2
-    chmod +x "$PRESCRIPT_FILE"
-    "$PRESCRIPT_FILE"
-    echo "✅ Pre-installation script completed." >&2
+# Resolve and parse manifest once so all four section variables are available.
+_M_PRESCRIPT="" _M_REPO="" _M_PKG="" _M_SCRIPT=""
+if [[ -n "$MANIFEST" ]]; then
+    if [[ "$MANIFEST" == *$'\n'* ]]; then
+        _MANIFEST_CONTENT="$MANIFEST"
+    elif [[ -f "$MANIFEST" ]]; then
+        _MANIFEST_CONTENT="$(<"$MANIFEST")"
+    else
+        echo "⛔ Manifest file not found: '$MANIFEST'" >&2; exit 1
+    fi
+    parse_manifest "$_MANIFEST_CONTENT"
+    echo "ℹ️  Manifest parsed: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') prescript line(s), $(echo -n "$_M_REPO" | wc -l | tr -d ' ') repo line(s), $(echo -n "$_M_PKG" | wc -w | tr -d ' ') pkg(s), $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') script line(s)." >&2
+fi
+if [[ -f "$PRESCRIPT_FILE" || -n "$_M_PRESCRIPT" ]]; then
+    if [[ -f "$PRESCRIPT_FILE" ]]; then
+        echo "🚀 Running pre-installation script '${PRESCRIPT_FILE}'." >&2
+        chmod +x "$PRESCRIPT_FILE"
+        "$PRESCRIPT_FILE"
+        echo "✅ Pre-installation script completed." >&2
+    fi
+    if [[ -n "$_M_PRESCRIPT" ]]; then
+        echo "🚀 Running manifest prescript." >&2
+        _M_PRESCRIPT_TMP="$(mktemp)"
+        printf '%s' "$_M_PRESCRIPT" > "$_M_PRESCRIPT_TMP"
+        chmod +x "$_M_PRESCRIPT_TMP"
+        bash "$_M_PRESCRIPT_TMP"
+        rm -f "$_M_PRESCRIPT_TMP"
+        echo "✅ Manifest prescript completed." >&2
+    fi
 else
-    echo "ℹ️  No prescript file found — skipping." >&2
+    echo "ℹ️  No prescript found — skipping." >&2
 fi
 REPO_ADDED=false
-if [[ -f "$REPO_FILE" ]]; then
-    echo "🗃  Adding repositories from '${REPO_FILE}'." >&2
+APK_ADDED_REPOS=()
+# Helper: install a single repo blob (string) for the detected ecosystem.
+_install_repo_content() {
+    local _content="$1"
+    local _tmpfile
     if [[ "$PKG_PREFIX" = "apt" ]]; then
-        cp "$REPO_FILE" /etc/apt/sources.list.d/syspkg-installer.list
-        echo "📄 Written to /etc/apt/sources.list.d/syspkg-installer.list" >&2
+        printf '%s' "$_content" >> /etc/apt/sources.list.d/syspkg-installer.list
+        echo "📄 Appended to /etc/apt/sources.list.d/syspkg-installer.list" >&2
     elif [[ "$PKG_PREFIX" = "apk" ]]; then
-        APK_ADDED_REPOS=()
-        while IFS= read -r _line; do
-            [[ -z "${_line:-}" || "${_line}" =~ ^[[:space:]]*# ]] && continue
-            echo "$_line" >> /etc/apk/repositories
-            APK_ADDED_REPOS+=("$_line")
-            echo "📄 Added APK repo: ${_line}" >&2
-        done < "$REPO_FILE"
+        local _rline
+        while IFS= read -r _rline; do
+            [[ -z "${_rline:-}" || "${_rline}" =~ ^[[:space:]]*# ]] && continue
+            echo "$_rline" >> /etc/apk/repositories
+            APK_ADDED_REPOS+=("$_rline")
+            echo "📄 Added APK repo: ${_rline}" >&2
+        done <<< "$_content"
     elif [[ "$PKG_PREFIX" = "dnf" ]]; then
-        cp "$REPO_FILE" /etc/yum.repos.d/syspkg-installer.repo
-        echo "📄 Written to /etc/yum.repos.d/syspkg-installer.repo" >&2
+        printf '%s' "$_content" >> /etc/yum.repos.d/syspkg-installer.repo
+        echo "📄 Appended to /etc/yum.repos.d/syspkg-installer.repo" >&2
     elif [[ "$PKG_PREFIX" = "zypper" ]]; then
-        cp "$REPO_FILE" /etc/zypp/repos.d/syspkg-installer.repo
-        echo "📄 Written to /etc/zypp/repos.d/syspkg-installer.repo" >&2
+        printf '%s' "$_content" >> /etc/zypp/repos.d/syspkg-installer.repo
+        echo "📄 Appended to /etc/zypp/repos.d/syspkg-installer.repo" >&2
     elif [[ "$PKG_PREFIX" = "pacman" ]]; then
         mkdir -p /etc/pacman.d
-        cp "$REPO_FILE" /etc/pacman.d/syspkg-installer.conf
-        echo "Include = /etc/pacman.d/syspkg-installer.conf" >> /etc/pacman.conf
-        echo "📄 Written to /etc/pacman.d/syspkg-installer.conf (referenced from /etc/pacman.conf)" >&2
+        printf '%s' "$_content" >> /etc/pacman.d/syspkg-installer.conf
+        grep -qxF 'Include = /etc/pacman.d/syspkg-installer.conf' /etc/pacman.conf \
+          || echo "Include = /etc/pacman.d/syspkg-installer.conf" >> /etc/pacman.conf
+        echo "📄 Written to /etc/pacman.d/syspkg-installer.conf" >&2
+    fi
+}
+if [[ -f "$REPO_FILE" || -n "$_M_REPO" ]]; then
+    echo "🗃  Adding repositories." >&2
+    if [[ -f "$REPO_FILE" ]]; then
+        echo "📂 From file '${REPO_FILE}'." >&2
+        _install_repo_content "$(<"$REPO_FILE")"
+    fi
+    if [[ -n "$_M_REPO" ]]; then
+        echo "📂 From manifest repo section." >&2
+        _install_repo_content "$_M_REPO"
     fi
     REPO_ADDED=true
 else
-    echo "ℹ️  No repo file found — skipping." >&2
+    echo "ℹ️  No repo content found — skipping." >&2
 fi
 if [[ "$PKG_MNGR" = "apt-get" && "$INTERACTIVE" == false ]]; then
     echo "🆗 Setting APT to non-interactive mode." >&2
     export DEBIAN_FRONTEND=noninteractive
 fi
-if [[ ( -f "$PKG_FILE" || -n "$MANIFEST" ) && "$NO_UPDATE" == false ]]; then
+if [[ ( -f "$PKG_FILE" || -n "$_M_PKG" ) && "$NO_UPDATE" == false ]]; then
     if [[ ${#UPDATE[@]} -gt 0 ]]; then
         echo "🔄 Updating package lists." >&2
         if [[ "$PKG_MNGR" = "dnf" || "$PKG_MNGR" = "yum" ]]; then
@@ -317,8 +392,8 @@ if [[ ( -f "$PKG_FILE" || -n "$MANIFEST" ) && "$NO_UPDATE" == false ]]; then
     else
         echo "ℹ️  Package list update not supported by '${PKG_MNGR}' — skipping." >&2
     fi
-elif [[ ! -f "$PKG_FILE" && -z "$MANIFEST" ]]; then
-    echo "ℹ️  Package list update skipped (no pkg file or manifest)." >&2
+elif [[ ! -f "$PKG_FILE" && -z "$_M_PKG" ]]; then
+    echo "ℹ️  Package list update skipped (no packages from dir or manifest)." >&2
 else
     echo "ℹ️  Package list update skipped (--no_update)." >&2
 fi
@@ -327,44 +402,10 @@ if [[ -f "$PKG_FILE" ]]; then
     mapfile -t _PKG_FILE_PKGS < <(filter_pkg_lines "$PKG_FILE")
     PACKAGES+=("${_PKG_FILE_PKGS[@]}")
 fi
-if [[ -n "$MANIFEST" ]]; then
-    # Resolve inline content vs file path: inline if value contains a newline.
-    if [[ "$MANIFEST" == *$'\n'* ]]; then
-        _MANIFEST_CONTENT="$MANIFEST"
-        echo "ℹ️  Reading manifest from inline content." >&2
-    elif [[ -f "$MANIFEST" ]]; then
-        _MANIFEST_CONTENT="$(<"$MANIFEST")"
-        echo "ℹ️  Reading manifest from file '$MANIFEST'." >&2
-    else
-        echo "⛔ Manifest file not found: '$MANIFEST'" >&2; exit 1
-    fi
-    # Parse pkg sections: implicit leading block + "--- pkg [selectors]" sections.
-    _in_pkg_section=true
-    _section_active=true
-    while IFS= read -r _mline || [[ -n "$_mline" ]]; do
-        if [[ "$_mline" =~ ^---[[:space:]]+(pkg|prescript|repo|script)(([[:space:]].*)?$) ]]; then
-            _mtype="${BASH_REMATCH[1]}"
-            _mselectors="${BASH_REMATCH[2]# }"
-            if [[ "$_mtype" == "pkg" ]]; then
-                _in_pkg_section=true
-            else
-                _in_pkg_section=false
-            fi
-            if pkg_matches_selectors "$_mselectors"; then
-                _section_active=true
-            else
-                _section_active=false
-            fi
-            continue
-        fi
-        [[ "$_in_pkg_section" == true && "$_section_active" == true ]] || continue
-        [[ "$_mline" =~ ^[[:space:]]*(#|$) ]] && continue
-        if pkg_matches_selectors "$_mline"; then
-            _mpkg="${_mline%%\[*}"
-            _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"  # rtrim
-            [[ -n "$_mpkg" ]] && PACKAGES+=("$_mpkg")
-        fi
-    done <<< "$_MANIFEST_CONTENT"
+if [[ -n "$_M_PKG" ]]; then
+    while IFS= read -r _mpkg || [[ -n "$_mpkg" ]]; do
+        [[ -n "$_mpkg" ]] && PACKAGES+=("$_mpkg")
+    done <<< "$_M_PKG"
 fi
 if [[ ${#PACKAGES[@]} -eq 0 ]]; then
     echo "ℹ️  No packages to install — skipping." >&2
@@ -372,13 +413,24 @@ else
     echo "📦 Installing ${#PACKAGES[@]} package(s)." >&2
     install "${PACKAGES[@]}"
 fi
-if [[ -f "$SCRIPT_FILE" ]]; then
-    echo "🚀 Running post-installation script '${SCRIPT_FILE}'." >&2
-    chmod +x "$SCRIPT_FILE"
-    "$SCRIPT_FILE"
-    echo "✅ Post-installation script completed." >&2
+if [[ -f "$SCRIPT_FILE" || -n "$_M_SCRIPT" ]]; then
+    if [[ -f "$SCRIPT_FILE" ]]; then
+        echo "🚀 Running post-installation script '${SCRIPT_FILE}'." >&2
+        chmod +x "$SCRIPT_FILE"
+        "$SCRIPT_FILE"
+        echo "✅ Post-installation script completed." >&2
+    fi
+    if [[ -n "$_M_SCRIPT" ]]; then
+        echo "🚀 Running manifest script." >&2
+        _M_SCRIPT_TMP="$(mktemp)"
+        printf '%s' "$_M_SCRIPT" > "$_M_SCRIPT_TMP"
+        chmod +x "$_M_SCRIPT_TMP"
+        bash "$_M_SCRIPT_TMP"
+        rm -f "$_M_SCRIPT_TMP"
+        echo "✅ Manifest script completed." >&2
+    fi
 else
-    echo "ℹ️  No script file found — skipping." >&2
+    echo "ℹ️  No script found — skipping." >&2
 fi
 if [[ "$REPO_ADDED" == true && "$KEEP_REPOS" == false ]]; then
     echo "🗑️  Removing added repositories." >&2
