@@ -34,6 +34,11 @@
          "description": "Do not clean the package manager cache after installation.\nBy default, the package manager's cache is cleaned after installation.\nThis option skips that step.\n",
          "type": "boolean"
       },
+      "manifest": {
+         "default": "",
+         "description": "Inline manifest content or path to a manifest file.\nA manifest is a text document divided into sections by '--- type [selectors]'\nheaders. The implicit leading block (before any header) is treated as a 'pkg'\nsection. Supported section types: pkg, prescript, repo, script.\nOptional selector blocks on a section header (or on individual package lines)\nuse the syntax '[key=val, key=val]' and are matched against /etc/os-release\nfields plus the synthetic keys 'pm' (e.g. apt) and 'arch' (e.g. x86_64).\nMultiple blocks on the same line are OR'd; conditions within a block are AND'd.\nInline content is detected when the value contains a newline; otherwise the\nvalue is treated as a file path.\n",
+         "type": "string"
+      },
       "no_update": {
          "default": false,
          "description": "Do not update package lists before installation.\nBy default, package lists are refreshed before installing packages.\nThis option skips that step.\n",

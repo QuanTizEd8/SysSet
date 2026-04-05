@@ -76,5 +76,29 @@
         "features": {
             "install-os-pkg": { "dir": "/tmp/test-data" }
         }
+    },
+    "apt_manifest_inline": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "# inline manifest\ntree\ncurl\n" }
+        }
+    },
+    "apt_manifest_file": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+        }
+    },
+    "apt_manifest_section_selector": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+        }
+    },
+    "apk_manifest_file": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+        }
     }
 }

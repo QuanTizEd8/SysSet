@@ -134,6 +134,7 @@ if [ "$#" -gt 0 ]; then
   INTERACTIVE=""
   KEEP_REPOS=""
   LOGFILE=""
+  MANIFEST=""
   NO_CLEAN=""
   NO_UPDATE=""
   while [[ $# -gt 0 ]]; do
@@ -143,6 +144,7 @@ if [ "$#" -gt 0 ]; then
       --interactive) shift; INTERACTIVE=true; echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2;;
       --keep_repos) shift; KEEP_REPOS=true; echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2;;
       --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2; shift;;
+      --manifest) shift; MANIFEST="$1"; echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2; shift;;
       --no_clean) shift; NO_CLEAN=true; echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2;;
       --no_update) shift; NO_UPDATE=true; echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2;;
       --*) echo "⛔ Unknown option: "$1"" >&2; exit 1;;
@@ -156,12 +158,17 @@ else
   [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2
   [ "${KEEP_REPOS+defined}" ] && echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2
+  [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2
   [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2
   [ "${NO_UPDATE+defined}" ] && echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
-[ -z "${DIR-}" ] && { echo "⛔ Missing required argument 'DIR'." >&2; exit 1; }
+[ -z "${MANIFEST-}" ] && { echo "ℹ️ Argument 'MANIFEST' set to default value ''." >&2; MANIFEST=""; }
+[ -z "${DIR-}" ] && { echo "ℹ️ Argument 'DIR' set to default value ''." >&2; DIR=""; }
+if [[ -z "$DIR" && -z "$MANIFEST" ]]; then
+    echo "⛔ At least one of 'DIR' or 'MANIFEST' must be provided." >&2; exit 1
+fi
 [ -n "${DIR-}" ] && [ ! -d "$DIR" ] && { echo "⛔ Directory argument to parameter 'DIR' not found: '$DIR'" >&2; exit 1; }
 [ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
 [ -z "${KEEP_REPOS-}" ] && { echo "ℹ️ Argument 'KEEP_REPOS' set to default value 'false'." >&2; KEEP_REPOS=false; }
@@ -291,7 +298,7 @@ if [[ "$PKG_MNGR" = "apt-get" && "$INTERACTIVE" == false ]]; then
     echo "🆗 Setting APT to non-interactive mode." >&2
     export DEBIAN_FRONTEND=noninteractive
 fi
-if [[ -f "$PKG_FILE" && "$NO_UPDATE" == false ]]; then
+if [[ ( -f "$PKG_FILE" || -n "$MANIFEST" ) && "$NO_UPDATE" == false ]]; then
     if [[ ${#UPDATE[@]} -gt 0 ]]; then
         echo "🔄 Updating package lists." >&2
         if [[ "$PKG_MNGR" = "dnf" || "$PKG_MNGR" = "yum" ]]; then
@@ -303,21 +310,60 @@ if [[ -f "$PKG_FILE" && "$NO_UPDATE" == false ]]; then
     else
         echo "ℹ️  Package list update not supported by '${PKG_MNGR}' — skipping." >&2
     fi
-elif [[ ! -f "$PKG_FILE" ]]; then
-    echo "ℹ️  Package list update skipped (no pkg file)." >&2
+elif [[ ! -f "$PKG_FILE" && -z "$MANIFEST" ]]; then
+    echo "ℹ️  Package list update skipped (no pkg file or manifest)." >&2
 else
     echo "ℹ️  Package list update skipped (--no_update)." >&2
 fi
+PACKAGES=()
 if [[ -f "$PKG_FILE" ]]; then
-    mapfile -t PACKAGES < <(filter_pkg_lines "$PKG_FILE")
-    if [[ ${#PACKAGES[@]} -eq 0 ]]; then
-        echo "⚠️  No packages found in '${PKG_FILE}' — skipping install." >&2
+    mapfile -t _PKG_FILE_PKGS < <(filter_pkg_lines "$PKG_FILE")
+    PACKAGES+=("${_PKG_FILE_PKGS[@]}")
+fi
+if [[ -n "$MANIFEST" ]]; then
+    # Resolve inline content vs file path: inline if value contains a newline.
+    if [[ "$MANIFEST" == *$'\n'* ]]; then
+        _MANIFEST_CONTENT="$MANIFEST"
+        echo "ℹ️  Reading manifest from inline content." >&2
+    elif [[ -f "$MANIFEST" ]]; then
+        _MANIFEST_CONTENT="$(<"$MANIFEST")"
+        echo "ℹ️  Reading manifest from file '$MANIFEST'." >&2
     else
-        echo "📦 Installing ${#PACKAGES[@]} package(s) from '${PKG_FILE}'." >&2
-        install "${PACKAGES[@]}"
+        echo "⛔ Manifest file not found: '$MANIFEST'" >&2; exit 1
     fi
+    # Parse pkg sections: implicit leading block + "--- pkg [selectors]" sections.
+    _in_pkg_section=true
+    _section_active=true
+    while IFS= read -r _mline || [[ -n "$_mline" ]]; do
+        if [[ "$_mline" =~ ^---[[:space:]]+(pkg|prescript|repo|script)(([[:space:]].*)?$) ]]; then
+            _mtype="${BASH_REMATCH[1]}"
+            _mselectors="${BASH_REMATCH[2]# }"
+            if [[ "$_mtype" == "pkg" ]]; then
+                _in_pkg_section=true
+            else
+                _in_pkg_section=false
+            fi
+            if pkg_matches_selectors "$_mselectors"; then
+                _section_active=true
+            else
+                _section_active=false
+            fi
+            continue
+        fi
+        [[ "$_in_pkg_section" == true && "$_section_active" == true ]] || continue
+        [[ "$_mline" =~ ^[[:space:]]*(#|$) ]] && continue
+        if pkg_matches_selectors "$_mline"; then
+            _mpkg="${_mline%%\[*}"
+            _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"  # rtrim
+            [[ -n "$_mpkg" ]] && PACKAGES+=("$_mpkg")
+        fi
+    done <<< "$_MANIFEST_CONTENT"
+fi
+if [[ ${#PACKAGES[@]} -eq 0 ]]; then
+    echo "ℹ️  No packages to install — skipping." >&2
 else
-    echo "ℹ️  No pkg file found — skipping install." >&2
+    echo "📦 Installing ${#PACKAGES[@]} package(s)." >&2
+    install "${PACKAGES[@]}"
 fi
 if [[ -f "$SCRIPT_FILE" ]]; then
     echo "🚀 Running post-installation script '${SCRIPT_FILE}'." >&2
