@@ -259,7 +259,7 @@ echo "   prescript : ${PRESCRIPT_FILE}" >&2
 echo "   repo      : ${REPO_FILE}" >&2
 echo "   pkg       : ${PKG_FILE}" >&2
 echo "   script    : ${SCRIPT_FILE}" >&2
-if [[ ! -f "$PRESCRIPT_FILE" && ! -f "$REPO_FILE" && ! -f "$PKG_FILE" && ! -f "$SCRIPT_FILE" ]]; then
+if [[ -z "$MANIFEST" && ! -f "$PRESCRIPT_FILE" && ! -f "$REPO_FILE" && ! -f "$PKG_FILE" && ! -f "$SCRIPT_FILE" ]]; then
     echo "ℹ️  No files found for ecosystem '${PKG_PREFIX}' in '${DIR}'. Nothing to do." >&2
     exit 0
 fi
