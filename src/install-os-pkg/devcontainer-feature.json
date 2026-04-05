@@ -1,6 +1,8 @@
 {
    "id": "install-os-pkg",
+   "version": "0.1.0",
    "name": "OS Package Installer",
+   "description": "Install packages from the operating system's package manager.",
    "options": {
       "debug": {
          "default": false,
@@ -37,6 +39,5 @@
          "description": "Do not update package lists before installation.\nBy default, package lists are refreshed before installing packages.\nThis option skips that step.\n",
          "type": "boolean"
       }
-   },
-   "version": "0.1.0"
+   }
 }
