@@ -1,4 +1,3 @@
 FROM alpine:latest
 RUN apk update \
- && mkdir -p /tmp/test-data \
- && echo "tree" > /tmp/test-data/apk-pkg
+ && printf '%s\n' '--- pkg [pm=apk]' 'tree' > /tmp/manifest.txt

@@ -1,3 +1,2 @@
 FROM alpine:latest
-RUN mkdir -p /tmp/test-data \
- && echo "tree" > /tmp/test-data/apk-pkg
+RUN printf '%s\n' '--- pkg [pm=apk]' 'tree' > /tmp/manifest.txt

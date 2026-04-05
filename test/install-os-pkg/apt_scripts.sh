@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that apt-prescript runs before package install and apt-script runs
+# Verifies that manifest prescript runs before package install and script runs
 # after, each leaving a marker file, and that the target package is installed.
 set -e
 

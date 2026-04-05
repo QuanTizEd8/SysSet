@@ -1,5 +1,5 @@
-# Debian uses APT, but this directory only contains an APK package file.
-# The feature should detect APT, find no apt-* files, and exit cleanly.
+# Manifest contains only an APK pkg section.
+# On Debian (APT), the section selector [pm=apk] filters it out.
+# The feature should detect no matching packages and exit cleanly.
 FROM debian:latest
-RUN mkdir -p /tmp/test-data \
- && echo "tree" > /tmp/test-data/apk-pkg
+RUN printf '%s\n' '--- pkg [pm=apk]' 'tree' > /tmp/manifest.txt

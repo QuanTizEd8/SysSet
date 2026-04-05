@@ -1,3 +1,2 @@
 FROM opensuse/leap:latest
-RUN mkdir -p /tmp/test-data \
- && echo "tree" > /tmp/test-data/zypper-pkg
+RUN printf '%s\n' '--- pkg [pm=zypper]' 'tree' > /tmp/manifest.txt

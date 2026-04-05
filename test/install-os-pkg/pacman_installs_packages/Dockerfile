@@ -1,3 +1,2 @@
 FROM archlinux:latest
-RUN mkdir -p /tmp/test-data \
- && echo "tree" > /tmp/test-data/pacman-pkg
+RUN printf '%s\n' '--- pkg [pm=pacman]' 'tree' > /tmp/manifest.txt

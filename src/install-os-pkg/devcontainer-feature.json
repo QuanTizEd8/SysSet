@@ -9,11 +9,6 @@
          "description": "Enable debug output.",
          "type": "boolean"
       },
-      "dir": {
-         "default": "",
-         "description": "Path to directory containing ecosystem-specific package files.\nPath to a directory containing files named '{prefix}-{type}', where\n'{prefix}' is one of: apt, apk, dnf, zypper, pacman \u2014 corresponding to the\ndetected package ecosystem \u2014 and '{type}' is one of:\n- prescript: executed before repository addition (e.g. GPG key import)\n- repo: repository definition, written verbatim as a drop-in config file\n- pkg: newline-separated package specifications to install\n- script: executed after package installation (e.g. post-install setup)\nAll files are optional. If none are found for the detected ecosystem,\nthe script exits successfully without doing anything.\nThe dnf prefix is shared by dnf, microdnf, and yum,\nas they all operate on the same package ecosystem.\n",
-         "type": "string"
-      },
       "interactive": {
          "default": false,
          "description": "Run in interactive mode.\nBy default, the installation runs non-interactively.\nSet this flag to allow interactive prompts.\n",

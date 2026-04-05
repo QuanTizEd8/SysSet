@@ -201,9 +201,8 @@ fi
 [[ "$DEBUG" == true ]] && set -x
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
 [ -z "${MANIFEST-}" ] && { echo "ℹ️ Argument 'MANIFEST' set to default value ''." >&2; MANIFEST=""; }
-[ -z "${DIR-}" ] && { echo "ℹ️ Argument 'DIR' set to default value ''." >&2; DIR=""; }
-if [[ -z "$DIR" && -z "$MANIFEST" ]]; then
-    echo "⛔ At least one of 'DIR' or 'MANIFEST' must be provided." >&2; exit 1
+if [[ -z "$MANIFEST" ]]; then
+    echo "⛔ 'MANIFEST' is required." >&2; exit 1
 fi
 # Normalize: some environments (e.g. devcontainer CLI build args) serialize
 # multi-line strings with literal \n rather than real newlines.  Expand them
@@ -212,14 +211,12 @@ if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
     MANIFEST="$(printf '%b' "$MANIFEST")"
     echo "ℹ️  Expanded literal \\n escapes in MANIFEST value." >&2
 fi
-[ -n "${DIR-}" ] && [ ! -d "$DIR" ] && { echo "⛔ Directory argument to parameter 'DIR' not found: '$DIR'" >&2; exit 1; }
 [ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
 [ -z "${KEEP_REPOS-}" ] && { echo "ℹ️ Argument 'KEEP_REPOS' set to default value 'false'." >&2; KEEP_REPOS=false; }
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${NO_CLEAN-}" ] && { echo "ℹ️ Argument 'NO_CLEAN' set to default value 'false'." >&2; NO_CLEAN=false; }
 [ -z "${NO_UPDATE-}" ] && { echo "ℹ️ Argument 'NO_UPDATE' set to default value 'false'." >&2; NO_UPDATE=false; }
 exit_if_not_root
-DIR="${DIR%/}"
 if type apt-get > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: APT (tool: apt-get)" >&2
     PKG_PREFIX="apt"
@@ -286,20 +283,7 @@ fi
 OS_RELEASE[pm]="$PKG_PREFIX"
 OS_RELEASE[arch]="$(uname -m)"
 echo "🔍 OS context: pm=${OS_RELEASE[pm]} arch=${OS_RELEASE[arch]} id=${OS_RELEASE[id]-} id_like=${OS_RELEASE[id_like]-} version_id=${OS_RELEASE[version_id]-} version_codename=${OS_RELEASE[version_codename]-}" >&2
-PRESCRIPT_FILE="${DIR}/${PKG_PREFIX}-prescript"
-REPO_FILE="${DIR}/${PKG_PREFIX}-repo"
-PKG_FILE="${DIR}/${PKG_PREFIX}-pkg"
-SCRIPT_FILE="${DIR}/${PKG_PREFIX}-script"
-echo "ℹ️  Looking for files with prefix '${PKG_PREFIX}' in '${DIR}':" >&2
-echo "   prescript : ${PRESCRIPT_FILE}" >&2
-echo "   repo      : ${REPO_FILE}" >&2
-echo "   pkg       : ${PKG_FILE}" >&2
-echo "   script    : ${SCRIPT_FILE}" >&2
-if [[ -z "$MANIFEST" && ! -f "$PRESCRIPT_FILE" && ! -f "$REPO_FILE" && ! -f "$PKG_FILE" && ! -f "$SCRIPT_FILE" ]]; then
-    echo "ℹ️  No files found for ecosystem '${PKG_PREFIX}' in '${DIR}'. Nothing to do." >&2
-    exit 0
-fi
-# Resolve and parse manifest once so all four section variables are available.
+# Resolve and parse manifest.
 _M_PRESCRIPT="" _M_REPO="" _M_PKG="" _M_SCRIPT=""
 if [[ -n "$MANIFEST" ]]; then
     if [[ "$MANIFEST" == *$'\n'* ]]; then
@@ -312,22 +296,14 @@ if [[ -n "$MANIFEST" ]]; then
     parse_manifest "$_MANIFEST_CONTENT"
     echo "ℹ️  Manifest parsed: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') prescript line(s), $(echo -n "$_M_REPO" | wc -l | tr -d ' ') repo line(s), $(echo -n "$_M_PKG" | wc -w | tr -d ' ') pkg(s), $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') script line(s)." >&2
 fi
-if [[ -f "$PRESCRIPT_FILE" || -n "$_M_PRESCRIPT" ]]; then
-    if [[ -f "$PRESCRIPT_FILE" ]]; then
-        echo "🚀 Running pre-installation script '${PRESCRIPT_FILE}'." >&2
-        chmod +x "$PRESCRIPT_FILE"
-        "$PRESCRIPT_FILE"
-        echo "✅ Pre-installation script completed." >&2
-    fi
-    if [[ -n "$_M_PRESCRIPT" ]]; then
-        echo "🚀 Running manifest prescript." >&2
-        _M_PRESCRIPT_TMP="$(mktemp)"
-        printf '%s' "$_M_PRESCRIPT" > "$_M_PRESCRIPT_TMP"
-        chmod +x "$_M_PRESCRIPT_TMP"
-        bash "$_M_PRESCRIPT_TMP"
-        rm -f "$_M_PRESCRIPT_TMP"
-        echo "✅ Manifest prescript completed." >&2
-    fi
+if [[ -n "$_M_PRESCRIPT" ]]; then
+    echo "🚀 Running manifest prescript." >&2
+    _M_PRESCRIPT_TMP="$(mktemp)"
+    printf '%s' "$_M_PRESCRIPT" > "$_M_PRESCRIPT_TMP"
+    chmod +x "$_M_PRESCRIPT_TMP"
+    bash "$_M_PRESCRIPT_TMP"
+    rm -f "$_M_PRESCRIPT_TMP"
+    echo "✅ Manifest prescript completed." >&2
 else
     echo "ℹ️  No prescript found — skipping." >&2
 fi
@@ -362,16 +338,10 @@ _install_repo_content() {
         echo "📄 Written to /etc/pacman.d/syspkg-installer.conf" >&2
     fi
 }
-if [[ -f "$REPO_FILE" || -n "$_M_REPO" ]]; then
+if [[ -n "$_M_REPO" ]]; then
     echo "🗃  Adding repositories." >&2
-    if [[ -f "$REPO_FILE" ]]; then
-        echo "📂 From file '${REPO_FILE}'." >&2
-        _install_repo_content "$(<"$REPO_FILE")"
-    fi
-    if [[ -n "$_M_REPO" ]]; then
-        echo "📂 From manifest repo section." >&2
-        _install_repo_content "$_M_REPO"
-    fi
+    echo "📂 From manifest repo section." >&2
+    _install_repo_content "$_M_REPO"
     REPO_ADDED=true
 else
     echo "ℹ️  No repo content found — skipping." >&2
@@ -380,7 +350,7 @@ if [[ "$PKG_MNGR" = "apt-get" && "$INTERACTIVE" == false ]]; then
     echo "🆗 Setting APT to non-interactive mode." >&2
     export DEBIAN_FRONTEND=noninteractive
 fi
-if [[ ( -f "$PKG_FILE" || -n "$_M_PKG" ) && "$NO_UPDATE" == false ]]; then
+if [[ -n "$_M_PKG" && "$NO_UPDATE" == false ]]; then
     if [[ ${#UPDATE[@]} -gt 0 ]]; then
         echo "🔄 Updating package lists." >&2
         if [[ "$PKG_MNGR" = "dnf" || "$PKG_MNGR" = "yum" ]]; then
@@ -392,16 +362,12 @@ if [[ ( -f "$PKG_FILE" || -n "$_M_PKG" ) && "$NO_UPDATE" == false ]]; then
     else
         echo "ℹ️  Package list update not supported by '${PKG_MNGR}' — skipping." >&2
     fi
-elif [[ ! -f "$PKG_FILE" && -z "$_M_PKG" ]]; then
-    echo "ℹ️  Package list update skipped (no packages from dir or manifest)." >&2
+elif [[ -z "$_M_PKG" ]]; then
+    echo "ℹ️  Package list update skipped (no packages in manifest)." >&2
 else
     echo "ℹ️  Package list update skipped (--no_update)." >&2
 fi
 PACKAGES=()
-if [[ -f "$PKG_FILE" ]]; then
-    mapfile -t _PKG_FILE_PKGS < <(filter_pkg_lines "$PKG_FILE")
-    PACKAGES+=("${_PKG_FILE_PKGS[@]}")
-fi
 if [[ -n "$_M_PKG" ]]; then
     while IFS= read -r _mpkg || [[ -n "$_mpkg" ]]; do
         [[ -n "$_mpkg" ]] && PACKAGES+=("$_mpkg")
@@ -413,22 +379,14 @@ else
     echo "📦 Installing ${#PACKAGES[@]} package(s)." >&2
     install "${PACKAGES[@]}"
 fi
-if [[ -f "$SCRIPT_FILE" || -n "$_M_SCRIPT" ]]; then
-    if [[ -f "$SCRIPT_FILE" ]]; then
-        echo "🚀 Running post-installation script '${SCRIPT_FILE}'." >&2
-        chmod +x "$SCRIPT_FILE"
-        "$SCRIPT_FILE"
-        echo "✅ Post-installation script completed." >&2
-    fi
-    if [[ -n "$_M_SCRIPT" ]]; then
-        echo "🚀 Running manifest script." >&2
-        _M_SCRIPT_TMP="$(mktemp)"
-        printf '%s' "$_M_SCRIPT" > "$_M_SCRIPT_TMP"
-        chmod +x "$_M_SCRIPT_TMP"
-        bash "$_M_SCRIPT_TMP"
-        rm -f "$_M_SCRIPT_TMP"
-        echo "✅ Manifest script completed." >&2
-    fi
+if [[ -n "$_M_SCRIPT" ]]; then
+    echo "🚀 Running manifest script." >&2
+    _M_SCRIPT_TMP="$(mktemp)"
+    printf '%s' "$_M_SCRIPT" > "$_M_SCRIPT_TMP"
+    chmod +x "$_M_SCRIPT_TMP"
+    bash "$_M_SCRIPT_TMP"
+    rm -f "$_M_SCRIPT_TMP"
+    echo "✅ Manifest script completed." >&2
 else
     echo "ℹ️  No script found — skipping." >&2
 fi

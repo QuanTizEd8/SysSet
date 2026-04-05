@@ -1,4 +1,6 @@
 FROM debian:latest
-RUN mkdir -p /tmp/test-data \
- && printf 'tree [pm=apt]\ncurl [pm=apt, id=debian]\nnot-a-real-package [pm=apk]\n' \
-      > /tmp/test-data/apt-pkg
+RUN printf '%s\n' \
+      'tree [pm=apt]' \
+      'curl [pm=apt, id=debian]' \
+      'not-a-real-package [pm=apk]' \
+      > /tmp/manifest.txt

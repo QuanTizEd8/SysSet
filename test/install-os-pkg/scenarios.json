@@ -2,79 +2,79 @@
     "apt_installs_packages": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "apt_no_update": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data", "no_update": true }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_update": true }
         }
     },
     "apt_no_clean": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data", "no_clean": true }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_clean": true }
         }
     },
     "apt_scripts": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "apt_logfile": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data", "logfile": "/tmp/install-os-pkg.log" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "logfile": "/tmp/install-os-pkg.log" }
         }
     },
     "apt_empty_dir": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "no_matching_files": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "apk_installs_packages": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "apk_no_update": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data", "no_update": true }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_update": true }
         }
     },
     "dnf_installs_packages": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "zypper_installs_packages": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "pacman_installs_packages": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "apt_pkg_selectors": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     },
     "apt_manifest_inline": {
@@ -122,7 +122,7 @@
     "apt_system_command": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "dir": "/tmp/test-data" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
     }
 }

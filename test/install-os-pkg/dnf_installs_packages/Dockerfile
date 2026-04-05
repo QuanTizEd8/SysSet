@@ -1,3 +1,2 @@
 FROM fedora:latest
-RUN mkdir -p /tmp/test-data \
- && echo "tree" > /tmp/test-data/dnf-pkg
+RUN printf '%s\n' '--- pkg [pm=dnf]' 'tree' > /tmp/manifest.txt
