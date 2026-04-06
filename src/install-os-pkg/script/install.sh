@@ -171,6 +171,7 @@ if [ "$#" -gt 0 ]; then
   MANIFEST=""
   NO_CLEAN=""
   NO_UPDATE=""
+  DRY_RUN=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '"$DEBUG"'" >&2;;
@@ -183,6 +184,7 @@ if [ "$#" -gt 0 ]; then
       --manifest) shift; MANIFEST="$1"; echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2; shift;;
       --no_clean) shift; NO_CLEAN=true; echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2;;
       --no_update) shift; NO_UPDATE=true; echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2;;
+      --dry_run) shift; DRY_RUN=true; echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2;;
       --*) echo "⛔ Unknown option: "$1"" >&2; exit 1;;
       *) echo "⛔ Unexpected argument: "$1"" >&2; exit 1;;
     esac
@@ -198,6 +200,7 @@ else
   [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2
   [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2
   [ "${NO_UPDATE+defined}" ] && echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2
+  [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
@@ -228,7 +231,9 @@ fi
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${NO_CLEAN-}" ] && { echo "ℹ️ Argument 'NO_CLEAN' set to default value 'false'." >&2; NO_CLEAN=false; }
 [ -z "${NO_UPDATE-}" ] && { echo "ℹ️ Argument 'NO_UPDATE' set to default value 'false'." >&2; NO_UPDATE=false; }
-exit_if_not_root
+[ -z "${DRY_RUN-}" ] && { echo "ℹ️ Argument 'DRY_RUN' set to default value 'false'." >&2; DRY_RUN=false; }
+[[ "$DRY_RUN" == true ]] && echo "🔍 Dry-run mode enabled — no changes will be made." >&2
+[[ "$DRY_RUN" == true ]] || exit_if_not_root
 if type apt-get > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: APT (tool: apt-get)" >&2
     PKG_PREFIX="apt"
@@ -341,7 +346,12 @@ if [[ -n "$_M_PRESCRIPT" ]]; then
     _M_PRESCRIPT_TMP="$(mktemp)"
     printf '%s' "$_M_PRESCRIPT" > "$_M_PRESCRIPT_TMP"
     chmod +x "$_M_PRESCRIPT_TMP"
-    bash "$_M_PRESCRIPT_TMP"
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "🔍 [dry-run] prescript: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') line(s) — would execute:" >&2
+        sed 's/^/    /' "$_M_PRESCRIPT_TMP" >&2
+    else
+        bash "$_M_PRESCRIPT_TMP"
+    fi
     rm -f "$_M_PRESCRIPT_TMP"
     echo "✅ Manifest prescript completed." >&2
 else
@@ -381,8 +391,12 @@ _install_repo_content() {
 if [[ -n "$_M_REPO" ]]; then
     echo "🗃  Adding repositories." >&2
     echo "📂 From manifest repo section." >&2
-    _install_repo_content "$_M_REPO"
-    REPO_ADDED=true
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "🔍 [dry-run] repo: $(echo -n "$_M_REPO" | wc -l | tr -d ' ') line(s) — would add to package manager repos." >&2
+    else
+        _install_repo_content "$_M_REPO"
+        REPO_ADDED=true
+    fi
 else
     echo "ℹ️  No repo content found — skipping." >&2
 fi
@@ -393,7 +407,9 @@ fi
 if [[ -n "$_M_PKG" && "$NO_UPDATE" == false ]]; then
     if [[ ${#UPDATE[@]} -gt 0 ]]; then
         echo "🔄 Updating package lists." >&2
-        if [[ "$PKG_MNGR" = "dnf" || "$PKG_MNGR" = "yum" ]]; then
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "🔍 [dry-run] update: would run: ${UPDATE[*]}" >&2
+        elif [[ "$PKG_MNGR" = "dnf" || "$PKG_MNGR" = "yum" ]]; then
             "${UPDATE[@]}" || [[ $? -eq 100 ]]
         else
             "${UPDATE[@]}"
@@ -417,14 +433,23 @@ if [[ ${#PACKAGES[@]} -eq 0 ]]; then
     echo "ℹ️  No packages to install — skipping." >&2
 else
     echo "📦 Installing ${#PACKAGES[@]} package(s)." >&2
-    install "${PACKAGES[@]}"
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "🔍 [dry-run] packages (${#PACKAGES[@]}): ${PACKAGES[*]}" >&2
+    else
+        install "${PACKAGES[@]}"
+    fi
 fi
 if [[ -n "$_M_SCRIPT" ]]; then
     echo "🚀 Running manifest script." >&2
     _M_SCRIPT_TMP="$(mktemp)"
     printf '%s' "$_M_SCRIPT" > "$_M_SCRIPT_TMP"
     chmod +x "$_M_SCRIPT_TMP"
-    bash "$_M_SCRIPT_TMP"
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "🔍 [dry-run] script: $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') line(s) — would execute:" >&2
+        sed 's/^/    /' "$_M_SCRIPT_TMP" >&2
+    else
+        bash "$_M_SCRIPT_TMP"
+    fi
     rm -f "$_M_SCRIPT_TMP"
     echo "✅ Manifest script completed." >&2
 else
@@ -454,7 +479,9 @@ if [[ "$REPO_ADDED" == true && "$KEEP_REPOS" == false ]]; then
 elif [[ "$REPO_ADDED" == true ]]; then
     echo "ℹ️  Keeping added repositories (--keep_repos)." >&2
 fi
-if [[ "$NO_CLEAN" == false ]]; then
+if [[ "$DRY_RUN" == true ]]; then
+    echo "🔍 [dry-run] cache clean: would run ${CLEAN[*]}" >&2
+elif [[ "$NO_CLEAN" == false ]]; then
     echo "🧹 Cleaning package manager cache." >&2
     "${CLEAN[@]}"
 else
