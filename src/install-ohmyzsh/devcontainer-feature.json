@@ -3,6 +3,11 @@
    "id": "install-ohmyzsh",
    "name": "Oh My Zsh Installation",
    "options": {
+      "configure_zshrc_for": {
+         "default": "",
+         "description": "Comma-separated list of usernames whose `~/.zshrc` should be configured to source Oh My Zsh.\nFor each user a guarded block is written (or replaced) between `# BEGIN install-ohmyzsh` and `# END install-ohmyzsh` markers.\nUse `root` to configure the root user.\n",
+         "type": "string"
+      },
       "debug": {
          "default": false,
          "description": "Enable debug output.",
@@ -15,17 +20,32 @@
       },
       "install_dir": {
          "default": "/usr/local/share/oh-my-zsh",
-         "description": "Path to the Oh My Zsh installation directory.\nThis is the directory where Oh My Zsh will be installed.\nIt corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh_custom)\nconfiguration variable in Oh My Zsh.\n",
+         "description": "Path to the Oh My Zsh installation directory.\nThis is the directory where Oh My Zsh will be installed.\nIt corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh)\nconfiguration variable in Oh My Zsh.\n",
          "type": "string"
+      },
+      "install_fonts": {
+         "default": true,
+         "description": "Download and install the MesloLGS Nerd Font files to `font_dir` and refresh the font cache.",
+         "type": "boolean"
       },
       "logfile": {
          "default": "",
          "description": "Log all output (stdout + stderr) to this file in addition to console.",
          "type": "string"
       },
+      "plugins": {
+         "default": "zsh-users/zsh-syntax-highlighting",
+         "description": "Comma-separated list of Oh My Zsh custom plugins to install, each as a `owner/repo` GitHub slug.\nThe repository is cloned into `<zsh_custom_dir>/plugins/<repo>`.\nSet to an empty string to install no custom plugins.\n",
+         "type": "string"
+      },
+      "theme": {
+         "default": "romkatv/powerlevel10k",
+         "description": "Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug.\nThe repository is cloned into `<zsh_custom_dir>/themes/<repo>`.\nSet to an empty string to install no custom theme.\n",
+         "type": "string"
+      },
       "zsh_custom_dir": {
-         "default": "/usr/local/share/oh-my-zsh/custom",
-         "description": "Path to the Oh My Zsh custom directory.\nThis corresponds to the [`ZSH_CUSTOM`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh_custom)\nconfiguration variable in Oh My Zsh.\n",
+         "default": "",
+         "description": "Path to the Oh My Zsh custom directory.\nThis corresponds to the [`ZSH_CUSTOM`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh_custom)\nconfiguration variable in Oh My Zsh.\nDefaults to `<install_dir>/custom`.\n",
          "type": "string"
       }
    },

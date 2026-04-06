@@ -4,5 +4,27 @@
         "features": {
             "install-ohmyzsh": {}
         }
+    },
+    "apt_default": {
+        "build": { "dockerfile": "apt_default/Dockerfile" },
+        "features": {
+            "install-ohmyzsh": {}
+        }
+    },
+    "apt_no_fonts": {
+        "build": { "dockerfile": "apt_no_fonts/Dockerfile" },
+        "features": {
+            "install-ohmyzsh": {
+                "install_fonts": false
+            }
+        }
+    },
+    "apt_configure_zshrc": {
+        "build": { "dockerfile": "apt_configure_zshrc/Dockerfile" },
+        "features": {
+            "install-ohmyzsh": {
+                "configure_zshrc_for": "root"
+            }
+        }
     }
 }
