@@ -8,10 +8,10 @@
          "description": "Branch or tag of the ohmyzsh/ohmyzsh repository to clone.\nAlso recorded as `oh-my-zsh.branch` in the git config so `omz update` works correctly.\n",
          "type": "string"
       },
-      "configure_zshrc_for": {
-         "default": "",
-         "description": "Comma-separated list of usernames whose `~/.zshrc` should be configured to source Oh My Zsh.\nFor each user a guarded block is written (or replaced) between `# BEGIN install-ohmyzsh` and `# END install-ohmyzsh` markers.\nUse `root` to configure the root user.\n",
-         "type": "string"
+      "configure_zshrc": {
+         "default": true,
+         "description": "Write (or replace) a guarded oh-my-zsh configuration block between `# BEGIN install-ohmyzsh` and `# END install-ohmyzsh` markers in `/etc/zsh/zshrc`, making the configuration available to every user on the system.\nAlso appends a `.profile` sourcing snippet to `/etc/zsh/zprofile` so that zsh login shells inherit `PATH` and other environment variables configured there.\n",
+         "type": "boolean"
       },
       "debug": {
          "default": false,

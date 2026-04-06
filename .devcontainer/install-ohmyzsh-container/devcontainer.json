@@ -3,7 +3,6 @@
     "image": "debian:latest",
     "features": {
         "../install-ohmyzsh": {
-            "configure_zshrc_for": "root",
             "set_default_shell_for": "root"
         }
     }

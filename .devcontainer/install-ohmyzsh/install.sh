@@ -3,7 +3,7 @@ set -euo pipefail
 __usage__() {
   echo "Usage:" >&2
   echo "  --branch (string): " >&2
-  echo "  --configure_zshrc_for (string): " >&2
+  echo "  --configure_zshrc (boolean): " >&2
   echo "  --debug (boolean): " >&2
   echo "  --font_dir (string): " >&2
   echo "  --install_dir (string): This is the directory where Oh My Zsh will be installed." >&2
@@ -99,7 +99,7 @@ trap __cleanup__ EXIT
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $@" >&2
   BRANCH=""
-  CONFIGURE_ZSHRC_FOR=""
+  CONFIGURE_ZSHRC=""
   DEBUG=""
   FONT_DIR=""
   INSTALL_DIR=""
@@ -112,7 +112,7 @@ if [ "$#" -gt 0 ]; then
   while [[ $# -gt 0 ]]; do
     case $1 in
       --branch) shift; BRANCH="$1"; echo "📩 Read argument 'branch': '${BRANCH}'" >&2; shift;;
-      --configure_zshrc_for) shift; CONFIGURE_ZSHRC_FOR="$1"; echo "📩 Read argument 'configure_zshrc_for': '${CONFIGURE_ZSHRC_FOR}'" >&2; shift;;
+      --configure_zshrc|--no_configure_zshrc) [[ "$1" == --no_* ]] && CONFIGURE_ZSHRC=false || CONFIGURE_ZSHRC=true; echo "📩 Read argument 'configure_zshrc': '${CONFIGURE_ZSHRC}'" >&2; shift;;
       --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '${DEBUG}'" >&2;;
       --font_dir) shift; FONT_DIR="$1"; echo "📩 Read argument 'font_dir': '${FONT_DIR}'" >&2; shift;;
       --install_dir) shift; INSTALL_DIR="$1"; echo "📩 Read argument 'install_dir': '${INSTALL_DIR}'" >&2; shift;;
@@ -130,7 +130,7 @@ if [ "$#" -gt 0 ]; then
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
   [ "${BRANCH+defined}" ] && echo "📩 Read argument 'branch': '${BRANCH}'" >&2
-  [ "${CONFIGURE_ZSHRC_FOR+defined}" ] && echo "📩 Read argument 'configure_zshrc_for': '${CONFIGURE_ZSHRC_FOR}'" >&2
+  [ "${CONFIGURE_ZSHRC+defined}" ] && echo "📩 Read argument 'configure_zshrc': '${CONFIGURE_ZSHRC}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${FONT_DIR+defined}" ] && echo "📩 Read argument 'font_dir': '${FONT_DIR}'" >&2
   [ "${INSTALL_DIR+defined}" ] && echo "📩 Read argument 'install_dir': '${INSTALL_DIR}'" >&2
@@ -143,7 +143,7 @@ else
 fi
 [[ "$DEBUG" == true ]] && set -x
 [ -z "${BRANCH-}" ] && { echo "ℹ️ Argument 'BRANCH' set to default value 'master'." >&2; BRANCH="master"; }
-[ -z "${CONFIGURE_ZSHRC_FOR-}" ] && { echo "ℹ️ Argument 'CONFIGURE_ZSHRC_FOR' set to default value ''." >&2; CONFIGURE_ZSHRC_FOR=""; }
+[ -z "${CONFIGURE_ZSHRC-}" ] && { echo "ℹ️ Argument 'CONFIGURE_ZSHRC' set to default value 'true'." >&2; CONFIGURE_ZSHRC=true; }
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
 [ -z "${FONT_DIR-}" ] && { echo "ℹ️ Argument 'FONT_DIR' set to default value '/usr/share/fonts/MesloLGS'." >&2; FONT_DIR="/usr/share/fonts/MesloLGS"; }
 [ -z "${INSTALL_DIR-}" ] && { echo "ℹ️ Argument 'INSTALL_DIR' set to default value '/usr/local/share/oh-my-zsh'." >&2; INSTALL_DIR="/usr/local/share/oh-my-zsh"; }
@@ -204,8 +204,17 @@ if [[ "$INSTALL_FONTS" == true ]]; then
   fc-cache -f "$FONT_DIR"
   echo "Fonts installed."
 fi
-# --- Configure ~/.zshrc ---
-if [ -n "${CONFIGURE_ZSHRC_FOR-}" ]; then
+# --- Configure global zshrc ---
+if [[ "$CONFIGURE_ZSHRC" == true ]]; then
+  # Detect the system-wide zshrc path: Debian/Ubuntu use /etc/zsh/zshrc;
+  # Alpine compiles zsh with /etc/zshrc.  Fall back to /etc/zsh/zshrc.
+  if [ -d /etc/zsh ]; then
+    _GLOBAL_ZSHRC="/etc/zsh/zshrc"
+    _GLOBAL_ZPROFILE="/etc/zsh/zprofile"
+  else
+    _GLOBAL_ZSHRC="/etc/zshrc"
+    _GLOBAL_ZPROFILE="/etc/zprofile"
+  fi
   # Determine the ZSH_THEME value: custom themes are cloned into a subdir, so
   # oh-my-zsh needs "dirname/theme-file" (without .zsh-theme extension).
   _THEME_ZSH_VALUE=""
@@ -228,55 +237,37 @@ if [ -n "${CONFIGURE_ZSHRC_FOR-}" ]; then
       [ -n "$_p" ] && _PLUGIN_NAMES+=("$(basename "$_p")")
     done
   fi
-  IFS=',' read -r -a _ZSHRC_USERS <<< "$CONFIGURE_ZSHRC_FOR"
-  for _username in "${_ZSHRC_USERS[@]}"; do
-    _username="${_username// /}"
-    [ -z "$_username" ] && continue
-    if [ "$_username" = "root" ]; then
-      _home="/root"
-    else
-      _home="$(getent passwd "$_username" 2>/dev/null | cut -d: -f6)"
-    fi
-    if [ -z "${_home-}" ] || [ ! -d "$_home" ]; then
-      echo "⚠️  Home directory not found for user '${_username}' — skipping .zshrc configuration." >&2
-      continue
-    fi
-    _zshrc="${_home}/.zshrc"
-    touch "$_zshrc"
-    # Remove any existing guarded block
-    _ZSHRC_TMP="$(mktemp)"
-    sed '/# BEGIN install-ohmyzsh/,/# END install-ohmyzsh/d' "$_zshrc" > "$_ZSHRC_TMP"
-    mv "$_ZSHRC_TMP" "$_zshrc"
-    # Append new guarded block
-    {
-      printf '\n# BEGIN install-ohmyzsh\n'
-      printf 'export ZSH="%s"\n' "$INSTALL_DIR"
-      printf 'export ZSH_CUSTOM="%s"\n' "$ZSH_CUSTOM_DIR"
-      [ -n "$_THEME_ZSH_VALUE" ] && printf 'ZSH_THEME="%s"\n' "$_THEME_ZSH_VALUE"
-      [ ${#_PLUGIN_NAMES[@]} -gt 0 ] && printf 'plugins=(%s)\n' "${_PLUGIN_NAMES[*]}"
-      printf '%s\n' '[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"'
-      printf '%s\n' "zstyle ':omz:update' mode disabled"
-      # Suppress the powerlevel10k configuration wizard at shell startup.
-      # The wizard runs automatically when no POWERLEVEL9K_* parameters are set and
-      # ~/.p10k.zsh does not exist.  Disabling it here avoids the interactive prompt
-      # in non-interactive / devcontainer environments.
-      printf '%s\n' 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'
-      # Source per-user p10k config if present (e.g. powerlevel10k configuration).
-      printf '%s\n' '[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'
-      printf '# END install-ohmyzsh\n'
-    } >> "$_zshrc"
-    [ "$_username" != "root" ] && chown "$_username" "$_zshrc" 2>/dev/null || true
-    echo "ℹ️  Configured oh-my-zsh block in '${_zshrc}'." >&2
-    # Create ~/.zprofile that sources ~/.profile so zsh login shells inherit
-    # the same PATH and environment set up by ~/.profile (nvm, pyenv, etc.).
-    _zprofile="${_home}/.zprofile"
-    if [ ! -f "$_zprofile" ] || ! grep -qF 'source $HOME/.profile' "$_zprofile"; then
-      printf '\n# Source ~/.profile so zsh login shells inherit PATH set up there.\n' >> "$_zprofile"
-      printf '%s\n' '[ -f "$HOME/.profile" ] && source "$HOME/.profile"' >> "$_zprofile"
-      [ "$_username" != "root" ] && chown "$_username" "$_zprofile" 2>/dev/null || true
-      echo "ℹ️  Configured '${_zprofile}' to source ~/.profile." >&2
-    fi
-  done
+  mkdir -p "$(dirname "$_GLOBAL_ZSHRC")"
+  touch "$_GLOBAL_ZSHRC"
+  # Remove any existing guarded block
+  _ZSHRC_TMP="$(mktemp)"
+  sed '/# BEGIN install-ohmyzsh/,/# END install-ohmyzsh/d' "$_GLOBAL_ZSHRC" > "$_ZSHRC_TMP"
+  mv "$_ZSHRC_TMP" "$_GLOBAL_ZSHRC"
+  # Append new guarded block
+  {
+    printf '\n# BEGIN install-ohmyzsh\n'
+    printf 'export ZSH="%s"\n' "$INSTALL_DIR"
+    printf 'export ZSH_CUSTOM="%s"\n' "$ZSH_CUSTOM_DIR"
+    [ -n "$_THEME_ZSH_VALUE" ] && printf 'ZSH_THEME="%s"\n' "$_THEME_ZSH_VALUE"
+    [ ${#_PLUGIN_NAMES[@]} -gt 0 ] && printf 'plugins=(%s)\n' "${_PLUGIN_NAMES[*]}"
+    # zstyle and POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD must be set before
+    # oh-my-zsh is sourced: oh-my-zsh reads zstyle during its own init, and
+    # powerlevel10k reads the wizard flag when the theme is loaded (inside source).
+    printf '%s\n' "zstyle ':omz:update' mode disabled"
+    printf '%s\n' 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'
+    printf '%s\n' '[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"'
+    # Source per-user p10k config if present (e.g. powerlevel10k configuration).
+    printf '%s\n' '[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'
+    printf '# END install-ohmyzsh\n'
+  } >> "$_GLOBAL_ZSHRC"
+  echo "ℹ️  Configured oh-my-zsh block in '${_GLOBAL_ZSHRC}'." >&2
+  # Write the global zprofile to source ~/.profile for zsh login shells so that
+  # PATH and other environment variables set up in ~/.profile are inherited.
+  if [ ! -f "$_GLOBAL_ZPROFILE" ] || ! grep -qF '$HOME/.profile' "$_GLOBAL_ZPROFILE"; then
+    printf '\n# Source ~/.profile so zsh login shells inherit PATH set up there.\n' >> "$_GLOBAL_ZPROFILE"
+    printf '%s\n' '[ -f "$HOME/.profile" ] && source "$HOME/.profile"' >> "$_GLOBAL_ZPROFILE"
+    echo "ℹ️  Configured '${_GLOBAL_ZPROFILE}' to source \$HOME/.profile." >&2
+  fi
 fi
 # --- Set default shell ---
 if [ -n "${SET_DEFAULT_SHELL_FOR-}" ]; then

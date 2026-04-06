@@ -33,4 +33,17 @@ check "MesloLGS Bold font present" test -f "${_FONTS}/MesloLGS NF Bold.ttf"
 check "MesloLGS Italic font present" test -f "${_FONTS}/MesloLGS NF Italic.ttf"
 check "MesloLGS Bold Italic font present" test -f "${_FONTS}/MesloLGS NF Bold Italic.ttf"
 
+# Global zshrc (configure_zshrc defaults to true)
+_ZSHRC=/etc/zsh/zshrc
+check "global zshrc exists" test -f "$_ZSHRC"
+check "global zshrc has BEGIN marker" grep -qF '# BEGIN install-ohmyzsh' "$_ZSHRC"
+check "global zshrc exports ZSH" grep -q 'export ZSH=' "$_ZSHRC"
+check "global zshrc exports ZSH_CUSTOM" grep -q 'export ZSH_CUSTOM=' "$_ZSHRC"
+check "global zshrc sets ZSH_THEME dir/file format" grep -qE 'ZSH_THEME="[^/]+/[^/]+"' "$_ZSHRC"
+check "global zshrc disables omz update" grep -qF "zstyle ':omz:update' mode disabled" "$_ZSHRC"
+check "global zshrc disables p10k wizard" grep -qF 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' "$_ZSHRC"
+check "global zshrc: wizard flag before source" bash -c 'awk "/POWERLEVEL9K_DISABLE/{w=NR} /source.*oh-my-zsh/{s=NR} END{exit !(w>0 && s>0 && w<s)}" /etc/zsh/zshrc'
+check "global zshrc sources oh-my-zsh.sh" grep -q 'oh-my-zsh.sh' "$_ZSHRC"
+check "global zshrc sources .p10k.zsh if present" grep -qF '.p10k.zsh' "$_ZSHRC"
+
 reportResults
