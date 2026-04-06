@@ -148,5 +148,29 @@
         "features": {
             "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "postCreate", "debug": true }
         }
+    },
+    "apt_lifecycle_hook_oncreate": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "onCreate" }
+        }
+    },
+    "apt_lifecycle_hook_updatecontent": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "updateContent" }
+        }
+    },
+    "apt_keep_repos": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "keep_repos": true }
+        }
+    },
+    "apt_repo_cleanup": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+        }
     }
 }

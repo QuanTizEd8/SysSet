@@ -19,11 +19,8 @@ clean_apk() {
 }
 clean_apt() {
   echo "↪️ Function entry: clean_apt" >&2
-  if ! apt-get dist-clean; then
-      echo "⚠️  'apt-get dist-clean' failed — falling back to 'apt-get clean'." >&2
-      apt-get clean
-      rm -rf /var/lib/apt/lists/*
-  fi
+  apt-get clean
+  apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
   echo "↩️ Function exit: clean_apt" >&2
 }
 clean_dnf() {
@@ -333,8 +330,6 @@ if [[ -n "$MANIFEST" ]]; then
         _MANIFEST_CONTENT="$MANIFEST"
     elif [[ -f "$MANIFEST" ]]; then
         _MANIFEST_CONTENT="$(<"$MANIFEST")"
-    elif [[ -n "$LIFECYCLE_HOOK" ]]; then
-        : # file will exist at hook runtime; skip existence check during build
     else
         echo "⛔ Manifest file not found: '$MANIFEST'" >&2; exit 1
     fi

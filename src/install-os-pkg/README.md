@@ -60,6 +60,26 @@ or `postCreate` scripts:
 install-os-pkg --manifest /workspace/.devcontainer/extra-packages.txt
 ```
 
+### As a dependency for another devcontainer feature
+
+Other features can declare `install-os-pkg` as a dependency and call the
+installer directly in their own `install.sh` to set up packages as part of
+their own setup process:
+
+```jsonc
+// devcontainer-feature.json of another feature
+{
+  "dependsOn": {
+    "ghcr.io/quantized8/sysset/install-os-pkg:0": {}
+  }
+}
+```
+
+```sh
+# install.sh of another feature
+install-os-pkg --manifest $'git\ncurl\n'
+```
+
 ---
 
 ## Options
@@ -238,6 +258,17 @@ When `lifecycle_hook` is set:
 The other two hook commands are registered as safe no-ops, so they have no
 effect when the files are absent.
 
+The generated hook script looks like this:
+
+```sh
+#!/bin/sh
+set -e
+exec bash "/usr/local/lib/install-os-pkg/install.sh" --manifest /workspace/.devcontainer/packages.txt
+```
+
+Any options that were set on the feature (e.g. `debug`, `keep_repos`,
+`logfile`) are forwarded into the hook script automatically.
+
 > **Note:** `lifecycle_hook` requires a non-empty `manifest`.
 
 ---
@@ -263,3 +294,35 @@ Detection is automatic based on which binary is present:
 | Fedora / RHEL / CentOS | `dnf`, `microdnf`, or `yum` |
 | openSUSE | `zypper` |
 | Arch Linux | `pacman` |
+
+---
+
+## Repository drop-in paths
+
+When a `--- repo` section is present the installer writes content to a
+package-manager-specific drop-in file before running the package update and
+install steps. Unless `keep_repos` is `true`, the file is deleted after
+installation completes so it does not persist in the image.
+
+| Package manager | Drop-in file written |
+|---|---|
+| APT | `/etc/apt/sources.list.d/syspkg-installer.list` |
+| APK | Lines appended to `/etc/apk/repositories` (and reversed on cleanup) |
+| DNF / YUM | `/etc/yum.repos.d/syspkg-installer.repo` |
+| Zypper | `/etc/zypp/repos.d/syspkg-installer.repo` |
+| Pacman | `/etc/pacman.d/syspkg-installer.conf` + `Include` line in `/etc/pacman.conf` |
+
+---
+
+## Failure modes
+
+The script exits non-zero (and the image build fails) when:
+
+- It is not run as root.
+- No supported package manager is found in `PATH`.
+- `manifest` is empty and `install_self` is `false`.
+- `lifecycle_hook` is set but `manifest` is empty.
+- `lifecycle_hook` contains an unrecognised value (not `onCreate`, `updateContent`, or `postCreate`).
+- The manifest is specified as a file path but the file does not exist.
+- A `prescript` or `script` section exits non-zero.
+- An unknown CLI flag is passed.
