@@ -26,7 +26,7 @@ fi
 # --- Shared shell configuration ----------------------------------------- #
 # Source the distro/vendor-agnostic interactive shell setup: aliases,     #
 # dircolors, PATH extensions, conda/mamba init, git editor, etc.          #
-. "/etc/global_shellrc"
+. "/etc/shell/shellrc"
 
 # --- Pager -------------------------------------------------------------- #
 # READNULLCMD is the command used when zsh reads from /dev/null (e.g.     #

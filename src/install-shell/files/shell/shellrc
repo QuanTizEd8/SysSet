@@ -11,7 +11,7 @@ esac
 # Load shared environment variables and PATH setup (also loaded by non-interactive
 # shells via BASH_ENV and /etc/zsh/zshenv, but sourced here to ensure availability
 # in case this file is sourced independently).
-. "/etc/bash/bash_env"
+. "/etc/bash/bashenv"
 
 # --- Conda / Mamba ---
 # Initialize conda and mamba for the current shell, and activate the default env.
