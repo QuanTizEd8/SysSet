@@ -20,8 +20,7 @@ clean_apk() {
 clean_apt() {
   echo "↪️ Function entry: clean_apt" >&2
   apt-get clean
-  apt-get dist-clean 2>/dev/null || true
-  rm -rf /var/lib/apt/lists/*
+  apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
   echo "↩️ Function exit: clean_apt" >&2
 }
 clean_dnf() {
@@ -237,6 +236,7 @@ if type apt-get > /dev/null 2>&1; then
     INSTALL=(apt-get -y install --no-install-recommends)
     CLEAN=(clean_apt)
     _PKG_LISTS_PATH="/var/lib/apt/lists"
+    _PKG_LISTS_PATTERN="*_Packages*"  # Release/InRelease files remain after distclean; only Packages files confirm usable lists
 elif type apk > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: APK (tool: apk)" >&2
     PKG_PREFIX="apk"
@@ -245,6 +245,7 @@ elif type apk > /dev/null 2>&1; then
     INSTALL=(apk add --no-cache)
     CLEAN=(clean_apk)
     _PKG_LISTS_PATH="/var/cache/apk"
+    _PKG_LISTS_PATTERN="APKINDEX*"
 elif type dnf > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: DNF (tool: dnf)" >&2
     PKG_PREFIX="dnf"
@@ -253,6 +254,7 @@ elif type dnf > /dev/null 2>&1; then
     INSTALL=(dnf -y install)
     CLEAN=(clean_dnf)
     _PKG_LISTS_PATH="/var/cache/dnf"
+    _PKG_LISTS_PATTERN="*"
 elif type microdnf > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: DNF (tool: microdnf)" >&2
     PKG_PREFIX="dnf"
@@ -261,6 +263,7 @@ elif type microdnf > /dev/null 2>&1; then
     INSTALL=(microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
     CLEAN=(clean_dnf)
     _PKG_LISTS_PATH=""
+    _PKG_LISTS_PATTERN=""
 elif type yum > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: DNF (tool: yum)" >&2
     PKG_PREFIX="dnf"
@@ -269,6 +272,7 @@ elif type yum > /dev/null 2>&1; then
     INSTALL=(yum -y install)
     CLEAN=(clean_dnf)
     _PKG_LISTS_PATH="/var/cache/yum"
+    _PKG_LISTS_PATTERN="*"
 elif type zypper > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: Zypper (tool: zypper)" >&2
     PKG_PREFIX="zypper"
@@ -277,6 +281,7 @@ elif type zypper > /dev/null 2>&1; then
     INSTALL=(zypper --non-interactive install)
     CLEAN=(clean_zypper)
     _PKG_LISTS_PATH="/var/cache/zypp/raw"
+    _PKG_LISTS_PATTERN="*"
 elif type pacman > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: Pacman (tool: pacman)" >&2
     PKG_PREFIX="pacman"
@@ -285,6 +290,7 @@ elif type pacman > /dev/null 2>&1; then
     INSTALL=(pacman -S --noconfirm --needed)
     CLEAN=(clean_pacman)
     _PKG_LISTS_PATH="/var/lib/pacman/sync"
+    _PKG_LISTS_PATTERN="*.db"
 else
     echo "⛔ No supported package manager found." >&2
     exit 1
@@ -535,10 +541,12 @@ if [[ -n "$_M_PKG" && "$NO_UPDATE" == false ]]; then
             # existing index yet, so an update is mandatory regardless of age.
             _SKIP_UPDATE=false
         elif [[ -n "${_PKG_LISTS_PATH:-}" && -d "$_PKG_LISTS_PATH" ]]; then
-            # Only consider skipping if the directory actually contains package
-            # data.  A prior clean step leaves the directory with a recent mtime
-            # but empty, which would otherwise be misread as "lists are fresh".
-            if [[ -n "$(find "$_PKG_LISTS_PATH" -mindepth 1 -maxdepth 2 2>/dev/null | head -1)" ]]; then
+            # Only consider skipping if actual package index data exists.
+            # For APT: distclean leaves Release/InRelease files behind but removes
+            # Packages files, so we check specifically for *_Packages* rather than
+            # any file.  Each PM stores its cache in a different format so
+            # _PKG_LISTS_PATTERN is set per-PM at detection time.
+            if [[ -n "$(find "$_PKG_LISTS_PATH" -mindepth 1 -maxdepth 2 -name "${_PKG_LISTS_PATTERN:-*}" 2>/dev/null | head -1)" ]]; then
                 _LISTS_MTIME=$(stat -c %Y "$_PKG_LISTS_PATH" 2>/dev/null || echo 0)
                 _LISTS_AGE=$(( $(date +%s) - _LISTS_MTIME ))
                 if [[ $_LISTS_AGE -lt $_LISTS_AGE_THRESHOLD ]]; then
