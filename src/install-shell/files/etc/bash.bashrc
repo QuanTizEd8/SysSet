@@ -1,4 +1,3 @@
-
 # System-wide .bashrc file for interactive bash(1) shells.
 # Sourced for all interactive bash sessions (non-login and login, via /etc/profile).
 
