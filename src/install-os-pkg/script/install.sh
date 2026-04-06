@@ -172,6 +172,7 @@ if [ "$#" -gt 0 ]; then
   MANIFEST=""
   NO_CLEAN=""
   NO_UPDATE=""
+  LISTS_MAX_AGE=""
   DRY_RUN=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -185,6 +186,7 @@ if [ "$#" -gt 0 ]; then
       --manifest) shift; MANIFEST="$1"; echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2; shift;;
       --no_clean) shift; NO_CLEAN=true; echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2;;
       --no_update) shift; NO_UPDATE=true; echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2;;
+      --lists_max_age) shift; LISTS_MAX_AGE="$1"; echo "📩 Read argument 'lists_max_age': '"$LISTS_MAX_AGE"'" >&2; shift;;
       --dry_run) shift; DRY_RUN=true; echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2;;
       --*) echo "⛔ Unknown option: "$1"" >&2; exit 1;;
       *) echo "⛔ Unexpected argument: "$1"" >&2; exit 1;;
@@ -201,6 +203,7 @@ else
   [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2
   [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2
   [ "${NO_UPDATE+defined}" ] && echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2
+  [ "${LISTS_MAX_AGE+defined}" ] && echo "📩 Read argument 'lists_max_age': '"$LISTS_MAX_AGE"'" >&2
   [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
@@ -232,6 +235,10 @@ fi
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${NO_CLEAN-}" ] && { echo "ℹ️ Argument 'NO_CLEAN' set to default value 'false'." >&2; NO_CLEAN=false; }
 [ -z "${NO_UPDATE-}" ] && { echo "ℹ️ Argument 'NO_UPDATE' set to default value 'false'." >&2; NO_UPDATE=false; }
+[ -z "${LISTS_MAX_AGE-}" ] && { echo "ℹ️ Argument 'LISTS_MAX_AGE' set to default value '300'." >&2; LISTS_MAX_AGE=300; }
+if ! [[ "$LISTS_MAX_AGE" =~ ^[0-9]+$ ]]; then
+    echo "⛔ Invalid lists_max_age value: '$LISTS_MAX_AGE'. Must be a non-negative integer." >&2; exit 1
+fi
 [ -z "${DRY_RUN-}" ] && { echo "ℹ️ Argument 'DRY_RUN' set to default value 'false'." >&2; DRY_RUN=false; }
 [[ "$DRY_RUN" == true ]] && echo "🔍 Dry-run mode enabled — no changes will be made." >&2
 [[ "$DRY_RUN" == true ]] || exit_if_not_root
@@ -242,6 +249,7 @@ if type apt-get > /dev/null 2>&1; then
     UPDATE=(apt-get update)
     INSTALL=(apt-get -y install --no-install-recommends)
     CLEAN=(clean_apt)
+    _PKG_LISTS_PATH="/var/lib/apt/lists"
 elif type apk > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: APK (tool: apk)" >&2
     PKG_PREFIX="apk"
@@ -249,6 +257,7 @@ elif type apk > /dev/null 2>&1; then
     UPDATE=(apk update)
     INSTALL=(apk add --no-cache)
     CLEAN=(clean_apk)
+    _PKG_LISTS_PATH="/var/cache/apk"
 elif type dnf > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: DNF (tool: dnf)" >&2
     PKG_PREFIX="dnf"
@@ -256,6 +265,7 @@ elif type dnf > /dev/null 2>&1; then
     UPDATE=(dnf check-update)
     INSTALL=(dnf -y install)
     CLEAN=(clean_dnf)
+    _PKG_LISTS_PATH="/var/cache/dnf"
 elif type microdnf > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: DNF (tool: microdnf)" >&2
     PKG_PREFIX="dnf"
@@ -263,6 +273,7 @@ elif type microdnf > /dev/null 2>&1; then
     UPDATE=()
     INSTALL=(microdnf -y install --refresh --best --nodocs --noplugins --setopt=install_weak_deps=0)
     CLEAN=(clean_dnf)
+    _PKG_LISTS_PATH=""
 elif type yum > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: DNF (tool: yum)" >&2
     PKG_PREFIX="dnf"
@@ -270,6 +281,7 @@ elif type yum > /dev/null 2>&1; then
     UPDATE=(yum check-update)
     INSTALL=(yum -y install)
     CLEAN=(clean_dnf)
+    _PKG_LISTS_PATH="/var/cache/yum"
 elif type zypper > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: Zypper (tool: zypper)" >&2
     PKG_PREFIX="zypper"
@@ -277,6 +289,7 @@ elif type zypper > /dev/null 2>&1; then
     UPDATE=(zypper --non-interactive refresh)
     INSTALL=(zypper --non-interactive install)
     CLEAN=(clean_zypper)
+    _PKG_LISTS_PATH="/var/cache/zypp/raw"
 elif type pacman > /dev/null 2>&1; then
     echo "🛠️  Detected ecosystem: Pacman (tool: pacman)" >&2
     PKG_PREFIX="pacman"
@@ -284,6 +297,7 @@ elif type pacman > /dev/null 2>&1; then
     UPDATE=(pacman -Sy --noconfirm)
     INSTALL=(pacman -S --noconfirm --needed)
     CLEAN=(clean_pacman)
+    _PKG_LISTS_PATH="/var/lib/pacman/sync"
 else
     echo "⛔ No supported package manager found." >&2
     exit 1
@@ -318,6 +332,7 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
     [[ -n "$LOGFILE" ]] && _HOOK_OPTS+=" --logfile $(printf '%q' "$LOGFILE")"
     [[ "$NO_CLEAN" == true ]] && _HOOK_OPTS+=" --no_clean"
     [[ "$NO_UPDATE" == true ]] && _HOOK_OPTS+=" --no_update"
+    _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
     case "$LIFECYCLE_HOOK" in
         onCreate)       _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
         updateContent)  _HOOK_FILE="$_HOOK_DIR/update-content.sh" ;;
@@ -523,15 +538,34 @@ if [[ "$PKG_MNGR" = "apt-get" && "$INTERACTIVE" == false ]]; then
 fi
 if [[ -n "$_M_PKG" && "$NO_UPDATE" == false ]]; then
     if [[ ${#UPDATE[@]} -gt 0 ]]; then
-        echo "🔄 Updating package lists." >&2
-        if [[ "$DRY_RUN" == true ]]; then
-            echo "🔍 [dry-run] update: would run: ${UPDATE[*]}" >&2
-        elif [[ "$PKG_MNGR" = "dnf" || "$PKG_MNGR" = "yum" ]]; then
-            "${UPDATE[@]}" || [[ $? -eq 100 ]]
-        else
-            "${UPDATE[@]}"
+        # Auto-skip: if the package lists were refreshed within the last 5 minutes
+        # (e.g. by a previous feature or a RUN layer) avoid a redundant network round-trip.
+        _SKIP_UPDATE=false
+        _LISTS_AGE_THRESHOLD="$LISTS_MAX_AGE"
+        if [[ "$REPO_ADDED" == true ]]; then
+            # A new repository was just registered — its packages are not in the
+            # existing index yet, so an update is mandatory regardless of age.
+            _SKIP_UPDATE=false
+        elif [[ -n "${_PKG_LISTS_PATH:-}" && -d "$_PKG_LISTS_PATH" ]]; then
+            _LISTS_MTIME=$(stat -c %Y "$_PKG_LISTS_PATH" 2>/dev/null || echo 0)
+            _LISTS_AGE=$(( $(date +%s) - _LISTS_MTIME ))
+            if [[ $_LISTS_AGE -lt $_LISTS_AGE_THRESHOLD ]]; then
+                _SKIP_UPDATE=true
+            fi
         fi
-        echo "✅ Package lists updated." >&2
+        if [[ "$_SKIP_UPDATE" == true ]]; then
+            echo "ℹ️  Package lists refreshed ${_LISTS_AGE}s ago — skipping update (threshold: ${_LISTS_AGE_THRESHOLD}s)." >&2
+        else
+            echo "🔄 Updating package lists." >&2
+            if [[ "$DRY_RUN" == true ]]; then
+                echo "🔍 [dry-run] update: would run: ${UPDATE[*]}" >&2
+            elif [[ "$PKG_MNGR" = "dnf" || "$PKG_MNGR" = "yum" ]]; then
+                "${UPDATE[@]}" || [[ $? -eq 100 ]]
+            else
+                "${UPDATE[@]}"
+            fi
+            echo "✅ Package lists updated." >&2
+        fi
     else
         echo "ℹ️  Package list update not supported by '${PKG_MNGR}' — skipping." >&2
     fi
@@ -539,6 +573,10 @@ elif [[ -z "$_M_PKG" ]]; then
     echo "ℹ️  Package list update skipped (no packages in manifest)." >&2
 else
     echo "ℹ️  Package list update skipped (--no_update)." >&2
+    if [[ "$REPO_ADDED" == true ]]; then
+        echo "⚠️  A repository was added by the manifest but --no_update is set." >&2
+        echo "⚠️  Packages from the new repository will not be found unless the package lists are already up-to-date." >&2
+    fi
 fi
 PACKAGES=()
 if [[ -n "$_M_PKG" ]]; then

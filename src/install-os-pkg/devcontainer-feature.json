@@ -49,6 +49,16 @@
          "default": false,
          "description": "Do not update package lists before installation.\nBy default, package lists are refreshed before installing packages.\nThis option skips that step.\n",
          "type": "boolean"
+      },
+      "lists_max_age": {
+         "default": 300,
+         "description": "Maximum age of package lists (in seconds) before an update is considered necessary.\nWhen the package lists were refreshed more recently than this threshold the update\nstep is skipped automatically (unless a new repository was added by the manifest).\nSet to 0 to always update. Has no effect when no_update is true.\n",
+         "type": "integer"
+      },
+      "dry_run": {
+         "default": false,
+         "description": "Print what would be installed/fetched without making any changes.\nNo packages are installed, no files are written, and no scripts are executed.\nRoot privilege is not required when this is set.\n",
+         "type": "boolean"
       }
    },
    "onCreateCommand": "[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true",
