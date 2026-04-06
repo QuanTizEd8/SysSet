@@ -94,6 +94,9 @@ fi
 [ -z "${INSTALL_DIR-}" ] && { echo "ℹ️ Argument 'INSTALL_DIR' set to default value '/usr/local/share/oh-my-zsh'." >&2; INSTALL_DIR="/usr/local/share/oh-my-zsh"; }
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${ZSH_CUSTOM_DIR-}" ] && { echo "ℹ️ Argument 'ZSH_CUSTOM_DIR' set to default value '/usr/local/share/oh-my-zsh/custom'." >&2; ZSH_CUSTOM_DIR="/usr/local/share/oh-my-zsh/custom"; }
+# Install runtime dependencies (git, curl, zsh) via install-os-pkg.
+_PACKAGES_MANIFEST="$(dirname "$0")/packages.txt"
+install-os-pkg --manifest "$_PACKAGES_MANIFEST"
 umask g-w,o-w
 git_clone --url "https://github.com/ohmyzsh/ohmyzsh" --dir "$INSTALL_DIR"
 mkdir -p "$FONT_DIR"

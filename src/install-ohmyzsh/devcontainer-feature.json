@@ -29,5 +29,8 @@
          "type": "string"
       }
    },
-   "version": "0.1.0"
+   "version": "0.1.0",
+   "dependsOn": {
+      "ghcr.io/quantized8/sysset/install-os-pkg:0": {}
+   }
 }
