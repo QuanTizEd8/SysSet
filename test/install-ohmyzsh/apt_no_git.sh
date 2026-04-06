@@ -7,6 +7,7 @@ set -e
 source dev-container-features-test-lib
 
 check "git was auto-installed" command -v git
+check "ca-certificates was auto-installed" test -s /etc/ssl/certs/ca-certificates.crt
 check "oh-my-zsh install dir exists" test -d /usr/local/share/oh-my-zsh
 check "oh-my-zsh main script exists" test -f /usr/local/share/oh-my-zsh/oh-my-zsh.sh
 
