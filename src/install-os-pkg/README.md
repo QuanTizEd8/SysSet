@@ -97,6 +97,7 @@ install-os-pkg --manifest $'git\ncurl\n'
 | `no_update` | boolean | `false` | Skip the package list refresh unconditionally. By default the installer also auto-skips when the package lists were refreshed within the last `lists_max_age` seconds. |
 | `lists_max_age` | string | `"300"` | Maximum age of the package lists (in seconds) before a refresh is considered necessary. Set to `0` to always update. Ignored when `no_update` is `true` or when a new repository was added by the manifest. |
 | `dry_run` | boolean | `false` | Print what would be installed/fetched without making any changes. No packages are installed, no files are written, and no scripts are executed. Root privilege is not required. See [Dry run](#dry-run). |
+| `check_installed` | boolean | `false` | Skip packages whose binary is already present in `PATH` (checked via `command -v`). Useful when a dependency may have been installed outside the system package manager. |
 
 ---
 

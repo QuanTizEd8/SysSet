@@ -59,6 +59,11 @@
          "default": false,
          "description": "Print what would be installed/fetched without making any changes.\nNo packages are installed, no files are written, and no scripts are executed.\nRoot privilege is not required when this is set.\n",
          "type": "boolean"
+      },
+      "check_installed": {
+         "default": false,
+         "description": "Skip packages that are already available in PATH.\nWhen true, each package name is checked with 'command -v' before installation.\nPackages whose binary is already present in PATH are skipped regardless of\nwhether they were installed via the system package manager.\n",
+         "type": "boolean"
       }
    },
    "onCreateCommand": "[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true",

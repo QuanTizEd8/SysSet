@@ -96,7 +96,7 @@ fi
 [ -z "${ZSH_CUSTOM_DIR-}" ] && { echo "ℹ️ Argument 'ZSH_CUSTOM_DIR' set to default value '/usr/local/share/oh-my-zsh/custom'." >&2; ZSH_CUSTOM_DIR="/usr/local/share/oh-my-zsh/custom"; }
 # Install runtime dependencies (git, curl, zsh) via install-os-pkg.
 _PACKAGES_MANIFEST="$(dirname "$0")/packages.txt"
-install-os-pkg --manifest "$_PACKAGES_MANIFEST"
+install-os-pkg --manifest "$_PACKAGES_MANIFEST" --check_installed
 umask g-w,o-w
 git_clone --url "https://github.com/ohmyzsh/ohmyzsh" --dir "$INSTALL_DIR"
 mkdir -p "$FONT_DIR"

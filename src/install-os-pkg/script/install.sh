@@ -160,6 +160,7 @@ if [ "$#" -gt 0 ]; then
   NO_UPDATE=""
   LISTS_MAX_AGE=""
   DRY_RUN=""
+  CHECK_INSTALLED=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '"$DEBUG"'" >&2;;
@@ -174,6 +175,7 @@ if [ "$#" -gt 0 ]; then
       --no_update) shift; NO_UPDATE=true; echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2;;
       --lists_max_age) shift; LISTS_MAX_AGE="$1"; echo "📩 Read argument 'lists_max_age': '"$LISTS_MAX_AGE"'" >&2; shift;;
       --dry_run) shift; DRY_RUN=true; echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2;;
+      --check_installed) shift; CHECK_INSTALLED=true; echo "📩 Read argument 'check_installed': '"$CHECK_INSTALLED"'" >&2;;
       --*) echo "⛔ Unknown option: "$1"" >&2; exit 1;;
       *) echo "⛔ Unexpected argument: "$1"" >&2; exit 1;;
     esac
@@ -191,6 +193,7 @@ else
   [ "${NO_UPDATE+defined}" ] && echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2
   [ "${LISTS_MAX_AGE+defined}" ] && echo "📩 Read argument 'lists_max_age': '"$LISTS_MAX_AGE"'" >&2
   [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2
+  [ "${CHECK_INSTALLED+defined}" ] && echo "📩 Read argument 'check_installed': '"$CHECK_INSTALLED"'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
@@ -226,6 +229,7 @@ if ! [[ "$LISTS_MAX_AGE" =~ ^[0-9]+$ ]]; then
     echo "⛔ Invalid lists_max_age value: '$LISTS_MAX_AGE'. Must be a non-negative integer." >&2; exit 1
 fi
 [ -z "${DRY_RUN-}" ] && { echo "ℹ️ Argument 'DRY_RUN' set to default value 'false'." >&2; DRY_RUN=false; }
+[ -z "${CHECK_INSTALLED-}" ] && { echo "ℹ️ Argument 'CHECK_INSTALLED' set to default value 'false'." >&2; CHECK_INSTALLED=false; }
 [[ "$DRY_RUN" == true ]] && echo "🔍 Dry-run mode enabled — no changes will be made." >&2
 [[ "$DRY_RUN" == true ]] || exit_if_not_root
 if type apt-get > /dev/null 2>&1; then
@@ -327,6 +331,7 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
     [[ "$NO_UPDATE" == true ]] && _HOOK_OPTS+=" --no_update"
     _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
     [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run"
+    [[ "$CHECK_INSTALLED" == true ]] && _HOOK_OPTS+=" --check_installed"
     case "$LIFECYCLE_HOOK" in
         onCreate)       _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
         updateContent)  _HOOK_FILE="$_HOOK_DIR/update-content.sh" ;;
@@ -584,6 +589,17 @@ if [[ -n "$_M_PKG" ]]; then
     while IFS= read -r _mpkg || [[ -n "$_mpkg" ]]; do
         [[ -n "$_mpkg" ]] && PACKAGES+=("$_mpkg")
     done <<< "$_M_PKG"
+fi
+if [[ "$CHECK_INSTALLED" == true && ${#PACKAGES[@]} -gt 0 ]]; then
+    _FILTERED=()
+    for _pkg in "${PACKAGES[@]}"; do
+        if command -v "$_pkg" > /dev/null 2>&1; then
+            echo "ℹ️  '$_pkg' already available in PATH — skipping." >&2
+        else
+            _FILTERED+=("$_pkg")
+        fi
+    done
+    PACKAGES=("${_FILTERED[@]}")
 fi
 if [[ ${#PACKAGES[@]} -eq 0 ]]; then
     echo "ℹ️  No packages to install — skipping." >&2
