@@ -1,15 +1,32 @@
+# /etc/profile: system-wide .profile file for the Bourne shell (sh(1))
+# and Bourne compatible shells (bash(1), ksh(1), ash(1), ...).
+
 . "/etc/bash/bash_env"
+
 if [ -d /etc/profile.d ]; then
-  for i in /etc/profile.d/*.sh; do
-    if [ -r $i ]; then
+  for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d); do
+    if [ -f "$i" ] && [ -r "$i" ]; then
       . $i
     fi
   done
   unset i
 fi
+
+# Config for interactive shells.
 if [ "${PS1-}" ]; then
+    # If running bash (not sh), source the bashrc file.
+    # No need to set PS1 here, since the bashrc file already sets it (PS1='\h:\w\$ ').
     if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
-        . "/etc/bash.bashrc"
+        # Search for distro-specific bashrc files (debian -> alpine -> redhat/macos)
+        # and source the first one found.
+        for _bashrc in /etc/bash.bashrc /etc/bash/bashrc /etc/bashrc; do
+            if [ -f "$_bashrc" ] && [ -r "$_bashrc" ]; then
+                . "$_bashrc"
+                break
+            fi
+        done
+        unset _bashrc
+    # Otherwise (sh), set a simple prompt.
     else
         if [ "$(id -u)" -eq 0 ]; then
             PS1='# '
