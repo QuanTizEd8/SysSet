@@ -105,24 +105,10 @@ pkg_matches_selectors() {
   done
   return 1
 }
-# filter_pkg_lines <file>
-# Reads a pkg file, applies selector logic, prints matching package names.
-filter_pkg_lines() {
-  local file="$1"
-  local line pkg
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
-    if pkg_matches_selectors "$line"; then
-      pkg="${line%%\[*}"
-      pkg="${pkg%"${pkg##*[! $'\t']}"}"  # rtrim
-      [[ -n "$pkg" ]] && echo "$pkg"
-    fi
-  done < "$file"
-}
 # parse_manifest <content>
-# Parses manifest content (passed as a single string argument) into four
+# Parses manifest content (passed as a single string argument) into five
 # newline-delimited output variables set in the caller's scope:
-#   _M_PRESCRIPT  _M_REPO  _M_PKG  _M_SCRIPT
+#   _M_KEY  _M_PRESCRIPT  _M_REPO  _M_PKG  _M_SCRIPT
 # Each variable holds the lines that belong to that section type and whose
 # header selector (if any) passes.  The implicit leading block is treated
 # as a pkg section.  Lines within each section are still subject to
@@ -333,6 +319,7 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
     [[ "$NO_CLEAN" == true ]] && _HOOK_OPTS+=" --no_clean"
     [[ "$NO_UPDATE" == true ]] && _HOOK_OPTS+=" --no_update"
     _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
+    [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run"
     case "$LIFECYCLE_HOOK" in
         onCreate)       _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
         updateContent)  _HOOK_FILE="$_HOOK_DIR/update-content.sh" ;;
@@ -547,10 +534,15 @@ if [[ -n "$_M_PKG" && "$NO_UPDATE" == false ]]; then
             # existing index yet, so an update is mandatory regardless of age.
             _SKIP_UPDATE=false
         elif [[ -n "${_PKG_LISTS_PATH:-}" && -d "$_PKG_LISTS_PATH" ]]; then
-            _LISTS_MTIME=$(stat -c %Y "$_PKG_LISTS_PATH" 2>/dev/null || echo 0)
-            _LISTS_AGE=$(( $(date +%s) - _LISTS_MTIME ))
-            if [[ $_LISTS_AGE -lt $_LISTS_AGE_THRESHOLD ]]; then
-                _SKIP_UPDATE=true
+            # Only consider skipping if the directory actually contains package
+            # data.  A prior clean step leaves the directory with a recent mtime
+            # but empty, which would otherwise be misread as "lists are fresh".
+            if [[ -n "$(find "$_PKG_LISTS_PATH" -mindepth 1 -maxdepth 2 2>/dev/null | head -1)" ]]; then
+                _LISTS_MTIME=$(stat -c %Y "$_PKG_LISTS_PATH" 2>/dev/null || echo 0)
+                _LISTS_AGE=$(( $(date +%s) - _LISTS_MTIME ))
+                if [[ $_LISTS_AGE -lt $_LISTS_AGE_THRESHOLD ]]; then
+                    _SKIP_UPDATE=true
+                fi
             fi
         fi
         if [[ "$_SKIP_UPDATE" == true ]]; then

@@ -190,5 +190,17 @@
         "features": {
             "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
+    },
+    "apt_dry_run": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "dry_run": true }
+        }
+    },
+    "apt_lists_max_age_zero": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lists_max_age": 0 }
+        }
     }
 }
