@@ -1,3 +1,12 @@
+# /etc/zsh/zshrc: system-wide .zshrc file for zsh(1).
+#
+# This file is sourced only for interactive shells. It
+# should contain commands to set up aliases, functions,
+# options, key bindings, etc.
+#
+# Global Order: zshenv, zprofile, zshrc, zlogin
+
+
 # --- Interactivity guard ----------------------------------------------- #
 # Return immediately if not running interactively; nothing below makes    #
 # sense for non-interactive shells (scripts, scp, rsync, etc.).           #
@@ -45,6 +54,7 @@ if [[ -z "${DEBIAN_PREVENT_KEYBOARD_CHANGES-}" ]] && [[ "$TERM" != 'emacs' ]]; t
     PageUp     "${terminfo[kpp]}"
     PageDown   "${terminfo[knp]}"
   )
+
   function bind2maps () {
     local i sequence widget
     local -a maps
@@ -60,6 +70,7 @@ if [[ -z "${DEBIAN_PREVENT_KEYBOARD_CHANGES-}" ]] && [[ "$TERM" != 'emacs' ]]; t
       bindkey -M "$i" "$sequence" "$widget"
     done
   }
+
   bind2maps emacs             -- BackSpace   backward-delete-char
   bind2maps       viins       -- BackSpace   vi-backward-delete-char
   bind2maps             vicmd -- BackSpace   vi-backward-char
@@ -77,6 +88,7 @@ if [[ -z "${DEBIAN_PREVENT_KEYBOARD_CHANGES-}" ]] && [[ "$TERM" != 'emacs' ]]; t
   bind2maps       viins vicmd -- Left        vi-backward-char
   bind2maps emacs             -- Right       forward-char
   bind2maps       viins vicmd -- Right       vi-forward-char
+
   # Enable application-mode (smkx) on line-init and restore normal mode
   # (rmkx) on line-finish so that terminfo sequences are sent correctly.
   if (( ${+terminfo[smkx]} )) && (( ${+terminfo[rmkx]} )); then
@@ -135,10 +147,11 @@ zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
 # --- Completion init ----------------------------------------------------- #
-# oh-my-zsh sources $ZSH/oh-my-zsh.sh which calls compinit internally.   #
-# Setting skip_global_compinit=1 prevents oh-my-zsh from calling it a    #
-# second time.  We call compinit here explicitly so our zstyles above are  #
-# applied before any completions are loaded on all distros.               #
+# We call compinit here (after all zstyles above are set) so our styles   #
+# take effect before any completions are loaded.                           #
+# skip_global_compinit is an oh-my-zsh variable: when oh-my-zsh.sh is    #
+# sourced later it checks this flag and skips its own internal compinit   #
+# call.  This ensures compinit runs exactly once — here, not inside omz. #
 skip_global_compinit=1
 autoload -Uz compinit
 compinit
