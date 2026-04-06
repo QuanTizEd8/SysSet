@@ -1,0 +1,16 @@
+{
+    "name": "install-shell container",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "workspaceFolder": "/",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/sysset,type=bind",
+    "remoteEnv": {
+        "MY_REMOTE_VAR": "hello",
+        "MY_REMOTE_VAR2": "hello remote var"
+    },
+    "containerEnv": {
+        "MY_CONTAINER_VAR": "hello",
+        "MY_CONTAINER_VAR2": "hello container var"
+    }
+}
