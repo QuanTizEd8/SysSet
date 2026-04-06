@@ -1,0 +1,5 @@
+# id_selectors — AND logic within a block: pm= AND id= must both match.
+# Tests that Debian and Ubuntu are distinguished even though both use apt.
+common-apt-pkg [pm=apt]
+debian-only [pm=apt, id=debian]
+ubuntu-only [pm=apt, id=ubuntu]

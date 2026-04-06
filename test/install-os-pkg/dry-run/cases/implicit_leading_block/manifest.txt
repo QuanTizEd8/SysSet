@@ -1,0 +1,6 @@
+# implicit_leading_block — lines before any section header belong to an
+# implicit always-active pkg section.  Per-line selectors still apply.
+universal-pkg
+another-universal
+--- pkg [pm=apt]
+apt-specific

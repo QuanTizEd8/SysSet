@@ -164,13 +164,13 @@
     "apt_keep_repos": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "keep_repos": true }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "keep_repos": true, "no_update": true }
         }
     },
     "apt_repo_cleanup": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_update": true }
         }
     }
 }

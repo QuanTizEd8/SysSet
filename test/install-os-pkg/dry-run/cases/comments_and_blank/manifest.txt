@@ -1,0 +1,9 @@
+# comments_and_blank — comment lines (starting with #) and blank lines are
+# stripped; the remaining package names are installed on every platform.
+
+# this is a comment
+
+real-pkg
+# another comment
+
+another-real-pkg

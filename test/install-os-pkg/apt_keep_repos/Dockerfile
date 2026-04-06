@@ -1,8 +1,8 @@
 FROM debian:latest
-RUN mkdir -p /tmp \
+RUN apt-get update \
  && printf '%s\n' \
       '--- repo' \
-      '# placeholder repo entry' \
+      'deb http://deb.debian.org/debian stable main' \
       '--- pkg' \
       'tree' \
       > /tmp/manifest.txt
