@@ -1,6 +1,6 @@
 {
    "description": "Install Oh My Zsh in the development container.",
-   "id": "oh-my-zsh",
+   "id": "install-ohmyzsh",
    "name": "Oh My Zsh Installation",
    "options": {
       "debug": {
