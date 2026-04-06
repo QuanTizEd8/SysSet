@@ -1,12 +1,34 @@
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
+# --- Interactivity guard ----------------------------------------------- #
+# Return immediately if not running interactively; nothing below makes    #
+# sense for non-interactive shells (scripts, scp, rsync, etc.).           #
 case $- in
   *i*) ;;
     *) return;;
 esac
+
+# --- Powerlevel10k instant prompt --------------------------------------- #
+# Must be sourced at the very top of zshrc, before any output or slow     #
+# initialisation, to enable the instant-prompt feature.  Skipped if the   #
+# cache file does not yet exist (first login before p10k configure runs). #
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# --- Shared shell configuration ----------------------------------------- #
+# Source the distro/vendor-agnostic interactive shell setup: aliases,     #
+# dircolors, PATH extensions, conda/mamba init, git editor, etc.          #
 . "/etc/global_shellrc"
+
+# --- Pager -------------------------------------------------------------- #
+# READNULLCMD is the command used when zsh reads from /dev/null (e.g.     #
+# `< file`).  Fall back to /usr/bin/pager if $PAGER is unset.            #
 READNULLCMD=${PAGER:-/usr/bin/pager}
+
+# --- Key bindings ------------------------------------------------------- #
+# Read terminfo entries and bind keys correctly for emacs, vi-insert, and #
+# vi-command maps.  Guarded by DEBIAN_PREVENT_KEYBOARD_CHANGES so that    #
+# system administrators can opt out.  The bind2maps helper is defined     #
+# locally and removed immediately after use.                              #
 typeset -ga debian_missing_features
 if [[ -z "${DEBIAN_PREVENT_KEYBOARD_CHANGES-}" ]] && [[ "$TERM" != 'emacs' ]]; then
   typeset -A key
@@ -55,6 +77,8 @@ if [[ -z "${DEBIAN_PREVENT_KEYBOARD_CHANGES-}" ]] && [[ "$TERM" != 'emacs' ]]; t
   bind2maps       viins vicmd -- Left        vi-backward-char
   bind2maps emacs             -- Right       forward-char
   bind2maps       viins vicmd -- Right       vi-forward-char
+  # Enable application-mode (smkx) on line-init and restore normal mode
+  # (rmkx) on line-finish so that terminfo sequences are sent correctly.
   if (( ${+terminfo[smkx]} )) && (( ${+terminfo[rmkx]} )); then
     function zle-line-init () {
       emulate -L zsh
@@ -74,6 +98,13 @@ if [[ -z "${DEBIAN_PREVENT_KEYBOARD_CHANGES-}" ]] && [[ "$TERM" != 'emacs' ]]; t
   fi
   unfunction bind2maps
 fi
+
+# --- Completion styles -------------------------------------------------- #
+# Configure zsh's completion system via zstyle patterns before compinit   #
+# is called.  oh-my-zsh will call compinit itself (see skip_global_compinit
+# below), so these styles are set unconditionally here.                   #
+
+# Extend sudo completion's command search path to include sbin directories.
 zstyle ':completion:*:sudo:*' command-path \
     /usr/local/sbin \
     /usr/local/bin  \
@@ -82,33 +113,55 @@ zstyle ':completion:*:sudo:*' command-path \
     /sbin           \
     /bin            \
     /usr/X11R6/bin
+
 zstyle ':completion:*' auto-description 'specify: %d'
+# Completers in order: expand globs, complete, correct typos, approximate.
 zstyle ':completion:*' completer _expand _complete _correct _approximate
 zstyle ':completion:*' format 'Completing %d'
 zstyle ':completion:*' group-name ''
-zstyle ':completion:*' menu select=2
+# Use LS_COLORS for completion list colouring when available.
 zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' list-colors ''
 zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s
+# Case-insensitive matching, then case-insensitive partial, then partial.
 zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=* l:|=*'
+# Show a scrollable menu when the list is long (select=long).
 zstyle ':completion:*' menu select=long
 zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s
 zstyle ':completion:*' use-compctl false
 zstyle ':completion:*' verbose true
+# Highlight running processes in kill completion.
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
-if (( ${${(@f)"$(</etc/os-release)"}[(I)ID*=*ubuntu]} )) && [[ -z "$skip_global_compinit" ]]; then
-  autoload -Uz compinit
-  compinit
-fi
+
+# --- Completion init ----------------------------------------------------- #
+# oh-my-zsh sources $ZSH/oh-my-zsh.sh which calls compinit internally.   #
+# Setting skip_global_compinit=1 prevents oh-my-zsh from calling it a    #
+# second time.  We call compinit here explicitly so our zstyles above are  #
+# applied before any completions are loaded on all distros.               #
+skip_global_compinit=1
+autoload -Uz compinit
+compinit
+
+# --- run-help ----------------------------------------------------------- #
+# Unalias the built-in 'run-help' alias (which points to 'man') and load  #
+# the real autoloadable function that understands zsh builtins.           #
 (( ${+aliases[run-help]} )) && unalias run-help
 autoload -Uz run-help
-setopt histignorealldups  # remove older duplicates
-setopt sharehistory       # share history across sessions
-bindkey -e
-HISTSIZE=1000
-SAVEHIST=1000
+
+# --- History ------------------------------------------------------------ #
+bindkey -e                        # emacs-style line editing
+HISTSIZE=10000                    # lines kept in memory
+SAVEHIST=5000                     # lines written to HISTFILE
 HISTFILE="$HOME/.zsh_history"
+setopt histignorealldups          # remove older duplicate entries when adding
+setopt sharehistory               # share history across all sessions in real time
+setopt extended_history           # record timestamp and duration for each command
+setopt hist_ignore_space          # commands prefixed with a space are not saved
+
+# --- oh-my-zsh ---------------------------------------------------------- #
+# Configure oh-my-zsh before sourcing it.  All ZSH_* variables and the   #
+# plugins array must be set prior to sourcing oh-my-zsh.sh.              #
 export ZSH="/usr/local/share/oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
 plugins=(
@@ -122,14 +175,27 @@ plugins=(
 )
 ZSH_CUSTOM="$ZSH/custom"
 ZSH_CACHE_DIR="$ZSH/cache"
+# Disable automatic update prompts (updates are managed by the image build).
 zstyle ':omz:update' mode disabled
+# Use a shared compdump file inside the oh-my-zsh cache directory.
 ZSH_COMPDUMP="$ZSH_CACHE_DIR/.zcompdump"
+# Show a coloured waiting indicator while async completions are loading.
 COMPLETION_WAITING_DOTS="%F{yellow}waiting...%f"
 CASE_SENSITIVE="true"
 ENABLE_CORRECTION=true
+# Display history timestamps in yyyy-mm-dd format.
 HIST_STAMPS="yyyy-mm-dd"
-source $ZSH/oh-my-zsh.sh
+source "$ZSH/oh-my-zsh.sh"
+
+# --- Terminal title (Powerlevel10k overrides) --------------------------- #
+# Set the default idle title strings; p10k may override these at runtime. #
 ZSH_THEME_TERM_TITLE_IDLE="%n@%m:%~"
 ZSH_THEME_TERM_TAB_TITLE_IDLE="%15<..<%~%<<"
+
+# --- Powerlevel10k theme ------------------------------------------------ #
+# Source the p10k configuration (generated by `p10k configure`).          #
 . "/etc/zsh/p10k.zsh"
+
+# --- Tool completions --------------------------------------------------- #
+# pixi: load shell completions if the pixi binary is available.           #
 command -v pixi >/dev/null 2>&1 && eval "$(pixi completion -s zsh)"
