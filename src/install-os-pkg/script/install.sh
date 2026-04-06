@@ -20,7 +20,8 @@ clean_apk() {
 clean_apt() {
   echo "↪️ Function entry: clean_apt" >&2
   apt-get clean
-  apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
+  apt-get dist-clean 2>/dev/null || true
+  rm -rf /var/lib/apt/lists/*
   echo "↩️ Function exit: clean_apt" >&2
 }
 clean_dnf() {
