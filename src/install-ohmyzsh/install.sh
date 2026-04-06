@@ -206,8 +206,20 @@ if [[ "$INSTALL_FONTS" == true ]]; then
 fi
 # --- Configure ~/.zshrc ---
 if [ -n "${CONFIGURE_ZSHRC_FOR-}" ]; then
-  _THEME_NAME=""
-  [ -n "${THEME-}" ] && _THEME_NAME="$(basename "$THEME")"
+  # Determine the ZSH_THEME value: custom themes are cloned into a subdir, so
+  # oh-my-zsh needs "dirname/theme-file" (without .zsh-theme extension).
+  _THEME_ZSH_VALUE=""
+  if [ -n "${THEME-}" ]; then
+    _THEME_REPO_NAME_FOR_ZSHRC="$(basename "$THEME")"
+    _THEME_DIR="${ZSH_CUSTOM_DIR}/themes/${_THEME_REPO_NAME_FOR_ZSHRC}"
+    _THEME_FILE="$(find "$_THEME_DIR" -maxdepth 1 -name '*.zsh-theme' 2>/dev/null | head -1)"
+    if [ -n "$_THEME_FILE" ]; then
+      _THEME_FILE_STEM="$(basename "${_THEME_FILE%.zsh-theme}")"
+      _THEME_ZSH_VALUE="${_THEME_REPO_NAME_FOR_ZSHRC}/${_THEME_FILE_STEM}"
+    else
+      _THEME_ZSH_VALUE="$_THEME_REPO_NAME_FOR_ZSHRC"
+    fi
+  fi
   _PLUGIN_NAMES=()
   if [ -n "${PLUGINS-}" ]; then
     IFS=',' read -r -a _PS <<< "$PLUGINS"
@@ -240,13 +252,25 @@ if [ -n "${CONFIGURE_ZSHRC_FOR-}" ]; then
       printf '\n# BEGIN install-ohmyzsh\n'
       printf 'export ZSH="%s"\n' "$INSTALL_DIR"
       printf 'export ZSH_CUSTOM="%s"\n' "$ZSH_CUSTOM_DIR"
-      [ -n "$_THEME_NAME" ] && printf 'ZSH_THEME="%s"\n' "$_THEME_NAME"
+      [ -n "$_THEME_ZSH_VALUE" ] && printf 'ZSH_THEME="%s"\n' "$_THEME_ZSH_VALUE"
       [ ${#_PLUGIN_NAMES[@]} -gt 0 ] && printf 'plugins=(%s)\n' "${_PLUGIN_NAMES[*]}"
       printf '%s\n' '[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"'
+      printf '%s\n' "zstyle ':omz:update' mode disabled"
+      # Source per-user p10k config if present (e.g. powerlevel10k configuration).
+      printf '%s\n' '[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'
       printf '# END install-ohmyzsh\n'
     } >> "$_zshrc"
     [ "$_username" != "root" ] && chown "$_username" "$_zshrc" 2>/dev/null || true
     echo "ℹ️  Configured oh-my-zsh block in '${_zshrc}'." >&2
+    # Create ~/.zprofile that sources ~/.profile so zsh login shells inherit
+    # the same PATH and environment set up by ~/.profile (nvm, pyenv, etc.).
+    _zprofile="${_home}/.zprofile"
+    if [ ! -f "$_zprofile" ] || ! grep -qF 'source $HOME/.profile' "$_zprofile"; then
+      printf '\n# Source ~/.profile so zsh login shells inherit PATH set up there.\n' >> "$_zprofile"
+      printf '%s\n' '[ -f "$HOME/.profile" ] && source "$HOME/.profile"' >> "$_zprofile"
+      [ "$_username" != "root" ] && chown "$_username" "$_zprofile" 2>/dev/null || true
+      echo "ℹ️  Configured '${_zprofile}' to source ~/.profile." >&2
+    fi
   done
 fi
 # --- Set default shell ---
@@ -264,6 +288,19 @@ if [ -n "${SET_DEFAULT_SHELL_FOR-}" ]; then
       if [ -f "$_SHELLS_FILE" ] && ! grep -qx "$_ZSH_PATH" "$_SHELLS_FILE"; then
         echo "$_ZSH_PATH" >> "$_SHELLS_FILE"
         echo "ℹ️  Added '${_ZSH_PATH}' to '${_SHELLS_FILE}'." >&2
+      fi
+      # On Alpine, PAM may require a password for chsh even when run as root.
+      # Ensure pam_rootok.so is marked 'sufficient' in /etc/pam.d/chsh.
+      if [ -f /etc/pam.d/chsh ]; then
+        if ! grep -Eq '^auth[[:blank:]]+sufficient[[:blank:]]+pam_rootok\.so' /etc/pam.d/chsh; then
+          if grep -Eq '^auth(.*)pam_rootok\.so' /etc/pam.d/chsh; then
+            awk '/^auth(.*)pam_rootok\.so$/ { $2 = "sufficient" } { print }' /etc/pam.d/chsh > /tmp/_chsh.tmp && mv /tmp/_chsh.tmp /etc/pam.d/chsh
+            echo "ℹ️  Updated /etc/pam.d/chsh: pam_rootok.so set to sufficient." >&2
+          else
+            printf 'auth sufficient pam_rootok.so\n' >> /etc/pam.d/chsh
+            echo "ℹ️  Added 'auth sufficient pam_rootok.so' to /etc/pam.d/chsh." >&2
+          fi
+        fi
       fi
       IFS=',' read -r -a _CHSH_USERS <<< "$SET_DEFAULT_SHELL_FOR"
       for _username in "${_CHSH_USERS[@]}"; do

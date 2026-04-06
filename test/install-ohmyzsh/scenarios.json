@@ -26,5 +26,39 @@
                 "configure_zshrc_for": "root"
             }
         }
+    },
+    "apt_set_default_shell": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-ohmyzsh": {
+                "set_default_shell_for": "root"
+            }
+        }
+    },
+    "apt_multi_plugins": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-ohmyzsh": {
+                "plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting",
+                "configure_zshrc_for": "root"
+            }
+        }
+    },
+    "apt_custom_install_dir": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-ohmyzsh": {
+                "install_dir": "/opt/oh-my-zsh",
+                "configure_zshrc_for": "root"
+            }
+        }
+    },
+    "apt_custom_font_dir": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-ohmyzsh": {
+                "font_dir": "/opt/fonts/meslo"
+            }
+        }
     }
 }
