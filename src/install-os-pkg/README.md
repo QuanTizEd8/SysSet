@@ -95,7 +95,7 @@ install-os-pkg --manifest $'git\ncurl\n'
 | `logfile` | string | `""` | Mirror all output (stdout + stderr) to this file in addition to the console. |
 | `no_clean` | boolean | `false` | Skip the package manager cache clean step after installation. |
 | `no_update` | boolean | `false` | Skip the package list refresh unconditionally. By default the installer also auto-skips when the package lists were refreshed within the last `lists_max_age` seconds. |
-| `lists_max_age` | integer | `300` | Maximum age of the package lists (in seconds) before a refresh is considered necessary. Set to `0` to always update. Ignored when `no_update` is `true` or when a new repository was added by the manifest. |
+| `lists_max_age` | string | `"300"` | Maximum age of the package lists (in seconds) before a refresh is considered necessary. Set to `0` to always update. Ignored when `no_update` is `true` or when a new repository was added by the manifest. |
 | `dry_run` | boolean | `false` | Print what would be installed/fetched without making any changes. No packages are installed, no files are written, and no scripts are executed. Root privilege is not required. See [Dry run](#dry-run). |
 
 ---

@@ -51,9 +51,9 @@
          "type": "boolean"
       },
       "lists_max_age": {
-         "default": 300,
+         "default": "300",
          "description": "Maximum age of package lists (in seconds) before an update is considered necessary.\nWhen the package lists were refreshed more recently than this threshold the update\nstep is skipped automatically (unless a new repository was added by the manifest).\nSet to 0 to always update. Has no effect when no_update is true.\n",
-         "type": "integer"
+         "type": "string"
       },
       "dry_run": {
          "default": false,
