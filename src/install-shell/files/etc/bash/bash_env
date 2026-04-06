@@ -1,0 +1,55 @@
+extend_path() {
+  __usage__() {
+    echo "Usage:" >&2
+    echo "  --append (array): Directories are appended in the same order as given.
+  For example, `--append a b c` results in `$PATH:a:b:c`.
+  " >&2
+    echo "  --prepend (array): Directories are prepended in the same order as given.
+  For example, `--prepend a b c` results in `a:b:c:$PATH`.
+  " >&2
+    exit 0
+  }
+  local append=()
+  local prepend=()
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --append) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do append+=("$1"); shift; done;;
+      --prepend) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do prepend+=("$1"); shift; done;;
+      --help|-h) __usage__;;
+      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
+      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+    esac
+  done
+  { [ "${append+isset}" != "isset" ] || [ ${#append[@]} -eq 0 ]; } && { append=(); }
+  { [ "${prepend+isset}" != "isset" ] || [ ${#prepend[@]} -eq 0 ]; } && { prepend=(); }
+  for (( idx=${#prepend[@]}-1; idx>=0; idx-- )); do
+    local dir=${prepend[idx]}
+    [ -d "$dir" ] || continue
+    case ":$PATH:" in
+      *:"$dir":*) ;;
+      *) PATH=$dir:$PATH ;;
+    esac
+  done
+  for dir in "${append[@]}"; do
+    [ -d "$dir" ] || continue
+    case ":$PATH:" in
+      *:"$dir":*) ;;
+      *) PATH=$PATH:$dir ;;
+    esac
+  done
+}
+
+if [ -z "$USER" ]; then export USER=$(whoami); fi
+if [ -z "$HOME" ]; then export HOME=$(getent passwd "$USER" | cut -d: -f6); fi
+extend_path --prepend \
+  "$HOME/.local/bin" \
+  "$HOME/bin" \
+  "/usr/local/bin" \
+  "/usr/bin" \
+  "/bin" \
+  "/usr/games"
+export XDG_CACHE_HOME="${HOME}/.cache"
+export XDG_CONFIG_HOME="${HOME}/.config"
+export XDG_DATA_HOME="${HOME}/.local/share"
+export XDG_STATE_HOME="${HOME}/.local/state"
+. "/etc/project_tasks"
