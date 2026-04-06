@@ -256,6 +256,11 @@ if [ -n "${CONFIGURE_ZSHRC_FOR-}" ]; then
       [ ${#_PLUGIN_NAMES[@]} -gt 0 ] && printf 'plugins=(%s)\n' "${_PLUGIN_NAMES[*]}"
       printf '%s\n' '[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"'
       printf '%s\n' "zstyle ':omz:update' mode disabled"
+      # Suppress the powerlevel10k configuration wizard at shell startup.
+      # The wizard runs automatically when no POWERLEVEL9K_* parameters are set and
+      # ~/.p10k.zsh does not exist.  Disabling it here avoids the interactive prompt
+      # in non-interactive / devcontainer environments.
+      printf '%s\n' 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'
       # Source per-user p10k config if present (e.g. powerlevel10k configuration).
       printf '%s\n' '[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'
       printf '# END install-ohmyzsh\n'
