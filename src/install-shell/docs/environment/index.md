@@ -167,7 +167,7 @@ container environments and must not be used for devcontainer variable configurat
 |---|---|---|
 | `ENV` in `Dockerfile` | Written to `/etc/environment` by VS Code / devcontainer CLI at container start | All processes in container |
 | `containerEnv` in `devcontainer.json` | Written to `/etc/environment` by VS Code / devcontainer CLI | All processes in container |
-| `remoteEnv` in `devcontainer.json` | Injected only into VS Code's remote server process | VS Code terminals and extensions only |
+| `remoteEnv` in `devcontainer.json` | Injected by devcontainer client into its process env (not written to `/etc/environment`) | Client-managed processes: VS Code terminals, lifecycle hooks, `devcontainer exec`; NOT bare `docker exec` or raw SSH |
 | Base image `/etc/environment` | Present from the image build; read by PAM and VS Code | All processes |
 
 For example, given a `devcontainer.json`:
@@ -208,10 +208,13 @@ MY_DOCKER_VAR2="hello world"
 - **`containerEnv`**: Written to `/etc/environment`. Available to *all* processes
   in the container — terminals, lifecycle hooks, devcontainer CLI `exec`, GitHub
   Actions, AI coding agents. Use this for variables that tooling needs everywhere.
-- **`remoteEnv`**: Only visible within VS Code's remote server process and its
-  children (integrated terminals, extensions, tasks). Not available during CI,
-  devcontainer CLI `exec`, or non-VS Code access. Use this for VS Code-specific
-  settings that should not leak into automated environments.
+- **`remoteEnv`**: Injected by the devcontainer client (VS Code, devcontainer CLI)
+  into its own process and all processes it spawns — integrated terminals,
+  extensions, lifecycle hooks (`postCreateCommand`, `postStartCommand`, etc.), and
+  `devcontainer exec` commands. It is *not* written to `/etc/environment`, so it is
+  unavailable to processes started outside the devcontainer client (bare
+  `docker exec`, raw SSH). Values can reference container variables via
+  `${containerEnv:VAR}` and are updated without rebuilding the container.
 
 ### `userEnvProbe`
 
@@ -224,8 +227,8 @@ devcontainer implementation uses to **probe** the user's environment: it runs
 |---|---|
 | `"none"` | No probing; only `containerEnv`/`ENV` variables available |
 | `"loginShell"` | `sh -l` (sources `/etc/profile`, `~/.profile`) |
-| `"loginInteractiveShell"` | `sh -l -i` (sources profile and interactive rc files) |
-| `"interactiveShell"` (default) | `sh -i` (sources interactive rc files) |
+| `"loginInteractiveShell"` **(default)** | `sh -l -i` (sources profile and interactive rc files) |
+| `"interactiveShell"` | `sh -i` (sources interactive rc files) |
 
 **Important limitation:** `userEnvProbe` determines which shell type is used for
 the *probe* only. It does **not** change the shell invocation type used for the

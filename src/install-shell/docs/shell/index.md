@@ -190,10 +190,12 @@ Moreover, all user-specific files must start with a dot in their name
 
 The only file that is always loaded is `zshenv`.
 Subsequent behavior is defined by the shell invocation type
-as well as the following environment variables:
-- `RCS`: If unset (set by default), no other configuration file is loaded.
-- `GLOBAL_RCS`: If unset (set by default), no other global configuration file is loaded
-  (but user-specific files are loaded).
+as well as the following Zsh options:
+- `RCS`: Set by default. If unset (e.g., via `setopt NO_RCS` or the `-f` flag),
+  no further configuration files are loaded.
+- `GLOBAL_RCS`: Set by default. If unset (via `setopt NO_GLOBAL_RCS`), no further
+  global configuration files are loaded (but user-specific files in `$ZDOTDIR`
+  continue to be sourced).
 
 The above variables can also be set/unset by later configuration files
 to change the loading behavior of subsequent files. Assuming both are set,
