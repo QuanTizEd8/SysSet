@@ -200,7 +200,13 @@
     "apt_lists_max_age_zero": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lists_max_age": 0 }
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lists_max_age": "0" }
+        }
+    },
+    "apt_check_installed": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "check_installed": true }
         }
     }
 }
