@@ -88,13 +88,43 @@ for case_dir in "$CASES_DIR"/*/; do
     actual=$(_extract_packages "$output")
     expected=$(sort "$expected_file")
 
-    if [[ "$actual" == "$expected" ]]; then
+    case_pass=true
+
+    if [[ "$actual" != "$expected" ]]; then
+        echo "FAIL  $test_name (package mismatch)"
+        echo "  expected : $(printf '%s\n' "$expected" | tr '\n' ' ')"
+        echo "  actual   : $(printf '%s\n' "$actual"   | tr '\n' ' ')"
+        case_pass=false
+    fi
+
+    # Optional: verify expected lines appear in the dry-run output.
+    key_output_file="$case_dir/key_output.expected"
+    if [[ -f "$key_output_file" ]]; then
+        while IFS= read -r _kline || [[ -n "$_kline" ]]; do
+            [[ -z "${_kline:-}" ]] && continue
+            if ! printf '%s\n' "$output" | grep -qF "$_kline"; then
+                echo "FAIL  $test_name (key output line missing: '$_kline')"
+                case_pass=false
+            fi
+        done < "$key_output_file"
+    fi
+
+    # Optional: verify paths listed in no_files.expected were NOT created.
+    no_files_file="$case_dir/no_files.expected"
+    if [[ -f "$no_files_file" ]]; then
+        while IFS= read -r _nfline || [[ -n "$_nfline" ]]; do
+            [[ -z "${_nfline:-}" ]] && continue
+            if [[ -e "$_nfline" ]]; then
+                echo "FAIL  $test_name (file should not exist in dry-run: '$_nfline')"
+                case_pass=false
+            fi
+        done < "$no_files_file"
+    fi
+
+    if [[ "$case_pass" == true ]]; then
         echo "PASS  $test_name"
         (( pass++ )) || true
     else
-        echo "FAIL  $test_name"
-        echo "  expected : $(printf '%s\n' "$expected" | tr '\n' ' ')"
-        echo "  actual   : $(printf '%s\n' "$actual"   | tr '\n' ' ')"
         (( fail++ )) || true
     fi
 done

@@ -172,5 +172,17 @@
         "features": {
             "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_update": true }
         }
+    },
+    "apt_key_raw": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+        }
+    },
+    "apt_key_dearmor": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+        }
     }
 }

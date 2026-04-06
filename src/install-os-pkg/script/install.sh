@@ -129,10 +129,10 @@ filter_pkg_lines() {
 # per-line selector filtering for pkg; other section types emit raw lines.
 parse_manifest() {
   local content="$1"
-  _M_PRESCRIPT="" _M_REPO="" _M_PKG="" _M_SCRIPT=""
+  _M_PRESCRIPT="" _M_REPO="" _M_KEY="" _M_PKG="" _M_SCRIPT=""
   local _type=pkg _active=true _line _mtype _mselectors _mpkg
   while IFS= read -r _line || [[ -n "$_line" ]]; do
-    if [[ "$_line" =~ ^---[[:space:]]+(pkg|prescript|repo|script)(([[:space:]].*)?$) ]]; then
+    if [[ "$_line" =~ ^---[[:space:]]+(key|pkg|prescript|repo|script)(([[:space:]].*)?$) ]]; then
       _mtype="${BASH_REMATCH[1]}"
       _mselectors="${BASH_REMATCH[2]# }"
       _type="$_mtype"
@@ -149,6 +149,7 @@ parse_manifest() {
           [[ -n "$_mpkg" ]] && _M_PKG+="${_mpkg}"$'\n'
         fi
         ;;
+      key)       _M_KEY+="${_line}"$'\n'       ;;
       prescript) _M_PRESCRIPT+="${_line}"$'\n' ;;
       repo)      _M_REPO+="${_line}"$'\n'      ;;
       script)    _M_SCRIPT+="${_line}"$'\n'    ;;
@@ -329,7 +330,7 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
     exit 0
 fi
 # Resolve and parse manifest.
-_M_PRESCRIPT="" _M_REPO="" _M_PKG="" _M_SCRIPT=""
+_M_PRESCRIPT="" _M_REPO="" _M_KEY="" _M_PKG="" _M_SCRIPT=""
 if [[ -n "$MANIFEST" ]]; then
     if [[ "$MANIFEST" == *$'\n'* ]]; then
         _MANIFEST_CONTENT="$MANIFEST"
@@ -339,7 +340,7 @@ if [[ -n "$MANIFEST" ]]; then
         echo "⛔ Manifest file not found: '$MANIFEST'" >&2; exit 1
     fi
     parse_manifest "$_MANIFEST_CONTENT"
-    echo "ℹ️  Manifest parsed: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') prescript line(s), $(echo -n "$_M_REPO" | wc -l | tr -d ' ') repo line(s), $(echo -n "$_M_PKG" | wc -w | tr -d ' ') pkg(s), $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') script line(s)." >&2
+    echo "ℹ️  Manifest parsed: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') prescript line(s), $(echo -n "$_M_KEY" | wc -l | tr -d ' ') key entry/entries, $(echo -n "$_M_REPO" | wc -l | tr -d ' ') repo line(s), $(echo -n "$_M_PKG" | wc -w | tr -d ' ') pkg(s), $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') script line(s)." >&2
 fi
 if [[ -n "$_M_PRESCRIPT" ]]; then
     echo "🚀 Running manifest prescript." >&2
@@ -356,6 +357,109 @@ if [[ -n "$_M_PRESCRIPT" ]]; then
     echo "✅ Manifest prescript completed." >&2
 else
     echo "ℹ️  No prescript found — skipping." >&2
+fi
+# Ensures a fetch tool (curl or wget) is available, installing curl if neither
+# is present.  Sets _FETCH_TOOL to "curl" or "wget".
+_FETCH_TOOL=""
+_ensure_fetch_tool() {
+    [[ -n "${_FETCH_TOOL:-}" ]] && return 0
+    if command -v curl > /dev/null 2>&1; then
+        _FETCH_TOOL=curl; return 0
+    fi
+    if command -v wget > /dev/null 2>&1; then
+        _FETCH_TOOL=wget; return 0
+    fi
+    echo "ℹ️  Neither curl nor wget found — installing curl." >&2
+    "${INSTALL[@]}" curl
+    _FETCH_TOOL=curl
+}
+# _fetch_with_retry <max-attempts> <cmd...>
+# Runs <cmd> up to <max-attempts> times with a 3-second pause between failures.
+_fetch_with_retry() {
+    local _max="$1"; shift
+    local _i=1
+    while [[ $_i -le $_max ]]; do
+        "$@" && return 0
+        [[ $_i -lt $_max ]] && echo "⚠️  Fetch attempt $_i/$_max failed — retrying in 3s..." >&2 && sleep 3
+        (( _i++ ))
+    done
+    echo "⛔ Fetch failed after $_max attempt(s)." >&2
+    return 1
+}
+# _fetch_url_stdout <url> — writes response body to stdout, with retries.
+_fetch_url_stdout() {
+    if [[ "$_FETCH_TOOL" == curl ]]; then
+        _fetch_with_retry 3 curl -fsSL "$1"
+    else
+        _fetch_with_retry 3 wget -qO- "$1"
+    fi
+}
+# _fetch_url_file <url> <dest> — writes response body to file, with retries.
+_fetch_url_file() {
+    if [[ "$_FETCH_TOOL" == curl ]]; then
+        _fetch_with_retry 3 curl -fsSL "$1" -o "$2"
+    else
+        _fetch_with_retry 3 wget -qO "$2" "$1"
+    fi
+}
+# Ensures gpg is available, installing gnupg/gnupg2 if not.
+_ensure_gpg() {
+    command -v gpg > /dev/null 2>&1 && return 0
+    echo "ℹ️  gpg not found — installing gnupg." >&2
+    local _gpg_pkg
+    case "$PKG_PREFIX" in
+        dnf) _gpg_pkg=gnupg2 ;;
+        *)   _gpg_pkg=gnupg  ;;
+    esac
+    "${INSTALL[@]}" "$_gpg_pkg"
+}
+# Helper: fetch and install a single signing key.
+# Usage: _install_key_entry <url> <dest-path>
+# If <dest-path> ends in .gpg the downloaded content is passed through
+# gpg --dearmor (ASCII-armored → binary); otherwise it is written as-is.
+_install_key_entry() {
+    local _url="$1"
+    local _dest="$2"
+    _ensure_fetch_tool
+    mkdir -p "$(dirname "$_dest")"
+    if [[ "$_dest" == *.gpg ]]; then
+        _ensure_gpg
+        echo "🔑 Fetching and dearmoring key → $_dest" >&2
+        _fetch_url_stdout "$_url" | gpg --dearmor -o "$_dest"
+    else
+        echo "🔑 Fetching key → $_dest" >&2
+        _fetch_url_file "$_url" "$_dest"
+    fi
+    chmod 0644 "$_dest"
+}
+if [[ -n "$_M_KEY" ]]; then
+    echo "🔑 Installing signing keys." >&2
+    # Use an isolated GNUPGHOME so gpg --dearmor does not create trust-database
+    # artefacts under /root/.gnupg and pollute the container image layer.
+    _KEY_GNUPGHOME="$(mktemp -d)"
+    chmod 700 "$_KEY_GNUPGHOME"
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "🔍 [dry-run] key: $(echo -n "$_M_KEY" | wc -l | tr -d ' ') entry/entries — would fetch:" >&2
+        while IFS= read -r _kline || [[ -n "$_kline" ]]; do
+            [[ -z "${_kline:-}" ]] && continue
+            _kurl="${_kline%% *}"
+            _kdest="${_kline#* }"
+            echo "    $_kurl → $_kdest" >&2
+        done <<< "$_M_KEY"
+    else
+        export GNUPGHOME="$_KEY_GNUPGHOME"
+        while IFS= read -r _kline || [[ -n "$_kline" ]]; do
+            [[ -z "${_kline:-}" ]] && continue
+            _kurl="${_kline%% *}"
+            _kdest="${_kline#* }"
+            _install_key_entry "$_kurl" "$_kdest"
+        done <<< "$_M_KEY"
+        unset GNUPGHOME
+    fi
+    rm -rf "$_KEY_GNUPGHOME"
+    echo "✅ Signing keys installed." >&2
+else
+    echo "ℹ️  No key entries found — skipping." >&2
 fi
 REPO_ADDED=false
 APK_ADDED_REPOS=()
