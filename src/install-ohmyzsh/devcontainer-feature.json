@@ -50,7 +50,7 @@
       },
       "theme": {
          "default": "romkatv/powerlevel10k",
-         "description": "Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug.\nThe repository is cloned into `<zsh_custom_dir>/themes/<repo>`.\nSet to an empty string to install no custom theme.\n",
+         "description": "Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug.\nThe repository is cloned into `<zsh_custom_dir>/themes/<repo>`.\nThe default is the [Powerlevel10k](https://github.com/romkatv/powerlevel10k) theme. Set to an empty string to install no custom theme.\n",
          "type": "string"
       },
       "zsh_custom_dir": {

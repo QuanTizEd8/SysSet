@@ -11,7 +11,7 @@ _CUSTOM="${_OMZ}/custom"
 
 check "oh-my-zsh installed at custom path" test -d "$_OMZ"
 check "oh-my-zsh main script at custom path" test -f "${_OMZ}/oh-my-zsh.sh"
-check "oh-my-zsh.remote git config set" bash -c '[ "$(git -C "$_OMZ" config oh-my-zsh.remote)" = "origin" ]'
+check "oh-my-zsh.remote git config set" bash -c 'test "$(git -C /opt/oh-my-zsh config oh-my-zsh.remote)" = "origin"'
 check "theme cloned under custom install_dir" test -d "${_CUSTOM}/themes/powerlevel10k/.git"
 check "plugin cloned under custom install_dir" test -d "${_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
 check "omz not cloned at default path" bash -c '! test -d /usr/local/share/oh-my-zsh'

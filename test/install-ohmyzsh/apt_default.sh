@@ -15,8 +15,8 @@ check "oh-my-zsh install dir exists" test -d "$_OMZ"
 check "oh-my-zsh main script exists" test -f "${_OMZ}/oh-my-zsh.sh"
 
 # omz update metadata
-check "oh-my-zsh.remote git config set to origin" bash -c '[ "$(git -C "$_OMZ" config oh-my-zsh.remote)" = "origin" ]'
-check "oh-my-zsh.branch git config set to master" bash -c '[ "$(git -C "$_OMZ" config oh-my-zsh.branch)" = "master" ]'
+check "oh-my-zsh.remote git config set to origin" bash -c 'test "$(git -C /usr/local/share/oh-my-zsh config oh-my-zsh.remote)" = "origin"'
+check "oh-my-zsh.branch git config set to master" bash -c 'test "$(git -C /usr/local/share/oh-my-zsh config oh-my-zsh.branch)" = "master"'
 
 # ZSH_CUSTOM scaffold
 check "ZSH_CUSTOM themes dir exists" test -d "${_CUSTOM}/themes"
