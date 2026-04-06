@@ -1,20 +1,41 @@
+# System-wide interactive shell configuration shared across bash and zsh.
+# Sourced by /etc/bash.bashrc (bash) and /etc/zsh/zshrc (zsh).
+
+# If not running interactively, don't do anything.
 case $- in
   *i*) ;;
     *) return;;
 esac
+
+# --- Environment ---
+# Load shared environment variables and PATH setup (also loaded by non-interactive
+# shells via BASH_ENV and /etc/zsh/zshenv, but sourced here to ensure availability
+# in case this file is sourced independently).
 . "/etc/bash/bash_env"
+
+# --- Conda / Mamba ---
+# Initialize conda and mamba for the current shell, and activate the default env.
 . "/opt/conda/etc/profile.d/conda.sh"
 . "/opt/conda/etc/profile.d/mamba.sh"
 mamba activate app
+
+# --- Git editor ---
+# When inside VS Code and no git editor is already configured, use the VS Code
+# CLI as the editor for commit messages, rebases, etc. Prefers code-insiders
+# if code is not available.
 if [ -z "$(git config --get core.editor)" ] && [ -z "${GIT_EDITOR}" ]; then
-    if  [ "${TERM_PROGRAM}" = "vscode" ]; then
-        if [[ -n $(command -v code-insiders) &&  -z $(command -v code) ]]; then
+    if [ "${TERM_PROGRAM}" = "vscode" ]; then
+        if [ -n "$(command -v code-insiders)" ] && [ -z "$(command -v code)" ]; then
             export GIT_EDITOR="code-insiders --wait"
         else
             export GIT_EDITOR="code --wait"
         fi
     fi
 fi
+
+# --- Colors ---
+# Enable LS_COLORS and colorize common commands if dircolors is available.
+# Respects a per-user ~/.dircolors override if present.
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
     alias ls='ls --color=auto'
@@ -25,6 +46,7 @@ if [ -x /usr/bin/dircolors ]; then
     alias egrep='egrep --color=auto'
 fi
 
+# --- ls aliases ---
 alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
