@@ -33,3 +33,20 @@ configuration files should not be placed in that user's home directory.
 This allows each user to readily [add their own dotfiles](#add-dotfiles-repo)
 in the container user's home directory after connecting to the container,
 without the risk of unintentionally overwriting global configurations.
+
+## Key Topics
+
+Two areas require particular care when configuring devcontainers and Linux systems
+for use across multiple access patterns (VS Code, GitHub Actions, SSH, AI agents, etc.):
+
+- **[Environment Variables](environment/index.md)**: How to set variables that are
+  reliably available in all invocation scenarios — including the differences between
+  `/etc/environment`, `/etc/profile.d/`, `BASH_ENV`, `/etc/zsh/zshenv`, and the
+  (commonly misused) `/etc/environment.d/`. Covers `devcontainer.json` properties
+  `containerEnv`, `remoteEnv`, and `userEnvProbe`.
+
+- **[Shell Configuration](shell/index.md)**: How bash and Zsh load their startup
+  files depending on shell invocation type (login vs. non-login, interactive vs.
+  non-interactive), and how different devcontainer clients (VS Code, devcontainer CLI,
+  GitHub Actions, GitHub Copilot agent) invoke shells differently. Includes best
+  practices for writing configurations that work across all scenarios.
