@@ -309,12 +309,12 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
         echo "ℹ️  Saved inline manifest to '$_MANIFEST_ARG'." >&2
     fi
     _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
-    [[ "$DEBUG" == true ]] && _HOOK_OPTS+=" --debug true"
-    [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive true"
-    [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos true"
+    [[ "$DEBUG" == true ]] && _HOOK_OPTS+=" --debug"
+    [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive"
+    [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos"
     [[ -n "$LOGFILE" ]] && _HOOK_OPTS+=" --logfile $(printf '%q' "$LOGFILE")"
-    [[ "$NO_CLEAN" == true ]] && _HOOK_OPTS+=" --no_clean true"
-    [[ "$NO_UPDATE" == true ]] && _HOOK_OPTS+=" --no_update true"
+    [[ "$NO_CLEAN" == true ]] && _HOOK_OPTS+=" --no_clean"
+    [[ "$NO_UPDATE" == true ]] && _HOOK_OPTS+=" --no_update"
     case "$LIFECYCLE_HOOK" in
         onCreate)       _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
         updateContent)  _HOOK_FILE="$_HOOK_DIR/update-content.sh" ;;
