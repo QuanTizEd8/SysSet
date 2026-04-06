@@ -113,7 +113,7 @@ OS environment. They use square-bracket syntax:
 [key=val, key=val, ...]
 ```
 
-Keys are matched against `/etc/os-release` fields (case-insensitive) plus two
+Keys are matched against [`/etc/os-release`](https://github.com/chef/os_release) fields (case-insensitive) plus two
 synthetic keys:
 
 | Key | Value |
