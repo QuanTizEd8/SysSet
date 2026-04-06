@@ -360,18 +360,31 @@ else
 fi
 # Ensures a fetch tool (curl or wget) is available, installing curl if neither
 # is present.  Sets _FETCH_TOOL to "curl" or "wget".
+# Also ensures the CA certificate bundle is present so HTTPS fetches work.
 _FETCH_TOOL=""
+_CA_CERTS_OK=""
+_ensure_ca_certs() {
+    [[ -n "${_CA_CERTS_OK:-}" ]] && return 0
+    # Check for the standard CA bundle location used by curl and wget.
+    if [[ ! -s /etc/ssl/certs/ca-certificates.crt ]]; then
+        echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
+        "${INSTALL[@]}" ca-certificates
+    fi
+    _CA_CERTS_OK=true
+}
 _ensure_fetch_tool() {
-    [[ -n "${_FETCH_TOOL:-}" ]] && return 0
-    if command -v curl > /dev/null 2>&1; then
-        _FETCH_TOOL=curl; return 0
+    if [[ -z "${_FETCH_TOOL:-}" ]]; then
+        if command -v curl > /dev/null 2>&1; then
+            _FETCH_TOOL=curl
+        elif command -v wget > /dev/null 2>&1; then
+            _FETCH_TOOL=wget
+        else
+            echo "ℹ️  Neither curl nor wget found — installing curl." >&2
+            "${INSTALL[@]}" curl
+            _FETCH_TOOL=curl
+        fi
     fi
-    if command -v wget > /dev/null 2>&1; then
-        _FETCH_TOOL=wget; return 0
-    fi
-    echo "ℹ️  Neither curl nor wget found — installing curl." >&2
-    "${INSTALL[@]}" curl
-    _FETCH_TOOL=curl
+    _ensure_ca_certs
 }
 # _fetch_with_retry <max-attempts> <cmd...>
 # Runs <cmd> up to <max-attempts> times with a 3-second pause between failures.

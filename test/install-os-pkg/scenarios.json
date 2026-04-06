@@ -184,5 +184,11 @@
         "features": {
             "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
         }
+    },
+    "apt_version_selector": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+        }
     }
 }

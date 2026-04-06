@@ -1,0 +1,9 @@
+# version_selectors — version_codename= and version_id= selector filtering.
+# "always" has no selector and is always installed.
+# version_codename matches: trixie (debian:latest), noble (ubuntu:latest)
+# version_id matches:       13 (debian trixie), 24.04 (ubuntu noble)
+always
+trixie-pkg [version_codename=trixie]
+noble-pkg [version_codename=noble]
+debian13-pkg [version_id=13]
+ubuntu2404-pkg [version_id=24.04]

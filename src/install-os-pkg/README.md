@@ -95,6 +95,7 @@ install-os-pkg --manifest $'git\ncurl\n'
 | `logfile` | string | `""` | Mirror all output (stdout + stderr) to this file in addition to the console. |
 | `no_clean` | boolean | `false` | Skip the package manager cache clean step after installation. |
 | `no_update` | boolean | `false` | Skip the package list refresh (`apt-get update`, `apk update`, etc.) before installing. |
+| `dry_run` | boolean | `false` | Print what would be installed/fetched without making any changes. See [Dry run](#dry-run) below. |
 
 ---
 
@@ -109,6 +110,7 @@ implicit leading block — everything before the first header — is treated as 
 
 | Section | Purpose |
 |---|---|
+| `key` | Signing keys to fetch before repositories are added. One `<url> <dest-path>` entry per line. See [Signing keys](#signing-keys) below. |
 | `pkg` | Packages to install via the OS package manager. One package name per line. |
 | `repo` | Repository configuration to add before installing. Written verbatim to the package manager's drop-in directory. |
 | `prescript` | Shell script to run **before** repositories are added and packages are installed. |
@@ -140,6 +142,10 @@ synthetic keys:
 |---|---|
 | `pm` | Package manager prefix: `apt`, `apk`, `dnf`, `zypper`, `pacman` |
 | `arch` | CPU architecture from `uname -m`, e.g. `x86_64`, `aarch64` |
+| `id` | OS identifier from `/etc/os-release`, e.g. `debian`, `ubuntu`, `alpine` |
+| `id_like` | Space-separated family list, e.g. `debian` (present on Ubuntu) |
+| `version_id` | Numeric version string, e.g. `12`, `24.04`, `3.19` |
+| `version_codename` | Release codename, e.g. `bookworm`, `noble` (Debian/Ubuntu only) |
 
 **AND within a block** — all `key=val` pairs in a single block must match.
 
@@ -167,14 +173,13 @@ libssl-dev
 build-base
 openssl-dev
 
+# Fetch and dearmor the Node.js APT signing key (auto-installs curl + gnupg if absent)
+--- key [pm=apt]
+https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key /usr/share/keyrings/nodesource.gpg
+
 # Add a third-party APT repository before installing anything
 --- repo [pm=apt]
 deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main
-
-# Run a setup script before the repository is consumed (e.g. import the GPG key)
---- prescript [pm=apt]
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-  | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
 
 # Package that requires the repo above — APT only
 --- pkg [pm=apt]
@@ -189,6 +194,13 @@ echo "Setup complete."
 --- pkg
 bat [pm=apt, arch=x86_64]
 ripgrep
+
+# Version-specific packages
+--- pkg [version_codename=bookworm]
+some-bookworm-only-package
+
+--- pkg [version_id=24.04]
+some-noble-only-package
 ```
 
 ### Minimal manifest
@@ -217,6 +229,75 @@ inline-manifest detection works correctly:
   }
 }
 ```
+
+---
+
+## Signing keys
+
+A `--- key` section fetches signing keys before any `repo` section is
+processed. Each line has the format:
+
+```
+<url> <dest-path>
+```
+
+- If `<dest-path>` ends in `.gpg` the downloaded content is dearmored via
+  `gpg --dearmor` (ASCII-armored PGP → binary keyring format required by
+  modern APT `signed-by=` references).
+- Otherwise the file is written as-is (e.g. for raw `.asc` keys accepted by
+  `apt-key` or non-APT package managers).
+
+`curl` (preferred) or `wget` is used for downloading. `gnupg` is used for
+dearmoring. If any of these tools is absent the installer **automatically
+installs it** using the detected package manager before proceeding, so no
+`prescript` bootstrapping is needed.
+
+The fetch is retried up to three times with a 3-second pause to handle
+transient network failures. GPG operations run in an isolated temporary
+`GNUPGHOME` directory that is removed after all keys are installed, so no
+trust-database artefacts pollute the container image layer.
+
+**Selectors are supported** on `key` section headers, so you can restrict key
+fetching to a specific package manager:
+
+```
+--- key [pm=apt]
+https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key /usr/share/keyrings/nodesource.gpg
+
+--- repo [pm=apt]
+deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main
+
+--- pkg [pm=apt]
+nodejs
+```
+
+---
+
+## Dry run
+
+Pass `dry_run: true` (feature option) or `--dry_run` (CLI) to print what
+the installer would do without making any changes. No packages are installed,
+no files are written, and no scripts are executed. Root privilege is not
+required.
+
+```sh
+install-os-pkg --manifest /path/to/packages.txt --dry_run
+```
+
+Example output:
+
+```
+🔍 Dry-run mode enabled — no changes will be made.
+🔍 [dry-run] key: 1 entry/entries — would fetch:
+    https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key → /usr/share/keyrings/nodesource.gpg
+🔍 [dry-run] repo: 1 line(s) — would add to package manager repos.
+🔍 [dry-run] update: would run: apt-get update
+🔍 [dry-run] packages (2): nodejs curl
+🔍 [dry-run] cache clean: would run clean_apt
+```
+
+This is useful for auditing manifests in CI, reviewing what a feature will
+install before merging, or debugging selector logic.
 
 ---
 
