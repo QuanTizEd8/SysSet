@@ -3,6 +3,11 @@
    "id": "install-ohmyzsh",
    "name": "Oh My Zsh Installation",
    "options": {
+      "branch": {
+         "default": "master",
+         "description": "Branch or tag of the ohmyzsh/ohmyzsh repository to clone.\nAlso recorded as `oh-my-zsh.branch` in the git config so `omz update` works correctly.\n",
+         "type": "string"
+      },
       "configure_zshrc_for": {
          "default": "",
          "description": "Comma-separated list of usernames whose `~/.zshrc` should be configured to source Oh My Zsh.\nFor each user a guarded block is written (or replaced) between `# BEGIN install-ohmyzsh` and `# END install-ohmyzsh` markers.\nUse `root` to configure the root user.\n",
@@ -36,6 +41,11 @@
       "plugins": {
          "default": "zsh-users/zsh-syntax-highlighting",
          "description": "Comma-separated list of Oh My Zsh custom plugins to install, each as a `owner/repo` GitHub slug.\nThe repository is cloned into `<zsh_custom_dir>/plugins/<repo>`.\nSet to an empty string to install no custom plugins.\n",
+         "type": "string"
+      },
+      "set_default_shell_for": {
+         "default": "",
+         "description": "Comma-separated list of usernames whose default login shell should be changed to zsh via `chsh`.\nSkips silently if zsh or chsh is not found, or if the default shell is already zsh.\n",
          "type": "string"
       },
       "theme": {

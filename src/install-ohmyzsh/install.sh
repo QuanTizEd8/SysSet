@@ -2,6 +2,7 @@
 set -euo pipefail
 __usage__() {
   echo "Usage:" >&2
+  echo "  --branch (string): " >&2
   echo "  --configure_zshrc_for (string): " >&2
   echo "  --debug (boolean): " >&2
   echo "  --font_dir (string): " >&2
@@ -9,6 +10,7 @@ __usage__() {
   echo "  --install_fonts (boolean): " >&2
   echo "  --logfile (string): " >&2
   echo "  --plugins (string): " >&2
+  echo "  --set_default_shell_for (string): " >&2
   echo "  --theme (string): " >&2
   echo "  --zsh_custom_dir (string): This corresponds to the ZSH_CUSTOM configuration variable in Oh My Zsh." >&2
   exit 0
@@ -34,15 +36,18 @@ exit_if_not_root() {
   fi
 }
 
-# git_clone --url <url> --dir <dir>
+# git_clone --url <url> --dir <dir> [--branch <branch>]
 # Clones <url> into <dir> with depth=1.  If <dir>/.git already exists the
-# clone is skipped (idempotent).
+# clone is skipped (idempotent).  On failure the partially-created <dir> is
+# removed so a re-run does not silently skip a broken clone.
 git_clone() {
   echo "↪️ Function entry: git_clone" >&2
+  local branch=""
   local dir=""
   local url=""
   while [[ $# -gt 0 ]]; do
     case $1 in
+      --branch) shift; branch="$1"; echo "📩 Read argument 'branch': '${branch}'" >&2; shift;;
       --dir) shift; dir="$1"; echo "📩 Read argument 'dir': '${dir}'" >&2; shift;;
       --url) shift; url="$1"; echo "📩 Read argument 'url': '${url}'" >&2; shift;;
       --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
@@ -57,14 +62,18 @@ git_clone() {
     return 0
   fi
   mkdir -p "$dir"
-  git clone --depth=1 \
-      -c core.eol=lf \
-      -c core.autocrlf=false \
-      -c fsck.zeroPaddedFilemode=ignore \
-      -c fetch.fsck.zeroPaddedFilemode=ignore \
-      -c receive.fsck.zeroPaddedFilemode=ignore \
-      "$url" \
-      "$dir" 2>&1
+  local _clone_args=(--depth=1
+    -c core.eol=lf
+    -c core.autocrlf=false
+    -c fsck.zeroPaddedFilemode=ignore
+    -c fetch.fsck.zeroPaddedFilemode=ignore
+    -c receive.fsck.zeroPaddedFilemode=ignore)
+  [ -n "${branch-}" ] && _clone_args+=(--branch "$branch")
+  if ! git clone "${_clone_args[@]}" "$url" "$dir" 2>&1; then
+    rm -rf "$dir" 2>/dev/null || true
+    echo "⛔ git clone of '${url}' failed." >&2
+    exit 1
+  fi
   echo "↩️ Function exit: git_clone" >&2
 }
 
@@ -89,6 +98,7 @@ echo "↪️ Script entry: Oh My Zsh Installation Devcontainer Feature Installer
 trap __cleanup__ EXIT
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $@" >&2
+  BRANCH=""
   CONFIGURE_ZSHRC_FOR=""
   DEBUG=""
   FONT_DIR=""
@@ -96,10 +106,12 @@ if [ "$#" -gt 0 ]; then
   INSTALL_FONTS=""
   LOGFILE=""
   PLUGINS=""
+  SET_DEFAULT_SHELL_FOR=""
   THEME=""
   ZSH_CUSTOM_DIR=""
   while [[ $# -gt 0 ]]; do
     case $1 in
+      --branch) shift; BRANCH="$1"; echo "📩 Read argument 'branch': '${BRANCH}'" >&2; shift;;
       --configure_zshrc_for) shift; CONFIGURE_ZSHRC_FOR="$1"; echo "📩 Read argument 'configure_zshrc_for': '${CONFIGURE_ZSHRC_FOR}'" >&2; shift;;
       --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '${DEBUG}'" >&2;;
       --font_dir) shift; FONT_DIR="$1"; echo "📩 Read argument 'font_dir': '${FONT_DIR}'" >&2; shift;;
@@ -107,6 +119,7 @@ if [ "$#" -gt 0 ]; then
       --install_fonts|--no_install_fonts) [[ "$1" == --no_* ]] && INSTALL_FONTS=false || INSTALL_FONTS=true; echo "📩 Read argument 'install_fonts': '${INSTALL_FONTS}'" >&2; shift;;
       --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2; shift;;
       --plugins) shift; PLUGINS="$1"; echo "📩 Read argument 'plugins': '${PLUGINS}'" >&2; shift;;
+      --set_default_shell_for) shift; SET_DEFAULT_SHELL_FOR="$1"; echo "📩 Read argument 'set_default_shell_for': '${SET_DEFAULT_SHELL_FOR}'" >&2; shift;;
       --theme) shift; THEME="$1"; echo "📩 Read argument 'theme': '${THEME}'" >&2; shift;;
       --zsh_custom_dir) shift; ZSH_CUSTOM_DIR="$1"; echo "📩 Read argument 'zsh_custom_dir': '${ZSH_CUSTOM_DIR}'" >&2; shift;;
       --help|-h) __usage__;;
@@ -116,6 +129,7 @@ if [ "$#" -gt 0 ]; then
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
+  [ "${BRANCH+defined}" ] && echo "📩 Read argument 'branch': '${BRANCH}'" >&2
   [ "${CONFIGURE_ZSHRC_FOR+defined}" ] && echo "📩 Read argument 'configure_zshrc_for': '${CONFIGURE_ZSHRC_FOR}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${FONT_DIR+defined}" ] && echo "📩 Read argument 'font_dir': '${FONT_DIR}'" >&2
@@ -123,10 +137,12 @@ else
   [ "${INSTALL_FONTS+defined}" ] && echo "📩 Read argument 'install_fonts': '${INSTALL_FONTS}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${PLUGINS+defined}" ] && echo "📩 Read argument 'plugins': '${PLUGINS}'" >&2
+  [ "${SET_DEFAULT_SHELL_FOR+defined}" ] && echo "📩 Read argument 'set_default_shell_for': '${SET_DEFAULT_SHELL_FOR}'" >&2
   [ "${THEME+defined}" ] && echo "📩 Read argument 'theme': '${THEME}'" >&2
   [ "${ZSH_CUSTOM_DIR+defined}" ] && echo "📩 Read argument 'zsh_custom_dir': '${ZSH_CUSTOM_DIR}'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
+[ -z "${BRANCH-}" ] && { echo "ℹ️ Argument 'BRANCH' set to default value 'master'." >&2; BRANCH="master"; }
 [ -z "${CONFIGURE_ZSHRC_FOR-}" ] && { echo "ℹ️ Argument 'CONFIGURE_ZSHRC_FOR' set to default value ''." >&2; CONFIGURE_ZSHRC_FOR=""; }
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
 [ -z "${FONT_DIR-}" ] && { echo "ℹ️ Argument 'FONT_DIR' set to default value '/usr/share/fonts/MesloLGS'." >&2; FONT_DIR="/usr/share/fonts/MesloLGS"; }
@@ -134,6 +150,7 @@ fi
 [ -z "${INSTALL_FONTS-}" ] && { echo "ℹ️ Argument 'INSTALL_FONTS' set to default value 'true'." >&2; INSTALL_FONTS=true; }
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${PLUGINS-}" ] && { echo "ℹ️ Argument 'PLUGINS' set to default value 'zsh-users/zsh-syntax-highlighting'." >&2; PLUGINS="zsh-users/zsh-syntax-highlighting"; }
+[ -z "${SET_DEFAULT_SHELL_FOR-}" ] && { echo "ℹ️ Argument 'SET_DEFAULT_SHELL_FOR' set to default value ''." >&2; SET_DEFAULT_SHELL_FOR=""; }
 [ -z "${THEME-}" ] && { echo "ℹ️ Argument 'THEME' set to default value 'romkatv/powerlevel10k'." >&2; THEME="romkatv/powerlevel10k"; }
 [ -z "${ZSH_CUSTOM_DIR-}" ] && { ZSH_CUSTOM_DIR="${INSTALL_DIR}/custom"; echo "ℹ️ Argument 'ZSH_CUSTOM_DIR' set to default value '${ZSH_CUSTOM_DIR}'." >&2; }
 exit_if_not_root
@@ -141,7 +158,12 @@ exit_if_not_root
 _PACKAGES_MANIFEST="$(dirname "$0")/packages.txt"
 install-os-pkg --manifest "$_PACKAGES_MANIFEST" --check_installed
 umask g-w,o-w
-git_clone --url "https://github.com/ohmyzsh/ohmyzsh" --dir "$INSTALL_DIR"
+git_clone --url "https://github.com/ohmyzsh/ohmyzsh" --dir "$INSTALL_DIR" --branch "$BRANCH"
+# Set oh-my-zsh update metadata so 'omz update' knows which remote and branch to use.
+git -C "$INSTALL_DIR" config oh-my-zsh.remote origin
+git -C "$INSTALL_DIR" config oh-my-zsh.branch "$BRANCH"
+# Ensure ZSH_CUSTOM scaffold directories exist regardless of theme/plugin selections.
+mkdir -p "${ZSH_CUSTOM_DIR}/themes" "${ZSH_CUSTOM_DIR}/plugins"
 # --- Theme ---
 if [ -n "${THEME-}" ]; then
   _THEME_REPO_NAME="$(basename "$THEME")"
@@ -226,5 +248,39 @@ if [ -n "${CONFIGURE_ZSHRC_FOR-}" ]; then
     [ "$_username" != "root" ] && chown "$_username" "$_zshrc" 2>/dev/null || true
     echo "ℹ️  Configured oh-my-zsh block in '${_zshrc}'." >&2
   done
+fi
+# --- Set default shell ---
+if [ -n "${SET_DEFAULT_SHELL_FOR-}" ]; then
+  if ! command -v chsh > /dev/null 2>&1; then
+    echo "⚠️  chsh not found — skipping default shell configuration. Install the 'passwd' package to enable this feature." >&2
+  else
+    _ZSH_PATH="$(command -v zsh 2>/dev/null || true)"
+    if [ -z "$_ZSH_PATH" ]; then
+      echo "⚠️  zsh not found in PATH — skipping default shell configuration." >&2
+    else
+      # chsh requires the shell to be listed in /etc/shells; add it if missing.
+      _SHELLS_FILE=/etc/shells
+      [ -f /usr/share/defaults/etc/shells ] && _SHELLS_FILE=/usr/share/defaults/etc/shells
+      if [ -f "$_SHELLS_FILE" ] && ! grep -qx "$_ZSH_PATH" "$_SHELLS_FILE"; then
+        echo "$_ZSH_PATH" >> "$_SHELLS_FILE"
+        echo "ℹ️  Added '${_ZSH_PATH}' to '${_SHELLS_FILE}'." >&2
+      fi
+      IFS=',' read -r -a _CHSH_USERS <<< "$SET_DEFAULT_SHELL_FOR"
+      for _username in "${_CHSH_USERS[@]}"; do
+        _username="${_username// /}"
+        [ -z "$_username" ] && continue
+        _current_shell="$(getent passwd "$_username" 2>/dev/null | cut -d: -f7 || true)"
+        if [ "$_current_shell" = "$_ZSH_PATH" ]; then
+          echo "ℹ️  Default shell for '${_username}' is already '${_ZSH_PATH}' — skipping." >&2
+          continue
+        fi
+        if ! chsh -s "$_ZSH_PATH" "$_username" 2>/dev/null; then
+          echo "⚠️  chsh failed for '${_username}' — skipping." >&2
+          continue
+        fi
+        echo "ℹ️  Default shell for '${_username}' set to '${_ZSH_PATH}'." >&2
+      done
+    fi
+  fi
 fi
 echo "↩️ Script exit: Oh My Zsh Installation Devcontainer Feature Installer" >&2
