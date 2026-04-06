@@ -39,17 +39,41 @@ extend_path() {
   done
 }
 
+# Set default umask: owners can read/write, everyone read-only.
+umask 022
+
 if [ -z "$USER" ]; then export USER=$(whoami); fi
 if [ -z "$HOME" ]; then export HOME=$(getent passwd "$USER" | cut -d: -f6); fi
-extend_path --prepend \
-  "$HOME/.local/bin" \
-  "$HOME/bin" \
-  "/usr/local/bin" \
-  "/usr/bin" \
-  "/bin" \
-  "/usr/games"
+
+if [ "$(id -u)" -eq 0 ]; then
+  extend_path --prepend \
+    "$HOME/.local/bin" \
+    "$HOME/bin" \
+    "/usr/local/sbin" \
+    "/usr/local/bin" \
+    "/usr/sbin" \
+    "/usr/bin" \
+    "/sbin" \
+    "/bin"
+else
+  extend_path --prepend \
+    "$HOME/.local/bin" \
+    "$HOME/bin" \
+    "/usr/local/bin" \
+    "/usr/bin" \
+    "/bin" \
+    "/usr/games"
+fi
+export PATH
+
+
+# XDG Base Directory Specification
+
+# System directories
+export XDG_DATA_DIRS="/usr/local/share:/usr/share"
+export XDG_CONFIG_DIRS="/etc/xdg"
+# User directories
 export XDG_CACHE_HOME="${HOME}/.cache"
 export XDG_CONFIG_HOME="${HOME}/.config"
 export XDG_DATA_HOME="${HOME}/.local/share"
 export XDG_STATE_HOME="${HOME}/.local/state"
-. "/etc/project_tasks"
