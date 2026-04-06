@@ -1,9 +1,14 @@
+
+# If not running interactively, return
 case $- in
   *i*) ;;
     *) return;;
 esac
+
+
 . "/etc/global_shellrc"
 . "/etc/bash/bash_theme"
+
 HISTIGNORE="pwd:exit:clear"
 HISTCONTROL=erasedups:ignoredups:ignorespace
 HISTSIZE=1000
