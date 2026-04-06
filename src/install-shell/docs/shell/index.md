@@ -41,13 +41,55 @@ A shell session can therefore be login and interactive, login and non-interactiv
 non-login and interactive, or non-login and non-interactive.
 Most shells a user interacts with are **non-login interactive** shells.
 This is the case for most Linux terminals and the
-integrated terminal inside a devcontainer in VS Code [^devcontainer-userEnvProbe].
+integrated terminal inside a devcontainer in VS Code.[^devcontainer-terminal]
 Typically, users only encounter a login shell if they log in remotely (e.g., through ssh)
 or from a TTY (not a GUI).
 An exception is terminals opened on a macOS, which are login shells by default.
 
-You can get the invocation type of a shell session by running the following commands
-in that shell:
+[^devcontainer-terminal]: The VS Code integrated terminal always spawns a non-login,
+    interactive shell regardless of the `userEnvProbe` setting in `devcontainer.json`.
+    `userEnvProbe` only controls which shell type VS Code uses to *probe* the user's
+    environment (running `printenv` to capture variables); it does not affect what the
+    terminal itself uses. The terminal shell invocation type can be configured via the
+    `terminal.integrated.profiles` setting in VS Code settings
+    (cf. [stackoverflow](https://stackoverflow.com/a/72034200/14923024)).
+
+
+## Shell Invocations Across Environments
+
+The invocation type (login/non-login, interactive/non-interactive) varies
+significantly depending on the tool or context from which a shell is launched.
+This is particularly important in devcontainer setups where the same container may
+be accessed by VS Code, CI pipelines, command-line tools, and AI coding agents.
+
+| Environment | Shell | Login | Interactive | Notes |
+|---|---|---|---|---|
+| VS Code integrated terminal | zsh / bash | No | Yes | Spawned by VS Code's node process; reads `/etc/environment` directly |
+| devcontainer CLI `exec` | sh / bash | No | No | Default for lifecycle hooks and `exec` commands |
+| GitHub Actions (`devcontainer/ci`) | sh / bash | No | No | Runs inside container via devcontainer CLI |
+| GitHub Copilot coding agent | bash | No | No | Uses devcontainer CLI infrastructure |
+| Remote SSH | bash / zsh | Yes | Yes | Full PAM login; reads `/etc/environment`, `/etc/profile`, `profile.d/` |
+| Local Linux terminal (GNOME, etc.) | bash / zsh | No | Yes | Non-login; reads `bash.bashrc` / `zshrc` |
+| macOS Terminal.app | zsh | Yes | Yes | macOS defaults all terminals to login shells |
+| `docker exec` directly | sh | No | No | No rc files sourced unless explicitly specified |
+| `RUN` in `Dockerfile` | sh | No | No | Use `SHELL ["/bin/bash", "-l", "-c"]` to get a login shell |
+
+### Implications for `PATH` and Environment Variables
+
+Because the VS Code integrated terminal is a **non-login** shell, it does **not**
+source `/etc/profile` or `/etc/profile.d/`. Variables and PATH entries must be
+configured through mechanisms that cover non-login shells:
+
+- **Static variables**: `/etc/environment` (read directly by VS Code)
+- **PATH and dynamic variables for all zsh**: `/etc/zsh/zshenv`
+- **PATH and dynamic variables for non-interactive bash**: `BASH_ENV` in `/etc/environment`
+
+See the [Environment Variables guide](../environment/index.md) for a complete
+breakdown of which files cover which scenarios and the recommended setup.
+
+### Checking Invocation Type
+
+To determine the invocation type of your current shell session:
 
 :::::{tab-set}
 
@@ -74,10 +116,6 @@ esac
 
 ::::{tab-item} Login (bash)
 :::{code-block} bash
-[[ "${0:0:1}" == "-" ]] && echo "Login" || echo "Non-login"
-:::
-or
-:::{code-block} bash
 shopt -q login_shell && echo "Login" || echo "Non-login"
 :::
 ::::
@@ -89,10 +127,6 @@ shopt -q login_shell && echo "Login" || echo "Non-login"
 ::::
 
 :::::
-
-[^devcontainer-userEnvProbe]: The `userEnvProbe` property in [`devcontainer.json`](https://containers.dev/implementors/json_reference/#general-properties) appears to be setting shell invoctation type, but it does not affect the shell type in the VS Code terminal (cf. https://github.com/microsoft/vscode-remote-release/issues/3593). However, the behavior seems to be configurable via the `terminal.integrated.profiles`
-option in VS Code settings (cf. [stackoverflow](https://stackoverflow.com/a/72034200/14923024)).
-
 
 ## Bash
 
@@ -231,6 +265,33 @@ case $- in
 esac
 ```
 
+### Use Global Files in Devcontainers (Not User Home)
+
+In devcontainers — which are often shared or accessed by different users — place
+shell configuration in global files (`/etc/bash.bashrc`, `/etc/zsh/zshenv`, etc.)
+rather than in the container user's home directory. This allows each user to
+freely [add their own dotfiles](https://code.visualstudio.com/docs/devcontainers/containers#_personalizing-with-dotfile-repositories)
+in the home directory after connecting, without overwriting distributed configuration.
+
+### Cover All Devcontainer Invocation Types
+
+Because different clients (VS Code, devcontainer CLI, GitHub Actions, AI agents)
+invoke shells differently, configuration must not rely on a single mechanism.
+The combination of `/etc/environment` + `BASH_ENV` + `/etc/zsh/zshenv` is the
+most robust strategy:
+
+```ini
+# /etc/environment
+BASH_ENV=/etc/bash/bash_env
+```
+
+```zsh
+# /etc/zsh/zshenv
+emulate sh -c 'source "/etc/bash/bash_env"'
+```
+
+See the [Environment Variables guide](../environment/index.md) for details.
+
 ### Modularize Your Configuration
 
 Instead of placing all logic in a monolithic `~/.bashrc` or `~/.zshrc`, split configuration into maintainable files:
@@ -298,7 +359,11 @@ This keeps secrets or machine-specific changes out of version control.
 ## Summary
 
 - Shell behavior depends on whether it's login, non-login, interactive, or non-interactive.
+- Different devcontainer clients (VS Code, CLI, GHA, AI agents) use different invocation
+  types — do not assume login or interactive shells for CI and automation.
 - Bash and Zsh load different sets of configuration files depending on context.
 - Always guard interactive-only logic with checks.
+- In devcontainers, use global files (`/etc`) rather than user home directories.
+- Use `/etc/environment` + `BASH_ENV` + `zshenv` for coverage across all invocation types.
 - Modularize configuration files for clarity and maintainability.
-- Avoid sourcing full configs in scripts—use minimal setups instead.
+- Avoid sourcing full configs in scripts — use minimal setups instead.
