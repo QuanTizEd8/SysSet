@@ -124,7 +124,7 @@ sequential steps.
 
 The top-level `install.sh` is a POSIX sh script that ensures `bash` is
 available (installing it via the detected package manager if necessary),
-then hands off to the main orchestrator at `script/install.sh`.
+then hands off to the main orchestrator at `scripts/install.sh`.
 
 ### Step 1 — Install packages
 
@@ -613,7 +613,7 @@ src/install-shell/
 ├── devcontainer-feature.json      # Feature metadata and options
 ├── packages.txt                   # OS package dependencies
 │
-├── script/
+├── scripts/
 │   └── install.sh                 # Main orchestrator (bash, 9-step flow)
 │
 ├── scripts/

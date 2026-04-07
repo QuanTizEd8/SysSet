@@ -26,4 +26,4 @@ fi
 
 
 _SELF_DIR="$(dirname "$0")"
-exec bash "$_SELF_DIR/script/install.sh" "$@"
+exec bash "$_SELF_DIR/scripts/install.sh" "$@"

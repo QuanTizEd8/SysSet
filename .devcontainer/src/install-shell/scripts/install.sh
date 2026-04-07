@@ -13,7 +13,6 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
-_SCRIPTS_DIR="${_BASE_DIR}/scripts"
 _FILES_DIR="${_BASE_DIR}/files"
 _SKEL_DIR="${_FILES_DIR}/skel"
 
@@ -21,7 +20,7 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 # Shared helpers
 # ---------------------------------------------------------------------------
 # shellcheck source=../scripts/helpers.sh
-. "$_SCRIPTS_DIR/helpers.sh"
+. "$_SELF_DIR/helpers.sh"
 
 # ---------------------------------------------------------------------------
 # Cleanup / logging
@@ -251,7 +250,7 @@ if [[ "$INSTALL_OHMYZSH" == true ]]; then
   if ! command -v zsh > /dev/null 2>&1; then
     echo "⚠️  Zsh not available — skipping Oh My Zsh installation." >&2
   else
-    bash "$_SCRIPTS_DIR/install_ohmyzsh.sh" \
+    bash "$_SELF_DIR/install_ohmyzsh.sh" \
       --branch "$OHMYZSH_BRANCH" \
       --install_dir "$OHMYZSH_INSTALL_DIR" \
       --zsh_custom_dir "$OHMYZSH_CUSTOM_DIR" \
@@ -267,7 +266,7 @@ fi
 # ===================================================================
 _OMB_INSTALLED=false
 if [[ "$INSTALL_OHMYBASH" == true ]]; then
-  bash "$_SCRIPTS_DIR/install_ohmybash.sh" \
+  bash "$_SELF_DIR/install_ohmybash.sh" \
     --branch "$OHMYBASH_BRANCH" \
     --install_dir "$OHMYBASH_INSTALL_DIR" \
     --osh_custom_dir "$OHMYBASH_CUSTOM_DIR" \
@@ -281,7 +280,7 @@ fi
 # Step 4: Install Starship
 # ===================================================================
 if [[ "$INSTALL_STARSHIP" == true ]]; then
-  bash "$_SCRIPTS_DIR/install_starship.sh" \
+  bash "$_SELF_DIR/install_starship.sh" \
     $( [[ "$DEBUG" == true ]] && echo "--debug" )
 fi
 
@@ -297,7 +296,7 @@ if [[ "$INSTALL_FONTS" == true ]]; then
     _FONT_ARGS+=(--p10k_fonts)
   fi
 
-  bash "$_SCRIPTS_DIR/install_fonts.sh" \
+  bash "$_SELF_DIR/install_fonts.sh" \
     "${_FONT_ARGS[@]}" \
     $( [[ "$DEBUG" == true ]] && echo "--debug" )
 fi
@@ -459,7 +458,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
 
   [[ "$DEBUG" == true ]] && _CONFIGURE_ARGS+=(--debug)
 
-  bash "$_SCRIPTS_DIR/configure_user.sh" "${_CONFIGURE_ARGS[@]}"
+  bash "$_SELF_DIR/configure_user.sh" "${_CONFIGURE_ARGS[@]}"
 done
 
 # ===================================================================

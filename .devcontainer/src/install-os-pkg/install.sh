@@ -32,7 +32,7 @@ _BIN="/usr/local/bin/install-os-pkg"
 if [ "${INSTALL_SELF:-true}" = "true" ]; then
     if [ ! -x "$_BIN" ]; then
         mkdir -p "$_LIB_DIR"
-        cp "$_SELF_DIR/script/install.sh" "$_LIB_DIR/install.sh"
+        cp "$_SELF_DIR/scripts/install.sh" "$_LIB_DIR/install.sh"
         chmod +x "$_LIB_DIR/install.sh"
         printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" > "$_BIN"
         chmod +x "$_BIN"
@@ -42,4 +42,4 @@ else
     echo "ℹ️ Skipping system command installation (install_self=false)." >&2
 fi
 
-exec bash "$_SELF_DIR/script/install.sh" "$@"
+exec bash "$_SELF_DIR/scripts/install.sh" "$@"
