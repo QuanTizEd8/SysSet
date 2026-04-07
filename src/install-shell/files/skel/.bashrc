@@ -6,6 +6,10 @@ case $- in
       *) return;;
 esac
 
+# Load shared user interactive config (POSIX aliases, functions, cross-shell
+# tool initialisers).  Sourced here and in ~/.zshrc for both shells.
+[ -f "$HOME/.shellrc" ] && . "$HOME/.shellrc"
+
 # The system config in /etc/bash/bashrc has already run by this point and
 # provides: shared aliases, dircolors, history settings, completions, etc.
 #
