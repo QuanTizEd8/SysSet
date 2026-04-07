@@ -22,7 +22,7 @@ __bash_prompt() {
 
 __bash_prompt
 export PROMPT_DIRTRIM=4
-if [[ "$TERM" == "xterm" ]]; then
+if [[ "$TERM" == xterm* || "$TERM" == screen* || "$TERM" == tmux* ]]; then
     preexec() {
         local cmd="${BASH_COMMAND}"
         echo -ne "\033]0;${USER}@${HOSTNAME}: ${cmd}\007"
