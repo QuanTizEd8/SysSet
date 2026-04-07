@@ -110,9 +110,20 @@
          "description": "Path to the Oh My Bash custom directory.\nDefaults to `<install_dir>/custom`.\n",
          "type": "string"
       },
+      "font_names": {
+         "default": "Meslo,JetBrainsMono",
+         "description": "Comma-separated list of [Nerd Fonts](https://www.nerdfonts.com) archive names to install (e.g. `Meslo,JetBrainsMono,FiraCode`).\nEach name must match an archive filename from the [nerd-fonts releases](https://github.com/ryanoasis/nerd-fonts/releases) (without the extension).\nWhen the Oh My Zsh theme is `romkatv/powerlevel10k`, the p10k-specific *MesloLGS NF* fonts are installed automatically.\nIgnored if `install_fonts` is false.\n",
+         "type": "string"
+      },
       "font_dir": {
          "default": "/usr/share/fonts",
          "description": "Path to the directory where fonts will be downloaded.",
+         "type": "string"
+      },
+      "user_config_mode": {
+         "default": "overwrite",
+         "enum": ["overwrite", "augment", "skip"],
+         "description": "How to handle existing user dotfiles when configuring users.\n- `overwrite`: Replace all dotfiles from skel and re-inject framework blocks.\n- `augment`: Copy skel files only if they do not already exist; always refresh framework blocks.\n- `skip`: Do nothing if dotfiles already exist.\n",
          "type": "string"
       },
       "debug": {

@@ -1,0 +1,523 @@
+#!/usr/bin/env bash
+# install-shell main orchestrator.
+#
+# Installs shells (zsh), shell frameworks (Oh My Zsh, Oh My Bash), the
+# Starship prompt, Nerd Fonts, deploys system-wide shell configuration files,
+# configures per-user dotfiles, and optionally sets default login shells.
+#
+# Can be run standalone (CLI flags) or as a devcontainer feature (env vars).
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
+_SCRIPTS_DIR="${_BASE_DIR}/scripts"
+_FILES_DIR="${_BASE_DIR}/files"
+_SKEL_DIR="${_FILES_DIR}/skel"
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+# shellcheck source=../scripts/helpers.sh
+. "$_SCRIPTS_DIR/helpers.sh"
+
+# ---------------------------------------------------------------------------
+# Cleanup / logging
+# ---------------------------------------------------------------------------
+__cleanup__() {
+  if [ -n "${LOGFILE-}" ]; then
+    exec 1>&3 2>&4
+    wait 2>/dev/null
+    mkdir -p "$(dirname "$LOGFILE")"
+    cat "$_LOGFILE_TMP" >> "$LOGFILE"
+    rm -f "$_LOGFILE_TMP"
+  fi
+}
+
+_LOGFILE_TMP="$(mktemp)"
+exec 3>&1 4>&2
+exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
+trap __cleanup__ EXIT
+
+# ---------------------------------------------------------------------------
+# Usage
+# ---------------------------------------------------------------------------
+__usage__() {
+  cat >&2 <<'EOF'
+Usage: install.sh [OPTIONS]
+
+Shells:
+  --install_zsh <bool>             Install zsh (default: true)
+
+Frameworks:
+  --install_ohmyzsh <bool>         Install Oh My Zsh (default: true)
+  --install_ohmybash <bool>        Install Oh My Bash (default: true)
+  --install_starship <bool>        Install Starship prompt (default: true)
+
+Oh My Zsh options:
+  --ohmyzsh_install_dir <path>     Installation directory
+  --ohmyzsh_custom_dir <path>      ZSH_CUSTOM directory
+  --ohmyzsh_branch <string>        Git branch/tag to clone
+  --ohmyzsh_theme <string>         Custom theme (owner/repo slug)
+  --ohmyzsh_plugins <string>       Comma-separated custom plugin slugs
+
+Oh My Bash options:
+  --ohmybash_install_dir <path>    Installation directory
+  --ohmybash_custom_dir <path>     OSH_CUSTOM directory
+  --ohmybash_branch <string>       Git branch/tag to clone
+  --ohmybash_theme <string>        Custom theme (owner/repo slug)
+  --ohmybash_plugins <string>      Comma-separated custom plugin slugs
+
+Fonts:
+  --install_fonts <bool>           Install Nerd Fonts (default: true)
+  --font_names <string>            Comma-separated nerd-fonts archive names
+  --font_dir <path>                Font installation directory
+
+User configuration:
+  --add_root_user_config <bool>    Configure root (default: false)
+  --add_current_user_config <bool> Configure current user (default: true)
+  --add_container_user_config <bool>  Configure containerUser (default: false)
+  --add_remote_user_config <bool>  Configure remoteUser (default: false)
+  --add_user_config <string>       Comma-separated additional usernames
+  --user_config_mode <string>      overwrite | augment | skip (default: overwrite)
+  --set_user_shells <string>       zsh | bash | none (default: none)
+
+General:
+  --debug                          Enable debug output
+  --logfile <path>                 Log file path
+  -h, --help                       Show this help
+EOF
+  exit 0
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing — dual-mode: CLI flags or env vars
+# ---------------------------------------------------------------------------
+if [ "$#" -gt 0 ]; then
+  INSTALL_ZSH=""
+  INSTALL_OHMYZSH=""
+  INSTALL_OHMYBASH=""
+  INSTALL_STARSHIP=""
+  INSTALL_FONTS=""
+  OHMYZSH_INSTALL_DIR=""
+  OHMYZSH_CUSTOM_DIR=""
+  OHMYZSH_BRANCH=""
+  OHMYZSH_THEME=""
+  OHMYZSH_PLUGINS=""
+  OHMYBASH_INSTALL_DIR=""
+  OHMYBASH_CUSTOM_DIR=""
+  OHMYBASH_BRANCH=""
+  OHMYBASH_THEME=""
+  OHMYBASH_PLUGINS=""
+  FONT_NAMES=""
+  FONT_DIR=""
+  ADD_ROOT_USER_CONFIG=""
+  ADD_CURRENT_USER_CONFIG=""
+  ADD_CONTAINER_USER_CONFIG=""
+  ADD_REMOTE_USER_CONFIG=""
+  ADD_USER_CONFIG=""
+  USER_CONFIG_MODE=""
+  SET_USER_SHELLS=""
+  DEBUG=""
+  LOGFILE=""
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --install_zsh)                shift; INSTALL_ZSH="$1"; shift;;
+      --install_ohmyzsh)            shift; INSTALL_OHMYZSH="$1"; shift;;
+      --install_ohmybash)           shift; INSTALL_OHMYBASH="$1"; shift;;
+      --install_starship)           shift; INSTALL_STARSHIP="$1"; shift;;
+      --install_fonts)              shift; INSTALL_FONTS="$1"; shift;;
+      --ohmyzsh_install_dir)        shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
+      --ohmyzsh_custom_dir)         shift; OHMYZSH_CUSTOM_DIR="$1"; shift;;
+      --ohmyzsh_branch)             shift; OHMYZSH_BRANCH="$1"; shift;;
+      --ohmyzsh_theme)              shift; OHMYZSH_THEME="$1"; shift;;
+      --ohmyzsh_plugins)            shift; OHMYZSH_PLUGINS="$1"; shift;;
+      --ohmybash_install_dir)       shift; OHMYBASH_INSTALL_DIR="$1"; shift;;
+      --ohmybash_custom_dir)        shift; OHMYBASH_CUSTOM_DIR="$1"; shift;;
+      --ohmybash_branch)            shift; OHMYBASH_BRANCH="$1"; shift;;
+      --ohmybash_theme)             shift; OHMYBASH_THEME="$1"; shift;;
+      --ohmybash_plugins)           shift; OHMYBASH_PLUGINS="$1"; shift;;
+      --font_names)                 shift; FONT_NAMES="$1"; shift;;
+      --font_dir)                   shift; FONT_DIR="$1"; shift;;
+      --add_root_user_config)       shift; ADD_ROOT_USER_CONFIG="$1"; shift;;
+      --add_current_user_config)    shift; ADD_CURRENT_USER_CONFIG="$1"; shift;;
+      --add_container_user_config)  shift; ADD_CONTAINER_USER_CONFIG="$1"; shift;;
+      --add_remote_user_config)     shift; ADD_REMOTE_USER_CONFIG="$1"; shift;;
+      --add_user_config)            shift; ADD_USER_CONFIG="$1"; shift;;
+      --user_config_mode)           shift; USER_CONFIG_MODE="$1"; shift;;
+      --set_user_shells)            shift; SET_USER_SHELLS="$1"; shift;;
+      --debug)                      DEBUG=true; shift;;
+      --logfile)                    shift; LOGFILE="$1"; shift;;
+      --help|-h)                    __usage__;;
+      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
+      *)   echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+    esac
+  done
+fi
+
+# ---------------------------------------------------------------------------
+# Defaults (match devcontainer-feature.json)
+# ---------------------------------------------------------------------------
+[ -z "${INSTALL_ZSH-}" ]              && INSTALL_ZSH=true
+[ -z "${INSTALL_OHMYZSH-}" ]          && INSTALL_OHMYZSH=true
+[ -z "${INSTALL_OHMYBASH-}" ]         && INSTALL_OHMYBASH=true
+[ -z "${INSTALL_STARSHIP-}" ]         && INSTALL_STARSHIP=true
+[ -z "${INSTALL_FONTS-}" ]            && INSTALL_FONTS=true
+[ -z "${OHMYZSH_INSTALL_DIR-}" ]      && OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
+[ -z "${OHMYZSH_CUSTOM_DIR-}" ]       && OHMYZSH_CUSTOM_DIR="${OHMYZSH_INSTALL_DIR}/custom"
+[ -z "${OHMYZSH_BRANCH-}" ]           && OHMYZSH_BRANCH="master"
+[ -z "${OHMYZSH_THEME-}" ]            && OHMYZSH_THEME=""
+[ -z "${OHMYZSH_PLUGINS-}" ]          && OHMYZSH_PLUGINS="zsh-users/zsh-syntax-highlighting"
+[ -z "${OHMYBASH_INSTALL_DIR-}" ]     && OHMYBASH_INSTALL_DIR="/usr/local/share/oh-my-bash"
+[ -z "${OHMYBASH_CUSTOM_DIR-}" ]      && OHMYBASH_CUSTOM_DIR="${OHMYBASH_INSTALL_DIR}/custom"
+[ -z "${OHMYBASH_BRANCH-}" ]          && OHMYBASH_BRANCH="master"
+[ -z "${OHMYBASH_THEME-}" ]           && OHMYBASH_THEME=""
+[ -z "${OHMYBASH_PLUGINS-}" ]         && OHMYBASH_PLUGINS=""
+[ -z "${FONT_NAMES-}" ]               && FONT_NAMES="Meslo,JetBrainsMono"
+[ -z "${FONT_DIR-}" ]                 && FONT_DIR="/usr/share/fonts"
+[ -z "${ADD_ROOT_USER_CONFIG-}" ]     && ADD_ROOT_USER_CONFIG=false
+[ -z "${ADD_CURRENT_USER_CONFIG-}" ]  && ADD_CURRENT_USER_CONFIG=true
+[ -z "${ADD_CONTAINER_USER_CONFIG-}" ] && ADD_CONTAINER_USER_CONFIG=false
+[ -z "${ADD_REMOTE_USER_CONFIG-}" ]   && ADD_REMOTE_USER_CONFIG=false
+[ -z "${ADD_USER_CONFIG-}" ]          && ADD_USER_CONFIG=""
+[ -z "${USER_CONFIG_MODE-}" ]         && USER_CONFIG_MODE="overwrite"
+[ -z "${SET_USER_SHELLS-}" ]          && SET_USER_SHELLS="none"
+[ -z "${DEBUG-}" ]                    && DEBUG=false
+[ -z "${LOGFILE-}" ]                  && LOGFILE=""
+
+[[ "$DEBUG" == true ]] && set -x
+
+# ---------------------------------------------------------------------------
+# Preconditions
+# ---------------------------------------------------------------------------
+if [ "$(id -u)" -ne 0 ]; then
+  echo "⛔ This script must be run as root." >&2
+  exit 1
+fi
+
+echo "========================================" >&2
+echo "  install-shell" >&2
+echo "========================================" >&2
+
+# ===================================================================
+# Step 1: Install Zsh
+# ===================================================================
+if [[ "$INSTALL_ZSH" == true ]]; then
+  if command -v zsh > /dev/null 2>&1; then
+    echo "ℹ️  Zsh already installed — skipping." >&2
+  else
+    echo "📦 Installing Zsh..." >&2
+    _PKG_MANIFEST="${_SCRIPTS_DIR}/packages.txt"
+    if [ -f "$_PKG_MANIFEST" ] && command -v install-os-pkg > /dev/null 2>&1; then
+      install-os-pkg --manifest "$_PKG_MANIFEST" --check_installed
+    else
+      # Direct fallback: install zsh + git + curl via detected package manager.
+      if command -v apt-get > /dev/null 2>&1; then
+        apt-get update && apt-get install -y --no-install-recommends zsh git curl ca-certificates
+      elif command -v apk > /dev/null 2>&1; then
+        apk add --no-cache zsh git curl ca-certificates
+      elif command -v dnf > /dev/null 2>&1; then
+        dnf install -y zsh git curl ca-certificates
+      elif command -v yum > /dev/null 2>&1; then
+        yum install -y zsh git curl ca-certificates
+      elif command -v zypper > /dev/null 2>&1; then
+        zypper --non-interactive install zsh git curl ca-certificates
+      elif command -v pacman > /dev/null 2>&1; then
+        pacman -S --noconfirm --needed zsh git curl ca-certificates
+      else
+        echo "⛔ No supported package manager found." >&2
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+# Verify prerequisites are available.
+for _cmd in git curl; do
+  if ! command -v "$_cmd" > /dev/null 2>&1; then
+    echo "⛔ Required command '${_cmd}' not found. Install it first." >&2
+    exit 1
+  fi
+done
+
+# ===================================================================
+# Step 2: Install Oh My Zsh
+# ===================================================================
+_OMZ_INSTALLED=false
+if [[ "$INSTALL_OHMYZSH" == true ]]; then
+  if ! command -v zsh > /dev/null 2>&1; then
+    echo "⚠️  Zsh not available — skipping Oh My Zsh installation." >&2
+  else
+    bash "$_SCRIPTS_DIR/install_ohmyzsh.sh" \
+      --branch "$OHMYZSH_BRANCH" \
+      --install_dir "$OHMYZSH_INSTALL_DIR" \
+      --zsh_custom_dir "$OHMYZSH_CUSTOM_DIR" \
+      --theme "$OHMYZSH_THEME" \
+      --plugins "$OHMYZSH_PLUGINS" \
+      $( [[ "$DEBUG" == true ]] && echo "--debug" )
+    _OMZ_INSTALLED=true
+  fi
+fi
+
+# ===================================================================
+# Step 3: Install Oh My Bash
+# ===================================================================
+_OMB_INSTALLED=false
+if [[ "$INSTALL_OHMYBASH" == true ]]; then
+  bash "$_SCRIPTS_DIR/install_ohmybash.sh" \
+    --branch "$OHMYBASH_BRANCH" \
+    --install_dir "$OHMYBASH_INSTALL_DIR" \
+    --osh_custom_dir "$OHMYBASH_CUSTOM_DIR" \
+    --theme "$OHMYBASH_THEME" \
+    --plugins "$OHMYBASH_PLUGINS" \
+    $( [[ "$DEBUG" == true ]] && echo "--debug" )
+  _OMB_INSTALLED=true
+fi
+
+# ===================================================================
+# Step 4: Install Starship
+# ===================================================================
+if [[ "$INSTALL_STARSHIP" == true ]]; then
+  bash "$_SCRIPTS_DIR/install_starship.sh" \
+    $( [[ "$DEBUG" == true ]] && echo "--debug" )
+fi
+
+# ===================================================================
+# Step 5: Install Fonts
+# ===================================================================
+if [[ "$INSTALL_FONTS" == true ]]; then
+  _FONT_ARGS=(--font_dir "$FONT_DIR")
+  [ -n "$FONT_NAMES" ] && _FONT_ARGS+=(--font_names "$FONT_NAMES")
+
+  # Install p10k-specific MesloLGS NF fonts when a p10k theme is selected.
+  if [[ "${OHMYZSH_THEME}" == *powerlevel10k* ]]; then
+    _FONT_ARGS+=(--p10k_fonts)
+  fi
+
+  bash "$_SCRIPTS_DIR/install_fonts.sh" \
+    "${_FONT_ARGS[@]}" \
+    $( [[ "$DEBUG" == true ]] && echo "--debug" )
+fi
+
+# ===================================================================
+# Step 6: Deploy system-wide shell configuration files
+# ===================================================================
+echo "📄 Deploying system-wide shell configuration files..." >&2
+
+# --- Shared (shell-agnostic) files ---
+for _name in shellenv shellrc shellaliases; do
+  _src="${_FILES_DIR}/shell/${_name}"
+  _dest="/etc/${_name}"
+  if [ -f "$_src" ]; then
+    cp -f "$_src" "$_dest"
+    chmod 644 "$_dest"
+    echo "  ✅ ${_dest}" >&2
+  fi
+done
+
+# --- /etc/profile ---
+_src="${_FILES_DIR}/profile"
+if [ -f "$_src" ]; then
+  cp -f "$_src" "/etc/profile"
+  chmod 644 "/etc/profile"
+  echo "  ✅ /etc/profile" >&2
+fi
+
+# --- Bash system-wide bashrc ---
+_SYS_BASHRC="$(detect_sys_bashrc)"
+_src="${_FILES_DIR}/bash/bashrc"
+if [ -f "$_src" ]; then
+  mkdir -p "$(dirname "$_SYS_BASHRC")"
+  cp -f "$_src" "$_SYS_BASHRC"
+  chmod 644 "$_SYS_BASHRC"
+  echo "  ✅ ${_SYS_BASHRC}" >&2
+fi
+
+# --- Bash bashenv (if present in files/) ---
+_src="${_FILES_DIR}/bash/bashenv"
+if [ -f "$_src" ]; then
+  # Place bashenv next to bashrc: /etc/bash/bashenv, /etc/bashenv, etc.
+  _bashenv_dest="$(dirname "$_SYS_BASHRC")/bashenv"
+  # If bashrc is at /etc/bashrc or /etc/bash.bashrc, put bashenv at /etc/bashenv.
+  [[ "$_SYS_BASHRC" == "/etc/bash.bashrc" ]] && _bashenv_dest="/etc/bashenv"
+  [[ "$_SYS_BASHRC" == "/etc/bashrc" ]]      && _bashenv_dest="/etc/bashenv"
+  cp -f "$_src" "$_bashenv_dest"
+  chmod 644 "$_bashenv_dest"
+  echo "  ✅ ${_bashenv_dest}" >&2
+fi
+
+# --- Zsh system-wide files ---
+if command -v zsh > /dev/null 2>&1; then
+  _ZSH_ETC="$(detect_zsh_etcdir)"
+  mkdir -p "$_ZSH_ETC"
+
+  for _name in zshenv zprofile zshrc; do
+    _src="${_FILES_DIR}/zsh/${_name}"
+    _dest="${_ZSH_ETC}/${_name}"
+    if [ -f "$_src" ]; then
+      cp -f "$_src" "$_dest"
+      chmod 644 "$_dest"
+      echo "  ✅ ${_dest}" >&2
+    fi
+  done
+fi
+
+# ===================================================================
+# Step 7: Resolve user list
+# ===================================================================
+declare -A _USERS_MAP  # associative array for deduplication
+
+if [[ "$ADD_ROOT_USER_CONFIG" == true ]]; then
+  _USERS_MAP[root]=1
+fi
+
+if [[ "$ADD_CURRENT_USER_CONFIG" == true ]]; then
+  # In devcontainer features, _REMOTE_USER is the current non-root user.
+  # When run standalone, fall back to the invoking user (via SUDO_USER or whoami).
+  _CURRENT_USER="${_REMOTE_USER:-${SUDO_USER:-$(whoami)}}"
+  if [ -n "$_CURRENT_USER" ] && [ "$_CURRENT_USER" != "root" ]; then
+    _USERS_MAP["$_CURRENT_USER"]=1
+  fi
+  # If the current user IS root, add_root_user_config controls that.
+fi
+
+if [[ "$ADD_CONTAINER_USER_CONFIG" == true ]]; then
+  _CONTAINER_USER="${_CONTAINER_USER:-${CONTAINER_USER:-}}"
+  if [ -n "$_CONTAINER_USER" ]; then
+    _USERS_MAP["$_CONTAINER_USER"]=1
+  fi
+fi
+
+if [[ "$ADD_REMOTE_USER_CONFIG" == true ]]; then
+  _REMOTE_U="${_REMOTE_USER:-${REMOTE_USER:-}}"
+  if [ -n "$_REMOTE_U" ]; then
+    _USERS_MAP["$_REMOTE_U"]=1
+  fi
+fi
+
+if [ -n "$ADD_USER_CONFIG" ]; then
+  IFS=',' read -r -a _EXTRA_USERS <<< "$ADD_USER_CONFIG"
+  for _u in "${_EXTRA_USERS[@]}"; do
+    _u="${_u// /}"
+    [ -n "$_u" ] && _USERS_MAP["$_u"]=1
+  done
+fi
+
+_RESOLVED_USERS=("${!_USERS_MAP[@]}")
+
+if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
+  echo "ℹ️  No users to configure." >&2
+else
+  echo "👤 Users to configure: ${_RESOLVED_USERS[*]}" >&2
+fi
+
+# ===================================================================
+# Step 8: Per-user configuration
+# ===================================================================
+for _username in "${_RESOLVED_USERS[@]}"; do
+  # Verify the user exists.
+  if ! id "$_username" > /dev/null 2>&1; then
+    echo "⚠️  User '${_username}' does not exist — skipping." >&2
+    continue
+  fi
+
+  _CONFIGURE_ARGS=(
+    --username "$_username"
+    --skel_dir "$_SKEL_DIR"
+    --user_config_mode "$USER_CONFIG_MODE"
+  )
+
+  if [[ "$_OMZ_INSTALLED" == true ]]; then
+    _CONFIGURE_ARGS+=(
+      --ohmyzsh_install_dir "$OHMYZSH_INSTALL_DIR"
+      --ohmyzsh_custom_dir "$OHMYZSH_CUSTOM_DIR"
+      --ohmyzsh_theme "$OHMYZSH_THEME"
+      --ohmyzsh_plugins "$OHMYZSH_PLUGINS"
+    )
+  fi
+
+  if [[ "$_OMB_INSTALLED" == true ]]; then
+    _CONFIGURE_ARGS+=(
+      --ohmybash_install_dir "$OHMYBASH_INSTALL_DIR"
+      --ohmybash_custom_dir "$OHMYBASH_CUSTOM_DIR"
+      --ohmybash_theme "$OHMYBASH_THEME"
+      --ohmybash_plugins "$OHMYBASH_PLUGINS"
+    )
+  fi
+
+  [[ "$DEBUG" == true ]] && _CONFIGURE_ARGS+=(--debug)
+
+  bash "$_SCRIPTS_DIR/configure_user.sh" "${_CONFIGURE_ARGS[@]}"
+done
+
+# ===================================================================
+# Step 9: Set default shells
+# ===================================================================
+if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
+  _TARGET_SHELL=""
+  case "$SET_USER_SHELLS" in
+    zsh)
+      _TARGET_SHELL="$(command -v zsh 2>/dev/null || true)"
+      if [ -z "$_TARGET_SHELL" ]; then
+        echo "⛔ set_user_shells=zsh but zsh is not installed." >&2
+        exit 1
+      fi
+      ;;
+    bash)
+      _TARGET_SHELL="$(command -v bash 2>/dev/null || true)"
+      if [ -z "$_TARGET_SHELL" ]; then
+        echo "⛔ set_user_shells=bash but bash is not installed." >&2
+        exit 1
+      fi
+      ;;
+    *)
+      echo "⛔ Invalid set_user_shells value: '${SET_USER_SHELLS}' (expected: zsh, bash, none)." >&2
+      exit 1
+      ;;
+  esac
+
+  if ! command -v chsh > /dev/null 2>&1; then
+    echo "⚠️  chsh not found — skipping shell change. Install the 'passwd' package." >&2
+  else
+    # Ensure the target shell is in /etc/shells.
+    _SHELLS_FILE=/etc/shells
+    [ -f /usr/share/defaults/etc/shells ] && _SHELLS_FILE=/usr/share/defaults/etc/shells
+    if [ -f "$_SHELLS_FILE" ] && ! grep -qx "$_TARGET_SHELL" "$_SHELLS_FILE" 2>/dev/null; then
+      echo "$_TARGET_SHELL" >> "$_SHELLS_FILE"
+      echo "ℹ️  Added '${_TARGET_SHELL}' to '${_SHELLS_FILE}'." >&2
+    fi
+
+    # On Alpine, PAM may require a password for chsh even when run as root.
+    if [ -f /etc/pam.d/chsh ]; then
+      if ! grep -Eq '^auth[[:blank:]]+sufficient[[:blank:]]+pam_rootok\.so' /etc/pam.d/chsh 2>/dev/null; then
+        if grep -Eq '^auth(.*)pam_rootok\.so' /etc/pam.d/chsh 2>/dev/null; then
+          awk '/^auth(.*)pam_rootok\.so$/ { $2 = "sufficient" } { print }' \
+            /etc/pam.d/chsh > /tmp/_chsh.tmp && mv /tmp/_chsh.tmp /etc/pam.d/chsh
+        else
+          printf 'auth sufficient pam_rootok.so\n' >> /etc/pam.d/chsh
+        fi
+        echo "ℹ️  Fixed pam_rootok.so in /etc/pam.d/chsh." >&2
+      fi
+    fi
+
+    for _username in "${_RESOLVED_USERS[@]}"; do
+      _current_shell="$(getent passwd "$_username" 2>/dev/null | cut -d: -f7 || true)"
+      if [ "$_current_shell" = "$_TARGET_SHELL" ]; then
+        echo "ℹ️  Shell for '${_username}' already set to '${_TARGET_SHELL}'." >&2
+        continue
+      fi
+      if chsh -s "$_TARGET_SHELL" "$_username" 2>/dev/null; then
+        echo "✅ Shell for '${_username}' set to '${_TARGET_SHELL}'." >&2
+      else
+        echo "⚠️  chsh failed for '${_username}'." >&2
+      fi
+    done
+  fi
+fi
+
+echo "========================================" >&2
+echo "  install-shell complete" >&2
+echo "========================================" >&2

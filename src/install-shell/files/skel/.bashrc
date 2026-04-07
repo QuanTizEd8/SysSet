@@ -6,6 +6,19 @@ case $- in
       *) return;;
 esac
 
+# --- Framework configuration -------------------------------------------- #
+# The install-shell installer injects an Oh My Bash configuration block    #
+# between the BEGIN/END markers below.  If no framework is installed, the  #
+# block is empty and bash runs with plain defaults.                        #
+#                                                                          #
+# To customise: edit the block contents or add your own settings after     #
+# the END marker.  Re-running the installer with user_config_mode=augment  #
+# will refresh only the marked block without touching your changes.        #
+
+# BEGIN install-shell-ohmybash
+# END install-shell-ohmybash
+
+
 # Load shared user interactive config (POSIX aliases, functions, cross-shell
 # tool initialisers).  Sourced here and in ~/.zshrc for both shells.
 [ -f "$HOME/.shellrc" ] && . "$HOME/.shellrc"

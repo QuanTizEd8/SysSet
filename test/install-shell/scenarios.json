@@ -1,0 +1,74 @@
+{
+    "apt_default": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {}
+        }
+    },
+    "apt_zsh_only": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "install_ohmyzsh": false,
+                "install_ohmybash": false,
+                "install_starship": false,
+                "install_fonts": false
+            }
+        }
+    },
+    "apt_no_fonts": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "install_fonts": false
+            }
+        }
+    },
+    "apt_multi_plugins": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting"
+            }
+        }
+    },
+    "apt_set_shell_zsh": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "set_user_shells": "zsh",
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_omz_p10k": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "ohmyzsh_theme": "romkatv/powerlevel10k",
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_starship_only": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "install_ohmyzsh": false,
+                "install_ohmybash": false,
+                "install_starship": true,
+                "install_fonts": false
+            }
+        }
+    },
+    "apt_custom_dirs": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "ohmyzsh_install_dir": "/opt/oh-my-zsh",
+                "ohmybash_install_dir": "/opt/oh-my-bash",
+                "add_root_user_config": true
+            }
+        }
+    }
+}
