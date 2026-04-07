@@ -12,6 +12,12 @@ esac
 . "/etc/shellrc"
 
 
+# --- Prompt ---
+# Minimal default prompt: user@host:~/dir$ 
+# Users can override this in ~/.bashrc.
+PS1='\u@\h:\w\$ '
+
+
 # --- History ---
 # Ignore simple commands and deduplicate: erase all earlier occurrences of a
 # command when a new one is added, also skip consecutive duplicates and lines

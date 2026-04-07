@@ -24,7 +24,7 @@ fi
 # Config for interactive shells.
 if [ "${PS1-}" ]; then
     # If running bash (not sh), source the bashrc file.
-    # No need to set PS1 here, since the bashrc file already sets it (PS1='\h:\w\$ ').
+    # PS1 is set there to '\u@\h:\w\$ ' as a default.
     if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
         # Search for distro-specific bashrc files (debian -> alpine -> redhat/macos)
         # and source the first one found.

@@ -182,6 +182,12 @@ setopt extended_history           # record timestamp and duration for each comma
 setopt hist_ignore_space          # commands prefixed with a space are not saved
 
 
+# --- Prompt ------------------------------------------------------------- #
+# Minimal default prompt: user@host:~/dir% (or # for root).               #
+# oh-my-zsh, Starship, or the user's ~/.zshrc will override this.        #
+PROMPT='%n@%m:%~%# '
+
+
 # --- Terminal program integration --------------------------------------- #
 # Source a terminal-specific rc file from the same directory as this file #
 # if present (e.g. installed by Terminal.app or iTerm2).  Intentionally   #
