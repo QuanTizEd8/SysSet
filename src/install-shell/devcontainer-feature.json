@@ -2,61 +2,127 @@
    "id": "install-shell",
    "version": "0.1.0",
    "name": "Install Shell",
-   "description": "Install bash and zsh shells, add plugins and themes, and set up robust configuration files.",
+   "description": "Install Bash and Zsh shells, add plugins and themes, and set up robust configuration files.",
    "options": {
-      "branch": {
+      "install_zsh": {
+         "type": "boolean",
+         "default": true,
+         "description": "Install Zsh. Bash is always installed."
+      },
+      "install_ohmyzsh":{
+         "type": "boolean",
+         "default": true,
+         "description": "Install Oh My Zsh when installing Zsh. Ignored if Zsh is not available or being installed."
+      },
+      "install_ohmybash": {
+         "type": "boolean",
+         "default": true,
+         "description": "Install [Oh My Bash](https://ohmybash.nntoan.com/)."
+      },
+      "install_starship": {
+         "type": "boolean",
+         "default": true,
+         "description": "Install the [Starship](https://starship.rs/) prompt."
+      },
+      "install_fonts": {
+         "type": "boolean",
+         "default": true,
+         "description": "Install the [Nerd Fonts](https://www.nerdfonts.com) files to `font_dir` and refresh the font cache."
+      },
+      "ohmyzsh_plugins": {
+         "type": "string",
+         "default": "zsh-users/zsh-syntax-highlighting",
+         "description": "Comma-separated list of Oh My Zsh custom plugins to install, each as a `owner/repo` GitHub slug.\nThe repository is cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.\nSet to an empty string to install no custom plugins.\nIgnored if Oh My Zsh is not available or being installed.\n"
+      },
+      "ohmybash_plugins": {
+         "default": "git",
+         "description": "Comma-separated list of Oh My Bash custom plugins to install, each as a `owner/repo` GitHub slug.\nThe repository is cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.\nSet to an empty string to install no custom plugins.\nIgnored if Oh My Bash is not available or being installed.\n",
+         "type": "string"
+      },
+      "ohmyzsh_theme": {
+         "default": "",
+         "description": "Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug (e.g., 'romkatv/powerlevel10k' for the [Powerlevel10k](https://github.com/romkatv/powerlevel10k) theme).\nThe repository is cloned into `<ohmyzsh_custom_dir>/themes/<repo>`.\n Set to an empty string to install no custom theme.\nIgnored if Oh My Zsh is not available or being installed.\n",
+         "type": "string"
+      },
+      "ohmybash_theme": {
+         "default": "",
+         "description": "Oh My Bash custom theme to install, as a `owner/repo` GitHub slug.\nThe repository is cloned into `<ohmybash_install_dir>/custom/themes/<repo>`.\nIgnored if Oh My Bash is not available or being installed.\n",
+         "type": "string"
+      },
+      "ohmyzsh_install_dir": {
+         "default": "/usr/local/share/oh-my-zsh",
+         "description": "Path to the Oh My Zsh installation directory.\nThis is the directory where Oh My Zsh will be installed.\nIt corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh)\nconfiguration variable in Oh My Zsh.\n",
+         "type": "string"
+      },
+      "ohmybash_install_dir": {
+         "default": "/usr/local/share/oh-my-bash",
+         "description": "Path to the Oh My Bash installation directory.\nThis is the directory where Oh My Bash will be installed.",
+         "type": "string"
+      },
+      "ohmyzsh_branch": {
          "default": "master",
          "description": "Branch or tag of the ohmyzsh/ohmyzsh repository to clone.\nAlso recorded as `oh-my-zsh.branch` in the git config so `omz update` works correctly.\n",
          "type": "string"
       },
-      "configure_zshrc": {
-         "default": true,
-         "description": "Write (or replace) a guarded oh-my-zsh configuration block between `# BEGIN install-ohmyzsh` and `# END install-ohmyzsh` markers in `/etc/zsh/zshrc`, making the configuration available to every user on the system.\nAlso appends a `.profile` sourcing snippet to `/etc/zsh/zprofile` so that zsh login shells inherit `PATH` and other environment variables configured there.\n",
+      "ohmybash_branch": {
+         "default": "master",
+         "description": "Branch or tag of the ohmybash/ohmybash repository to clone.",
+         "type": "string"
+      },
+      "add_root_user_config": {
+         "default": false,
+         "description": "Whether to add configuration for the root user. If true, root will get the same configuration files, Oh My Zsh/Oh My Bash installation, plugins, and themes as specified by the other options.",
          "type": "boolean"
+      },
+      "add_current_user_config": {
+         "default": true,
+         "description": "Whether to add configuration for the current non-root user. If true, the user will get the same configuration files, Oh My Zsh/Oh My Bash installation, plugins, and themes as specified by the other options.",
+         "type": "boolean"
+      },
+      "add_container_user_config": {
+         "default": false,
+         "description": "Whether to add configuration for the `containerUser` set in the devcontainer.json file. If true, the user will get the same configuration files, Oh My Zsh/Oh My Bash installation, plugins, and themes as specified by the other options.",
+         "type": "boolean"
+      },
+      "add_remote_user_config": {
+         "default": false,
+         "description": "Whether to add configuration for the `remoteUser` set in the devcontainer.json file. If true, the user will get the same configuration files, Oh My Zsh/Oh My Bash installation, plugins, and themes as specified by the other options.",
+         "type": "boolean"
+      },
+      "add_user_config": {
+         "default": "",
+         "description": "Comma-separated list of usernames to add configuration for, in addition to the users specified by the other `add_*_user_config` options.",
+         "type": "string"
+      },
+      "set_user_shells": {
+         "type": "string",
+         "default": "none",
+         "enum": ["zsh", "bash", "none"],
+         "description": "Whether to set users' default login shell to zsh or bash via `chsh`.\n Applies to all users for whom configuration is being added, as determined by the `add_*_user_config` options. Raises an error if zsh is selected but zsh is not available or being installed."
+      },
+      "ohmyzsh_custom_dir": {
+         "default": "",
+         "description": "Path to the Oh My Zsh custom directory.\nThis corresponds to the [`ZSH_CUSTOM`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh_custom)\nconfiguration variable in Oh My Zsh.\nDefaults to `<install_dir>/custom`.\n",
+         "type": "string"
+      },
+      "ohmybash_custom_dir": {
+         "default": "",
+         "description": "Path to the Oh My Bash custom directory.\nDefaults to `<install_dir>/custom`.\n",
+         "type": "string"
+      },
+      "font_dir": {
+         "default": "/usr/share/fonts",
+         "description": "Path to the directory where fonts will be downloaded.",
+         "type": "string"
       },
       "debug": {
          "default": false,
          "description": "Enable debug output.",
          "type": "boolean"
       },
-      "font_dir": {
-         "default": "/usr/share/fonts/MesloLGS",
-         "description": "Path to the directory where fonts will be downloaded.",
-         "type": "string"
-      },
-      "install_dir": {
-         "default": "/usr/local/share/oh-my-zsh",
-         "description": "Path to the Oh My Zsh installation directory.\nThis is the directory where Oh My Zsh will be installed.\nIt corresponds to the [`ZSH`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh)\nconfiguration variable in Oh My Zsh.\n",
-         "type": "string"
-      },
-      "install_fonts": {
-         "default": true,
-         "description": "Download and install the MesloLGS Nerd Font files to `font_dir` and refresh the font cache.",
-         "type": "boolean"
-      },
       "logfile": {
          "default": "",
          "description": "Log all output (stdout + stderr) to this file in addition to console.",
-         "type": "string"
-      },
-      "plugins": {
-         "default": "zsh-users/zsh-syntax-highlighting",
-         "description": "Comma-separated list of Oh My Zsh custom plugins to install, each as a `owner/repo` GitHub slug.\nThe repository is cloned into `<zsh_custom_dir>/plugins/<repo>`.\nSet to an empty string to install no custom plugins.\n",
-         "type": "string"
-      },
-      "set_default_shell_for": {
-         "default": "",
-         "description": "Comma-separated list of usernames whose default login shell should be changed to zsh via `chsh`.\nSkips silently if zsh or chsh is not found, or if the default shell is already zsh.\n",
-         "type": "string"
-      },
-      "theme": {
-         "default": "romkatv/powerlevel10k",
-         "description": "Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug.\nThe repository is cloned into `<zsh_custom_dir>/themes/<repo>`.\nThe default is the [Powerlevel10k](https://github.com/romkatv/powerlevel10k) theme. Set to an empty string to install no custom theme.\n",
-         "type": "string"
-      },
-      "zsh_custom_dir": {
-         "default": "",
-         "description": "Path to the Oh My Zsh custom directory.\nThis corresponds to the [`ZSH_CUSTOM`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh_custom)\nconfiguration variable in Oh My Zsh.\nDefaults to `<install_dir>/custom`.\n",
          "type": "string"
       }
    },
