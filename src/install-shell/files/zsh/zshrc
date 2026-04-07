@@ -16,18 +16,16 @@ case $- in
 esac
 
 
-# --- UTF-8 combining characters ---------------------------------------- #
-# Allow correct display of characters composed from a base + combining    #
-# codepoint (e.g. accented letters built from two Unicode code points).   #
-if [[ "$(locale LC_CTYPE)" == "UTF-8" ]]; then
-  setopt COMBINING_CHARS
-fi
-
-
 # --- Shared shell configuration ----------------------------------------- #
 # Source the distro/vendor-agnostic interactive shell setup: aliases,     #
 # dircolors, git editor, etc.                                              #
 . "/etc/shellrc"
+
+
+# --- Prompt ------------------------------------------------------------- #
+# Minimal default prompt: user@host:~/dir% (or # for root).               #
+# oh-my-zsh, Starship, or the user's ~/.zshrc will override this.        #
+PROMPT='%n@%m:%~%# '
 
 
 # --- Pager -------------------------------------------------------------- #
@@ -182,10 +180,12 @@ setopt extended_history           # record timestamp and duration for each comma
 setopt hist_ignore_space          # commands prefixed with a space are not saved
 
 
-# --- Prompt ------------------------------------------------------------- #
-# Minimal default prompt: user@host:~/dir% (or # for root).               #
-# oh-my-zsh, Starship, or the user's ~/.zshrc will override this.        #
-PROMPT='%n@%m:%~%# '
+# --- UTF-8 combining characters ---------------------------------------- #
+# Allow correct display of characters composed from a base + combining    #
+# codepoint (e.g. accented letters built from two Unicode code points).   #
+if [[ "$(locale LC_CTYPE)" == "UTF-8" ]]; then
+  setopt COMBINING_CHARS
+fi
 
 
 # --- Terminal program integration --------------------------------------- #
