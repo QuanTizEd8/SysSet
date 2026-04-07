@@ -13,12 +13,6 @@ esac
 # in case this file is sourced independently).
 . "/etc/bash/bashenv"
 
-# --- Conda / Mamba ---
-# Initialize conda and mamba for the current shell, and activate the default env.
-. "/opt/conda/etc/profile.d/conda.sh"
-. "/opt/conda/etc/profile.d/mamba.sh"
-mamba activate app
-
 # --- Git editor ---
 # When inside VS Code and no git editor is already configured, use the VS Code
 # CLI as the editor for commit messages, rebases, etc. Prefers code-insiders
