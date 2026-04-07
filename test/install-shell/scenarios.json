@@ -70,5 +70,36 @@
                 "add_root_user_config": true
             }
         }
+    },
+    "apt_no_git": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {}
+        }
+    },
+    "apt_custom_font_dir": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "font_dir": "/opt/fonts"
+            }
+        }
+    },
+    "apt_user_config": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_user_config_skip": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_root_user_config": true,
+                "user_config_mode": "skip"
+            }
+        }
     }
 }
