@@ -82,6 +82,7 @@ extend_path() {
 
     if [ -n "$_ep_ifs_set" ]; then IFS="$_ep_ifs"; else unset IFS; fi
     unset _ep_mode _ep_arg _ep_prepend _ep_append _ep_dir _ep_new _ep_ifs _ep_ifs_set _ep_nl
+    export PATH
 }
 
 # --- Umask ---
@@ -115,7 +116,6 @@ extend_path --prepend \
 if [ "$(id -u)" -ne 0 ]; then
     extend_path "/usr/games"
 fi
-export PATH
 
 # --- XDG Base Directory Specification ---
 # System directories
