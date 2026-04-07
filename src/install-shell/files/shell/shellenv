@@ -101,25 +101,19 @@ if [ -x /usr/libexec/path_helper ]; then
 fi
 
 # Establish a known-good baseline PATH, then export.
-# Root gets sbin dirs; non-root users do not need them on PATH by convention.
-if [ "$(id -u)" -eq 0 ]; then
-    extend_path --prepend \
-        "$HOME/.local/bin" \
-        "$HOME/bin" \
-        "/usr/local/sbin" \
-        "/usr/local/bin" \
-        "/usr/sbin" \
-        "/usr/bin" \
-        "/sbin" \
-        "/bin"
-else
-    extend_path --prepend \
-        "$HOME/.local/bin" \
-        "$HOME/bin" \
-        "/usr/local/bin" \
-        "/usr/bin" \
-        "/bin" \
-        "/usr/games"
+# sbin dirs are included for all users so tools like ifconfig, ip, and fdisk
+# are accessible without requiring sudo -i or an explicit path.
+extend_path --prepend \
+    "$HOME/.local/bin" \
+    "$HOME/bin" \
+    "/usr/local/sbin" \
+    "/usr/local/bin" \
+    "/usr/sbin" \
+    "/usr/bin" \
+    "/sbin" \
+    "/bin"
+if [ "$(id -u)" -ne 0 ]; then
+    extend_path "/usr/games"
 fi
 export PATH
 
