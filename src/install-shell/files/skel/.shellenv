@@ -1,0 +1,27 @@
+# ~/.shellenv: user-specific environment variables for all shells.
+#
+# Sourced by ~/.zshenv (for every zsh invocation) and ~/.bash_profile
+# (for bash login shells), via POSIX sh emulation in zsh.
+# Write only POSIX sh syntax here — no zsh/bash-specific idioms.
+#
+# Sentinel guard: prevents double-sourcing when both ~/.zshenv and
+# ~/.zprofile → ~/.bash_profile end up sourcing this file in the same session.
+[ "${_USER_SHELLENV_LOADED:-}" = 1 ] && return 0
+_USER_SHELLENV_LOADED=1
+
+
+# --- PATH additions ---
+# Add personal bin directories.  extend_path (from /etc/shellenv) is
+# available here; it skips non-existent dirs and avoids duplicates.
+#
+#   extend_path --prepend "$HOME/.cargo/bin"   # Rust / cargo
+#   extend_path --prepend "$HOME/.go/bin"      # Go
+#   extend_path --prepend "$HOME/.local/bin"   # pipx and other tools
+
+
+# --- Personal environment variables ---
+# Export tokens, configuration, and tool-specific variables here.
+#
+#   export ANTHROPIC_API_KEY="sk-..."
+#   export DOCKER_HOST="tcp://localhost:2375"
+#   export KUBECONFIG="$HOME/.kube/config"
