@@ -7,11 +7,13 @@ case $- in
     *) return;;
 esac
 
+
 # --- Environment ---
 # Ensure shared env vars (PATH, XDG, umask, extend_path) are set even when this
 # file is reached without a prior login shell (e.g. bash non-login interactive).
 # The sentinel in shellenv makes this a no-op if already sourced.
 . "/etc/shellenv"
+
 
 # --- GPG TTY ---
 # Tell GPG (and pinentry) which terminal to use for passphrase prompts.
@@ -31,6 +33,7 @@ if command -v gpg-connect-agent >/dev/null 2>&1; then
     gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
 fi
 
+
 # --- Git editor ---
 # When inside VS Code and no git editor is already configured, use the VS Code
 # CLI as the editor for commit messages, rebases, etc.
@@ -47,6 +50,7 @@ if command -v git >/dev/null 2>&1 && [ -z "$(git config --get core.editor)" ] &&
     fi
 fi
 
+
 # --- Colors ---
 # Enable LS_COLORS and colorize common commands if dircolors is available.
 # Respects a per-user ~/.dircolors override if present.
@@ -61,7 +65,49 @@ if [ -x /usr/bin/dircolors ]; then
 fi
 
 
+# --- Pager preprocessor ---
+# Enable lesspipe so that less can display non-text files (archives, images,
+# etc.) by invoking the appropriate preprocessor.
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+
+# --- Compiler colours ---
+# Colorize GCC/G++ diagnostics (errors, warnings, notes, etc.).
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+
+
+# --- command-not-found handler ---
+# When an unknown command is typed, suggest the package that provides it.
+# Defined for both bash (command_not_found_handle) and zsh (command_not_found_handler).
+if [ -x /usr/lib/command-not-found ] || [ -x /usr/share/command-not-found/command-not-found ]; then
+    _command_not_found_handler() {
+        if [ -x /usr/lib/command-not-found ]; then
+            /usr/lib/command-not-found -- "$1"; return $?
+        elif [ -x /usr/share/command-not-found/command-not-found ]; then
+            /usr/share/command-not-found/command-not-found -- "$1"; return $?
+        else
+            printf "%s: command not found\n" "$1" >&2; return 127
+        fi
+    }
+    command_not_found_handle()  { _command_not_found_handler "$@"; }  # bash
+    command_not_found_handler() { _command_not_found_handler "$@"; }  # zsh
+fi
+
+
+# --- sudo hint ---
+# On first login for users in the admin/sudo group, print a one-time reminder
+# about how to use sudo. Silenced by ~/.hushlogin or after first successful sudo.
+if [ ! -e "$HOME/.sudo_as_admin_successful" ] && [ ! -e "$HOME/.hushlogin" ] && command -v sudo >/dev/null 2>&1; then
+    case " $(groups) " in
+        *\ admin\ *|*\ sudo\ *)
+            printf '%s\n\n' \
+                'To run a command as administrator (user "root"), use "sudo <command>".' \
+                'See "man sudo_root" for details.'
+            ;;
+    esac
+fi
+
+
 # --- Aliases ---
 # System-wide aliases shared across bash and zsh.
 . "/etc/shellaliases"
-
