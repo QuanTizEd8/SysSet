@@ -240,12 +240,22 @@ if [[ "$INSTALL_OHMYZSH" == true ]]; then
   if ! command -v zsh > /dev/null 2>&1; then
     echo "⚠️  Zsh not available — skipping Oh My Zsh installation." >&2
   else
-    bash "$_SELF_DIR/install_ohmyzsh.sh" \
-      --branch "$OHMYZSH_BRANCH" \
-      --install_dir "$OHMYZSH_INSTALL_DIR" \
-      --theme "$OHMYZSH_THEME" \
-      --plugins "$OHMYZSH_PLUGINS" \
-      $( [[ "$DEBUG" == true ]] && echo "--debug" )
+    _OMZ_INSTALL_ARGS=(
+      --branch "$OHMYZSH_BRANCH"
+      --install_dir "$OHMYZSH_INSTALL_DIR"
+      --theme "$OHMYZSH_THEME"
+      --plugins "$OHMYZSH_PLUGINS"
+    )
+    # Pass an explicit system-path custom dir to the install script so themes
+    # and plugins are cloned there.  Per-user paths (~/$HOME-prefixed) and
+    # the empty default are handled at configure-user time via symlinks.
+    if [ -n "$OHMYZSH_CUSTOM_DIR" ] && \
+       [[ "$OHMYZSH_CUSTOM_DIR" != '~'* ]] && \
+       [[ "$OHMYZSH_CUSTOM_DIR" != '$HOME'* ]]; then
+      _OMZ_INSTALL_ARGS+=(--zsh_custom_dir "$OHMYZSH_CUSTOM_DIR")
+    fi
+    [[ "$DEBUG" == true ]] && _OMZ_INSTALL_ARGS+=(--debug)
+    bash "$_SELF_DIR/install_ohmyzsh.sh" "${_OMZ_INSTALL_ARGS[@]}"
     _OMZ_INSTALLED=true
   fi
 fi
@@ -255,12 +265,19 @@ fi
 # ===================================================================
 _OMB_INSTALLED=false
 if [[ "$INSTALL_OHMYBASH" == true ]]; then
-  bash "$_SELF_DIR/install_ohmybash.sh" \
-    --branch "$OHMYBASH_BRANCH" \
-    --install_dir "$OHMYBASH_INSTALL_DIR" \
-    --theme "$OHMYBASH_THEME" \
-    --plugins "$OHMYBASH_PLUGINS" \
-    $( [[ "$DEBUG" == true ]] && echo "--debug" )
+  _OMB_INSTALL_ARGS=(
+    --branch "$OHMYBASH_BRANCH"
+    --install_dir "$OHMYBASH_INSTALL_DIR"
+    --theme "$OHMYBASH_THEME"
+    --plugins "$OHMYBASH_PLUGINS"
+  )
+  if [ -n "$OHMYBASH_CUSTOM_DIR" ] && \
+     [[ "$OHMYBASH_CUSTOM_DIR" != '~'* ]] && \
+     [[ "$OHMYBASH_CUSTOM_DIR" != '$HOME'* ]]; then
+    _OMB_INSTALL_ARGS+=(--osh_custom_dir "$OHMYBASH_CUSTOM_DIR")
+  fi
+  [[ "$DEBUG" == true ]] && _OMB_INSTALL_ARGS+=(--debug)
+  bash "$_SELF_DIR/install_ohmybash.sh" "${_OMB_INSTALL_ARGS[@]}"
   _OMB_INSTALLED=true
 fi
 
