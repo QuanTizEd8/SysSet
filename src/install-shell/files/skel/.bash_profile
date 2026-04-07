@@ -1,6 +1,10 @@
-# ~/.bash_profile: executed by bash for login shells.
+# ~/.bash_profile: executed by bash (and zsh via ~/.zprofile) for login shells.
 #
-# Bash does not source ~/.bashrc for login shells, so we do it here.
-# This ensures login shells (SSH, console, su -l) get the same interactive
-# config as non-login shells (new terminal tabs, etc.).
-[ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"
+# Sources ~/.shellenv for environment variables, then ~/.bashrc for interactive
+# bash config.  The ~/.bashrc source is guarded by $BASH so that when zsh
+# sources this file via 'emulate sh', bash-specific files are not loaded.
+[ -f "$HOME/.shellenv" ] && . "$HOME/.shellenv"
+
+if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
+    [ -f "$HOME/.bashrc" ] && . "$HOME/.bashrc"
+fi
