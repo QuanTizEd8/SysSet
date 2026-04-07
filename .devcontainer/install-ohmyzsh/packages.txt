@@ -1,7 +1,0 @@
-# Runtime dependencies for the install-ohmyzsh devcontainer feature.
-# install-os-pkg installs these before the main script runs.
-git
-curl
-zsh
-ca-certificates
-fontconfig
