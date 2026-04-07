@@ -103,6 +103,11 @@ if [ -n "${PLUGINS}" ]; then
   for _slug in "${_PLUGIN_SLUGS[@]}"; do
     _slug="${_slug// /}"
     [ -z "$_slug" ] && continue
+    # Skip built-in plugin names (no '/'); only clone owner/repo slugs.
+    if [[ "$_slug" != */* ]]; then
+      echo "ℹ️  '${_slug}' is a built-in plugin — skipping clone." >&2
+      continue
+    fi
     _PLUGIN_NAME="$(basename "$_slug")"
     git_clone \
       --url "https://github.com/${_slug}" \
