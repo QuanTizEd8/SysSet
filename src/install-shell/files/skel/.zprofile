@@ -1,15 +1,12 @@
 # ~/.zprofile: sourced by zsh for login shells, after ~/.zshenv and before
-# ~/.zshrc.  Equivalent to ~/.bash_profile for zsh.
+# ~/.zshrc.  Mirrors what ~/.bash_profile does for bash login shells.
 #
-# Unlike bash, zsh sources ~/.zshrc even for interactive login shells, so
-# you rarely need this file for interactive config. It is mainly useful for:
+# Delegates to ~/.bash_profile via 'emulate sh' so login-shell setup is
+# defined once.  The $BASH guard in ~/.bash_profile ensures .bashrc is not
+# sourced from this path.
+[ -f "$HOME/.bash_profile" ] && emulate sh -c '. "$HOME/.bash_profile"'
+
+# Add login-only zsh config below (ssh-agent, keychain, macOS GUI vars, etc.):
 #
-#   - Starting agents that should run once per login session:
-#       eval "$(ssh-agent -s)"
-#       eval "$(keychain --eval id_ed25519)"
-#
-#   - macOS GUI environment variables (e.g. launched via launchd):
-#       export BROWSER="open"
-#
-#   - Login-only PATH setup that must not affect scripts (e.g. GUI apps):
-#       export PATH="/Applications/Foo.app/Contents/MacOS:$PATH"
+#   eval "$(ssh-agent -s)"
+#   eval "$(keychain --eval id_ed25519)"
