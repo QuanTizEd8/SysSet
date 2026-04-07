@@ -1,19 +1,14 @@
 {
-    "name": "install-shell container",
+    "name": "install-shell",
     "build": {
         "dockerfile": "Dockerfile"
     },
-    "workspaceFolder": "/",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/sysset,type=bind",
     "features": {
-        "../src/install-shell": {}
+        "../src/install-shell": {
+            "ohmyzsh_theme": "romkatv/powerlevel10k",
+            "set_user_shells": "zsh",
+            "add_root_user_config": true
+        }
     },
-    "remoteEnv": {
-        "MY_REMOTE_VAR": "hello",
-        "MY_REMOTE_VAR2": "hello remote var"
-    },
-    "containerEnv": {
-        "MY_CONTAINER_VAR": "hello",
-        "MY_CONTAINER_VAR2": "hello container var"
-    }
+    "remoteUser": "root"
 }

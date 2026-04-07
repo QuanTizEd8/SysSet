@@ -1,9 +1,0 @@
-{
-    "name": "install-ohmyzsh container",
-    "image": "debian:latest",
-    "features": {
-        "../install-ohmyzsh": {
-            "set_default_shell_for": "root"
-        }
-    }
-}
