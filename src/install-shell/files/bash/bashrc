@@ -8,7 +8,7 @@ case $- in
 esac
 
 # Load shared interactive config (aliases, functions) and bash prompt/theme.
-. "/etc/shell/shellrc"
+. "/etc/shellrc"
 . "/etc/bash/theme"
 
 # --- History ---
