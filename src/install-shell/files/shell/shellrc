@@ -17,7 +17,7 @@ esac
 # When inside VS Code and no git editor is already configured, use the VS Code
 # CLI as the editor for commit messages, rebases, etc. Prefers code-insiders
 # if code is not available.
-if [ -z "$(git config --get core.editor)" ] && [ -z "${GIT_EDITOR}" ]; then
+if command -v git >/dev/null 2>&1 && [ -z "$(git config --get core.editor)" ] && [ -z "${GIT_EDITOR}" ]; then
     if [ "${TERM_PROGRAM}" = "vscode" ]; then
         if [ -n "$(command -v code-insiders)" ] && [ -z "$(command -v code)" ]; then
             export GIT_EDITOR="code-insiders --wait"
