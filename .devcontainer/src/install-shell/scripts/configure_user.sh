@@ -63,6 +63,72 @@ inject_guarded_block() {
 }
 
 # ---------------------------------------------------------------------------
+# resolve_custom_dir <raw_value> <install_dir> <user_home>
+# Returns the effective ZSH_CUSTOM/OSH_CUSTOM path for this user.
+#   empty         → <install_dir>/custom  (system-wide, themes live there)
+#   ~/...         → <user_home>/...
+#   $HOME/...     → <user_home>/...
+#   anything else → used literally
+# ---------------------------------------------------------------------------
+resolve_custom_dir() {
+  local _raw="$1" _install_dir="$2" _home="$3"
+  if [ -z "$_raw" ]; then
+    printf '%s/custom' "$_install_dir"
+  elif [[ "$_raw" == '~'* ]]; then
+    printf '%s%s' "$_home" "${_raw#\~}"
+  elif [[ "$_raw" == '$HOME'* ]]; then
+    printf '%s%s' "$_home" "${_raw#'$HOME'}"
+  else
+    printf '%s' "$_raw"
+  fi
+}
+
+# _is_per_user_dir <raw_value>
+# Returns 0 (true) if the raw value indicates a per-user path.
+_is_per_user_dir() {
+  [[ "$1" == '~'* ]] || [[ "$1" == '$HOME'* ]]
+}
+
+# _link_custom_items <src_custom_dir> <dest_custom_dir> <theme_slug> <plugins_csv> <mode>
+# Creates symlinks in dest for exactly the named items declared in theme_slug + plugins_csv.
+#   overwrite: removes existing symlink for that name, creates fresh one (skips real dirs)
+#   augment:   creates symlink only if name not already present (symlink or real dir)
+# User-added real dirs (non-symlinks) are never removed.
+_link_custom_items() {
+  local _src="$1" _dest="$2" _theme_slug="$3" _plugins_csv="$4" _mode="$5"
+  mkdir -p "${_dest}/themes" "${_dest}/plugins"
+
+  local -a _items=()
+  if [ -n "$_theme_slug" ]; then
+    _items+=("themes/$(basename "$_theme_slug")")
+  fi
+  if [ -n "$_plugins_csv" ]; then
+    local _slug
+    local -a _slugs=()
+    IFS=',' read -r -a _slugs <<< "$_plugins_csv"
+    for _slug in "${_slugs[@]}"; do
+      _slug="${_slug// /}"
+      [ -z "$_slug" ] && continue
+      [[ "$_slug" != */* ]] && continue  # built-in plugin, no clone
+      _items+=("plugins/$(basename "$_slug")")
+    done
+  fi
+
+  local _item _src_path _dest_path
+  for _item in "${_items[@]}"; do
+    _src_path="${_src}/${_item}"
+    _dest_path="${_dest}/${_item}"
+    [ -d "$_src_path" ] || continue  # not cloned, skip
+    if [[ "$_mode" == "overwrite" ]]; then
+      [ -L "$_dest_path" ] && rm "$_dest_path"
+      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+    else
+      [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
+    fi
+  done
+}
+
+# ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
 USERNAME=""
@@ -167,12 +233,18 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
   # Ensure the file exists (it should, from skel copy — but be safe).
   [ -f "$_ZSHRC" ] || touch "$_ZSHRC"
 
+  # Resolve effective ZSH_CUSTOM path for this user.
+  _OMZ_CUSTOM_DIR="$(resolve_custom_dir "$OHMYZSH_CUSTOM_DIR" "$OHMYZSH_INSTALL_DIR" "$_HOME")"
+  _OMZ_IS_PER_USER=false
+  _is_per_user_dir "$OHMYZSH_CUSTOM_DIR" && _OMZ_IS_PER_USER=true
+
   # Resolve the ZSH_THEME value (e.g. "powerlevel10k/powerlevel10k").
+  # Themes are always cloned to <install_dir>/custom, so look there.
   _OMZ_THEME_VALUE=""
   if [ -n "$OHMYZSH_THEME" ]; then
     _OMZ_THEME_VALUE="$(resolve_omz_theme_value \
       --theme_slug "$OHMYZSH_THEME" \
-      --custom_dir "$OHMYZSH_CUSTOM_DIR")"
+      --custom_dir "${OHMYZSH_INSTALL_DIR}/custom")"
   fi
 
   # Build plugin names list from slugs.
@@ -192,7 +264,7 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
   _OMZ_BLOCK+='ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"'$'\n'
   _OMZ_BLOCK+='[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"'$'\n'
   _OMZ_BLOCK+='ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"'$'\n'
-  _OMZ_BLOCK+="ZSH_CUSTOM=\"\$HOME/.oh-my-zsh-custom\""$'\n'
+  _OMZ_BLOCK+="ZSH_CUSTOM=\"${_OMZ_CUSTOM_DIR}\""$'\n'
 
   if [ -n "$_OMZ_THEME_VALUE" ]; then
     _OMZ_BLOCK+="ZSH_THEME=\"${_OMZ_THEME_VALUE}\""$'\n'
@@ -220,9 +292,16 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
 
   inject_guarded_block "$_ZSHRC" "install-shell-ohmyzsh" "$_OMZ_BLOCK"
 
-  # Create per-user custom directory.
-  _USER_ZSH_CUSTOM="${_HOME}/.oh-my-zsh-custom"
-  mkdir -p "${_USER_ZSH_CUSTOM}/themes" "${_USER_ZSH_CUSTOM}/plugins"
+  # Create custom directory and symlink installer-managed items if per-user.
+  mkdir -p "${_OMZ_CUSTOM_DIR}/themes" "${_OMZ_CUSTOM_DIR}/plugins"
+  if [[ "$_OMZ_IS_PER_USER" == true ]]; then
+    _link_custom_items \
+      "${OHMYZSH_INSTALL_DIR}/custom" \
+      "$_OMZ_CUSTOM_DIR" \
+      "$OHMYZSH_THEME" \
+      "$OHMYZSH_PLUGINS" \
+      "$USER_CONFIG_MODE"
+  fi
 
   # Copy p10k config if p10k theme is selected.
   if [[ "$_IS_P10K" == true ]] && [ -n "$SKEL_DIR" ] && [ -f "${SKEL_DIR}/p10k.zsh" ]; then
@@ -248,6 +327,11 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
   # Ensure the file exists.
   [ -f "$_BASHRC" ] || touch "$_BASHRC"
 
+  # Resolve effective OSH_CUSTOM path for this user.
+  _OMB_CUSTOM_DIR="$(resolve_custom_dir "$OHMYBASH_CUSTOM_DIR" "$OHMYBASH_INSTALL_DIR" "$_HOME")"
+  _OMB_IS_PER_USER=false
+  _is_per_user_dir "$OHMYBASH_CUSTOM_DIR" && _OMB_IS_PER_USER=true
+
   # Resolve the OSH_THEME value.
   _OMB_THEME_VALUE=""
   if [ -n "$OHMYBASH_THEME" ]; then
@@ -266,7 +350,7 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
   _OMB_BLOCK+="export OSH=\"${OHMYBASH_INSTALL_DIR}\""$'\n'
   _OMB_BLOCK+='OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"'$'\n'
   _OMB_BLOCK+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'
-  _OMB_BLOCK+="OSH_CUSTOM=\"\$HOME/.oh-my-bash-custom\""$'\n'
+  _OMB_BLOCK+="OSH_CUSTOM=\"${_OMB_CUSTOM_DIR}\""$'\n'
 
   if [ -n "$_OMB_THEME_VALUE" ]; then
     _OMB_BLOCK+="OSH_THEME=\"${_OMB_THEME_VALUE}\""$'\n'
@@ -284,9 +368,16 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
 
   inject_guarded_block "$_BASHRC" "install-shell-ohmybash" "$_OMB_BLOCK"
 
-  # Create per-user custom directory.
-  _USER_OSH_CUSTOM="${_HOME}/.oh-my-bash-custom"
-  mkdir -p "${_USER_OSH_CUSTOM}/themes" "${_USER_OSH_CUSTOM}/plugins"
+  # Create custom directory and symlink installer-managed items if per-user.
+  mkdir -p "${_OMB_CUSTOM_DIR}/themes" "${_OMB_CUSTOM_DIR}/plugins"
+  if [[ "$_OMB_IS_PER_USER" == true ]]; then
+    _link_custom_items \
+      "${OHMYBASH_INSTALL_DIR}/custom" \
+      "$_OMB_CUSTOM_DIR" \
+      "$OHMYBASH_THEME" \
+      "$OHMYBASH_PLUGINS" \
+      "$USER_CONFIG_MODE"
+  fi
 
   echo "ℹ️  Injected Oh My Bash config into '${_BASHRC}'." >&2
 fi
@@ -298,9 +389,8 @@ _FILES_TO_OWN=()
 for _f in .shellenv .shellrc .bash_profile .bashrc .zshenv .zprofile .zshrc .zlogin .p10k.zsh; do
   [ -f "${_HOME}/${_f}" ] && _FILES_TO_OWN+=("${_HOME}/${_f}")
 done
-for _d in .oh-my-zsh-custom .oh-my-bash-custom; do
-  [ -d "${_HOME}/${_d}" ] && _FILES_TO_OWN+=("${_HOME}/${_d}")
-done
+[[ "${_OMZ_IS_PER_USER-false}" == true ]] && [ -d "$_OMZ_CUSTOM_DIR" ] && _FILES_TO_OWN+=("$_OMZ_CUSTOM_DIR")
+[[ "${_OMB_IS_PER_USER-false}" == true ]] && [ -d "$_OMB_CUSTOM_DIR" ] && _FILES_TO_OWN+=("$_OMB_CUSTOM_DIR")
 
 if [ ${#_FILES_TO_OWN[@]} -gt 0 ]; then
   chown -R "${USERNAME}:${_GROUP}" "${_FILES_TO_OWN[@]}"

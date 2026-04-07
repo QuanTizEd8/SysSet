@@ -102,12 +102,12 @@
       },
       "ohmyzsh_custom_dir": {
          "default": "",
-         "description": "Path to the Oh My Zsh custom directory.\nThis corresponds to the [`ZSH_CUSTOM`](https://github.com/ohmyzsh/ohmyzsh/wiki/Settings#zsh_custom)\nconfiguration variable in Oh My Zsh.\nDefaults to `<install_dir>/custom`.\n",
+         "description": "ZSH_CUSTOM directory for Oh My Zsh.\nLeave empty to use `<ohmyzsh_install_dir>/custom` (system-wide, shared across users).\nSet to a `~`- or `$HOME`-prefixed path (e.g. `~/.oh-my-zsh-custom`) for a per-user writable directory — installer-managed themes and plugins will be symlinked there for each configured user.\n",
          "type": "string"
       },
       "ohmybash_custom_dir": {
          "default": "",
-         "description": "Path to the Oh My Bash custom directory.\nDefaults to `<install_dir>/custom`.\n",
+         "description": "OSH_CUSTOM directory for Oh My Bash.\nLeave empty to use `<ohmybash_install_dir>/custom` (system-wide, shared across users).\nSet to a `~`- or `$HOME`-prefixed path (e.g. `~/.oh-my-bash-custom`) for a per-user writable directory — installer-managed themes and plugins will be symlinked there for each configured user.\n",
          "type": "string"
       },
       "font_names": {

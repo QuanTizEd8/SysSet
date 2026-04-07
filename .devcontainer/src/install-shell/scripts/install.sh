@@ -166,12 +166,12 @@ fi
 [ -z "${INSTALL_STARSHIP-}" ]         && INSTALL_STARSHIP=true
 [ -z "${INSTALL_FONTS-}" ]            && INSTALL_FONTS=true
 [ -z "${OHMYZSH_INSTALL_DIR-}" ]      && OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
-[ -z "${OHMYZSH_CUSTOM_DIR-}" ]       && OHMYZSH_CUSTOM_DIR="${OHMYZSH_INSTALL_DIR}/custom"
+[ -z "${OHMYZSH_CUSTOM_DIR-}" ]       && OHMYZSH_CUSTOM_DIR=""
 [ -z "${OHMYZSH_BRANCH-}" ]           && OHMYZSH_BRANCH="master"
 [ -z "${OHMYZSH_THEME-}" ]            && OHMYZSH_THEME=""
 [ -z "${OHMYZSH_PLUGINS-}" ]          && OHMYZSH_PLUGINS="zsh-users/zsh-syntax-highlighting"
 [ -z "${OHMYBASH_INSTALL_DIR-}" ]     && OHMYBASH_INSTALL_DIR="/usr/local/share/oh-my-bash"
-[ -z "${OHMYBASH_CUSTOM_DIR-}" ]      && OHMYBASH_CUSTOM_DIR="${OHMYBASH_INSTALL_DIR}/custom"
+[ -z "${OHMYBASH_CUSTOM_DIR-}" ]      && OHMYBASH_CUSTOM_DIR=""
 [ -z "${OHMYBASH_BRANCH-}" ]          && OHMYBASH_BRANCH="master"
 [ -z "${OHMYBASH_THEME-}" ]           && OHMYBASH_THEME=""
 [ -z "${OHMYBASH_PLUGINS-}" ]         && OHMYBASH_PLUGINS=""
@@ -239,7 +239,6 @@ if [[ "$INSTALL_OHMYZSH" == true ]]; then
     bash "$_SELF_DIR/install_ohmyzsh.sh" \
       --branch "$OHMYZSH_BRANCH" \
       --install_dir "$OHMYZSH_INSTALL_DIR" \
-      --zsh_custom_dir "$OHMYZSH_CUSTOM_DIR" \
       --theme "$OHMYZSH_THEME" \
       --plugins "$OHMYZSH_PLUGINS" \
       $( [[ "$DEBUG" == true ]] && echo "--debug" )
@@ -255,7 +254,6 @@ if [[ "$INSTALL_OHMYBASH" == true ]]; then
   bash "$_SELF_DIR/install_ohmybash.sh" \
     --branch "$OHMYBASH_BRANCH" \
     --install_dir "$OHMYBASH_INSTALL_DIR" \
-    --osh_custom_dir "$OHMYBASH_CUSTOM_DIR" \
     --theme "$OHMYBASH_THEME" \
     --plugins "$OHMYBASH_PLUGINS" \
     $( [[ "$DEBUG" == true ]] && echo "--debug" )
