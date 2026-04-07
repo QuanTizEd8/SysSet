@@ -5,3 +5,4 @@ curl
 zsh
 ca-certificates
 fontconfig
+xz-utils

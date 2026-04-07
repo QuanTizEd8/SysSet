@@ -78,26 +78,13 @@ if [ -n "$FONT_NAMES" ]; then
 
     echo "ℹ️  Downloading Nerd Font '${_font_name}'..." >&2
     _ARCHIVE="$(mktemp)"
-    # Try tar.xz first (smaller), fall back to zip.
-    if fetch_with_retry 3 curl -fsSL "${_NF_BASE_URL}/${_font_name}.tar.xz" -o "$_ARCHIVE" 2>/dev/null; then
+    if fetch_with_retry 3 curl -fsSL "${_NF_BASE_URL}/${_font_name}.tar.xz" -o "$_ARCHIVE"; then
       mkdir -p "$_DEST_DIR"
-      tar -xJf "$_ARCHIVE" -C "$_DEST_DIR" 2>/dev/null || {
-        echo "⚠️  Failed to extract tar.xz for '${_font_name}', trying zip..." >&2
-        rm -f "$_ARCHIVE"
-        fetch_with_retry 3 curl -fsSL "${_NF_BASE_URL}/${_font_name}.zip" -o "$_ARCHIVE"
-        unzip -o -q "$_ARCHIVE" -d "$_DEST_DIR"
-      }
+      tar -xJf "$_ARCHIVE" -C "$_DEST_DIR"
     else
+      echo "⚠️  Could not download '${_font_name}' from nerd-fonts releases — skipping." >&2
       rm -f "$_ARCHIVE"
-      _ARCHIVE="$(mktemp)"
-      if fetch_with_retry 3 curl -fsSL "${_NF_BASE_URL}/${_font_name}.zip" -o "$_ARCHIVE"; then
-        mkdir -p "$_DEST_DIR"
-        unzip -o -q "$_ARCHIVE" -d "$_DEST_DIR"
-      else
-        echo "⚠️  Could not download '${_font_name}' from nerd-fonts releases — skipping." >&2
-        rm -f "$_ARCHIVE"
-        continue
-      fi
+      continue
     fi
     rm -f "$_ARCHIVE"
 

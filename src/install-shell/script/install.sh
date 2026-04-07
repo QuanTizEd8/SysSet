@@ -210,7 +210,7 @@ if [[ "$INSTALL_ZSH" == true ]]; then
     echo "ℹ️  Zsh already installed — skipping." >&2
   else
     echo "📦 Installing Zsh..." >&2
-    _PKG_MANIFEST="${_SCRIPTS_DIR}/packages.txt"
+    _PKG_MANIFEST="${_BASE_DIR}/packages.txt"
     if [ -f "$_PKG_MANIFEST" ] && command -v install-os-pkg > /dev/null 2>&1; then
       install-os-pkg --manifest "$_PKG_MANIFEST" --check_installed
     else
