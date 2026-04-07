@@ -1,7 +1,8 @@
 {
-   "description": "Install Oh My Zsh in the development container.",
-   "id": "install-ohmyzsh",
-   "name": "Oh My Zsh Installation",
+   "id": "install-shell",
+   "version": "0.1.0",
+   "name": "Install Shell",
+   "description": "Install bash and zsh shells, add plugins and themes, and set up robust configuration files.",
    "options": {
       "branch": {
          "default": "master",
@@ -59,8 +60,9 @@
          "type": "string"
       }
    },
-   "version": "0.1.0",
    "dependsOn": {
-      "ghcr.io/quantized8/sysset/install-os-pkg:0": {}
+      "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+         "install_self": true
+      }
    }
 }
