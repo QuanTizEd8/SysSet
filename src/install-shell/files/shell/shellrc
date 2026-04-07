@@ -8,10 +8,10 @@ case $- in
 esac
 
 # --- Environment ---
-# Load shared environment variables and PATH setup (also loaded by non-interactive
-# shells via BASH_ENV and /etc/zsh/zshenv, but sourced here to ensure availability
-# in case this file is sourced independently).
-. "/etc/bash/bashenv"
+# Ensure shared env vars (PATH, XDG, umask, extend_path) are set even when this
+# file is reached without a prior login shell (e.g. bash non-login interactive).
+# The sentinel in shellenv makes this a no-op if already sourced.
+. "/etc/shellenv"
 
 # --- Git editor ---
 # When inside VS Code and no git editor is already configured, use the VS Code
