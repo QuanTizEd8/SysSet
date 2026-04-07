@@ -5,6 +5,9 @@
     },
     "workspaceFolder": "/",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/sysset,type=bind",
+    "features": {
+        "../src/install-shell": {}
+    },
     "remoteEnv": {
         "MY_REMOTE_VAR": "hello",
         "MY_REMOTE_VAR2": "hello remote var"

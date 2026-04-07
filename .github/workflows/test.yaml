@@ -25,7 +25,7 @@ jobs:
         run: npm install -g @devcontainers/cli
 
       - name: "Test ${{ matrix.feature }} scenarios"
-        run: devcontainer features test -f ${{ matrix.feature }} ${{ matrix.args }} .
+        run: devcontainer features test -f ${{ matrix.feature }} ${{ matrix.args }} --project-folder .devcontainer .
 
   resolution-matrix:
     name: "Manifest resolution (${{ matrix.image }})"
@@ -48,4 +48,4 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/repo" \
             "${{ matrix.image }}" \
-            sh -c 'command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null 2>&1; bash /repo/test/install-os-pkg/dry-run/run.sh'
+            sh -c 'command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null 2>&1; bash /repo/.devcontainer/test/install-os-pkg/dry-run/run.sh'
