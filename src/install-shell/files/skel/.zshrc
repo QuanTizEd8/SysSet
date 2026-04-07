@@ -35,6 +35,12 @@ ENABLE_CORRECTION=true
 HIST_STAMPS="yyyy-mm-dd"
 source "$ZSH/oh-my-zsh.sh"
 
+# --- Shared user interactive config ------------------------------------- #
+# Source ~/.shellrc for POSIX-compatible aliases and functions shared with  #
+# bash.  Sourced after oh-my-zsh so user config can override framework     #
+# defaults.                                                                 #
+[ -f "$HOME/.shellrc" ] && . "$HOME/.shellrc"
+
 # --- Terminal title (Powerlevel10k overrides) --------------------------- #
 # Set the default idle title strings; p10k may override these at runtime. #
 ZSH_THEME_TERM_TITLE_IDLE="%n@%m:%~"
