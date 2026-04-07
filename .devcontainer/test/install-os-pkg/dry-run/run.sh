@@ -18,7 +18,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-INSTALL_SH="$SCRIPT_DIR/../../../src/install-os-pkg/script/install.sh"
+INSTALL_SH="$SCRIPT_DIR/../../../src/install-os-pkg/scripts/install.sh"
 CASES_DIR="$SCRIPT_DIR/cases"
 
 # ---------------------------------------------------------------------------
