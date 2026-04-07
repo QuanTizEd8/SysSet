@@ -25,7 +25,7 @@ esac
 # - https://github.com/keybase/keybase-issues/issues/1712#issuecomment-372158682
 # - https://dev.gnupg.org/T3412
 # - https://github.com/romkatv/powerlevel10k?tab=readme-ov-file#how-do-i-export-gpg_tty-when-using-instant-prompt
-export GPG_TTY=$TTY
+export GPG_TTY="${TTY:-$(tty)}"
 # Refresh the agent's TTY reference for this terminal session.  Ensures
 # pinentry appears in the current terminal even if the agent was started
 # in a different one.  No-op if gpg-connect-agent is not installed.
