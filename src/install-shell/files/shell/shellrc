@@ -39,15 +39,13 @@ fi
 # CLI as the editor for commit messages, rebases, etc.
 # Detects stable vs Insiders by inspecting $VSCODE_GIT_ASKPASS_MAIN, which VS Code
 # injects with the path to the running installation (case-insensitive match).
-if command -v git >/dev/null 2>&1 && [ -z "$(git config --get core.editor)" ] && [ -z "${GIT_EDITOR}" ]; then
-    if [ "${TERM_PROGRAM}" = "vscode" ]; then
-        _vscode_path=$(printf '%s' "${VSCODE_GIT_ASKPASS_MAIN-}" | tr '[:upper:]' '[:lower:]')
-        case "$_vscode_path" in
-            *insiders*) export GIT_EDITOR="code-insiders --wait" ;;
-            *code*)     export GIT_EDITOR="code --wait" ;;
-        esac
-        unset _vscode_path
-    fi
+if [ "${TERM_PROGRAM}" = "vscode" ] && [ -z "${GIT_EDITOR}" ] && command -v git >/dev/null 2>&1 && [ -z "$(git config --get core.editor)" ]; then
+    _vscode_path=$(printf '%s' "${VSCODE_GIT_ASKPASS_MAIN-}" | tr '[:upper:]' '[:lower:]')
+    case "$_vscode_path" in
+        *insiders*) export GIT_EDITOR="code-insiders --wait" ;;
+        *code*)     export GIT_EDITOR="code --wait" ;;
+    esac
+    unset _vscode_path
 fi
 
 
@@ -100,7 +98,7 @@ fi
 if [ ! -e "$HOME/.sudo_as_admin_successful" ] && [ ! -e "$HOME/.hushlogin" ] && command -v sudo >/dev/null 2>&1; then
     case " $(groups) " in
         *\ admin\ *|*\ sudo\ *)
-            printf '%s\n\n' \
+            printf '%s\n%s\n\n' \
                 'To run a command as administrator (user "root"), use "sudo <command>".' \
                 'See "man sudo_root" for details.'
             ;;
