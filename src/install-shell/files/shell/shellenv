@@ -94,6 +94,12 @@ if [ -z "$USER" ]; then USER=$(whoami); export USER; fi
 if [ -z "$HOME" ]; then HOME=$(getent passwd "$USER" | cut -d: -f6); export HOME; fi
 
 # --- PATH ---
+# On macOS, path_helper reads /etc/paths and /etc/paths.d/ to build a baseline
+# PATH.  Run it first so our extend_path calls layer on top of it.
+if [ -x /usr/libexec/path_helper ]; then
+    eval $(/usr/libexec/path_helper -s)
+fi
+
 # Establish a known-good baseline PATH, then export.
 # Root gets sbin dirs; non-root users do not need them on PATH by convention.
 if [ "$(id -u)" -eq 0 ]; then
