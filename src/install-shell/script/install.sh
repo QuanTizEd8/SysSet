@@ -347,6 +347,15 @@ if [ -f "$_src" ]; then
   cp -f "$_src" "$_bashenv_dest"
   chmod 644 "$_bashenv_dest"
   echo "  ✅ ${_bashenv_dest}" >&2
+
+  # Ensure BASH_ENV is set system-wide so non-interactive non-login bash
+  # sessions (VS Code tasks, devcontainer exec, CI runners) source it.
+  if ! grep -qxF "BASH_ENV=${_bashenv_dest}" /etc/environment 2>/dev/null; then
+    # Remove any stale BASH_ENV line first, then append the correct one.
+    sed -i '/^BASH_ENV=/d' /etc/environment 2>/dev/null || true
+    echo "BASH_ENV=${_bashenv_dest}" >> /etc/environment
+    echo "  ✅ BASH_ENV=${_bashenv_dest} → /etc/environment" >&2
+  fi
 fi
 
 # --- Zsh system-wide files ---
