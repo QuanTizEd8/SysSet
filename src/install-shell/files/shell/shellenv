@@ -1,0 +1,123 @@
+# /etc/shellenv — system-wide environment configuration shared across all shells.
+# Sourced by /etc/profile (sh/bash login), /etc/zsh/zshenv (all zsh invocations),
+# and /etc/bash/bashenv (bash env). Must be POSIX sh compatible.
+
+# --- PATH helper ---
+extend_path() {
+    _ep_prepend=''
+    _ep_append=''
+    _ep_mode=''
+    _ep_nl="$(printf '\nx')"; _ep_nl="${_ep_nl%x}"
+
+    for _ep_arg do
+        case "$_ep_arg" in
+            --prepend) _ep_mode=prepend ;;
+            --append)  _ep_mode=append ;;
+            --help|-h)
+                printf 'Usage: extend_path [--prepend dir...] [--append dir...]\n'
+                printf '\n'
+                printf '  Adds directories to PATH without creating duplicates.\n'
+                printf '  Directories that do not exist are silently skipped.\n'
+                printf '  Paths with spaces are handled correctly — quote them:\n'
+                printf '    extend_path --prepend "/my dir"\n'
+                printf '\n'
+                printf '  --prepend  dirs inserted at the front, preserving argument order\n'
+                printf '             extend_path --prepend a b c  →  a:b:c:$PATH\n'
+                printf '  --append   dirs appended to the tail, preserving argument order\n'
+                printf '             extend_path --append a b c   →  $PATH:a:b:c\n'
+                printf '\n'
+                printf '  Both flags may be combined in one call:\n'
+                printf '    extend_path --prepend /new --append /low-priority\n'
+                unset _ep_mode _ep_arg _ep_prepend _ep_append _ep_dir _ep_new _ep_ifs _ep_ifs_set _ep_nl
+                return 0 ;;
+            --*)
+                printf 'extend_path: unknown option: %s\n' "$_ep_arg" >&2
+                printf 'Run "extend_path --help" for usage.\n' >&2
+                unset _ep_mode _ep_arg _ep_prepend _ep_append _ep_dir _ep_new _ep_ifs _ep_ifs_set _ep_nl
+                return 1 ;;
+            *)
+                case "$_ep_mode" in
+                    prepend) _ep_prepend="${_ep_prepend:+${_ep_prepend}${_ep_nl}}$_ep_arg" ;;
+                    append)  _ep_append="${_ep_append:+${_ep_append}${_ep_nl}}$_ep_arg" ;;
+                    *)
+                        printf 'extend_path: no --prepend or --append before: %s\n' "$_ep_arg" >&2
+                        unset _ep_mode _ep_arg _ep_prepend _ep_append _ep_dir _ep_new _ep_ifs _ep_ifs_set _ep_nl
+                        return 1 ;;
+                esac ;;
+        esac
+    done
+
+    # Save IFS and switch to newline-only splitting so paths with spaces are handled correctly.
+    # Use two variables: one to record whether IFS was set, one to store its value.
+    # This avoids ambiguity between unset IFS (default splitting) and IFS="" (no splitting).
+    if [ "${IFS+set}" = set ]; then _ep_ifs_set=1; _ep_ifs="$IFS"; else _ep_ifs_set=''; fi
+    IFS="$_ep_nl"
+
+    # Build the prepend segment forward, then prefix the whole thing to PATH at once.
+    # This preserves argument order: --prepend a b c → a:b:c:$PATH
+    _ep_new=''
+    for _ep_dir in $_ep_prepend; do
+        [ -d "$_ep_dir" ] || continue
+        case ":$PATH:" in *:"$_ep_dir":*) continue ;; esac
+        case ":${_ep_new}:" in
+            *:"$_ep_dir":*) ;;
+            *) _ep_new="${_ep_new:+${_ep_new}:}$_ep_dir" ;;
+        esac
+    done
+    [ -n "$_ep_new" ] && PATH="${_ep_new}:$PATH"
+
+    # Append each dir to the tail, deduplicating against the now-updated PATH.
+    for _ep_dir in $_ep_append; do
+        [ -d "$_ep_dir" ] || continue
+        case ":$PATH:" in
+            *:"$_ep_dir":*) ;;
+            *) PATH="$PATH:$_ep_dir" ;;
+        esac
+    done
+
+    if [ -n "$_ep_ifs_set" ]; then IFS="$_ep_ifs"; else unset IFS; fi
+    unset _ep_mode _ep_arg _ep_prepend _ep_append _ep_dir _ep_new _ep_ifs _ep_ifs_set _ep_nl
+}
+
+# --- Umask ---
+# Owners can read/write; group and others can read.
+umask 022
+
+# --- User/Home guards ---
+# Some minimal environments (e.g. su without -l) may not set USER or HOME.
+if [ -z "$USER" ]; then USER=$(whoami); export USER; fi
+if [ -z "$HOME" ]; then HOME=$(getent passwd "$USER" | cut -d: -f6); export HOME; fi
+
+# --- PATH ---
+# Establish a known-good baseline PATH, then export.
+# Root gets sbin dirs; non-root users do not need them on PATH by convention.
+if [ "$(id -u)" -eq 0 ]; then
+    extend_path --prepend \
+        "$HOME/.local/bin" \
+        "$HOME/bin" \
+        "/usr/local/sbin" \
+        "/usr/local/bin" \
+        "/usr/sbin" \
+        "/usr/bin" \
+        "/sbin" \
+        "/bin"
+else
+    extend_path --prepend \
+        "$HOME/.local/bin" \
+        "$HOME/bin" \
+        "/usr/local/bin" \
+        "/usr/bin" \
+        "/bin" \
+        "/usr/games"
+fi
+export PATH
+
+# --- XDG Base Directory Specification ---
+# System directories
+export XDG_DATA_DIRS="/usr/local/share:/usr/share"
+export XDG_CONFIG_DIRS="/etc/xdg"
+# User directories
+export XDG_CACHE_HOME="${HOME}/.cache"
+export XDG_CONFIG_HOME="${HOME}/.config"
+export XDG_DATA_HOME="${HOME}/.local/share"
+export XDG_STATE_HOME="${HOME}/.local/state"
