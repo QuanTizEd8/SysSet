@@ -13,17 +13,37 @@ esac
 # The sentinel in shellenv makes this a no-op if already sourced.
 . "/etc/shellenv"
 
+# --- GPG TTY ---
+# Tell GPG (and pinentry) which terminal to use for passphrase prompts.
+# $TTY is set by the shell at startup — faster and more reliable than $(tty),
+# and safe to use even during p10k instant prompt's stdin-redirect phase.
+# Fix for 'gpg: signing failed: Inappropriate ioctl for device'
+# - https://stackoverflow.com/questions/57591432/gpg-signing-failed-inappropriate-ioctl-for-device-on-macos-with-maven
+# - https://github.com/Homebrew/homebrew-core/issues/14737#issuecomment-309848851
+# - https://github.com/keybase/keybase-issues/issues/1712#issuecomment-372158682
+# - https://dev.gnupg.org/T3412
+# - https://github.com/romkatv/powerlevel10k?tab=readme-ov-file#how-do-i-export-gpg_tty-when-using-instant-prompt
+export GPG_TTY=$TTY
+# Refresh the agent's TTY reference for this terminal session.  Ensures
+# pinentry appears in the current terminal even if the agent was started
+# in a different one.  No-op if gpg-connect-agent is not installed.
+if command -v gpg-connect-agent >/dev/null 2>&1; then
+    gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
+fi
+
 # --- Git editor ---
 # When inside VS Code and no git editor is already configured, use the VS Code
-# CLI as the editor for commit messages, rebases, etc. Prefers code-insiders
-# if code is not available.
+# CLI as the editor for commit messages, rebases, etc.
+# Detects stable vs Insiders by inspecting $VSCODE_GIT_ASKPASS_MAIN, which VS Code
+# injects with the path to the running installation (case-insensitive match).
 if command -v git >/dev/null 2>&1 && [ -z "$(git config --get core.editor)" ] && [ -z "${GIT_EDITOR}" ]; then
     if [ "${TERM_PROGRAM}" = "vscode" ]; then
-        if [ -n "$(command -v code-insiders)" ] && [ -z "$(command -v code)" ]; then
-            export GIT_EDITOR="code-insiders --wait"
-        else
-            export GIT_EDITOR="code --wait"
-        fi
+        _vscode_path=$(printf '%s' "${VSCODE_GIT_ASKPASS_MAIN-}" | tr '[:upper:]' '[:lower:]')
+        case "$_vscode_path" in
+            *insiders*) export GIT_EDITOR="code-insiders --wait" ;;
+            *code*)     export GIT_EDITOR="code --wait" ;;
+        esac
+        unset _vscode_path
     fi
 fi
 
