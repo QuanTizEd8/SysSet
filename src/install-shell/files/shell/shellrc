@@ -50,13 +50,31 @@ fi
 
 
 # --- Colors ---
-# Enable LS_COLORS and colorize common commands if dircolors is available.
+# Enable LS_COLORS if dircolors is available (GNU coreutils).
+# On macOS with Homebrew coreutils (without gnubin on PATH) it is gdircolors.
 # Respects a per-user ~/.dircolors override if present.
-if [ -x /usr/bin/dircolors ]; then
-    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+if command -v dircolors >/dev/null 2>&1; then
+    _dc=dircolors
+elif command -v gdircolors >/dev/null 2>&1; then
+    _dc=gdircolors
+fi
+if [ -n "${_dc-}" ]; then
+    test -r ~/.dircolors && eval "$($_dc -b ~/.dircolors)" || eval "$($_dc -b)"
+    unset _dc
+fi
+
+# Colorize ls: prefer GNU --color=auto, fall back to BSD -G (macOS), else no color.
+if ls --color=auto /dev/null >/dev/null 2>&1; then
     alias ls='ls --color=auto'
-    alias dir='dir --color=auto'
-    alias vdir='vdir --color=auto'
+    # dir/vdir are GNU coreutils only; skip on BSD/macOS.
+    if command -v dir >/dev/null 2>&1; then alias dir='dir --color=auto'; fi
+    if command -v vdir >/dev/null 2>&1; then alias vdir='vdir --color=auto'; fi
+elif ls -G /dev/null >/dev/null 2>&1; then
+    alias ls='ls -G'
+fi
+
+# Colorize grep variants if supported.
+if grep --color=auto '' /dev/null >/dev/null 2>&1; then
     alias grep='grep --color=auto'
     alias fgrep='fgrep --color=auto'
     alias egrep='egrep --color=auto'
@@ -64,9 +82,13 @@ fi
 
 
 # --- Pager preprocessor ---
-# Enable lesspipe so that less can display non-text files (archives, images,
-# etc.) by invoking the appropriate preprocessor.
-[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+# Enable lesspipe/lesspipe.sh so that less can display non-text files
+# (archives, images, etc.) by invoking the appropriate preprocessor.
+if command -v lesspipe >/dev/null 2>&1; then
+    eval "$(SHELL=/bin/sh lesspipe)"
+elif command -v lesspipe.sh >/dev/null 2>&1; then
+    eval "$(SHELL=/bin/sh lesspipe.sh)"
+fi
 
 
 # --- Compiler colours ---
