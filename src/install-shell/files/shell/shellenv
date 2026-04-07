@@ -2,6 +2,11 @@
 # Sourced by /etc/profile (sh/bash login), /etc/zsh/zshenv (all zsh invocations),
 # and /etc/bash/bashenv (bash env). Must be POSIX sh compatible.
 
+# Guard against double-sourcing (e.g. zsh login sources this via both zshenv and
+# zprofile→profile). Safe to source multiple times, but wasteful.
+[ -n "$_SHELLENV_LOADED" ] && return
+_SHELLENV_LOADED=1
+
 # --- PATH helper ---
 extend_path() {
     _ep_prepend=''
