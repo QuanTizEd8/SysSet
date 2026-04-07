@@ -1,13 +1,24 @@
 #!/bin/bash
 # Verifies that multiple comma-separated plugin slugs are all cloned into the
-# correct subdirectories under ZSH_CUSTOM.
+# system ZSH_CUSTOM dir, and symlinked into the per-user custom dir.
 set -e
 
 source dev-container-features-test-lib
 
-_CUSTOM=/usr/local/share/oh-my-zsh/custom
+_OMZ=/usr/local/share/oh-my-zsh
+_SYS_CUSTOM="${_OMZ}/custom"
+_HOME=/root
+_USER_CUSTOM="${_HOME}/.config/zsh/custom"
 
-check "zsh-autosuggestions cloned" test -d "${_CUSTOM}/plugins/zsh-autosuggestions/.git"
-check "zsh-syntax-highlighting cloned" test -d "${_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+# Plugins cloned into system custom dir
+check "zsh-autosuggestions cloned in system custom" test -d "${_SYS_CUSTOM}/plugins/zsh-autosuggestions/.git"
+check "zsh-syntax-highlighting cloned in system custom" test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+
+# Plugins symlinked into per-user custom dir (add_root_user_config is not set,
+# so the current user is configured — check the current user's home instead)
+_CUR_HOME="$(eval echo ~$(id -un))"
+_CUR_CUSTOM="${_CUR_HOME}/.config/zsh/custom"
+check "per-user zsh-autosuggestions symlink exists" test -L "${_CUR_CUSTOM}/plugins/zsh-autosuggestions"
+check "per-user zsh-syntax-highlighting symlink exists" test -L "${_CUR_CUSTOM}/plugins/zsh-syntax-highlighting"
 
 reportResults

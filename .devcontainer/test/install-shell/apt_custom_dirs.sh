@@ -7,6 +7,9 @@ source dev-container-features-test-lib
 
 _OMZ=/opt/oh-my-zsh
 _OMB=/opt/oh-my-bash
+_HOME=/root
+_ZDOTDIR="${_HOME}/.config/zsh"
+_OMZ_CUSTOM="${_ZDOTDIR}/custom"
 
 # Custom paths exist
 check "oh-my-zsh at custom path" test -d "$_OMZ"
@@ -19,7 +22,14 @@ check "omz not at default path" bash -c '! test -d /usr/local/share/oh-my-zsh'
 check "omb not at default path" bash -c '! test -d /usr/local/share/oh-my-bash'
 
 # Root user configured (add_root_user_config=true)
-check "root .zshrc exists" test -f /root/.zshrc
-check "root .bashrc exists" test -f /root/.bashrc
+check "root .zshenv exists" test -f "${_HOME}/.zshenv"
+check "root ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
+check "root .bashrc exists" test -f "${_HOME}/.bashrc"
+check ".zshenv sets ZDOTDIR" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
+check ".zshrc sets ZSH to custom path" grep -qF "export ZSH=\"${_OMZ}\"" "${_ZDOTDIR}/.zshrc"
+
+# Per-user custom dir uses ZDOTDIR/custom (not install_dir/custom)
+check "per-user OMZ custom dir exists" test -d "${_OMZ_CUSTOM}"
+check "ZSH_CUSTOM points to per-user dir" grep -qF "ZSH_CUSTOM=\"${_OMZ_CUSTOM}\"" "${_ZDOTDIR}/.zshrc"
 
 reportResults

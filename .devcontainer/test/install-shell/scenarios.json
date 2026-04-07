@@ -28,7 +28,8 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-shell": {
-                "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting"
+                "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting",
+                "add_current_user_config": true
             }
         }
     },
@@ -99,6 +100,66 @@
             "install-shell": {
                 "add_root_user_config": true,
                 "user_config_mode": "skip"
+            }
+        }
+    },
+    "apt_zdotdir_default": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_zdotdir_custom": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "zdotdir": "~/.zsh",
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_custom_dir_system": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "ohmyzsh_custom_dir": "/opt/zsh-custom",
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_custom_dir_per_user": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "ohmyzsh_custom_dir": "~/.zsh-custom",
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_augment_mode": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_root_user_config": true,
+                "user_config_mode": "augment"
+            }
+        }
+    },
+    "apt_skel_placement": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_omb_user_config": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_root_user_config": true
             }
         }
     }
