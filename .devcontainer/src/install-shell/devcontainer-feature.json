@@ -100,14 +100,19 @@
          "enum": ["zsh", "bash", "none"],
          "description": "Whether to set users' default login shell to zsh or bash via `chsh`.\n Applies to all users for whom configuration is being added, as determined by the `add_*_user_config` options. Raises an error if zsh is selected but zsh is not available or being installed."
       },
+      "zdotdir": {
+         "default": "",
+         "description": "Directory where Zsh looks for its per-user config files (`.zshrc`, `.zprofile`, `.zlogin`).\nCorresponds to the `ZDOTDIR` environment variable set in `~/.zshenv`.\nLeave empty to use the default: `${XDG_CONFIG_HOME}/zsh` (i.e. `~/.config/zsh`).\nAccepts `~`- or `$HOME`-prefixed paths.\n",
+         "type": "string"
+      },
       "ohmyzsh_custom_dir": {
          "default": "",
-         "description": "ZSH_CUSTOM directory for Oh My Zsh.\nLeave empty to use `<ohmyzsh_install_dir>/custom` (system-wide, shared across users).\nSet to a `~`- or `$HOME`-prefixed path (e.g. `~/.oh-my-zsh-custom`) for a per-user writable directory — installer-managed themes and plugins will be symlinked there for each configured user.\n",
+         "description": "ZSH_CUSTOM directory for Oh My Zsh.\nLeave empty to use `${ZDOTDIR}/custom` (i.e. `~/.config/zsh/custom`) — per-user, themes and plugins are symlinked there from the system install.\nSet to an explicit path to override; `~`- and `$HOME`-prefixed values are expanded per user.\n",
          "type": "string"
       },
       "ohmybash_custom_dir": {
          "default": "",
-         "description": "OSH_CUSTOM directory for Oh My Bash.\nLeave empty to use `<ohmybash_install_dir>/custom` (system-wide, shared across users).\nSet to a `~`- or `$HOME`-prefixed path (e.g. `~/.oh-my-bash-custom`) for a per-user writable directory — installer-managed themes and plugins will be symlinked there for each configured user.\n",
+         "description": "OSH_CUSTOM directory for Oh My Bash.\nLeave empty to use `${XDG_CONFIG_HOME}/bash/custom` (i.e. `~/.config/bash/custom`) — per-user, themes and plugins are symlinked there from the system install.\nSet to an explicit path to override; `~`- and `$HOME`-prefixed values are expanded per user.\n",
          "type": "string"
       },
       "font_names": {

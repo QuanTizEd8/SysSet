@@ -56,6 +56,7 @@ Frameworks:
   --install_starship <bool>        Install Starship prompt (default: true)
 
 Oh My Zsh options:
+  --zdotdir <path>                 Zsh config directory (ZDOTDIR, default: ~/.config/zsh)
   --ohmyzsh_install_dir <path>     Installation directory
   --ohmyzsh_custom_dir <path>      ZSH_CUSTOM directory
   --ohmyzsh_branch <string>        Git branch/tag to clone
@@ -101,6 +102,7 @@ if [ "$#" -gt 0 ]; then
   INSTALL_STARSHIP=""
   INSTALL_FONTS=""
   OHMYZSH_INSTALL_DIR=""
+  ZDOTDIR=""
   OHMYZSH_CUSTOM_DIR=""
   OHMYZSH_BRANCH=""
   OHMYZSH_THEME=""
@@ -130,6 +132,7 @@ if [ "$#" -gt 0 ]; then
       --install_starship)           shift; INSTALL_STARSHIP="$1"; shift;;
       --install_fonts)              shift; INSTALL_FONTS="$1"; shift;;
       --ohmyzsh_install_dir)        shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
+      --zdotdir)                    shift; ZDOTDIR="$1"; shift;;
       --ohmyzsh_custom_dir)         shift; OHMYZSH_CUSTOM_DIR="$1"; shift;;
       --ohmyzsh_branch)             shift; OHMYZSH_BRANCH="$1"; shift;;
       --ohmyzsh_theme)              shift; OHMYZSH_THEME="$1"; shift;;
@@ -166,6 +169,7 @@ fi
 [ -z "${INSTALL_STARSHIP-}" ]         && INSTALL_STARSHIP=true
 [ -z "${INSTALL_FONTS-}" ]            && INSTALL_FONTS=true
 [ -z "${OHMYZSH_INSTALL_DIR-}" ]      && OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
+[ -z "${ZDOTDIR-}" ]                   && ZDOTDIR=""
 [ -z "${OHMYZSH_CUSTOM_DIR-}" ]       && OHMYZSH_CUSTOM_DIR=""
 [ -z "${OHMYZSH_BRANCH-}" ]           && OHMYZSH_BRANCH="master"
 [ -z "${OHMYZSH_THEME-}" ]            && OHMYZSH_THEME=""
@@ -420,6 +424,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
     --username "$_username"
     --skel_dir "$_SKEL_DIR"
     --user_config_mode "$USER_CONFIG_MODE"
+    --zdotdir "$ZDOTDIR"
   )
 
   if [[ "$_OMZ_INSTALLED" == true ]]; then

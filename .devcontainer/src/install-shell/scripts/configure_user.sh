@@ -26,6 +26,7 @@ Options:
   --username <string>             Target user (required)
   --skel_dir <string>             Path to skeleton files directory
   --user_config_mode <string>     overwrite | augment | skip (default: overwrite)
+  --zdotdir <string>              Zsh config directory (ZDOTDIR; default: ~/.config/zsh)
   --ohmyzsh_install_dir <string>  Oh My Zsh install dir (empty = not installed)
   --ohmyzsh_custom_dir <string>   ZSH_CUSTOM directory
   --ohmyzsh_theme <string>        Theme slug (owner/repo) or empty
@@ -63,30 +64,19 @@ inject_guarded_block() {
 }
 
 # ---------------------------------------------------------------------------
-# resolve_custom_dir <raw_value> <install_dir> <user_home>
-# Returns the effective ZSH_CUSTOM/OSH_CUSTOM path for this user.
-#   empty         → <install_dir>/custom  (system-wide, themes live there)
-#   ~/...         → <user_home>/...
-#   $HOME/...     → <user_home>/...
-#   anything else → used literally
+# resolve_custom_dir <raw_value> <user_home>
+# Expands ~- and $HOME-prefixed paths to absolute paths for the given user.
+# Absolute paths and other values are passed through unchanged.
 # ---------------------------------------------------------------------------
 resolve_custom_dir() {
-  local _raw="$1" _install_dir="$2" _home="$3"
-  if [ -z "$_raw" ]; then
-    printf '%s/custom' "$_install_dir"
-  elif [[ "$_raw" == '~'* ]]; then
+  local _raw="$1" _home="$2"
+  if [[ "$_raw" == '~'* ]]; then
     printf '%s%s' "$_home" "${_raw#\~}"
   elif [[ "$_raw" == '$HOME'* ]]; then
     printf '%s%s' "$_home" "${_raw#'$HOME'}"
   else
     printf '%s' "$_raw"
   fi
-}
-
-# _is_per_user_dir <raw_value>
-# Returns 0 (true) if the raw value indicates a per-user path.
-_is_per_user_dir() {
-  [[ "$1" == '~'* ]] || [[ "$1" == '$HOME'* ]]
 }
 
 # _link_custom_items <src_custom_dir> <dest_custom_dir> <theme_slug> <plugins_csv> <mode>
@@ -134,6 +124,7 @@ _link_custom_items() {
 USERNAME=""
 SKEL_DIR=""
 USER_CONFIG_MODE=""
+ZDOTDIR=""
 OHMYZSH_INSTALL_DIR=""
 OHMYZSH_CUSTOM_DIR=""
 OHMYZSH_THEME=""
@@ -150,6 +141,7 @@ if [ "$#" -gt 0 ]; then
       --username) shift; USERNAME="$1"; shift;;
       --skel_dir) shift; SKEL_DIR="$1"; shift;;
       --user_config_mode) shift; USER_CONFIG_MODE="$1"; shift;;
+      --zdotdir) shift; ZDOTDIR="$1"; shift;;
       --ohmyzsh_install_dir) shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
       --ohmyzsh_custom_dir) shift; OHMYZSH_CUSTOM_DIR="$1"; shift;;
       --ohmyzsh_theme) shift; OHMYZSH_THEME="$1"; shift;;
@@ -188,10 +180,30 @@ fi
 echo "ℹ️  Configuring user '${USERNAME}' (home: ${_HOME}, mode: ${USER_CONFIG_MODE})..." >&2
 
 # ---------------------------------------------------------------------------
+# Resolve per-user XDG and Zsh config paths
+# ---------------------------------------------------------------------------
+_XDG_CONFIG_HOME="${_HOME}/.config"
+
+# Expand ZDOTDIR option (may be ~-prefixed, $HOME-prefixed, or absolute).
+if [ -z "${ZDOTDIR-}" ]; then
+  _ZDOTDIR="${_XDG_CONFIG_HOME}/zsh"
+elif [[ "$ZDOTDIR" == '~'* ]]; then
+  _ZDOTDIR="${_HOME}${ZDOTDIR#\~}"
+elif [[ "$ZDOTDIR" == '$HOME'* ]]; then
+  _ZDOTDIR="${_HOME}${ZDOTDIR#'$HOME'}"
+else
+  _ZDOTDIR="$ZDOTDIR"
+fi
+
+# Apply defaults for custom dirs if not explicitly provided.
+[ -z "${OHMYZSH_CUSTOM_DIR-}" ]  && OHMYZSH_CUSTOM_DIR="${_ZDOTDIR}/custom"
+[ -z "${OHMYBASH_CUSTOM_DIR-}" ] && OHMYBASH_CUSTOM_DIR="${_XDG_CONFIG_HOME}/bash/custom"
+
+# ---------------------------------------------------------------------------
 # Mode: skip — bail out if any dotfile already exists
 # ---------------------------------------------------------------------------
 if [[ "$USER_CONFIG_MODE" == "skip" ]]; then
-  if [ -f "${_HOME}/.zshrc" ] || [ -f "${_HOME}/.bashrc" ]; then
+  if [ -f "${_ZDOTDIR}/.zshrc" ] || [ -f "${_HOME}/.bashrc" ]; then
     echo "ℹ️  User '${USERNAME}' already has dotfiles — skipping (mode=skip)." >&2
     exit 0
   fi
@@ -204,10 +216,23 @@ if [ -n "$SKEL_DIR" ] && [ -d "$SKEL_DIR" ]; then
   # Collect skel files (excluding p10k.zsh which is handled separately).
   while IFS= read -r -d '' _skel_file; do
     _rel="${_skel_file#${SKEL_DIR}/}"
-    _dest="${_HOME}/${_rel}"
 
     # Skip p10k.zsh — it's copied only when p10k theme is selected.
     [[ "$_rel" == "p10k.zsh" ]] && continue
+
+    # .zshenv always lives in HOME so zsh finds it before ZDOTDIR is set.
+    # All other zsh config files go into ZDOTDIR.
+    case "$_rel" in
+      .zshenv)
+        _dest="${_HOME}/${_rel}"
+        ;;
+      .zshrc|.zprofile|.zlogin)
+        _dest="${_ZDOTDIR}/${_rel}"
+        ;;
+      *)
+        _dest="${_HOME}/${_rel}"
+        ;;
+    esac
 
     case "$USER_CONFIG_MODE" in
       overwrite)
@@ -225,18 +250,27 @@ if [ -n "$SKEL_DIR" ] && [ -d "$SKEL_DIR" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Inject ZDOTDIR into ~/.zshenv
+# ---------------------------------------------------------------------------
+_ZSHENV="${_HOME}/.zshenv"
+[ -f "$_ZSHENV" ] || touch "$_ZSHENV"
+mkdir -p "$_ZDOTDIR"
+inject_guarded_block "$_ZSHENV" "install-shell-zdotdir" "ZDOTDIR=\"${_ZDOTDIR}\""
+
+# ---------------------------------------------------------------------------
 # Oh My Zsh configuration block
 # ---------------------------------------------------------------------------
 if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
-  _ZSHRC="${_HOME}/.zshrc"
+  _ZSHRC="${_ZDOTDIR}/.zshrc"
 
   # Ensure the file exists (it should, from skel copy — but be safe).
+  mkdir -p "$_ZDOTDIR"
   [ -f "$_ZSHRC" ] || touch "$_ZSHRC"
 
-  # Resolve effective ZSH_CUSTOM path for this user.
-  _OMZ_CUSTOM_DIR="$(resolve_custom_dir "$OHMYZSH_CUSTOM_DIR" "$OHMYZSH_INSTALL_DIR" "$_HOME")"
+  # Resolve effective ZSH_CUSTOM path for this user (expand ~/$HOME if explicit).
+  _OMZ_CUSTOM_DIR="$(resolve_custom_dir "$OHMYZSH_CUSTOM_DIR" "$_HOME")"
   _OMZ_IS_PER_USER=false
-  _is_per_user_dir "$OHMYZSH_CUSTOM_DIR" && _OMZ_IS_PER_USER=true
+  [[ "$_OMZ_CUSTOM_DIR" == "$_HOME"* ]] && _OMZ_IS_PER_USER=true
 
   # Resolve the ZSH_THEME value (e.g. "powerlevel10k/powerlevel10k").
   # Themes are always cloned to <install_dir>/custom, so look there.
@@ -327,10 +361,10 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
   # Ensure the file exists.
   [ -f "$_BASHRC" ] || touch "$_BASHRC"
 
-  # Resolve effective OSH_CUSTOM path for this user.
-  _OMB_CUSTOM_DIR="$(resolve_custom_dir "$OHMYBASH_CUSTOM_DIR" "$OHMYBASH_INSTALL_DIR" "$_HOME")"
+  # Resolve effective OSH_CUSTOM path for this user (expand ~/$HOME if explicit).
+  _OMB_CUSTOM_DIR="$(resolve_custom_dir "$OHMYBASH_CUSTOM_DIR" "$_HOME")"
   _OMB_IS_PER_USER=false
-  _is_per_user_dir "$OHMYBASH_CUSTOM_DIR" && _OMB_IS_PER_USER=true
+  [[ "$_OMB_CUSTOM_DIR" == "$_HOME"* ]] && _OMB_IS_PER_USER=true
 
   # Resolve the OSH_THEME value.
   _OMB_THEME_VALUE=""
@@ -383,17 +417,8 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Fix ownership — everything we touched belongs to the user
+# Fix ownership — give the user full ownership of their entire home directory
 # ---------------------------------------------------------------------------
-_FILES_TO_OWN=()
-for _f in .shellenv .shellrc .bash_profile .bashrc .zshenv .zprofile .zshrc .zlogin .p10k.zsh; do
-  [ -f "${_HOME}/${_f}" ] && _FILES_TO_OWN+=("${_HOME}/${_f}")
-done
-[[ "${_OMZ_IS_PER_USER-false}" == true ]] && [ -d "$_OMZ_CUSTOM_DIR" ] && _FILES_TO_OWN+=("$_OMZ_CUSTOM_DIR")
-[[ "${_OMB_IS_PER_USER-false}" == true ]] && [ -d "$_OMB_CUSTOM_DIR" ] && _FILES_TO_OWN+=("$_OMB_CUSTOM_DIR")
-
-if [ ${#_FILES_TO_OWN[@]} -gt 0 ]; then
-  chown -R "${USERNAME}:${_GROUP}" "${_FILES_TO_OWN[@]}"
-fi
+chown -R "${USERNAME}:${_GROUP}" "$_HOME"
 
 echo "✅ User '${USERNAME}' configuration complete." >&2
