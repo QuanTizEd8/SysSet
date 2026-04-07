@@ -8,3 +8,10 @@
 # Do NOT put interactive-only config here (aliases, prompt, key bindings).
 # Those belong in ~/.zshrc.  Output here WILL break scripts and scp/rsync.
 [ -f "$HOME/.shellenv" ] && emulate sh -c '. "$HOME/.shellenv"'
+
+
+# Path to the directory where
+# Zsh configuration files (dotfiles)
+# are located (default: $HOME).
+# - https://www.reddit.com/r/zsh/comments/iq89wr/comment/g4soljs/
+ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
