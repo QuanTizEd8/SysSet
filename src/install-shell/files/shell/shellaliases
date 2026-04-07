@@ -1,0 +1,10 @@
+# /etc/shellaliases — system-wide aliases shared across bash and zsh.
+# Sourced by /etc/shellrc for all interactive shells.
+# Only use portable alias syntax here (alias name=value).
+# Shell-specific aliases (e.g. zsh global/suffix aliases) belong in the
+# respective /etc/zsh/zshrc or /etc/bash/bashrc instead.
+
+# --- ls ---
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
