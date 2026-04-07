@@ -1,0 +1,33 @@
+# ~/.shellrc: user-specific interactive shell configuration, shared across
+# bash and zsh.
+#
+# Sourced by ~/.bashrc (bash) and ~/.zshrc (zsh) for interactive sessions.
+# Write only POSIX sh syntax here — no zsh/bash-specific idioms.
+# Shell-specific config belongs in ~/.bashrc or ~/.zshrc respectively.
+
+# If not running interactively, don't do anything.
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+
+# --- Personal aliases ---
+# Aliases defined here apply in both bash and zsh.
+#
+#   alias gs='git status'
+#   alias gp='git push'
+#   alias k='kubectl'
+
+
+# --- Personal functions ---
+# POSIX-compatible shell functions available in both shells.
+#
+#   mkcd() { mkdir -p "$1" && cd "$1"; }
+
+
+# --- Tool initialisers ---
+# Place cross-shell tool setup here.  Shell-specific initialisers
+# (e.g. those producing zsh/bash-only syntax) go in ~/.zshrc or ~/.bashrc.
+#
+#   command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init posix --hook prompt)"
