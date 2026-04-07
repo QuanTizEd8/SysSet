@@ -202,35 +202,21 @@ echo "  install-shell" >&2
 echo "========================================" >&2
 
 # ===================================================================
-# Step 1: Install Zsh
+# Step 1: Install dependencies
 # ===================================================================
+_PKG_MANIFEST="${_BASE_DIR}/packages.txt"
+if ! command -v install-os-pkg > /dev/null 2>&1; then
+  echo "⛔ install-os-pkg not found — it is a required dependency of install-shell." >&2
+  exit 1
+fi
+install-os-pkg --manifest "$_PKG_MANIFEST" --check_installed
+
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
     echo "ℹ️  Zsh already installed — skipping." >&2
   else
     echo "📦 Installing Zsh..." >&2
-    _PKG_MANIFEST="${_BASE_DIR}/packages.txt"
-    if [ -f "$_PKG_MANIFEST" ] && command -v install-os-pkg > /dev/null 2>&1; then
-      install-os-pkg --manifest "$_PKG_MANIFEST" --check_installed
-    else
-      # Direct fallback: install zsh + git + curl via detected package manager.
-      if command -v apt-get > /dev/null 2>&1; then
-        apt-get update && apt-get install -y --no-install-recommends zsh git curl ca-certificates
-      elif command -v apk > /dev/null 2>&1; then
-        apk add --no-cache zsh git curl ca-certificates
-      elif command -v dnf > /dev/null 2>&1; then
-        dnf install -y zsh git curl ca-certificates
-      elif command -v yum > /dev/null 2>&1; then
-        yum install -y zsh git curl ca-certificates
-      elif command -v zypper > /dev/null 2>&1; then
-        zypper --non-interactive install zsh git curl ca-certificates
-      elif command -v pacman > /dev/null 2>&1; then
-        pacman -S --noconfirm --needed zsh git curl ca-certificates
-      else
-        echo "⛔ No supported package manager found." >&2
-        exit 1
-      fi
-    fi
+    install-os-pkg --manifest $'zsh\n'
   fi
 fi
 

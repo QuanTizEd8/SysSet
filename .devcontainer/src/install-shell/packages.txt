@@ -1,8 +1,18 @@
-# Runtime dependencies for the install-ohmyzsh devcontainer feature.
+# Runtime dependencies for the install-shell devcontainer feature.
 # install-os-pkg installs these before the main script runs.
 git
 curl
-zsh
 ca-certificates
 fontconfig
-xz-utils
+xz-utils [pm=apt]
+xz [pm=apk]
+xz [pm=dnf]
+
+# Locale: generate en_US.UTF-8 so LANG/LC_ALL set in /etc/shellenv resolve correctly.
+locales [pm=apt]
+musl-locales [pm=apk]
+musl-locales-lang [pm=apk]
+glibc-langpack-en [pm=dnf]
+
+--- script [pm=apt]
+locale-gen en_US.UTF-8
