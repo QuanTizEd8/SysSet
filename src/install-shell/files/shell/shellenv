@@ -130,3 +130,15 @@ export XDG_STATE_HOME="${XDG_STATE_HOME:-${HOME}/.local/state}"
 # --- Locale ---
 export LANG="${LANG:-en_US.UTF-8}"
 export LC_ALL="${LC_ALL:-en_US.UTF-8}"
+
+# --- Default editor ---
+# VISUAL is for full-screen editors; EDITOR is for line-oriented fallback.
+# Many programs (sudoedit, crontab, git) honour these. Prefer nano as a safe
+# default; fall back to vi which is available on every POSIX system.
+if [ -z "${VISUAL}" ] && [ -z "${EDITOR}" ]; then
+    if command -v nano >/dev/null 2>&1; then
+        export VISUAL=nano EDITOR=nano
+    else
+        export VISUAL=vi EDITOR=vi
+    fi
+fi
