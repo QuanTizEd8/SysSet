@@ -33,7 +33,7 @@ With the defaults above, the feature will:
 6. Deploy system-wide config files (`/etc/profile`, `/etc/shellenv`,
    `/etc/shellrc`, etc.)
 7. Configure the current non-root user's dotfiles
-   (`~/.bashrc`, `~/.zshrc`, `~/.shellenv`, etc.)
+   (`~/.bashrc`, `$ZDOTDIR/.zshrc`, `~/.shellenv`, etc.)
 
 ### Minimal example — Zsh only, no frameworks
 
@@ -80,6 +80,23 @@ With the defaults above, the feature will:
 }
 ```
 
+### Custom ZDOTDIR and per-user custom directories
+
+```jsonc
+{
+  "features": {
+    "ghcr.io/quantized8/sysset/install-shell:0": {
+      "zdotdir": "~/.zsh",
+      "ohmyzsh_custom_dir": "~/.zsh/custom",
+      "ohmybash_custom_dir": "~/.config/bash/custom"
+    }
+  }
+}
+```
+
+With defaults, Zsh config files end up at `~/.config/zsh/` and the Oh My Zsh
+custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
+
 ---
 
 ## Options
@@ -97,8 +114,9 @@ With the defaults above, the feature will:
 | `ohmybash_plugins` | string | `"git"` | Comma-separated OMB plugins. Same slug/built-in logic as OMZ. |
 | `ohmyzsh_install_dir` | string | `"/usr/local/share/oh-my-zsh"` | Oh My Zsh installation directory (maps to the `ZSH` variable). |
 | `ohmybash_install_dir` | string | `"/usr/local/share/oh-my-bash"` | Oh My Bash installation directory. |
-| `ohmyzsh_custom_dir` | string | `""` | `ZSH_CUSTOM` directory. Defaults to `<ohmyzsh_install_dir>/custom`. |
-| `ohmybash_custom_dir` | string | `""` | `OSH_CUSTOM` directory. Defaults to `<ohmybash_install_dir>/custom`. |
+| `zdotdir` | string | `""` | Directory where Zsh looks for per-user config files (`.zshrc`, `.zprofile`, `.zlogin`). Maps to the `ZDOTDIR` variable injected into `~/.zshenv`. Leave empty to use the default: `~/.config/zsh`. Accepts `~`- or `$HOME`-prefixed paths. |
+| `ohmyzsh_custom_dir` | string | `""` | `ZSH_CUSTOM` directory. Leave empty to default to `${ZDOTDIR}/custom` (e.g. `~/.config/zsh/custom`) — per-user, with named themes/plugins symlinked from the system install. Set to an explicit system path (e.g. `/opt/zsh-custom`) to share one directory across all users; set to a `~`- or `$HOME`-prefixed path for an explicit per-user directory with symlinks. |
+| `ohmybash_custom_dir` | string | `""` | `OSH_CUSTOM` directory. Leave empty to default to `${XDG_CONFIG_HOME}/bash/custom` (e.g. `~/.config/bash/custom`) — per-user, with named themes/plugins symlinked from the system install. Accepts the same three forms as `ohmyzsh_custom_dir`. |
 | `ohmyzsh_branch` | string | `"master"` | Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone. |
 | `ohmybash_branch` | string | `"master"` | Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone. |
 | `font_names` | string | `"Meslo,JetBrainsMono"` | Comma-separated [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts/releases) archive names to install. |
@@ -130,9 +148,9 @@ then hands off to the main orchestrator at `scripts/install.sh`.
 
 Installs `zsh`, `git`, `curl`, `ca-certificates`, `fontconfig`, `xz-utils`,
 and `unzip` via the `install-os-pkg` dependency (cross-distro package
-installer). If `install-os-pkg` is not available, falls back to the detected
-package manager directly. Skipped if `install_zsh` is `false` and all
-dependencies are already present.
+installer). `install-os-pkg` is a declared hard dependency and is always
+available. Skipped if `install_zsh` is `false` and all dependencies are
+already present.
 
 ### Step 2 — Install Oh My Zsh
 
@@ -198,10 +216,20 @@ options. Users that do not exist on the system are skipped with a warning.
 
 ### Step 8 — Configure users
 
-For each resolved user, copies skel dotfiles to their home directory and
-injects framework configuration blocks (Oh My Zsh, Oh My Bash) into
-`~/.zshrc` and `~/.bashrc` respectively. Behavior is controlled by
-`user_config_mode`:
+For each resolved user:
+
+1. Resolves `ZDOTDIR` (default `~/.config/zsh`) and defaults for
+   `ohmyzsh_custom_dir` / `ohmybash_custom_dir` specific to that user's home.
+2. Copies skel dotfiles — routing `.zshrc`, `.zprofile`, and `.zlogin` to
+   `$ZDOTDIR/` and `.zshenv` to `$HOME/`.
+3. Injects `ZDOTDIR="<resolved>"` into `~/.zshenv` between guarded markers.
+4. Injects Oh My Zsh and Oh My Bash configuration blocks into `$ZDOTDIR/.zshrc`
+   and `~/.bashrc` respectively.
+5. Sets up the per-user custom directory (symlinks or real dir — see
+   [Custom directory modes](#custom-directory-modes)).
+6. Fixes ownership of the entire home directory with `chown -R`.
+
+Behavior is controlled by `user_config_mode`:
 
 | Mode | Skel files | Framework blocks |
 |---|---|---|
@@ -271,16 +299,63 @@ files in `/etc/` that establish sane defaults for all users, and
 
 These are copied from `files/skel/` to each configured user's home directory.
 
-| Skel file | Purpose |
+| Skel file | Deployed location | Purpose |
+|---|---|---|
+| `.shellenv` | `~/` | User environment variables and `PATH` additions. Sourced by `.zshenv` and `.bash_profile`. Has a sentinel guard to prevent double-sourcing. Sets `XDG_*` directories. |
+| `.shellrc` | `~/` | User interactive config shared across bash and zsh (aliases, functions, cross-shell tool initialisers). |
+| `.bash_profile` | `~/` | Login shell setup for bash (and zsh via `.zprofile`). Sources `.shellenv`, then `.bashrc` (guarded by `$BASH`). |
+| `.bashrc` | `~/` | Bash interactive config. Contains the `# BEGIN/END install-shell-ohmybash` injection block, then sources `.shellrc`. |
+| `.zshenv` | `~/` | Delegates to `.shellenv` via `emulate sh`. Has `ZDOTDIR` injected dynamically (see [ZDOTDIR](#zdotdir)). Must live in `$HOME` so Zsh can find it before `ZDOTDIR` is set. |
+| `.zprofile` | `$ZDOTDIR/` | Delegates to `.bash_profile` via `emulate sh` for unified login setup. |
+| `.zshrc` | `$ZDOTDIR/` | Zsh interactive config. Contains the `# BEGIN/END install-shell-ohmyzsh` injection block, then sources `.shellrc`. |
+| `.zlogin` | `$ZDOTDIR/` | Runs after `.zshrc` for login shells. Empty by default — suitable for login announcements. |
+
+### ZDOTDIR
+
+By default Zsh looks for per-user config files (`.zshrc`, `.zprofile`,
+`.zlogin`) in `$ZDOTDIR`. This feature sets `ZDOTDIR` to `~/.config/zsh`
+(i.e. `${XDG_CONFIG_HOME}/zsh`), keeping Zsh dotfiles out of the home
+directory root. The `.zshenv` must stay in `$HOME` so that Zsh can find it
+before `ZDOTDIR` is set.
+
+The `zdotdir` option lets you override the directory. Accepted forms:
+
+| Value | Resolved to |
 |---|---|
-| `.shellenv` | User environment variables and `PATH` additions. Sourced by `.zshenv` and `.bash_profile`. Has a sentinel guard to prevent double-sourcing. Sets `XDG_*` directories. |
-| `.shellrc` | User interactive config shared across bash and zsh (aliases, functions, cross-shell tool initialisers). |
-| `.bash_profile` | Login shell setup for bash (and zsh via `.zprofile`). Sources `.shellenv`, then `.bashrc` (guarded by `$BASH`). |
-| `.bashrc` | Bash interactive config. Contains the `# BEGIN/END install-shell-ohmybash` injection block, then sources `.shellrc`. |
-| `.zshenv` | Delegates to `.shellenv` via `emulate sh`. Sets `ZDOTDIR` to `$XDG_CONFIG_HOME/zsh`. |
-| `.zprofile` | Delegates to `.bash_profile` via `emulate sh` for unified login setup. |
-| `.zshrc` | Zsh interactive config. Contains the `# BEGIN/END install-shell-ohmyzsh` injection block, then sources `.shellrc`. |
-| `.zlogin` | Runs after `.zshrc` for login shells. Empty by default — suitable for login announcements. |
+| `""` (default) | `~/.config/zsh` |
+| `~/.something` | `<user_home>/.something` (expanded per user) |
+| `$HOME/.something` | `<user_home>/.something` (expanded per user) |
+| `/absolute/path` | `/absolute/path` (shared across all users) |
+
+The resolved `ZDOTDIR` is injected into `~/.zshenv` between
+`# BEGIN install-shell-zdotdir` / `# END install-shell-zdotdir` markers, so
+it is refreshed on each re-run and correctly updated when changing hosts or
+rebuilding the container.
+
+### Custom directory modes
+
+The `ohmyzsh_custom_dir` and `ohmybash_custom_dir` options control where
+`ZSH_CUSTOM` / `OSH_CUSTOM` point and whether custom themes/plugins are
+symlinked into the user's home directory.
+
+| Value | `ZSH_CUSTOM` / `OSH_CUSTOM` | Themes/plugins in home? |
+|---|---|---|
+| `""` (default) | `${ZDOTDIR}/custom` (OMZ) or `${XDG_CONFIG_HOME}/bash/custom` (OMB) | Yes — symlinked from system install |
+| `~/.something` or `$HOME/.something` | `<user_home>/.something` | Yes — symlinked from system install |
+| `/opt/path` (explicit system path) | `/opt/path` | No — single shared dir for all users |
+
+For per-user directories (first two rows), the installer:
+
+1. Creates `{custom_dir}/themes/` and `{custom_dir}/plugins/`.
+2. Symlinks only the **named** themes and plugins from the system install
+   (`<ohmyzsh_install_dir>/custom`) into the user's custom dir.
+3. In `overwrite` mode, an existing symlink for a named item is removed and
+   recreated. Real directories inside the custom dir are never removed.
+4. In `augment` mode, a symlink for a named item is created only if that name
+   is not already present (as a symlink or a real directory).
+
+For an explicit system path, themes/plugins are cloned directly there during
+`install.sh` and all users share that directory.
 
 ### `extend_path` helper
 
@@ -342,21 +417,21 @@ $BASH_ENV → /etc/bash/bashenv
 
 ```
 /etc/zsh/zshenv → /etc/shellenv
-~/.zshenv → ~/.shellenv
+~/.zshenv → ~/.shellenv + injects ZDOTDIR=~/.config/zsh
 /etc/zsh/zprofile → /etc/profile → /etc/shellenv (sentinel skip) + profile.d
-~/.zprofile → ~/.bash_profile → ~/.shellenv (sentinel skip)
+$ZDOTDIR/.zprofile → ~/.bash_profile → ~/.shellenv (sentinel skip)
 /etc/zsh/zshrc → /etc/shellrc → /etc/shellaliases
-~/.zshrc
+$ZDOTDIR/.zshrc
  ├── [OMZ guarded block]
  └── ~/.shellrc
-~/.zlogin
+$ZDOTDIR/.zlogin
 ```
 
 **Zsh non-interactive** (e.g. `zsh -c "cmd"`, scripts with `#!/usr/bin/env zsh`):
 
 ```
 /etc/zsh/zshenv → /etc/shellenv
-~/.zshenv → ~/.shellenv
+~/.zshenv → ~/.shellenv + injects ZDOTDIR (not used in non-interactive)
 ```
 
 ---
@@ -364,10 +439,10 @@ $BASH_ENV → /etc/bash/bashenv
 ## Per-user dotfile injection
 
 When Oh My Zsh or Oh My Bash is installed and a user is being configured, the
-installer injects a **guarded block** into the user's `~/.zshrc` or
+installer injects a **guarded block** into the user's `$ZDOTDIR/.zshrc` or
 `~/.bashrc` between `# BEGIN` and `# END` markers.
 
-### Oh My Zsh block (`~/.zshrc`)
+### Oh My Zsh block (`$ZDOTDIR/.zshrc`)
 
 Injected between `# BEGIN install-shell-ohmyzsh` and
 `# END install-shell-ohmyzsh`:
@@ -377,7 +452,7 @@ export ZSH="/usr/local/share/oh-my-zsh"
 ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
 [ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"
 ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"
-ZSH_CUSTOM="$HOME/.oh-my-zsh-custom"
+ZSH_CUSTOM="$HOME/.config/zsh/custom"
 ZSH_THEME="powerlevel10k/powerlevel10k"      # or "" if no theme
 plugins=(zsh-syntax-highlighting)              # from ohmyzsh_plugins
 zstyle ':omz:update' mode disabled
@@ -394,9 +469,10 @@ Key design decisions:
 - **`ZSH_COMPDUMP`** includes `$SHORT_HOST` and `$ZSH_VERSION` to prevent
   cache corruption when the same home directory is shared across hosts or
   Zsh versions (e.g. devcontainer rebuilds).
-- **`ZSH_CUSTOM`** is set to `~/.oh-my-zsh-custom` (per-user) rather than
-  the shared `$ZSH/custom`, so users can add their own themes/plugins
-  without root access.
+- **`ZSH_CUSTOM`** is set to the resolved per-user custom directory (default:
+  `~/.config/zsh/custom`) so users can add their own themes and plugins
+  without root access. Named themes and plugins from the system install are
+  symlinked in automatically. See [Custom directory modes](#custom-directory-modes).
 - **`omz update` is disabled** because the shared installation is owned by
   root; non-root users would get `git pull` permission errors.
 - **`POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true`** is set before
@@ -412,7 +488,7 @@ Injected between `# BEGIN install-shell-ohmybash` and
 export OSH="/usr/local/share/oh-my-bash"
 OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"
 [ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"
-OSH_CUSTOM="$HOME/.oh-my-bash-custom"
+OSH_CUSTOM="$HOME/.config/bash/custom"
 OSH_THEME=""                                   # or theme name
 plugins=(git)                                   # from ohmybash_plugins
 [ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"
@@ -579,8 +655,9 @@ provide `PATH`, `XDG_*`, locale, and other environment variables.
 | `/usr/local/share/oh-my-bash/` | Oh My Bash shared installation |
 | `/usr/local/bin/starship` | Starship binary |
 | `/usr/share/fonts/` | Nerd Fonts and MesloLGS NF fonts |
-| `~/.oh-my-zsh-custom/` | Per-user OMZ custom directory |
-| `~/.oh-my-bash-custom/` | Per-user OMB custom directory |
+| `~/.config/zsh/` | `ZDOTDIR` — per-user Zsh config dir (`.zshrc`, `.zprofile`, `.zlogin`) |
+| `~/.config/zsh/custom/` | Per-user OMZ custom directory (default; symlinks to system install) |
+| `~/.config/bash/custom/` | Per-user OMB custom directory (default; symlinks to system install) |
 
 \* Exact path varies by distribution.
 
@@ -642,14 +719,14 @@ src/install-shell/
     │   └── zshrc                  # → /etc/zsh/zshrc
     │
     └── skel/
-        ├── .shellenv              # → ~/.shellenv
-        ├── .shellrc               # → ~/.shellrc
-        ├── .bash_profile          # → ~/.bash_profile
-        ├── .bashrc                # → ~/.bashrc
-        ├── .zshenv                # → ~/.zshenv
-        ├── .zprofile              # → ~/.zprofile
-        ├── .zshrc                 # → ~/.zshrc
-        ├── .zlogin                # → ~/.zlogin
+        ├── .shellenv              # → ~/
+        ├── .shellrc               # → ~/
+        ├── .bash_profile          # → ~/
+        ├── .bashrc                # → ~/
+        ├── .zshenv                # → ~/.zshenv  (always HOME; injects ZDOTDIR)
+        ├── .zprofile              # → $ZDOTDIR/
+        ├── .zshrc                 # → $ZDOTDIR/
+        ├── .zlogin                # → $ZDOTDIR/
         └── p10k.zsh               # → ~/.p10k.zsh (when p10k theme)
 ```
 
