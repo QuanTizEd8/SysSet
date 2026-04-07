@@ -34,18 +34,24 @@ if command -v gpg-connect-agent >/dev/null 2>&1; then
 fi
 
 
-# --- Git editor ---
-# When inside VS Code and no git editor is already configured, use the VS Code
-# CLI as the editor for commit messages, rebases, etc.
-# Detects stable vs Insiders by inspecting $VSCODE_GIT_ASKPASS_MAIN, which VS Code
-# injects with the path to the running installation (case-insensitive match).
-if [ "${TERM_PROGRAM}" = "vscode" ] && [ -z "${GIT_EDITOR}" ] && command -v git >/dev/null 2>&1 && [ -z "$(git config --get core.editor)" ]; then
+# --- Editor ---
+# When inside VS Code, use the VS Code CLI as the editor
+# for commit messages, sudoedit, crontab -e, etc.
+# Git picks this up via $VISUAL automatically
+# (when $GIT_EDITOR and git config --get core.editor are unset).
+# Outside VS Code, VISUAL/EDITOR are set to nano/vi in /etc/shellenv.
+if [ "${TERM_PROGRAM}" = "vscode" ]; then
+    # Detect stable vs Insiders by inspecting $VSCODE_GIT_ASKPASS_MAIN,
+    # which VSCode injects with the path to the running installation (case-insensitive match).
     _vscode_path=$(printf '%s' "${VSCODE_GIT_ASKPASS_MAIN-}" | tr '[:upper:]' '[:lower:]')
     case "$_vscode_path" in
-        *insiders*) export GIT_EDITOR="code-insiders --wait" ;;
-        *code*)     export GIT_EDITOR="code --wait" ;;
+        *insiders*) _vscode_cmd="code-insiders --wait" ;;
+        *code*)     _vscode_cmd="code --wait" ;;
     esac
-    unset _vscode_path
+    if [ -n "${_vscode_cmd-}" ]; then
+        export VISUAL="$_vscode_cmd" EDITOR="$_vscode_cmd"
+    fi
+    unset _vscode_path _vscode_cmd
 fi
 
 
