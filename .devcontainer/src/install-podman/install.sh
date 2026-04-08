@@ -94,17 +94,11 @@ fi
 # ---------------------------------------------------------------------------
 # 4. Write Podman configuration
 #
-# containers.conf (system-level): keep-id maps the container user's UID
-# into nested containers unchanged, preventing volume permission mismatches.
-#
 # storage.conf (per-user): native overlay on the named volume at
 # /var/lib/containers/storage.  Avoids both the overlay-on-overlay problem
 # and fuse-overlayfs's nested-userns noexec issue.  Written to each user's
 # config dir because rootless Podman ignores the system-level graphRoot.
 # ---------------------------------------------------------------------------
-mkdir -p /etc/containers
-printf '[containers]\nuserns = "keep-id"\n' > /etc/containers/containers.conf
-
 GRAPH_ROOT="/var/lib/containers/storage"
 mkdir -p "${GRAPH_ROOT}"
 
