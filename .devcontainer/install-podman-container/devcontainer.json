@@ -6,5 +6,6 @@
     "features": {
         "../src/install-podman": {
         }
-    }
+    },
+    "remoteUser": "install-podman-user"
 }
