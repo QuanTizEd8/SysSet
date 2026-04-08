@@ -34,12 +34,6 @@
     "entrypoint": "/usr/local/share/install-podman/entrypoint",
 
     "options": {
-        "version": {
-            "type": "string",
-            "default": "apt",
-            "description": "Version of Podman to install. Use 'apt' to install the latest version available in the distribution's package manager.",
-            "proposals": ["apt"]
-        },
         "add_root_user_config": {
             "type": "boolean",
             "default": false,
