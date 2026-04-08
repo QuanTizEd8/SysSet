@@ -1,7 +1,8 @@
 ca-certificates
 podman
-# rootless networking
+# rootless networking — passt is the new default on Fedora; slirp4netns still required on Debian/Ubuntu
 passt
+slirp4netns
 
 # UID/GID mapping tools — package name varies by distro
 uidmap [pm=apt]
