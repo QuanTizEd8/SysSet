@@ -47,8 +47,9 @@ fi
 # containers unchanged, preventing volume permission mismatches.
 #
 # storage.conf: native overlay on the named volume at /var/lib/containers/storage.
-# Written to the user's config dir because rootless Podman ignores the
-# system-level graphRoot.
+# Avoids both the overlay-on-overlay problem and fuse-overlayfs's nested-userns noexec issue.
+# No fallback driver is provided — if overlay doesn't work, Podman will report a clear error.
+# Written to the user's config dir because rootless Podman ignores the system-level graphRoot.
 # ---------------------------------------------------------------------------
 mkdir -p /etc/containers
 printf '[containers]\nuserns = "keep-id"\n' > /etc/containers/containers.conf
