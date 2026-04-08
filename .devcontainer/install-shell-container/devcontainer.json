@@ -5,6 +5,7 @@
     },
     "features": {
         "../src/install-shell": {
+            "starship_shells": "",
             "ohmyzsh_theme": "romkatv/powerlevel10k",
             "set_user_shells": "zsh",
             "add_root_user_config": true
