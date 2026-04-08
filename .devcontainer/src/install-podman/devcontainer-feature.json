@@ -1,0 +1,27 @@
+{
+    "id": "install-podman",
+    "version": "1.0.0",
+    "name": "Rootless Podman",
+    "description": "Installs Podman and all dependencies for rootless container execution inside a dev container. Automatically selects fuse-overlayfs (when /dev/fuse is available) or vfs as the storage driver at startup.",
+    "documentationURL": "https://github.com/containers/podman",
+    "keywords": ["podman", "containers", "rootless", "oci"],
+
+    // Sets privileged mode so the dev container can create nested user namespaces
+    // (required by rootless Podman). privileged is a first-class feature field and
+    // propagates correctly to the host runtime; runArgs is not available in features.
+    "privileged": true,
+
+    // Fires at every container startup (before any user postStartCommand) to
+    // detect /dev/fuse availability and write the appropriate storage driver config
+    // to ~/.config/containers/. Must be an absolute path in the final image.
+    "entrypoint": "/usr/local/bin/podman-configure-storage",
+
+    "options": {
+        "version": {
+            "type": "string",
+            "default": "apt",
+            "description": "Version of Podman to install. Use 'apt' to install the latest version available in the distribution's package manager.",
+            "proposals": ["apt"]
+        }
+    }
+}

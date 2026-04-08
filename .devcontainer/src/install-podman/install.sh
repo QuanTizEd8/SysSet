@@ -1,0 +1,49 @@
+#!/bin/sh
+# install.sh — runs as root at image build time.
+#
+# Installs Podman and all dependencies for rootless operation, registers the
+# remote user's subuid/subgid ranges, and installs the startup entrypoint that
+# selects the appropriate storage driver at runtime.
+#
+# Environment variables provided by the dev container tooling:
+#   _REMOTE_USER       — the user the dev container will be used with
+#   _REMOTE_USER_HOME  — home directory of that user
+set -e
+
+# ---------------------------------------------------------------------------
+# 1. Install packages
+# ---------------------------------------------------------------------------
+apt-get update
+apt-get install -y --no-install-recommends \
+    ca-certificates \
+    podman \
+    uidmap \
+    fuse-overlayfs \
+    slirp4netns
+rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# 2. Register subuid / subgid ranges for the remote user
+#
+# Rootless Podman requires the user to have a subordinate UID/GID range in
+# /etc/subuid and /etc/subgid. useradd normally sets these up, but the remote
+# user may already exist (pre-existing base image user) without an entry.
+# We add the entry only if it is not already present.
+# ---------------------------------------------------------------------------
+if ! grep -q "^${_REMOTE_USER}:" /etc/subuid 2>/dev/null; then
+    echo "${_REMOTE_USER}:100000:65536" >> /etc/subuid
+fi
+if ! grep -q "^${_REMOTE_USER}:" /etc/subgid 2>/dev/null; then
+    echo "${_REMOTE_USER}:100000:65536" >> /etc/subgid
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Install the storage-configuration entrypoint
+#
+# This script is declared as "entrypoint" in devcontainer-feature.json and
+# fires at every container startup. It cannot write config at build time
+# because storage driver selection depends on whether /dev/fuse is exposed by
+# the host runtime — something only known at startup, not at image build time.
+# ---------------------------------------------------------------------------
+cp "$(dirname "$0")/configure-storage.sh" /usr/local/bin/podman-configure-storage
+chmod +x /usr/local/bin/podman-configure-storage
