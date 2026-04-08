@@ -20,7 +20,7 @@
     // This avoids "privileged: true", which would disable ALL security
     // features (seccomp, AppArmor/SELinux, capability restrictions, and
     // read-only /proc and /sys paths) — far more than what Podman needs.
-    "capAdd": ["SYS_ADMIN"],
+    "capAdd": ["SYS_ADMIN", "MKNOD"],
     "securityOpt": ["seccomp=unconfined", "apparmor=unconfined", "label=disable"],
 
     // Named volume for Podman's image/container storage.  The volume is
