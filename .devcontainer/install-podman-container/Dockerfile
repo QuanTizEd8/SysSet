@@ -2,6 +2,7 @@ FROM ubuntu:latest
 
 # Install Podman and rootless dependencies
 RUN apt-get update && apt-get install -y \
+        ca-certificates \
         podman \
         uidmap \
         fuse-overlayfs \
@@ -20,3 +21,8 @@ RUN echo "devuser:100000:65536" >> /etc/subuid \
 RUN mkdir -p /etc/containers \
     && printf '[storage]\ndriver = "overlay"\n\n[storage.options]\nmount_program = "/usr/bin/fuse-overlayfs"\n' \
        > /etc/containers/storage.conf
+
+# Allow unqualified image names to resolve against Docker Hub
+# (e.g. "openjournals/inara" instead of "docker.io/openjournals/inara")
+RUN printf '[registries.search]\nregistries = ["docker.io"]\n' \
+    >> /etc/containers/registries.conf

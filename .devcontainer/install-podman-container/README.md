@@ -147,7 +147,18 @@ default_rootless_network_cmd = "slirp4netns"
 
 If network is not needed at all for the use case (e.g., a LaTeX compiler image that only reads/writes files), add `--network=none` to the `podman run` command to skip network setup entirely.
 
-### 7. Image store is root-owned / permission errors on first pull
+### 7. `x509: certificate signed by unknown authority` when pulling images
+
+**Cause:** The base image (e.g. `ubuntu:latest`) does not include CA certificates, so Podman cannot verify the TLS certificate of the container registry.
+
+**Immediate fix** (no rebuild needed):
+```sh
+podman run --rm --tls-verify=false --userns=keep-id -v "$(pwd):/work" -w /work some-image some-tool
+```
+
+**Permanent fix:** Add `ca-certificates` to the `apt-get install` step in the Dockerfile. The Dockerfile in this folder already includes it.
+
+### 8. Image store is root-owned / permission errors on first pull
 
 **Cause:** Podman was invoked once as root (e.g., during a `RUN` in the Dockerfile), leaving root-owned files in the image store.
 
