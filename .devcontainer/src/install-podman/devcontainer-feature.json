@@ -2,7 +2,7 @@
     "id": "install-podman",
     "version": "2.0.0",
     "name": "Rootless Podman",
-    "description": "Installs Podman for rootless container execution inside a dev container. Uses native overlay storage on modern kernels (>= 5.12) for best performance, falling back to VFS on older kernels.",
+    "description": "Installs Podman for rootless container execution inside a dev container. Uses native overlay storage on the named volume for fast copy-on-write container creation.",
     "documentationURL": "https://github.com/containers/podman",
     "keywords": ["podman", "containers", "rootless", "oci"],
 
@@ -38,8 +38,9 @@
 
     // Entrypoint runs as root at every container startup.  It:
     //   1. Remounts / with suid so newuidmap/newgidmap work.
-    //   2. Detects whether the kernel supports native overlay and writes
-    //      the appropriate storage.conf for the remote user.
+    //   2. Creates /dev/net/tun for slirp4netns networking.
+    //   3. Remounts /proc unrestricted for inner container setup.
+    //   4. Writes storage.conf with native overlay on the named volume.
     "entrypoint": "/usr/local/bin/podman-configure-storage",
 
     "options": {

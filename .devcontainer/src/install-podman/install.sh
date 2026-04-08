@@ -18,7 +18,6 @@ apt-get install -y --no-install-recommends \
     ca-certificates \
     podman \
     uidmap \
-    fuse-overlayfs \
     slirp4netns
 rm -rf /var/lib/apt/lists/*
 
@@ -47,8 +46,8 @@ fi
 # containers.conf: keep-id maps the container user's UID into nested
 # containers unchanged, preventing volume permission mismatches.
 #
-# storage.conf: driver and graphRoot are written at runtime by the
-# entrypoint, because the optimal driver depends on host kernel version.
+# storage.conf: written at runtime by the entrypoint (configure-storage.sh),
+# which also handles remounting / with suid and /proc unrestricted.
 # ---------------------------------------------------------------------------
 mkdir -p /etc/containers
 printf '[containers]\nuserns = "keep-id"\n' > /etc/containers/containers.conf
@@ -61,10 +60,7 @@ chown "${_REMOTE_USER}:${_REMOTE_USER}" /var/lib/containers/storage
 echo "${_REMOTE_USER_HOME}" > /usr/local/lib/podman-remote-user-home
 
 # ---------------------------------------------------------------------------
-# 5. Install entrypoint and helper scripts
+# 5. Install entrypoint
 # ---------------------------------------------------------------------------
 cp "$(dirname "$0")/configure-storage.sh" /usr/local/bin/podman-configure-storage
 chmod +x /usr/local/bin/podman-configure-storage
-
-cp "$(dirname "$0")/podman-run-persistent" /usr/local/bin/podman-run-persistent
-chmod +x /usr/local/bin/podman-run-persistent

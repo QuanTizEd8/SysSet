@@ -1,28 +1,16 @@
 #!/bin/sh
 # configure-storage.sh — entrypoint, runs as root at every container startup.
 #
-# 1. Remounts / with suid so newuidmap/newgidmap setuid bits are honoured
-#    (Docker mounts the container rootfs nosuid by default).
-# 2. Remounts /proc/sys as rw so crun can write ping_group_range when
-#    setting up inner containers' network namespaces.
-# 3. Selects the best available storage driver for the named volume and
-#    writes the remote user's storage.conf.
+# Prepares the container environment for rootless Podman:
+#   1. Remounts / with suid so newuidmap/newgidmap setuid bits are honoured.
+#   2. Creates /dev/net/tun for slirp4netns networking.
+#   3. Remounts /proc unrestricted so crun can mount procfs in inner containers.
+#   4. Writes storage.conf pointing Podman at the named volume with native overlay.
 #
-# Storage driver selection (in preference order):
-#
-#   native overlay   — Kernel >= 5.12 supports unprivileged overlay mounts
-#                      in user namespaces.  The named volume provides a real
-#                      filesystem (ext4/xfs/…), avoiding overlay-on-overlay.
-#                      No FUSE involved, so no noexec issue.  Best option.
-#
-#   vfs              — Copies all image layers into the graphRoot directory.
-#                      Slower and uses more space, but works on any kernel.
-#                      The named volume makes this tolerable by persisting
-#                      pulled images across container restarts.
-#
-#   (fuse-overlayfs is deliberately skipped when running inside a container.
-#    FUSE mounts inherit noexec in nested user namespaces, causing exec from
-#    inner containers to fail with EINVAL.)
+# Native overlay (kernel >= 5.12, which covers all modern Docker hosts) on the
+# named volume avoids both the overlay-on-overlay problem and fuse-overlayfs's
+# nested-userns noexec issue.  No fallback driver is provided — if overlay
+# doesn't work, Podman will report a clear error.
 
 set -e
 
@@ -43,7 +31,7 @@ mount -o remount,suid / 2>/dev/null || true
 #
 # slirp4netns (rootless container networking) requires the TUN device.
 # Docker does not create /dev/net/tun in non-privileged containers.
-# With CAP_SYS_ADMIN we can create the device node ourselves.
+# With CAP_MKNOD we can create the device node ourselves.
 # ---------------------------------------------------------------------------
 if [ ! -e /dev/net/tun ]; then
     mkdir -p /dev/net
@@ -68,7 +56,7 @@ fi
 mount -t proc proc /proc 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# 3. Determine the remote user's config directory
+# 4. Determine the remote user's config directory
 # ---------------------------------------------------------------------------
 REMOTE_USER_HOME=$(cat /usr/local/lib/podman-remote-user-home 2>/dev/null)
 
@@ -82,63 +70,16 @@ fi
 mkdir -p "${CONFIG_DIR}" "${GRAPH_ROOT}"
 
 # ---------------------------------------------------------------------------
-# 4. Select storage driver
-#
-# Check kernel version for native overlay support in user namespaces (>= 5.12).
-# The graphRoot lives on the named volume, which is a real filesystem — native
-# overlay can layer on top of it without the overlay-on-overlay restriction.
+# 5. Write storage.conf — native overlay on the named volume
 # ---------------------------------------------------------------------------
-KERNEL_VER=$(uname -r | cut -d. -f1-2)
-KERNEL_MAJOR=$(echo "${KERNEL_VER}" | cut -d. -f1)
-KERNEL_MINOR=$(echo "${KERNEL_VER}" | cut -d. -f2)
-
-if [ "${KERNEL_MAJOR}" -gt 5 ] 2>/dev/null ||
-   { [ "${KERNEL_MAJOR}" -eq 5 ] && [ "${KERNEL_MINOR}" -ge 12 ]; } 2>/dev/null; then
-    DRIVER="overlay"
-else
-    DRIVER="vfs"
-fi
-
-# ---------------------------------------------------------------------------
-# 5. Handle storage driver mismatch
-#
-# The named volume persists across devcontainer rebuilds.  If the previous
-# build used a different driver (e.g. VFS from the old config, overlay now),
-# Podman refuses to start: "User-selected graph driver overwritten by graph
-# driver from database".  Detect this and wipe stale data.
-# ---------------------------------------------------------------------------
-STALE=""
-if [ "${DRIVER}" = "overlay" ] && [ -d "${GRAPH_ROOT}/vfs" ]; then
-    STALE=yes
-elif [ "${DRIVER}" = "vfs" ] && [ -d "${GRAPH_ROOT}/overlay" ]; then
-    STALE=yes
-fi
-if [ "${STALE}" = "yes" ]; then
-    echo "podman-configure-storage: driver changed to ${DRIVER}, clearing stale storage data" >&2
-    # Podman stores layers, images, containers under <driver>-* dirs + libpod/.
-    # Wipe everything in the graphRoot so Podman can start clean.
-    rm -rf "${GRAPH_ROOT:?}"/*
-fi
-
-# ---------------------------------------------------------------------------
-# 6. Write storage.conf
-# ---------------------------------------------------------------------------
-if [ "${DRIVER}" = "overlay" ]; then
-    cat > "${CONFIG_DIR}/storage.conf" <<EOF
+cat > "${CONFIG_DIR}/storage.conf" <<EOF
 [storage]
 driver = "overlay"
 graphRoot = "${GRAPH_ROOT}"
 EOF
-else
-    cat > "${CONFIG_DIR}/storage.conf" <<EOF
-[storage]
-driver = "vfs"
-graphRoot = "${GRAPH_ROOT}"
-EOF
-fi
 
 # ---------------------------------------------------------------------------
-# 7. Fix ownership of user config directories
+# 6. Fix ownership of user config directories
 #
 # Several directories under ~/.config may have been created by this script
 # (running as root).  Podman also creates subdirectories at runtime (cni,
