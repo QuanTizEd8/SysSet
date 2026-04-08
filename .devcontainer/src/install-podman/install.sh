@@ -53,6 +53,17 @@ fi
 mkdir -p /etc/containers
 printf '[containers]\nuserns = "keep-id"\n' > /etc/containers/containers.conf
 
+# Pre-create the graphRoot directory that the named volume will be mounted at.
+# The volume mount happens after image build, so the directory must exist in
+# the image for the mount to work correctly. Ownership is set to the remote
+# user so rootless Podman can write to it without privilege escalation.
+mkdir -p /var/lib/containers/storage
+chown "${_REMOTE_USER}:${_REMOTE_USER}" /var/lib/containers/storage
+
+# Save the remote user's home directory so the entrypoint can find it at
+# container startup time (where _REMOTE_USER_HOME is not available).
+echo "${_REMOTE_USER_HOME}" > /usr/local/lib/podman-remote-user-home
+
 # ---------------------------------------------------------------------------
 # 4. Install the storage-configuration entrypoint
 #
@@ -63,3 +74,6 @@ printf '[containers]\nuserns = "keep-id"\n' > /etc/containers/containers.conf
 # ---------------------------------------------------------------------------
 cp "$(dirname "$0")/configure-storage.sh" /usr/local/bin/podman-configure-storage
 chmod +x /usr/local/bin/podman-configure-storage
+
+cp "$(dirname "$0")/podman-run-persistent" /usr/local/bin/podman-run-persistent
+chmod +x /usr/local/bin/podman-run-persistent

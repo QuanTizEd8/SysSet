@@ -6,10 +6,38 @@
     "documentationURL": "https://github.com/containers/podman",
     "keywords": ["podman", "containers", "rootless", "oci"],
 
-    // Sets privileged mode so the dev container can create nested user namespaces
-    // (required by rootless Podman). privileged is a first-class feature field and
-    // propagates correctly to the host runtime; runArgs is not available in features.
+    // privileged: true is required for rootless Podman inside a container.
+    //
+    // Two things are needed:
+    //   1. clone(CLONE_NEWUSER) — blocked by Docker's default seccomp profile.
+    //      seccomp=unconfined alone would unblock this.
+    //   2. newuidmap / newgidmap must run as setuid-root to write UID/GID
+    //      mappings into /proc/<pid>/uid_map. Without --privileged, Docker
+    //      restricts setuid escalation inside the container and newuidmap
+    //      fails with "write to uid_map failed: Operation not permitted".
+    //
+    // There is no targeted capability or securityOpt that grants (2) without
+    // also granting a similar overall surface to --privileged. The setuid
+    // restriction is not controlled by seccomp or capAdd.
     "privileged": true,
+
+    // Mount a dedicated named volume for Podman's image/container storage.
+    // This is the same pattern used by docker-in-docker for /var/lib/docker.
+    //
+    // The volume is backed by the host's real filesystem (ext4/btrfs/etc.),
+    // not the container's overlayfs root. This means fuse-overlayfs works
+    // correctly as a storage driver: its lower dirs are on a normal FS, so
+    // the kernel allows exec from containers. Without this, the only option
+    // would be VFS (full layer copies on every container run).
+    //
+    // ${devcontainerId} ensures each devcontainer gets its own isolated volume.
+    "mounts": [
+        {
+            "source": "podman-storage-${devcontainerId}",
+            "target": "/var/lib/containers/storage",
+            "type": "volume"
+        }
+    ],
 
     // entrypoint fires at every container startup as root, which is correct
     // here because configure-storage.sh writes to /etc/containers/storage.conf
