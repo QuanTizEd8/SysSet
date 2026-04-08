@@ -1,2 +1,1 @@
-FROM debian:latest
-RUN useradd -m -s /bin/bash vscode
+FROM mcr.microsoft.com/devcontainers/base:debian
