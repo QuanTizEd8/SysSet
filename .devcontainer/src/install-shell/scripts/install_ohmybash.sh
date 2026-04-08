@@ -58,12 +58,12 @@ if [ "$#" -gt 0 ]; then
   done
 fi
 
-[ -z "${BRANCH-}" ]          && BRANCH="master"
-[ -z "${DEBUG-}" ]            && DEBUG=false
-[ -z "${INSTALL_DIR-}" ]      && INSTALL_DIR="/usr/local/share/oh-my-bash"
-[ -z "${PLUGINS-}" ]          && PLUGINS=""
-[ -z "${THEME-}" ]            && THEME=""
-[ -z "${OSH_CUSTOM_DIR-}" ]   && OSH_CUSTOM_DIR="${INSTALL_DIR}/custom"
+: "${BRANCH:=master}"
+: "${DEBUG:=false}"
+: "${INSTALL_DIR:=/usr/local/share/oh-my-bash}"
+: "${PLUGINS:=}"
+: "${THEME:=}"
+: "${OSH_CUSTOM_DIR:=${INSTALL_DIR}/custom}"
 
 [[ "$DEBUG" == true ]] && set -x
 

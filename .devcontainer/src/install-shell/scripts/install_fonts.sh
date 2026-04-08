@@ -52,10 +52,10 @@ if [ "$#" -gt 0 ]; then
   done
 fi
 
-[ -z "${FONT_NAMES-}" ] && FONT_NAMES="Meslo,JetBrainsMono"
-[ -z "${FONT_DIR-}" ]   && FONT_DIR="/usr/share/fonts"
-[ -z "${P10K_FONTS-}" ] && P10K_FONTS=false
-[ -z "${DEBUG-}" ]       && DEBUG=false
+: "${FONT_NAMES=Meslo,JetBrainsMono}"
+: "${FONT_DIR:=/usr/share/fonts}"
+: "${P10K_FONTS:=false}"
+: "${DEBUG:=false}"
 
 [[ "$DEBUG" == true ]] && set -x
 

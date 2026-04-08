@@ -43,8 +43,8 @@ if [ "$#" -gt 0 ]; then
   done
 fi
 
-[ -z "${BIN_DIR-}" ] && BIN_DIR="/usr/local/bin"
-[ -z "${DEBUG-}" ]   && DEBUG=false
+: "${BIN_DIR:=/usr/local/bin}"
+: "${DEBUG:=false}"
 
 [[ "$DEBUG" == true ]] && set -x
 

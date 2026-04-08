@@ -64,13 +64,13 @@ if [ "$#" -gt 0 ]; then
   done
 fi
 
-[ -z "${BRANCH-}" ]         && BRANCH="master"
-[ -z "${DEBUG-}" ]           && DEBUG=false
-[ -z "${INSTALL_DIR-}" ]     && INSTALL_DIR="/usr/local/share/oh-my-zsh"
-[ -z "${LOGFILE-}" ]         && LOGFILE=""
-[ -z "${PLUGINS-}" ]         && PLUGINS=""
-[ -z "${THEME-}" ]           && THEME=""
-[ -z "${ZSH_CUSTOM_DIR-}" ] && ZSH_CUSTOM_DIR="${INSTALL_DIR}/custom"
+: "${BRANCH:=master}"
+: "${DEBUG:=false}"
+: "${INSTALL_DIR:=/usr/local/share/oh-my-zsh}"
+: "${LOGFILE:=}"
+: "${PLUGINS:=}"
+: "${THEME:=}"
+: "${ZSH_CUSTOM_DIR:=${INSTALL_DIR}/custom}"
 
 [[ "$DEBUG" == true ]] && set -x
 

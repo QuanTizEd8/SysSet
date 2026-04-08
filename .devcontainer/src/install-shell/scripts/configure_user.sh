@@ -163,12 +163,12 @@ if [ "$#" -gt 0 ]; then
   done
 fi
 
-[ -z "${USERNAME}" ]          && { echo "⛔ Missing --username" >&2; exit 1; }
-[ -z "${SKEL_DIR-}" ]         && SKEL_DIR=""
-[ -z "${USER_CONFIG_MODE-}" ] && USER_CONFIG_MODE="overwrite"
-[ -z "${STARSHIP_SHELLS-}" ]  && STARSHIP_SHELLS="zsh,bash"
-[ -z "${STARSHIP_BIN_DIR-}" ] && STARSHIP_BIN_DIR="/usr/local/bin"
-[ -z "${DEBUG-}" ]             && DEBUG=false
+[ -z "${USERNAME}" ] && { echo "⛔ Missing --username" >&2; exit 1; }
+: "${SKEL_DIR:=}"
+: "${USER_CONFIG_MODE:=overwrite}"
+: "${STARSHIP_SHELLS=zsh,bash}"
+: "${STARSHIP_BIN_DIR=/usr/local/bin}"
+: "${DEBUG:=false}"
 
 [[ "$DEBUG" == true ]] && set -x
 

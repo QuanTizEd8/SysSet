@@ -196,9 +196,9 @@ else
   [ "${CHECK_INSTALLED+defined}" ] && echo "📩 Read argument 'check_installed': '"$CHECK_INSTALLED"'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
-[ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
-[ -z "${INSTALL_SELF-}" ] && { echo "ℹ️ Argument 'INSTALL_SELF' set to default value 'true'." >&2; INSTALL_SELF=true; }
-[ -z "${MANIFEST-}" ] && { echo "ℹ️ Argument 'MANIFEST' set to default value ''." >&2; MANIFEST=""; }
+: "${DEBUG:=false}"
+: "${INSTALL_SELF:=true}"
+: "${MANIFEST:=}"
 if [[ -z "$MANIFEST" && "$INSTALL_SELF" != true ]]; then
     echo "⛔ 'MANIFEST' is required when 'install_self' is false." >&2; exit 1
 fi
@@ -209,9 +209,9 @@ if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
     MANIFEST="$(printf '%b' "$MANIFEST")"
     echo "ℹ️  Expanded literal \\n escapes in MANIFEST value." >&2
 fi
-[ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
-[ -z "${KEEP_REPOS-}" ] && { echo "ℹ️ Argument 'KEEP_REPOS' set to default value 'false'." >&2; KEEP_REPOS=false; }
-[ -z "${LIFECYCLE_HOOK-}" ] && { echo "ℹ️ Argument 'LIFECYCLE_HOOK' set to default value ''." >&2; LIFECYCLE_HOOK=""; }
+: "${INTERACTIVE:=false}"
+: "${KEEP_REPOS:=false}"
+: "${LIFECYCLE_HOOK:=}"
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
     case "$LIFECYCLE_HOOK" in
         onCreate|updateContent|postCreate) ;;
@@ -221,15 +221,15 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
         echo "⛔ 'manifest' is required when 'lifecycle_hook' is set." >&2; exit 1
     fi
 fi
-[ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
-[ -z "${NO_CLEAN-}" ] && { echo "ℹ️ Argument 'NO_CLEAN' set to default value 'false'." >&2; NO_CLEAN=false; }
-[ -z "${NO_UPDATE-}" ] && { echo "ℹ️ Argument 'NO_UPDATE' set to default value 'false'." >&2; NO_UPDATE=false; }
-[ -z "${LISTS_MAX_AGE-}" ] && { echo "ℹ️ Argument 'LISTS_MAX_AGE' set to default value '300'." >&2; LISTS_MAX_AGE=300; }
+: "${LOGFILE:=}"
+: "${NO_CLEAN:=false}"
+: "${NO_UPDATE:=false}"
+: "${LISTS_MAX_AGE:=300}"
 if ! [[ "$LISTS_MAX_AGE" =~ ^[0-9]+$ ]]; then
     echo "⛔ Invalid lists_max_age value: '$LISTS_MAX_AGE'. Must be a non-negative integer." >&2; exit 1
 fi
-[ -z "${DRY_RUN-}" ] && { echo "ℹ️ Argument 'DRY_RUN' set to default value 'false'." >&2; DRY_RUN=false; }
-[ -z "${CHECK_INSTALLED-}" ] && { echo "ℹ️ Argument 'CHECK_INSTALLED' set to default value 'false'." >&2; CHECK_INSTALLED=false; }
+: "${DRY_RUN:=false}"
+: "${CHECK_INSTALLED:=false}"
 [[ "$DRY_RUN" == true ]] && echo "🔍 Dry-run mode enabled — no changes will be made." >&2
 [[ "$DRY_RUN" == true ]] || exit_if_not_root
 if type apt-get > /dev/null 2>&1; then

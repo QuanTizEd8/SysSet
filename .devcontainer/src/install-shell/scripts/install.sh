@@ -166,34 +166,34 @@ fi
 # ---------------------------------------------------------------------------
 # Defaults (match devcontainer-feature.json)
 # ---------------------------------------------------------------------------
-[ -z "${INSTALL_ZSH-}" ]              && INSTALL_ZSH=true
-[ -z "${INSTALL_OHMYZSH-}" ]          && INSTALL_OHMYZSH=true
-[ -z "${INSTALL_OHMYBASH-}" ]         && INSTALL_OHMYBASH=true
-[ -z "${INSTALL_STARSHIP-}" ]         && INSTALL_STARSHIP=true
-[ -z "${STARSHIP_SHELLS-}" ]          && STARSHIP_SHELLS="zsh,bash"
-[ -z "${INSTALL_FONTS-}" ]            && INSTALL_FONTS=true
-[ -z "${OHMYZSH_INSTALL_DIR-}" ]      && OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
-[ -z "${ZDOTDIR-}" ]                   && ZDOTDIR=""
-[ -z "${OHMYZSH_CUSTOM_DIR-}" ]       && OHMYZSH_CUSTOM_DIR=""
-[ -z "${OHMYZSH_BRANCH-}" ]           && OHMYZSH_BRANCH="master"
-[ -z "${OHMYZSH_THEME-}" ]            && OHMYZSH_THEME=""
-[ -z "${OHMYZSH_PLUGINS-}" ]          && OHMYZSH_PLUGINS="zsh-users/zsh-syntax-highlighting"
-[ -z "${OHMYBASH_INSTALL_DIR-}" ]     && OHMYBASH_INSTALL_DIR="/usr/local/share/oh-my-bash"
-[ -z "${OHMYBASH_CUSTOM_DIR-}" ]      && OHMYBASH_CUSTOM_DIR=""
-[ -z "${OHMYBASH_BRANCH-}" ]          && OHMYBASH_BRANCH="master"
-[ -z "${OHMYBASH_THEME-}" ]           && OHMYBASH_THEME=""
-[ -z "${OHMYBASH_PLUGINS-}" ]         && OHMYBASH_PLUGINS=""
-[ -z "${FONT_NAMES-}" ]               && FONT_NAMES="Meslo,JetBrainsMono"
-[ -z "${FONT_DIR-}" ]                 && FONT_DIR="/usr/share/fonts"
-[ -z "${ADD_ROOT_USER_CONFIG-}" ]     && ADD_ROOT_USER_CONFIG=false
-[ -z "${ADD_CURRENT_USER_CONFIG-}" ]  && ADD_CURRENT_USER_CONFIG=true
-[ -z "${ADD_CONTAINER_USER_CONFIG-}" ] && ADD_CONTAINER_USER_CONFIG=false
-[ -z "${ADD_REMOTE_USER_CONFIG-}" ]   && ADD_REMOTE_USER_CONFIG=false
-[ -z "${ADD_USER_CONFIG-}" ]          && ADD_USER_CONFIG=""
-[ -z "${USER_CONFIG_MODE-}" ]         && USER_CONFIG_MODE="overwrite"
-[ -z "${SET_USER_SHELLS-}" ]          && SET_USER_SHELLS="none"
-[ -z "${DEBUG-}" ]                    && DEBUG=false
-[ -z "${LOGFILE-}" ]                  && LOGFILE=""
+: "${INSTALL_ZSH:=true}"
+: "${INSTALL_OHMYZSH:=true}"
+: "${INSTALL_OHMYBASH:=true}"
+: "${INSTALL_STARSHIP:=true}"
+: "${STARSHIP_SHELLS=zsh,bash}"
+: "${INSTALL_FONTS:=true}"
+: "${OHMYZSH_INSTALL_DIR:=/usr/local/share/oh-my-zsh}"
+: "${ZDOTDIR:=}"
+: "${OHMYZSH_CUSTOM_DIR:=}"
+: "${OHMYZSH_BRANCH:=master}"
+: "${OHMYZSH_THEME:=}"
+: "${OHMYZSH_PLUGINS=zsh-users/zsh-syntax-highlighting}"
+: "${OHMYBASH_INSTALL_DIR:=/usr/local/share/oh-my-bash}"
+: "${OHMYBASH_CUSTOM_DIR:=}"
+: "${OHMYBASH_BRANCH:=master}"
+: "${OHMYBASH_THEME:=}"
+: "${OHMYBASH_PLUGINS:=}"
+: "${FONT_NAMES=Meslo,JetBrainsMono}"
+: "${FONT_DIR:=/usr/share/fonts}"
+: "${ADD_ROOT_USER_CONFIG:=false}"
+: "${ADD_CURRENT_USER_CONFIG:=true}"
+: "${ADD_CONTAINER_USER_CONFIG:=false}"
+: "${ADD_REMOTE_USER_CONFIG:=false}"
+: "${ADD_USER_CONFIG:=}"
+: "${USER_CONFIG_MODE:=overwrite}"
+: "${SET_USER_SHELLS:=none}"
+: "${DEBUG:=false}"
+: "${LOGFILE:=}"
 
 [[ "$DEBUG" == true ]] && set -x
 
