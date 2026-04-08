@@ -10,7 +10,7 @@ _ZDOTDIR="${_HOME}/.config/zsh"
 check "devuser .zshenv exists" test -f "${_HOME}/.zshenv"
 check "devuser ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
 check "devuser .bashrc exists" test -f "${_HOME}/.bashrc"
-check "devuser .zshrc has OMZ block" grep -qF '# BEGIN install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
+check "devuser zshtheme file written" test -f "${_ZDOTDIR}/zshtheme"
 check ".zshenv sets ZDOTDIR" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
 check "devuser HOME owned by devuser" bash -c '[ "$(stat -c %U /home/devuser)" = "devuser" ]'
 

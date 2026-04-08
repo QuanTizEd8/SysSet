@@ -22,7 +22,12 @@
       "install_starship": {
          "type": "boolean",
          "default": true,
-         "description": "Install the [Starship](https://starship.rs/) prompt."
+         "description": "Install the [Starship](https://starship.rs/) prompt binary to `/usr/local/bin`."
+      },
+      "starship_shells": {
+         "type": "string",
+         "default": "zsh,bash",
+         "description": "Comma-separated list of shells to activate the Starship prompt in (`zsh`, `bash`, or both).\nLeave empty to install the binary without activating it in any shell.\nIgnored if `install_starship` is `false` and `starship` is not already on PATH.\nWhen a shell's framework theme (`ohmyzsh_theme` / `ohmybash_theme`) is also set, the framework still loads but Starship owns the prompt (`ZSH_THEME` / `OSH_THEME` is forced to empty with a warning).\n"
       },
       "install_fonts": {
          "type": "boolean",

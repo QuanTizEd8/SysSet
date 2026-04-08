@@ -20,21 +20,21 @@ check "powerlevel10k.zsh-theme file present" test -f "${_CUSTOM}/themes/powerlev
 check "MesloLGS Regular font present" bash -c 'find /usr/share/fonts -name "MesloLGS NF Regular.ttf" | grep -q .'
 check "MesloLGS Bold font present" bash -c 'find /usr/share/fonts -name "MesloLGS NF Bold.ttf" | grep -q .'
 
-# Root user .zshrc in ZDOTDIR should have the omz guarded block
+# Root user zshtheme written to ZDOTDIR
+_ZSHTHEME="${_ZDOTDIR}/zshtheme"
 check "ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
-check ".zshrc has OMZ BEGIN marker" grep -qF '# BEGIN install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
-check ".zshrc has OMZ END marker" grep -qF '# END install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
-check ".zshrc sets ZSH_THEME to p10k" grep -q 'ZSH_THEME=.*powerlevel10k' "${_ZDOTDIR}/.zshrc"
-check ".zshrc disables p10k wizard" grep -qF 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' "${_ZDOTDIR}/.zshrc"
-check ".zshrc sources oh-my-zsh.sh" grep -q 'oh-my-zsh.sh' "${_ZDOTDIR}/.zshrc"
-check ".zshrc sources .p10k.zsh" grep -q 'p10k.zsh' "${_ZDOTDIR}/.zshrc"
+check "zshtheme file written" test -f "$_ZSHTHEME"
+check "zshtheme sets ZSH_THEME to p10k" grep -q 'ZSH_THEME=.*powerlevel10k' "$_ZSHTHEME"
+check "zshtheme disables p10k wizard" grep -qF 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' "$_ZSHTHEME"
+check "zshtheme sources oh-my-zsh.sh" grep -q 'oh-my-zsh.sh' "$_ZSHTHEME"
+check "zshtheme sources .p10k.zsh" grep -q 'p10k.zsh' "$_ZSHTHEME"
 
 # ZSH_CUSTOM points to per-user dir
-check ".zshrc sets ZSH_CUSTOM to per-user path" grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" "${_ZDOTDIR}/.zshrc"
+check "zshtheme sets ZSH_CUSTOM to per-user path" grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" "$_ZSHTHEME"
 
 # Per-user custom dir has symlink to system p10k theme
 check "p10k symlink in user custom themes" test -L "${_USER_CUSTOM}/themes/powerlevel10k"
-check "p10k symlink target is system custom" bash -c "readlink '${_USER_CUSTOM}/themes/powerlevel10k' | grep -qF '${_CUSTOM}/themes/powerlevel10k'"
+check "p10k symlink target is system custom" bash -c "readlink '${_USER_CUSTOM}/themes/powerlevel10k' | grep -qF \"${_CUSTOM}/themes/powerlevel10k\""
 
 # p10k config deployed
 check "root .p10k.zsh exists" test -f "${_HOME}/.p10k.zsh"

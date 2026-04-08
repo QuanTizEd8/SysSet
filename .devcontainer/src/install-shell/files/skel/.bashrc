@@ -6,17 +6,13 @@ case $- in
       *) return;;
 esac
 
-# --- Framework configuration -------------------------------------------- #
-# The install-shell installer injects an Oh My Bash configuration block    #
-# between the BEGIN/END markers below.  If no framework is installed, the  #
-# block is empty and bash runs with plain defaults.                        #
-#                                                                          #
-# To customise: edit the block contents or add your own settings after     #
-# the END marker.  Re-running the installer with user_config_mode=augment  #
-# will refresh only the marked block without touching your changes.        #
-
-# BEGIN install-shell-ohmybash
-# END install-shell-ohmybash
+# --- Framework / prompt configuration ---------------------------------- #
+# Shell theme, framework (Oh My Bash), and prompt settings live in a       #
+# dedicated file so they can be managed independently of this file.        #
+# The install-shell feature writes ~/.config/bash/bashtheme at build time. #
+_BASH_THEME="${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme"
+[ -f "$_BASH_THEME" ] && . "$_BASH_THEME"
+unset _BASH_THEME
 
 
 # Load shared user interactive config (POSIX aliases, functions, cross-shell
@@ -34,8 +30,8 @@ esac
 #   - Personal aliases:
 #       alias gs='git status'
 #   - Tool initialisers (run `tool --help` or docs for the exact snippet):
-#       eval "$(starship init bash)"     # Starship prompt
 #       eval "$(fnm env)"                # fnm (Node version manager)
 #       eval "$(pyenv init -)"           # pyenv
+#       # Note: Starship and Oh My Bash are configured in ~/.config/bash/bashtheme
 #   - History tuning overrides:
 #       HISTSIZE=50000

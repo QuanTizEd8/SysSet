@@ -54,6 +54,7 @@ Frameworks:
   --install_ohmyzsh <bool>         Install Oh My Zsh (default: true)
   --install_ohmybash <bool>        Install Oh My Bash (default: true)
   --install_starship <bool>        Install Starship prompt (default: true)
+  --starship_shells <string>       Comma-separated shells to activate starship in (default: zsh,bash)
 
 Oh My Zsh options:
   --zdotdir <path>                 Zsh config directory (ZDOTDIR, default: ~/.config/zsh)
@@ -100,6 +101,7 @@ if [ "$#" -gt 0 ]; then
   INSTALL_OHMYZSH=""
   INSTALL_OHMYBASH=""
   INSTALL_STARSHIP=""
+  STARSHIP_SHELLS=""
   INSTALL_FONTS=""
   OHMYZSH_INSTALL_DIR=""
   ZDOTDIR=""
@@ -130,6 +132,7 @@ if [ "$#" -gt 0 ]; then
       --install_ohmyzsh)            shift; INSTALL_OHMYZSH="$1"; shift;;
       --install_ohmybash)           shift; INSTALL_OHMYBASH="$1"; shift;;
       --install_starship)           shift; INSTALL_STARSHIP="$1"; shift;;
+      --starship_shells)            shift; STARSHIP_SHELLS="$1"; shift;;
       --install_fonts)              shift; INSTALL_FONTS="$1"; shift;;
       --ohmyzsh_install_dir)        shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
       --zdotdir)                    shift; ZDOTDIR="$1"; shift;;
@@ -167,6 +170,7 @@ fi
 [ -z "${INSTALL_OHMYZSH-}" ]          && INSTALL_OHMYZSH=true
 [ -z "${INSTALL_OHMYBASH-}" ]         && INSTALL_OHMYBASH=true
 [ -z "${INSTALL_STARSHIP-}" ]         && INSTALL_STARSHIP=true
+[ -z "${STARSHIP_SHELLS-}" ]          && STARSHIP_SHELLS="zsh,bash"
 [ -z "${INSTALL_FONTS-}" ]            && INSTALL_FONTS=true
 [ -z "${OHMYZSH_INSTALL_DIR-}" ]      && OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
 [ -z "${ZDOTDIR-}" ]                   && ZDOTDIR=""
@@ -442,6 +446,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
     --skel_dir "$_SKEL_DIR"
     --user_config_mode "$USER_CONFIG_MODE"
     --zdotdir "$ZDOTDIR"
+    --starship_shells "$STARSHIP_SHELLS"
   )
 
   if [[ "$_OMZ_INSTALLED" == true ]]; then

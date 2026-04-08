@@ -27,6 +27,7 @@ Options:
   --skel_dir <string>             Path to skeleton files directory
   --user_config_mode <string>     overwrite | augment | skip (default: overwrite)
   --zdotdir <string>              Zsh config directory (ZDOTDIR; default: ~/.config/zsh)
+  --starship_shells <string>      Comma-separated shells to activate starship in (default: zsh,bash)
   --ohmyzsh_install_dir <string>  Oh My Zsh install dir (empty = not installed)
   --ohmyzsh_custom_dir <string>   ZSH_CUSTOM directory
   --ohmyzsh_theme <string>        Theme slug (owner/repo) or empty
@@ -125,6 +126,8 @@ USERNAME=""
 SKEL_DIR=""
 USER_CONFIG_MODE=""
 ZDOTDIR=""
+STARSHIP_SHELLS=""
+STARSHIP_BIN_DIR=""
 OHMYZSH_INSTALL_DIR=""
 OHMYZSH_CUSTOM_DIR=""
 OHMYZSH_THEME=""
@@ -142,6 +145,8 @@ if [ "$#" -gt 0 ]; then
       --skel_dir) shift; SKEL_DIR="$1"; shift;;
       --user_config_mode) shift; USER_CONFIG_MODE="$1"; shift;;
       --zdotdir) shift; ZDOTDIR="$1"; shift;;
+      --starship_shells) shift; STARSHIP_SHELLS="$1"; shift;;
+      --starship_bin_dir) shift; STARSHIP_BIN_DIR="$1"; shift;;
       --ohmyzsh_install_dir) shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
       --ohmyzsh_custom_dir) shift; OHMYZSH_CUSTOM_DIR="$1"; shift;;
       --ohmyzsh_theme) shift; OHMYZSH_THEME="$1"; shift;;
@@ -161,6 +166,8 @@ fi
 [ -z "${USERNAME}" ]          && { echo "⛔ Missing --username" >&2; exit 1; }
 [ -z "${SKEL_DIR-}" ]         && SKEL_DIR=""
 [ -z "${USER_CONFIG_MODE-}" ] && USER_CONFIG_MODE="overwrite"
+[ -z "${STARSHIP_SHELLS-}" ]  && STARSHIP_SHELLS="zsh,bash"
+[ -z "${STARSHIP_BIN_DIR-}" ] && STARSHIP_BIN_DIR="/usr/local/bin"
 [ -z "${DEBUG-}" ]             && DEBUG=false
 
 [[ "$DEBUG" == true ]] && set -x
@@ -258,22 +265,18 @@ mkdir -p "$_ZDOTDIR"
 inject_guarded_block "$_ZSHENV" "install-shell-zdotdir" "ZDOTDIR=\"${_ZDOTDIR}\""
 
 # ---------------------------------------------------------------------------
-# Oh My Zsh configuration block
+# Zsh theme file ($ZDOTDIR/zshtheme)
 # ---------------------------------------------------------------------------
+_ZSHTHEME="${_ZDOTDIR}/zshtheme"
+_ZSHTHEME_CONTENT=""
+
 if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
-  _ZSHRC="${_ZDOTDIR}/.zshrc"
-
-  # Ensure the file exists (it should, from skel copy — but be safe).
-  mkdir -p "$_ZDOTDIR"
-  [ -f "$_ZSHRC" ] || touch "$_ZSHRC"
-
   # Resolve effective ZSH_CUSTOM path for this user (expand ~/$HOME if explicit).
   _OMZ_CUSTOM_DIR="$(resolve_custom_dir "$OHMYZSH_CUSTOM_DIR" "$_HOME")"
   _OMZ_IS_PER_USER=false
   [[ "$_OMZ_CUSTOM_DIR" == "$_HOME"* ]] && _OMZ_IS_PER_USER=true
 
   # Resolve the ZSH_THEME value (e.g. "powerlevel10k/powerlevel10k").
-  # Themes are always cloned to <install_dir>/custom, so look there.
   _OMZ_THEME_VALUE=""
   if [ -n "$OHMYZSH_THEME" ]; then
     _OMZ_THEME_VALUE="$(resolve_omz_theme_value \
@@ -285,46 +288,54 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
   _OMZ_PLUGIN_NAMES=""
   if [ -n "$OHMYZSH_PLUGINS" ]; then
     _OMZ_PLUGIN_NAMES="$(plugin_names_from_slugs "$OHMYZSH_PLUGINS" | tr '\n' ' ')"
-    _OMZ_PLUGIN_NAMES="${_OMZ_PLUGIN_NAMES% }"  # trim trailing space
+    _OMZ_PLUGIN_NAMES="${_OMZ_PLUGIN_NAMES% }"
   fi
 
   # Determine if we're using p10k.
   _IS_P10K=false
   [[ "$OHMYZSH_THEME" == *powerlevel10k* ]] && _IS_P10K=true
 
-  # Build the OMZ block content.
-  _OMZ_BLOCK=""
-  _OMZ_BLOCK+="export ZSH=\"${OHMYZSH_INSTALL_DIR}\""$'\n'
-  _OMZ_BLOCK+='ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"'$'\n'
-  _OMZ_BLOCK+='[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"'$'\n'
-  _OMZ_BLOCK+='ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"'$'\n'
-  _OMZ_BLOCK+="ZSH_CUSTOM=\"${_OMZ_CUSTOM_DIR}\""$'\n'
+  # Detect starship/OMZ theme conflict.
+  _ZSH_USE_STARSHIP=false
+  if [[ "$STARSHIP_SHELLS" == *zsh* ]]; then
+    _ZSH_USE_STARSHIP=true
+    if [ -n "$OHMYZSH_THEME" ]; then
+      echo "⚠️  ohmyzsh_theme='${OHMYZSH_THEME}' is set but starship_shells includes 'zsh' — theme ignored, Starship will own the prompt." >&2
+    fi
+  fi
 
-  if [ -n "$_OMZ_THEME_VALUE" ]; then
-    _OMZ_BLOCK+="ZSH_THEME=\"${_OMZ_THEME_VALUE}\""$'\n'
+  # Build Oh My Zsh theme file content.
+  _ZSHTHEME_CONTENT+="export ZSH=\"${OHMYZSH_INSTALL_DIR}\""$'\n'
+  _ZSHTHEME_CONTENT+='ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"'$'\n'
+  _ZSHTHEME_CONTENT+='[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"'$'\n'
+  _ZSHTHEME_CONTENT+='ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"'$'\n'
+  _ZSHTHEME_CONTENT+="ZSH_CUSTOM=\"${_OMZ_CUSTOM_DIR}\""$'\n'
+
+  if [[ "$_ZSH_USE_STARSHIP" == true ]]; then
+    _ZSHTHEME_CONTENT+='ZSH_THEME=""'$'\n'
+  elif [ -n "$_OMZ_THEME_VALUE" ]; then
+    _ZSHTHEME_CONTENT+="ZSH_THEME=\"${_OMZ_THEME_VALUE}\""$'\n'
   else
-    _OMZ_BLOCK+='ZSH_THEME=""'$'\n'
+    _ZSHTHEME_CONTENT+='ZSH_THEME=""'$'\n'
   fi
 
   if [ -n "$_OMZ_PLUGIN_NAMES" ]; then
-    _OMZ_BLOCK+="plugins=(${_OMZ_PLUGIN_NAMES})"$'\n'
+    _ZSHTHEME_CONTENT+="plugins=(${_OMZ_PLUGIN_NAMES})"$'\n'
   else
-    _OMZ_BLOCK+='plugins=()'$'\n'
+    _ZSHTHEME_CONTENT+='plugins=()'$'\n'
   fi
 
-  _OMZ_BLOCK+="zstyle ':omz:update' mode disabled"$'\n'
+  _ZSHTHEME_CONTENT+="zstyle ':omz:update' mode disabled"$'\n'
 
-  if [[ "$_IS_P10K" == true ]]; then
-    _OMZ_BLOCK+='POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'$'\n'
+  if [[ "$_IS_P10K" == true ]] && [[ "$_ZSH_USE_STARSHIP" != true ]]; then
+    _ZSHTHEME_CONTENT+='POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'$'\n'
   fi
 
-  _OMZ_BLOCK+='[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"'$'\n'
+  _ZSHTHEME_CONTENT+='[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"'$'\n'
 
-  if [[ "$_IS_P10K" == true ]]; then
-    _OMZ_BLOCK+='[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'
+  if [[ "$_IS_P10K" == true ]] && [[ "$_ZSH_USE_STARSHIP" != true ]]; then
+    _ZSHTHEME_CONTENT+='[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'$'\n'
   fi
-
-  inject_guarded_block "$_ZSHRC" "install-shell-ohmyzsh" "$_OMZ_BLOCK"
 
   # Create custom directory and symlink installer-managed items if per-user.
   mkdir -p "${_OMZ_CUSTOM_DIR}/themes" "${_OMZ_CUSTOM_DIR}/plugins"
@@ -337,8 +348,9 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
       "$USER_CONFIG_MODE"
   fi
 
-  # Copy p10k config if p10k theme is selected.
-  if [[ "$_IS_P10K" == true ]] && [ -n "$SKEL_DIR" ] && [ -f "${SKEL_DIR}/p10k.zsh" ]; then
+  # Copy p10k config if p10k theme is selected (and not using starship).
+  if [[ "$_IS_P10K" == true ]] && [[ "$_ZSH_USE_STARSHIP" != true ]] \
+      && [ -n "$SKEL_DIR" ] && [ -f "${SKEL_DIR}/p10k.zsh" ]; then
     case "$USER_CONFIG_MODE" in
       overwrite)
         cp -f "${SKEL_DIR}/p10k.zsh" "${_HOME}/.p10k.zsh"
@@ -348,19 +360,40 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
         ;;
     esac
   fi
+fi
 
-  echo "ℹ️  Injected Oh My Zsh config into '${_ZSHRC}'." >&2
+# Append Starship integration for zsh.
+if [[ "$STARSHIP_SHELLS" == *zsh* ]]; then
+  if ! command -v starship >/dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
+    echo "⚠️  starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway." >&2
+  fi
+  _ZSHTHEME_CONTENT+='command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"'$'\n'
+fi
+
+# Write zshtheme file.
+if [ -n "$_ZSHTHEME_CONTENT" ]; then
+  mkdir -p "$_ZDOTDIR"
+  case "$USER_CONFIG_MODE" in
+    overwrite)
+      printf '%s' "$_ZSHTHEME_CONTENT" > "$_ZSHTHEME"
+      echo "ℹ️  Written zsh theme file '${_ZSHTHEME}'." >&2
+      ;;
+    augment)
+      if [ ! -f "$_ZSHTHEME" ]; then
+        printf '%s' "$_ZSHTHEME_CONTENT" > "$_ZSHTHEME"
+        echo "ℹ️  Written zsh theme file '${_ZSHTHEME}'." >&2
+      fi
+      ;;
+  esac
 fi
 
 # ---------------------------------------------------------------------------
-# Oh My Bash configuration block
+# Bash theme file (~/.config/bash/bashtheme)
 # ---------------------------------------------------------------------------
+_BASHTHEME="${_XDG_CONFIG_HOME}/bash/bashtheme"
+_BASHTHEME_CONTENT=""
+
 if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
-  _BASHRC="${_HOME}/.bashrc"
-
-  # Ensure the file exists.
-  [ -f "$_BASHRC" ] || touch "$_BASHRC"
-
   # Resolve effective OSH_CUSTOM path for this user (expand ~/$HOME if explicit).
   _OMB_CUSTOM_DIR="$(resolve_custom_dir "$OHMYBASH_CUSTOM_DIR" "$_HOME")"
   _OMB_IS_PER_USER=false
@@ -379,28 +412,36 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
     _OMB_PLUGIN_NAMES="${_OMB_PLUGIN_NAMES% }"
   fi
 
-  # Build the OMB block content.
-  _OMB_BLOCK=""
-  _OMB_BLOCK+="export OSH=\"${OHMYBASH_INSTALL_DIR}\""$'\n'
-  _OMB_BLOCK+='OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"'$'\n'
-  _OMB_BLOCK+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'
-  _OMB_BLOCK+="OSH_CUSTOM=\"${_OMB_CUSTOM_DIR}\""$'\n'
+  # Detect starship/OMB theme conflict.
+  _BASH_USE_STARSHIP=false
+  if [[ "$STARSHIP_SHELLS" == *bash* ]]; then
+    _BASH_USE_STARSHIP=true
+    if [ -n "$OHMYBASH_THEME" ]; then
+      echo "⚠️  ohmybash_theme='${OHMYBASH_THEME}' is set but starship_shells includes 'bash' — theme ignored, Starship will own the prompt." >&2
+    fi
+  fi
 
-  if [ -n "$_OMB_THEME_VALUE" ]; then
-    _OMB_BLOCK+="OSH_THEME=\"${_OMB_THEME_VALUE}\""$'\n'
+  # Build Oh My Bash theme file content.
+  _BASHTHEME_CONTENT+="export OSH=\"${OHMYBASH_INSTALL_DIR}\""$'\n'
+  _BASHTHEME_CONTENT+='OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"'$'\n'
+  _BASHTHEME_CONTENT+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'
+  _BASHTHEME_CONTENT+="OSH_CUSTOM=\"${_OMB_CUSTOM_DIR}\""$'\n'
+
+  if [[ "$_BASH_USE_STARSHIP" == true ]]; then
+    _BASHTHEME_CONTENT+='OSH_THEME=""'$'\n'
+  elif [ -n "$_OMB_THEME_VALUE" ]; then
+    _BASHTHEME_CONTENT+="OSH_THEME=\"${_OMB_THEME_VALUE}\""$'\n'
   else
-    _OMB_BLOCK+='OSH_THEME=""'$'\n'
+    _BASHTHEME_CONTENT+='OSH_THEME=""'$'\n'
   fi
 
   if [ -n "$_OMB_PLUGIN_NAMES" ]; then
-    _OMB_BLOCK+="plugins=(${_OMB_PLUGIN_NAMES})"$'\n'
+    _BASHTHEME_CONTENT+="plugins=(${_OMB_PLUGIN_NAMES})"$'\n'
   else
-    _OMB_BLOCK+='plugins=()'$'\n'
+    _BASHTHEME_CONTENT+='plugins=()'$'\n'
   fi
 
-  _OMB_BLOCK+='[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"'
-
-  inject_guarded_block "$_BASHRC" "install-shell-ohmybash" "$_OMB_BLOCK"
+  _BASHTHEME_CONTENT+='[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"'$'\n'
 
   # Create custom directory and symlink installer-managed items if per-user.
   mkdir -p "${_OMB_CUSTOM_DIR}/themes" "${_OMB_CUSTOM_DIR}/plugins"
@@ -412,8 +453,31 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
       "$OHMYBASH_PLUGINS" \
       "$USER_CONFIG_MODE"
   fi
+fi
 
-  echo "ℹ️  Injected Oh My Bash config into '${_BASHRC}'." >&2
+# Append Starship integration for bash.
+if [[ "$STARSHIP_SHELLS" == *bash* ]]; then
+  if ! command -v starship >/dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
+    echo "⚠️  starship_shells includes 'bash' but starship is not on PATH — integration injected anyway." >&2
+  fi
+  _BASHTHEME_CONTENT+='command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"'$'\n'
+fi
+
+# Write bashtheme file.
+if [ -n "$_BASHTHEME_CONTENT" ]; then
+  mkdir -p "${_XDG_CONFIG_HOME}/bash"
+  case "$USER_CONFIG_MODE" in
+    overwrite)
+      printf '%s' "$_BASHTHEME_CONTENT" > "$_BASHTHEME"
+      echo "ℹ️  Written bash theme file '${_BASHTHEME}'." >&2
+      ;;
+    augment)
+      if [ ! -f "$_BASHTHEME" ]; then
+        printf '%s' "$_BASHTHEME_CONTENT" > "$_BASHTHEME"
+        echo "ℹ️  Written bash theme file '${_BASHTHEME}'." >&2
+      fi
+      ;;
+  esac
 fi
 
 # ---------------------------------------------------------------------------

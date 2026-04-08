@@ -269,11 +269,12 @@ files in `/etc/` that establish sane defaults for all users, and
    (`_SHELLENV_LOADED`), so they are never recomputed regardless of how many
    config files source it.
 
-3. **Framework injection via guarded blocks.** Oh My Zsh and Oh My Bash
-   configuration is injected into user dotfiles between `# BEGIN` / `# END`
-   markers, not into system files. Re-running the installer with
-   `user_config_mode=augment` refreshes only the marked block without
-   touching user customizations outside it.
+3. **Framework configuration via dedicated theme files.** Oh My Zsh and Oh My
+   Bash configuration is written into separate per-user theme files
+   (`$ZDOTDIR/zshtheme` and `~/.config/bash/bashtheme`) that are sourced by a
+   static line in the skel `.zshrc` / `.bashrc`. The installer never modifies
+   those rc files after the initial skel copy, so user edits to `.zshrc` /
+   `.bashrc` are never overwritten.
 
 4. **Non-interactive non-login coverage.** `BASH_ENV` is set in
    `/etc/environment` so that VS Code tasks, `devcontainer exec`, CI runners,
@@ -304,10 +305,10 @@ These are copied from `files/skel/` to each configured user's home directory.
 | `.shellenv` | `~/` | User environment variables and `PATH` additions. Sourced by `.zshenv` and `.bash_profile`. Has a sentinel guard to prevent double-sourcing. Sets `XDG_*` directories. |
 | `.shellrc` | `~/` | User interactive config shared across bash and zsh (aliases, functions, cross-shell tool initialisers). |
 | `.bash_profile` | `~/` | Login shell setup for bash (and zsh via `.zprofile`). Sources `.shellenv`, then `.bashrc` (guarded by `$BASH`). |
-| `.bashrc` | `~/` | Bash interactive config. Contains the `# BEGIN/END install-shell-ohmybash` injection block, then sources `.shellrc`. |
+| `.bashrc` | `~/` | Bash interactive config. Sources `~/.config/bash/bashtheme` (written by the installer) then `.shellrc`. |
 | `.zshenv` | `~/` | Delegates to `.shellenv` via `emulate sh`. Has `ZDOTDIR` injected dynamically (see [ZDOTDIR](#zdotdir)). Must live in `$HOME` so Zsh can find it before `ZDOTDIR` is set. |
 | `.zprofile` | `$ZDOTDIR/` | Delegates to `.bash_profile` via `emulate sh` for unified login setup. |
-| `.zshrc` | `$ZDOTDIR/` | Zsh interactive config. Contains the `# BEGIN/END install-shell-ohmyzsh` injection block, then sources `.shellrc`. |
+| `.zshrc` | `$ZDOTDIR/` | Zsh interactive config. Sources `$ZDOTDIR/zshtheme` (written by the installer) then `.shellrc`. |
 | `.zlogin` | `$ZDOTDIR/` | Runs after `.zshrc` for login shells. Empty by default — suitable for login announcements. |
 
 ### ZDOTDIR
@@ -390,7 +391,7 @@ The following diagrams show the source chain for each shell invocation type.
 ~/.bash_profile
  └── ~/.shellenv (user PATH, XDG)
  └── ~/.bashrc
-      ├── [OMB guarded block]
+      ├── sources ~/.config/bash/bashtheme (OMB + Starship)
       └── ~/.shellrc (user aliases/functions)
 ```
 
@@ -401,7 +402,7 @@ The following diagrams show the source chain for each shell invocation type.
  └── /etc/shellrc → /etc/shellaliases
  └── /etc/shellenv (via sentinel re-entry)
 ~/.bashrc
- ├── [OMB guarded block]
+ ├── sources ~/.config/bash/bashtheme (OMB + Starship)
  └── ~/.shellrc
 ```
 
@@ -422,7 +423,7 @@ $BASH_ENV → /etc/bash/bashenv
 $ZDOTDIR/.zprofile → ~/.bash_profile → ~/.shellenv (sentinel skip)
 /etc/zsh/zshrc → /etc/shellrc → /etc/shellaliases
 $ZDOTDIR/.zshrc
- ├── [OMZ guarded block]
+ ├── sources $ZDOTDIR/zshtheme (OMZ + Starship)
  └── ~/.shellrc
 $ZDOTDIR/.zlogin
 ```
@@ -436,16 +437,15 @@ $ZDOTDIR/.zlogin
 
 ---
 
-## Per-user dotfile injection
+## Per-user theme files
 
 When Oh My Zsh or Oh My Bash is installed and a user is being configured, the
-installer injects a **guarded block** into the user's `$ZDOTDIR/.zshrc` or
-`~/.bashrc` between `# BEGIN` and `# END` markers.
+installer writes dedicated **theme files** — `$ZDOTDIR/zshtheme` and
+`~/.config/bash/bashtheme` — that are sourced by a static line in the skel
+`.zshrc` / `.bashrc`. The main rc files are never modified after the initial
+skel copy.
 
-### Oh My Zsh block (`$ZDOTDIR/.zshrc`)
-
-Injected between `# BEGIN install-shell-ohmyzsh` and
-`# END install-shell-ohmyzsh`:
+### Zsh theme file (`$ZDOTDIR/zshtheme`)
 
 ```bash
 export ZSH="/usr/local/share/oh-my-zsh"
@@ -453,12 +453,13 @@ ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
 [ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"
 ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"
 ZSH_CUSTOM="$HOME/.config/zsh/custom"
-ZSH_THEME="powerlevel10k/powerlevel10k"      # or "" if no theme
+ZSH_THEME="powerlevel10k/powerlevel10k"      # or "" if no theme / starship active
 plugins=(zsh-syntax-highlighting)              # from ohmyzsh_plugins
 zstyle ':omz:update' mode disabled
 POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true # only when p10k theme
 [ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
 [[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"  # only when p10k
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)" # if starship_shells includes zsh
 ```
 
 Key design decisions:
@@ -475,42 +476,41 @@ Key design decisions:
   symlinked in automatically. See [Custom directory modes](#custom-directory-modes).
 - **`omz update` is disabled** because the shared installation is owned by
   root; non-root users would get `git pull` permission errors.
-- **`POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true`** is set before
-  sourcing `oh-my-zsh.sh` when the Powerlevel10k theme is selected, to
-  prevent the interactive configuration wizard from launching on first start.
+- **`POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true`** is written only when
+  the Powerlevel10k theme is selected and Starship is not active.
+- **Starship** integration line is appended when `starship_shells` includes
+  `zsh`. If Starship and an `ohmyzsh_theme` are both set, `ZSH_THEME` is
+  forced to `""` with a build-time warning and Starship owns the prompt.
 
-### Oh My Bash block (`~/.bashrc`)
-
-Injected between `# BEGIN install-shell-ohmybash` and
-`# END install-shell-ohmybash`:
+### Bash theme file (`~/.config/bash/bashtheme`)
 
 ```bash
 export OSH="/usr/local/share/oh-my-bash"
 OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"
 [ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"
 OSH_CUSTOM="$HOME/.config/bash/custom"
-OSH_THEME=""                                   # or theme name
+OSH_THEME=""                                   # or theme name; "" when starship active
 plugins=(git)                                   # from ohmybash_plugins
 [ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"
+command -v starship >/dev/null 2>&1 && eval "$(starship init bash)" # if starship_shells includes bash
 ```
 
-### Re-injection behavior
+### Theme file write behavior
 
-When the installer runs again and the user's dotfile already contains a
-guarded block, the old block is **removed** (via `sed`) and a fresh block is
-**appended**. User customizations outside the markers are preserved.
+The `user_config_mode` option controls whether and how theme files are written:
 
-The `user_config_mode` option controls this:
-
-- **`overwrite`**: All skel files are replaced, then blocks are injected.
+- **`overwrite`**: All skel files are replaced and theme files are (re)written.
   Use this for a clean reset.
 - **`augment`**: Skel files are copied only if they don't already exist.
-  Framework blocks are always refreshed. Use this for updating framework
-  config without clobbering user edits.
+  Theme files are written only if they don't already exist. Use this to
+  deploy configuration to new users without overwriting existing customizations.
 - **`skip`**: Nothing is touched if dotfiles already exist.
 
----
+Unlike the old guarded-block approach, re-running the installer in `augment`
+mode **does not** automatically refresh the theme file. To force a refresh,
+use `overwrite` mode.
 
+---
 ## Plugins and themes
 
 ### Built-in vs. custom

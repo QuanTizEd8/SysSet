@@ -11,7 +11,7 @@ _ZDOTDIR="${_HOME}/.config/zsh"
 check "vscode .zshenv exists" test -f "${_HOME}/.zshenv"
 check "vscode ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
 check "vscode .bashrc exists" test -f "${_HOME}/.bashrc"
-check "vscode .zshrc has OMZ block" grep -qF '# BEGIN install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
+check "vscode zshtheme file written" test -f "${_ZDOTDIR}/zshtheme"
 check ".zshenv sets ZDOTDIR" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
 check "vscode HOME owned by vscode" bash -c '[ "$(stat -c %U /home/vscode)" = "vscode" ]'
 

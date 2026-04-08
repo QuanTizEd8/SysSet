@@ -28,22 +28,22 @@ check ".zshenv has ZDOTDIR BEGIN marker" grep -qF '# BEGIN install-shell-zdotdir
 check ".zshenv sets ZDOTDIR" grep -q 'ZDOTDIR=' "${_HOME}/.zshenv"
 check ".zshenv ZDOTDIR points to .config/zsh" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
 
-# --- Oh My Zsh guarded block in ZDOTDIR/.zshrc ---
-check ".zshrc has OMZ BEGIN marker" grep -qF '# BEGIN install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
-check ".zshrc has OMZ END marker" grep -qF '# END install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
-check ".zshrc exports ZSH" grep -q 'export ZSH=' "${_ZDOTDIR}/.zshrc"
-check ".zshrc sets ZSH_CACHE_DIR" grep -qF 'ZSH_CACHE_DIR=' "${_ZDOTDIR}/.zshrc"
-check ".zshrc sets ZSH_COMPDUMP" grep -qF 'ZSH_COMPDUMP=' "${_ZDOTDIR}/.zshrc"
-check ".zshrc sets ZSH_CUSTOM to per-user path" grep -qF "ZSH_CUSTOM=\"${_OMZ_CUSTOM}\"" "${_ZDOTDIR}/.zshrc"
-check ".zshrc disables omz update" grep -qF "zstyle ':omz:update' mode disabled" "${_ZDOTDIR}/.zshrc"
-check ".zshrc sources oh-my-zsh.sh" grep -q 'oh-my-zsh.sh' "${_ZDOTDIR}/.zshrc"
-check ".zshrc also sources .shellrc" grep -q '\.shellrc' "${_ZDOTDIR}/.zshrc"
+# --- Oh My Zsh config in zshtheme ---
+_ZSHTHEME="${_ZDOTDIR}/zshtheme"
+check "zshtheme file written" test -f "$_ZSHTHEME"
+check "zshtheme exports ZSH" grep -q 'export ZSH=' "$_ZSHTHEME"
+check "zshtheme sets ZSH_CACHE_DIR" grep -qF 'ZSH_CACHE_DIR=' "$_ZSHTHEME"
+check "zshtheme sets ZSH_COMPDUMP" grep -qF 'ZSH_COMPDUMP=' "$_ZSHTHEME"
+check "zshtheme sets ZSH_CUSTOM to per-user path" grep -qF "ZSH_CUSTOM=\"${_OMZ_CUSTOM}\"" "$_ZSHTHEME"
+check "zshtheme disables omz update" grep -qF "zstyle ':omz:update' mode disabled" "$_ZSHTHEME"
+check "zshtheme sources oh-my-zsh.sh" grep -q 'oh-my-zsh.sh' "$_ZSHTHEME"
+check ".zshrc sources .shellrc" grep -q '\.shellrc' "${_ZDOTDIR}/.zshrc"
 
-# --- Oh My Bash guarded block in .bashrc ---
-check ".bashrc has OMB BEGIN marker" grep -qF '# BEGIN install-shell-ohmybash' "${_HOME}/.bashrc"
-check ".bashrc has OMB END marker" grep -qF '# END install-shell-ohmybash' "${_HOME}/.bashrc"
-check ".bashrc sources oh-my-bash.sh" grep -q 'oh-my-bash.sh' "${_HOME}/.bashrc"
-check ".bashrc sets OSH_CUSTOM to per-user path" grep -qF "OSH_CUSTOM=\"${_OMB_CUSTOM}\"" "${_HOME}/.bashrc"
+# --- Oh My Bash config in bashtheme ---
+_BASHTHEME="${_HOME}/.config/bash/bashtheme"
+check "bashtheme file written" test -f "$_BASHTHEME"
+check "bashtheme sources oh-my-bash.sh" grep -q 'oh-my-bash.sh' "$_BASHTHEME"
+check "bashtheme sets OSH_CUSTOM to per-user path" grep -qF "OSH_CUSTOM=\"${_OMB_CUSTOM}\"" "$_BASHTHEME"
 
 # --- Per-user OMZ custom directory with symlinks to system plugins ---
 check "ZDOTDIR dir exists" test -d "$_ZDOTDIR"

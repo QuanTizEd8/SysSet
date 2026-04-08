@@ -13,9 +13,9 @@ _ZDOTDIR="${_HOME}/.config/zsh"
 # Pre-existing files were preserved (content injected by Dockerfile)
 check "pre-existing ZDOTDIR/.zshrc preserved" grep -qF 'MY_CUSTOM_LINE' "${_ZDOTDIR}/.zshrc"
 
-# Framework blocks are still injected even in augment mode
-check "OMZ block injected despite existing .zshrc" grep -qF '# BEGIN install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
-check "OMB block injected despite existing .bashrc" grep -qF '# BEGIN install-shell-ohmybash' "${_HOME}/.bashrc"
+# Theme files are written even in augment mode (they didn't exist before)
+check "zshtheme written in augment mode" test -f "${_ZDOTDIR}/zshtheme"
+check "bashtheme written in augment mode" test -f "${_HOME}/.config/bash/bashtheme"
 
 # ZDOTDIR block in .zshenv
 check "ZDOTDIR block injected into .zshenv" grep -qF '# BEGIN install-shell-zdotdir' "${_HOME}/.zshenv"

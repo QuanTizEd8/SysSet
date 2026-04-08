@@ -25,9 +25,10 @@ check "ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
 check "ZDOTDIR/.zprofile exists" test -f "${_ZDOTDIR}/.zprofile"
 check "ZDOTDIR/.zlogin exists" test -f "${_ZDOTDIR}/.zlogin"
 
-# OMZ block written to ZDOTDIR/.zshrc
-check "ZDOTDIR/.zshrc has OMZ block" grep -qF '# BEGIN install-shell-ohmyzsh' "${_ZDOTDIR}/.zshrc"
-check "ZDOTDIR/.zshrc sets ZSH_CUSTOM to per-user path" grep -qF "ZSH_CUSTOM=\"${_ZDOTDIR}/custom\"" "${_ZDOTDIR}/.zshrc"
+# OMZ config written to ZDOTDIR/zshtheme
+_ZSHTHEME="${_ZDOTDIR}/zshtheme"
+check "zshtheme file written to ZDOTDIR" test -f "$_ZSHTHEME"
+check "zshtheme sets ZSH_CUSTOM to per-user path" grep -qF "ZSH_CUSTOM=\"${_ZDOTDIR}/custom\"" "$_ZSHTHEME"
 
 # Per-user custom dir is under ZDOTDIR
 check "ZDOTDIR/custom exists" test -d "${_ZDOTDIR}/custom"

@@ -6,17 +6,11 @@ case $- in
       *) return;;
 esac
 
-# --- Framework configuration -------------------------------------------- #
-# The install-shell installer injects an Oh My Zsh configuration block     #
-# between the BEGIN/END markers below.  If no framework is installed, the  #
-# block is empty and zsh runs with plain defaults.                         #
-#                                                                          #
-# To customise: edit the block contents or add your own settings after     #
-# the END marker.  Re-running the installer with user_config_mode=augment  #
-# will refresh only the marked block without touching your changes.        #
-
-# BEGIN install-shell-ohmyzsh
-# END install-shell-ohmyzsh
+# --- Framework / prompt configuration ---------------------------------- #
+# Shell theme, framework (Oh My Zsh), and prompt settings live in a        #
+# dedicated file so they can be managed independently of this file.        #
+# The install-shell feature writes ~/.config/zsh/zshtheme at build time.   #
+[ -f "${ZDOTDIR}/zshtheme" ] && source "${ZDOTDIR}/zshtheme"
 
 
 # --- Shared user interactive config ------------------------------------- #
@@ -37,8 +31,8 @@ esac
 #   - Personal aliases:
 #       alias gs='git status'
 #   - Tool initialisers (run `tool --help` or docs for the exact snippet):
-#       eval "$(starship init zsh)"      # Starship prompt
 #       eval "$(fnm env)"                # fnm (Node version manager)
 #       eval "$(pyenv init -)"           # pyenv
+#       # Note: Starship and Oh My Zsh are configured in ${ZDOTDIR}/zshtheme
 #   - History tuning overrides:
 #       HISTSIZE=50000
