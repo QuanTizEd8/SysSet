@@ -86,12 +86,12 @@
       },
       "add_container_user_config": {
          "default": true,
-         "description": "Whether to add configuration for the `containerUser` set in the devcontainer.json file. If true, the user will get the same configuration files, Oh My Zsh/Oh My Bash installation, plugins, and themes as specified by the other options.",
+         "description": "Whether to add configuration for the `containerUser` set in the devcontainer.json file, which becomes the `_CONTAINER_USER` environment variable set by the devcontainer tooling. No effect when `_CONTAINER_USER` is not set.",
          "type": "boolean"
       },
       "add_remote_user_config": {
-         "default": false,
-         "description": "Whether to add configuration for the `remoteUser` set in the devcontainer.json file. If true, the user will get the same configuration files, Oh My Zsh/Oh My Bash installation, plugins, and themes as specified by the other options.",
+         "default": true,
+         "description": "Whether to add configuration for the `remoteUser` set in the devcontainer.json file, which becomes the `_REMOTE_USER` environment variable set by the devcontainer tooling. No effect when `_REMOTE_USER` is not set.",
          "type": "boolean"
       },
       "add_user_config": {

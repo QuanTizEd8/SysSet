@@ -402,16 +402,14 @@ if [[ "$ADD_CURRENT_USER_CONFIG" == true ]]; then
 fi
 
 if [[ "$ADD_CONTAINER_USER_CONFIG" == true ]]; then
-  _CONTAINER_USER="${_CONTAINER_USER:-${CONTAINER_USER:-}}"
-  if [ -n "$_CONTAINER_USER" ]; then
+  if [ -n "${_CONTAINER_USER:-}" ]; then
     _USERS_MAP["$_CONTAINER_USER"]=1
   fi
 fi
 
 if [[ "$ADD_REMOTE_USER_CONFIG" == true ]]; then
-  _REMOTE_U="${_REMOTE_USER:-${REMOTE_USER:-}}"
-  if [ -n "$_REMOTE_U" ]; then
-    _USERS_MAP["$_REMOTE_U"]=1
+  if [ -n "${_REMOTE_USER:-}" ]; then
+    _USERS_MAP["$_REMOTE_USER"]=1
   fi
 fi
 
