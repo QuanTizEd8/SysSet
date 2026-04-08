@@ -5,16 +5,10 @@
 #   1. Remounts / with suid so newuidmap/newgidmap setuid bits are honoured.
 #   2. Creates /dev/net/tun for slirp4netns networking.
 #   3. Remounts /proc unrestricted so crun can mount procfs in inner containers.
-#   4. Writes storage.conf pointing Podman at the named volume with native overlay.
 #
-# Native overlay (kernel >= 5.12, which covers all modern Docker hosts) on the
-# named volume avoids both the overlay-on-overlay problem and fuse-overlayfs's
-# nested-userns noexec issue.  No fallback driver is provided — if overlay
-# doesn't work, Podman will report a clear error.
+# Storage configuration (storage.conf) is written at build time by install.sh.
 
 set -e
-
-GRAPH_ROOT="/var/lib/containers/storage"
 
 # ---------------------------------------------------------------------------
 # 1. Enable setuid binaries (newuidmap / newgidmap)
@@ -54,40 +48,3 @@ fi
 # additional protection.  This is the same thing --privileged does.
 # ---------------------------------------------------------------------------
 mount -t proc proc /proc 2>/dev/null || true
-
-# ---------------------------------------------------------------------------
-# 4. Determine the remote user's config directory
-# ---------------------------------------------------------------------------
-REMOTE_USER_HOME=$(cat /usr/local/lib/podman-remote-user-home 2>/dev/null)
-
-if [ -z "${REMOTE_USER_HOME}" ]; then
-    CONFIG_DIR="/etc/containers"
-else
-    # Rootless Podman ignores system graphRoot; user-level config is required.
-    CONFIG_DIR="${REMOTE_USER_HOME}/.config/containers"
-fi
-
-mkdir -p "${CONFIG_DIR}" "${GRAPH_ROOT}"
-
-# ---------------------------------------------------------------------------
-# 5. Write storage.conf — native overlay on the named volume
-# ---------------------------------------------------------------------------
-cat > "${CONFIG_DIR}/storage.conf" <<EOF
-[storage]
-driver = "overlay"
-graphRoot = "${GRAPH_ROOT}"
-EOF
-
-# ---------------------------------------------------------------------------
-# 6. Fix ownership of user config directories
-#
-# Several directories under ~/.config may have been created by this script
-# (running as root).  Podman also creates subdirectories at runtime (cni,
-# containers, etc.).  Use a single recursive chown on ~/.config to cover
-# everything — this is fast (few files) and avoids chasing individual paths.
-# ---------------------------------------------------------------------------
-if [ -n "${REMOTE_USER_HOME}" ]; then
-    OWNER="$(stat -c '%u:%g' "${REMOTE_USER_HOME}")"
-    mkdir -p "${REMOTE_USER_HOME}/.config/cni/net.d"
-    chown -R "${OWNER}" "${REMOTE_USER_HOME}/.config"
-fi

@@ -41,23 +41,43 @@ if ! grep -q "^${_REMOTE_USER}:" /etc/subgid 2>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Write system-wide Podman configuration (static — no runtime detection)
+# 4. Write Podman configuration
 #
 # containers.conf: keep-id maps the container user's UID into nested
 # containers unchanged, preventing volume permission mismatches.
 #
-# storage.conf: written at runtime by the entrypoint (configure-storage.sh),
-# which also handles remounting / with suid and /proc unrestricted.
+# storage.conf: native overlay on the named volume at /var/lib/containers/storage.
+# Written to the user's config dir because rootless Podman ignores the
+# system-level graphRoot.
 # ---------------------------------------------------------------------------
 mkdir -p /etc/containers
 printf '[containers]\nuserns = "keep-id"\n' > /etc/containers/containers.conf
 
-# Pre-create the graphRoot directory for the named volume mount.
-mkdir -p /var/lib/containers/storage
-chown "${_REMOTE_USER}:${_REMOTE_USER}" /var/lib/containers/storage
+GRAPH_ROOT="/var/lib/containers/storage"
 
-# Save the remote user's home so the entrypoint can locate their config dir.
-echo "${_REMOTE_USER_HOME}" > /usr/local/lib/podman-remote-user-home
+# Pre-create the graphRoot directory for the named volume mount.
+mkdir -p "${GRAPH_ROOT}"
+chown "${_REMOTE_USER}:${_REMOTE_USER}" "${GRAPH_ROOT}"
+
+# Write user-level storage.conf
+if [ -n "${_REMOTE_USER_HOME}" ]; then
+    CONFIG_DIR="${_REMOTE_USER_HOME}/.config/containers"
+else
+    CONFIG_DIR="/etc/containers"
+fi
+
+mkdir -p "${CONFIG_DIR}"
+cat > "${CONFIG_DIR}/storage.conf" <<EOF
+[storage]
+driver = "overlay"
+graphRoot = "${GRAPH_ROOT}"
+EOF
+
+# Fix ownership of user config directories so Podman can write to them
+# at runtime (cni, containers, etc.).
+if [ -n "${_REMOTE_USER_HOME}" ]; then
+    chown -R "${_REMOTE_USER}:${_REMOTE_USER}" "${_REMOTE_USER_HOME}/.config"
+fi
 
 # ---------------------------------------------------------------------------
 # 5. Install entrypoint
