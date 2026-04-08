@@ -22,7 +22,7 @@ check "ZSH_CUSTOM set to per-user path" grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"
 
 # Default plugin symlinked (zsh-syntax-highlighting is the default plugin)
 check "plugin symlink created in per-user dir" test -L "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting"
-check "plugin symlink points to system custom" bash -c 'readlink "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting" | grep -qF "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting"'
+check "plugin symlink points to system custom" bash -c "readlink '${_USER_CUSTOM}/plugins/zsh-syntax-highlighting' | grep -qF '${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting'"
 check "system plugin dir still exists at target" test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
 
 # System custom dir still has the real clone

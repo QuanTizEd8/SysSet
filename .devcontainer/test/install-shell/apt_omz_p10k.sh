@@ -34,7 +34,7 @@ check ".zshrc sets ZSH_CUSTOM to per-user path" grep -qF "ZSH_CUSTOM=\"${_USER_C
 
 # Per-user custom dir has symlink to system p10k theme
 check "p10k symlink in user custom themes" test -L "${_USER_CUSTOM}/themes/powerlevel10k"
-check "p10k symlink target is system custom" bash -c 'readlink "${_USER_CUSTOM}/themes/powerlevel10k" | grep -qF "${_CUSTOM}/themes/powerlevel10k"'
+check "p10k symlink target is system custom" bash -c "readlink '${_USER_CUSTOM}/themes/powerlevel10k' | grep -qF '${_CUSTOM}/themes/powerlevel10k'"
 
 # p10k config deployed
 check "root .p10k.zsh exists" test -f "${_HOME}/.p10k.zsh"

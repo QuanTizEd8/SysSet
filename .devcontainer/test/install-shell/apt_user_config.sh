@@ -51,7 +51,7 @@ check "per-user OMZ custom dir exists" test -d "$_OMZ_CUSTOM"
 check "per-user OMZ custom themes dir" test -d "${_OMZ_CUSTOM}/themes"
 check "per-user OMZ custom plugins dir" test -d "${_OMZ_CUSTOM}/plugins"
 check "zsh-syntax-highlighting symlinked into user custom" test -L "${_OMZ_CUSTOM}/plugins/zsh-syntax-highlighting"
-check "plugin symlink points to system custom" bash -c 'readlink "${_OMZ_CUSTOM}/plugins/zsh-syntax-highlighting" | grep -q "${_OMZ}/custom/plugins/zsh-syntax-highlighting"'
+check "plugin symlink points to system custom" bash -c "readlink '${_OMZ_CUSTOM}/plugins/zsh-syntax-highlighting' | grep -q '${_OMZ}/custom/plugins/zsh-syntax-highlighting'"
 
 # --- Per-user OMB custom directory ---
 check "per-user OMB custom dir exists" test -d "$_OMB_CUSTOM"
@@ -60,8 +60,8 @@ check "per-user OMB custom plugins dir" test -d "${_OMB_CUSTOM}/plugins"
 
 # --- Entire HOME owned by user ---
 check "HOME owned by root" bash -c '[ "$(stat -c %U /root)" = "root" ]'
-check ".zshrc owned by root" bash -c '[ "$(stat -c %U ${_ZDOTDIR}/.zshrc)" = "root" ]'
-check "ZDOTDIR owned by root" bash -c '[ "$(stat -c %U ${_ZDOTDIR})" = "root" ]'
+check ".zshrc owned by root" bash -c "[ \"\$(stat -c %U '${_ZDOTDIR}/.zshrc')\" = 'root' ]"
+check "ZDOTDIR owned by root" bash -c "[ \"\$(stat -c %U '${_ZDOTDIR}')\" = 'root' ]"
 
 # --- System config files still deployed ---
 check "/etc/profile exists" test -f /etc/profile
