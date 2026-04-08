@@ -65,5 +65,11 @@
             "default": "",
             "description": "Comma-separated list of additional usernames to register subuid/subgid ranges and write Podman storage config for."
         }
+    },
+
+    "dependsOn": {
+        "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+            "install_self": true
+        }
     }
 }

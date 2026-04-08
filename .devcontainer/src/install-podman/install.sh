@@ -32,13 +32,13 @@ add_user() {
 # ---------------------------------------------------------------------------
 # 1. Install packages
 # ---------------------------------------------------------------------------
-apt-get update
-apt-get install -y --no-install-recommends \
-    ca-certificates \
-    podman \
-    uidmap \
-    slirp4netns
-rm -rf /var/lib/apt/lists/*
+if ! command -v install-os-pkg > /dev/null 2>&1; then
+    echo "install-podman: install-os-pkg not found — it is a required dependency." >&2
+    exit 1
+fi
+
+_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+install-os-pkg --manifest "${_SELF_DIR}/packages.txt"
 
 # ---------------------------------------------------------------------------
 # 2. Ensure newuidmap / newgidmap have setuid bit

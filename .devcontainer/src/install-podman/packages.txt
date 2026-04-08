@@ -1,0 +1,9 @@
+ca-certificates
+podman
+# rootless networking
+passt
+
+# UID/GID mapping tools — package name varies by distro
+uidmap [pm=apt]
+shadow-utils [pm=dnf]
+shadow-uidmap [pm=apk]
