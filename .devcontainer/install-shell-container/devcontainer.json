@@ -9,6 +9,5 @@
             "set_user_shells": "zsh",
             "add_root_user_config": true
         }
-    },
-    "remoteUser": "root"
+    }
 }
