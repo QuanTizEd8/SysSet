@@ -25,6 +25,6 @@ check "default .config/zsh/.zshrc NOT present" bash -c '! test -f "${_HOME}/.con
 
 # OMZ custom dir defaults to ZDOTDIR/custom (the custom ZDOTDIR)
 check "OMZ custom dir under custom ZDOTDIR" test -d "${_ZDOTDIR}/custom"
-check "ZSH_CUSTOM points to custom ZDOTDIR/custom" grep -qF "ZSH_CUSTOM=\"${_ZDOTDIR}/custom\"" "${_ZDOTDIR}/.zshrc"
+check "ZSH_CUSTOM points to custom ZDOTDIR/custom" grep -qF "ZSH_CUSTOM=\"${_ZDOTDIR}/custom\"" "${_ZDOTDIR}/zshtheme"
 
 reportResults

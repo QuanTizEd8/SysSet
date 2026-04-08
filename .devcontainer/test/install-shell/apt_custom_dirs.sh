@@ -26,10 +26,12 @@ check "root .zshenv exists" test -f "${_HOME}/.zshenv"
 check "root ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
 check "root .bashrc exists" test -f "${_HOME}/.bashrc"
 check ".zshenv sets ZDOTDIR" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
-check ".zshrc sets ZSH to custom path" grep -qF "export ZSH=\"${_OMZ}\"" "${_ZDOTDIR}/.zshrc"
+_ZSHTHEME="${_ZDOTDIR}/zshtheme"
+check "zshtheme file written" test -f "$_ZSHTHEME"
+check ".zshrc sets ZSH to custom path" grep -qF "export ZSH=\"${_OMZ}\"" "$_ZSHTHEME"
 
 # Per-user custom dir uses ZDOTDIR/custom (not install_dir/custom)
 check "per-user OMZ custom dir exists" test -d "${_OMZ_CUSTOM}"
-check "ZSH_CUSTOM points to per-user dir" grep -qF "ZSH_CUSTOM=\"${_OMZ_CUSTOM}\"" "${_ZDOTDIR}/.zshrc"
+check "ZSH_CUSTOM points to custom ZDOTDIR/custom" grep -qF "ZSH_CUSTOM=\"${_OMZ_CUSTOM}\"" "$_ZSHTHEME"
 
 reportResults

@@ -48,6 +48,7 @@
         "features": {
             "install-shell": {
                 "ohmyzsh_theme": "romkatv/powerlevel10k",
+                "starship_shells": "",
                 "add_root_user_config": true
             }
         }

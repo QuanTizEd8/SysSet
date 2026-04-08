@@ -18,7 +18,7 @@ check "per-user custom themes dir exists" test -d "${_USER_CUSTOM}/themes"
 check "per-user custom plugins dir exists" test -d "${_USER_CUSTOM}/plugins"
 
 # ZSH_CUSTOM in .zshrc points to expanded per-user path
-check "ZSH_CUSTOM set to per-user path" grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" "${_ZDOTDIR}/.zshrc"
+check "ZSH_CUSTOM set to per-user path" grep -qF "ZSH_CUSTOM=\"${_USER_CUSTOM}\"" "${_ZDOTDIR}/zshtheme"
 
 # Default plugin symlinked (zsh-syntax-highlighting is the default plugin)
 check "plugin symlink created in per-user dir" test -L "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting"

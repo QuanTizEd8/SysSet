@@ -17,9 +17,11 @@ check "per-user OMB custom dir exists" test -d "$_USER_CUSTOM"
 check "per-user OMB themes dir exists" test -d "${_USER_CUSTOM}/themes"
 check "per-user OMB plugins dir exists" test -d "${_USER_CUSTOM}/plugins"
 
-# .bashrc OMB block uses per-user OSH_CUSTOM
-check ".bashrc sets OSH_CUSTOM to per-user path" grep -qF "OSH_CUSTOM=\"${_USER_CUSTOM}\"" "${_HOME}/.bashrc"
-check ".bashrc exports OSH" grep -q 'export OSH=' "${_HOME}/.bashrc"
-check ".bashrc sources oh-my-bash.sh" grep -q 'oh-my-bash.sh' "${_HOME}/.bashrc"
+# bashtheme uses per-user OSH_CUSTOM
+_BASHTHEME="${_HOME}/.config/bash/bashtheme"
+check "bashtheme file written" test -f "$_BASHTHEME"
+check ".bashrc sets OSH_CUSTOM to per-user path" grep -qF "OSH_CUSTOM=\"${_USER_CUSTOM}\"" "$_BASHTHEME"
+check ".bashrc exports OSH" grep -q 'export OSH=' "$_BASHTHEME"
+check ".bashrc sources oh-my-bash.sh" grep -q 'oh-my-bash.sh' "$_BASHTHEME"
 
 reportResults
