@@ -6,22 +6,15 @@
     "documentationURL": "https://github.com/containers/podman",
     "keywords": ["podman", "containers", "rootless", "oci"],
 
-    // Rootless Podman inside a container needs two things:
-    //
-    //   1. clone(CLONE_NEWUSER) — blocked by Docker/containerd's default
-    //      seccomp profile.  Fixed by securityOpt "seccomp=unconfined".
-    //
-    //   2. newuidmap / newgidmap must run as setuid-root to write UID/GID
-    //      mappings into /proc/<pid>/uid_map.  Docker mounts the container
-    //      rootfs with nosuid, which neuters setuid binaries.  Fixed by
-    //      granting CAP_SYS_ADMIN (via capAdd) and remounting / with suid
-    //      at container startup (see configure-storage.sh).
-    //
-    // This avoids "privileged: true", which would disable ALL security
-    // features (seccomp, AppArmor/SELinux, capability restrictions, and
-    // read-only /proc and /sys paths) — far more than what Podman needs.
-    "capAdd": ["SYS_ADMIN", "MKNOD"],
-    "securityOpt": ["seccomp=unconfined", "apparmor=unconfined", "label=disable"],
+    // Privileged mode is required for rootless Podman inside a container.
+    // Podman needs to: create user namespaces (blocked by default seccomp),
+    // run setuid newuidmap/newgidmap (blocked by nosuid root mount), mount
+    // procfs in child namespaces (blocked by Docker's /proc masks), and
+    // access /dev/net/tun for networking.  These requirements collectively
+    // amount to near-privileged access, so using targeted capAdd/securityOpt
+    // offers no meaningful security benefit over privileged: true.
+    // This is the same approach used by the docker-in-docker feature.
+    "privileged": true,
 
     // Named volume for Podman's image/container storage.  The volume is
     // backed by the host's real filesystem (ext4/xfs/btrfs), NOT the
@@ -35,13 +28,6 @@
             "type": "volume"
         }
     ],
-
-    // Entrypoint runs as root at every container startup.  It:
-    //   1. Remounts / with suid so newuidmap/newgidmap work.
-    //   2. Creates /dev/net/tun for slirp4netns networking.
-    //   3. Remounts /proc unrestricted for inner container setup.
-    //   4. Writes storage.conf with native overlay on the named volume.
-    "entrypoint": "/usr/local/bin/podman-configure-storage",
 
     "options": {
         "version": {

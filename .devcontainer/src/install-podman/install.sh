@@ -79,9 +79,3 @@ EOF
 if [ -n "${_REMOTE_USER_HOME}" ]; then
     chown -R "${_REMOTE_USER}:${_REMOTE_USER}" "${_REMOTE_USER_HOME}/.config"
 fi
-
-# ---------------------------------------------------------------------------
-# 5. Install entrypoint
-# ---------------------------------------------------------------------------
-cp "$(dirname "$0")/configure-storage.sh" /usr/local/bin/podman-configure-storage
-chmod +x /usr/local/bin/podman-configure-storage
