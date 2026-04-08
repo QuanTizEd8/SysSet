@@ -25,6 +25,7 @@
         }
     },
     "apt_multi_plugins": {
+        "remoteUser": "vscode",
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-shell": {

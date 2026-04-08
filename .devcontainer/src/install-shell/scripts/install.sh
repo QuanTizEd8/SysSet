@@ -393,11 +393,8 @@ if [[ "$ADD_CURRENT_USER_CONFIG" == true ]]; then
   _CURRENT_USER="${_REMOTE_USER:-${SUDO_USER:-$(whoami)}}"
   if [ -n "$_CURRENT_USER" ] && [ "$_CURRENT_USER" != "root" ]; then
     _USERS_MAP["$_CURRENT_USER"]=1
-  elif [ "${_CURRENT_USER:-root}" = "root" ]; then
-    # The current user is root (single-user image like debian:latest).
-    # Include root so add_current_user_config=true always configures someone.
-    _USERS_MAP[root]=1
   fi
+  # If the current user IS root, add_root_user_config controls that.
 fi
 
 if [[ "$ADD_CONTAINER_USER_CONFIG" == true ]]; then
