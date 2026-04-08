@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+get_next_in_path() {
+  local cmd next
+  cmd=$(basename "$0")
+  next=$(which -a "$cmd" | grep -A1 "^$0\$" | grep -v "^$0\$" || true)
+  echo "${next}"
+}
+
+code="$(get_next_in_path)"
+if [ -n "$code" ]; then
+    exec "$code" "$@"
+elif [ "$(command -v code-insiders)" ]; then
+    exec code-insiders "$@"
+else
+    echo "code or code-insiders is not installed" >&2
+    exit 127
+fi

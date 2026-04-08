@@ -1,0 +1,33 @@
+{
+   "id": "setup-shim",
+   "version": "0.1.0",
+   "name": "Shim Setup",
+   "description": "Set up shim scripts.",
+   "options": {
+      "code": {
+         "type": "boolean",
+         "default": true,
+         "description": ""
+      },
+      "devcontainer-info": {
+         "type": "boolean",
+         "default": true,
+         "description": ""
+      },
+      "systemctl": {
+         "type": "boolean",
+         "default": true,
+         "description": ""
+      },
+      "debug": {
+         "default": false,
+         "description": "Enable debug output.",
+         "type": "boolean"
+      },
+      "logfile": {
+         "default": "",
+         "description": "Log all output (stdout + stderr) to this file in addition to console.",
+         "type": "string"
+      }
+   }
+}
