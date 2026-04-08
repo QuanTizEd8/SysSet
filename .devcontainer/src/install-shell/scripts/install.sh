@@ -392,9 +392,7 @@ if [[ "$ADD_ROOT_USER_CONFIG" == true ]]; then
 fi
 
 if [[ "$ADD_CURRENT_USER_CONFIG" == true ]]; then
-  # In devcontainer features, _REMOTE_USER is the current non-root user.
-  # When run standalone, fall back to the invoking user (via SUDO_USER or whoami).
-  _CURRENT_USER="${_REMOTE_USER:-${SUDO_USER:-$(whoami)}}"
+  _CURRENT_USER="${SUDO_USER:-$(whoami)}"
   if [ -n "$_CURRENT_USER" ] && [ "$_CURRENT_USER" != "root" ]; then
     _USERS_MAP["$_CURRENT_USER"]=1
   fi
