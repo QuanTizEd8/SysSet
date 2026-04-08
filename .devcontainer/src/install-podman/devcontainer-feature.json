@@ -1,36 +1,33 @@
 {
     "id": "install-podman",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "name": "Rootless Podman",
-    "description": "Installs Podman and all dependencies for rootless container execution inside a dev container. Automatically selects fuse-overlayfs (when /dev/fuse is available) or vfs as the storage driver at startup.",
+    "description": "Installs Podman for rootless container execution inside a dev container. Uses native overlay storage on modern kernels (>= 5.12) for best performance, falling back to VFS on older kernels.",
     "documentationURL": "https://github.com/containers/podman",
     "keywords": ["podman", "containers", "rootless", "oci"],
 
-    // privileged: true is required for rootless Podman inside a container.
+    // Rootless Podman inside a container needs two things:
     //
-    // Two things are needed:
-    //   1. clone(CLONE_NEWUSER) — blocked by Docker's default seccomp profile.
-    //      seccomp=unconfined alone would unblock this.
+    //   1. clone(CLONE_NEWUSER) — blocked by Docker/containerd's default
+    //      seccomp profile.  Fixed by securityOpt "seccomp=unconfined".
+    //
     //   2. newuidmap / newgidmap must run as setuid-root to write UID/GID
-    //      mappings into /proc/<pid>/uid_map. Without --privileged, Docker
-    //      restricts setuid escalation inside the container and newuidmap
-    //      fails with "write to uid_map failed: Operation not permitted".
+    //      mappings into /proc/<pid>/uid_map.  Docker mounts the container
+    //      rootfs with nosuid, which neuters setuid binaries.  Fixed by
+    //      granting CAP_SYS_ADMIN (via capAdd) and remounting / with suid
+    //      at container startup (see configure-storage.sh).
     //
-    // There is no targeted capability or securityOpt that grants (2) without
-    // also granting a similar overall surface to --privileged. The setuid
-    // restriction is not controlled by seccomp or capAdd.
-    "privileged": true,
+    // This avoids "privileged: true", which would disable ALL security
+    // features (seccomp, AppArmor/SELinux, capability restrictions, and
+    // read-only /proc and /sys paths) — far more than what Podman needs.
+    "capAdd": ["SYS_ADMIN"],
+    "securityOpt": ["seccomp=unconfined", "apparmor=unconfined", "label=disable"],
 
-    // Mount a dedicated named volume for Podman's image/container storage.
-    // This is the same pattern used by docker-in-docker for /var/lib/docker.
-    //
-    // The volume is backed by the host's real filesystem (ext4/btrfs/etc.),
-    // not the container's overlayfs root. This means fuse-overlayfs works
-    // correctly as a storage driver: its lower dirs are on a normal FS, so
-    // the kernel allows exec from containers. Without this, the only option
-    // would be VFS (full layer copies on every container run).
-    //
-    // ${devcontainerId} ensures each devcontainer gets its own isolated volume.
+    // Named volume for Podman's image/container storage.  The volume is
+    // backed by the host's real filesystem (ext4/xfs/btrfs), NOT the
+    // container's overlayfs root.  This lets Podman use the native kernel
+    // overlay driver on the volume — avoiding the overlay-on-overlay problem
+    // and the fuse-overlayfs noexec issue in nested user namespaces.
     "mounts": [
         {
             "source": "podman-storage-${devcontainerId}",
@@ -39,13 +36,10 @@
         }
     ],
 
-    // entrypoint fires at every container startup as root, which is correct
-    // here because configure-storage.sh writes to /etc/containers/storage.conf
-    // (a system-wide path not writable by remoteUser). The same pattern is used
-    // by docker-in-docker to start dockerd.
-    //
-    // containers.conf (userns = "keep-id") is static and written by install.sh
-    // at build time; only storage driver selection needs runtime detection here.
+    // Entrypoint runs as root at every container startup.  It:
+    //   1. Remounts / with suid so newuidmap/newgidmap work.
+    //   2. Detects whether the kernel supports native overlay and writes
+    //      the appropriate storage.conf for the remote user.
     "entrypoint": "/usr/local/bin/podman-configure-storage",
 
     "options": {

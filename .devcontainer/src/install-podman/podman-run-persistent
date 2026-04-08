@@ -7,11 +7,10 @@
 # every invocation. Instead it maintains a single persistent container per image
 # (keyed by image reference) and executes commands via `podman exec`.
 #
-# Why this matters with VFS storage driver:
-#   VFS copies all image layers into a fresh directory for every new container.
-#   For large images (e.g. a ~1 GB document compiler), this means ~1 GB written
-#   on every `podman run --rm`. With a persistent container the copy happens once
-#   at first invocation; subsequent runs use `podman exec` with no copy overhead.
+# On kernels >= 5.12 with native overlay, the startup overhead of a normal
+# `podman run` is already low. This helper is most beneficial when Podman
+# falls back to VFS (older kernels), where each `podman run` copies all image
+# layers — potentially gigabytes — into a fresh directory.
 #
 # Supported podman-run options (passed through to container creation):
 #   -v / --volume     volume mounts
