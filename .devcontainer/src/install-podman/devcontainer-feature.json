@@ -39,6 +39,31 @@
             "default": "apt",
             "description": "Version of Podman to install. Use 'apt' to install the latest version available in the distribution's package manager.",
             "proposals": ["apt"]
+        },
+        "add_root_user_config": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether to register subuid/subgid ranges and write Podman storage config for the root user."
+        },
+        "add_current_user_config": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root."
+        },
+        "add_remote_user_config": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to configure Podman for the `_REMOTE_USER` set by the devcontainer tooling. No effect when running standalone."
+        },
+        "add_container_user_config": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone."
+        },
+        "add_user_config": {
+            "type": "string",
+            "default": "",
+            "description": "Comma-separated list of additional usernames to register subuid/subgid ranges and write Podman storage config for."
         }
     }
 }
