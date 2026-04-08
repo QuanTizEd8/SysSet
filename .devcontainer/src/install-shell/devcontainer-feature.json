@@ -81,7 +81,7 @@
       },
       "add_current_user_config": {
          "default": true,
-         "description": "Whether to add configuration for the current non-root user. If true, the user will get the same configuration files, Oh My Zsh/Oh My Bash installation, plugins, and themes as specified by the other options.",
+         "description": "Whether to add configuration for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root (use `add_root_user_config` instead).",
          "type": "boolean"
       },
       "add_container_user_config": {
