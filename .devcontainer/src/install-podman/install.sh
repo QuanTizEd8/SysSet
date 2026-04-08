@@ -38,7 +38,23 @@ if ! grep -q "^${_REMOTE_USER}:" /etc/subgid 2>/dev/null; then
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Install the storage-configuration entrypoint
+# 3. Write system-wide Podman configuration
+#
+# containers.conf: keep-id maps the container user's UID into nested
+# containers unchanged — required for fuse-overlayfs and prevents volume
+# permission mismatches. This is static and the same for all users, so it
+# belongs here at build time rather than in the runtime-detection script.
+#
+# storage.conf: driver selection depends on /dev/fuse availability at
+# runtime (the feature spec has no 'runArgs'/'devices' field, so the host
+# may or may not expose /dev/fuse). That is handled by configure-storage.sh
+# via the feature entrypoint.
+# ---------------------------------------------------------------------------
+mkdir -p /etc/containers
+printf '[containers]\nuserns = "keep-id"\n' > /etc/containers/containers.conf
+
+# ---------------------------------------------------------------------------
+# 4. Install the storage-configuration entrypoint
 #
 # This script is declared as "entrypoint" in devcontainer-feature.json and
 # fires at every container startup. It cannot write config at build time

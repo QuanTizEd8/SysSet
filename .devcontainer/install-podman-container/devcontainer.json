@@ -1,8 +1,10 @@
 {
-    "name": "test-podman",
+    "name": "install-podman",
     "build": {
         "dockerfile": "Dockerfile"
     },
-    "runArgs": ["--privileged", "--device=/dev/fuse"],
-    "remoteUser": "devuser"
+    "features": {
+        "../src/install-podman": {
+        }
+    }
 }

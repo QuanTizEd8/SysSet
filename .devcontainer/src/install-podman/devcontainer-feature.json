@@ -11,9 +11,13 @@
     // propagates correctly to the host runtime; runArgs is not available in features.
     "privileged": true,
 
-    // Fires at every container startup (before any user postStartCommand) to
-    // detect /dev/fuse availability and write the appropriate storage driver config
-    // to ~/.config/containers/. Must be an absolute path in the final image.
+    // entrypoint fires at every container startup as root, which is correct
+    // here because configure-storage.sh writes to /etc/containers/storage.conf
+    // (a system-wide path not writable by remoteUser). The same pattern is used
+    // by docker-in-docker to start dockerd.
+    //
+    // containers.conf (userns = "keep-id") is static and written by install.sh
+    // at build time; only storage driver selection needs runtime detection here.
     "entrypoint": "/usr/local/bin/podman-configure-storage",
 
     "options": {
