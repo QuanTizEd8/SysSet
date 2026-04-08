@@ -29,6 +29,10 @@
         }
     ],
 
+    // Mark / as rshared so bind-mount propagation works inside rootless
+    // Podman's user namespace (avoids "not a shared mount" warnings).
+    "entrypoint": "/usr/local/share/install-podman/entrypoint",
+
     "options": {
         "version": {
             "type": "string",

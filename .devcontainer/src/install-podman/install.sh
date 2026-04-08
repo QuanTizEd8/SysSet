@@ -26,7 +26,7 @@ rm -rf /var/lib/apt/lists/*
 #
 # The uidmap package ships these as setuid-root on Debian/Ubuntu.  Verify
 # the bit is set — it is essential for rootless user-namespace creation.
-# At runtime, the entrypoint remounts / with suid so the kernel honours it.
+# At runtime, privileged mode ensures nosuid is not applied.
 # ---------------------------------------------------------------------------
 chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2>/dev/null || true
 
@@ -79,3 +79,11 @@ EOF
 if [ -n "${_REMOTE_USER_HOME}" ]; then
     chown -R "${_REMOTE_USER}:${_REMOTE_USER}" "${_REMOTE_USER_HOME}/.config"
 fi
+
+# ---------------------------------------------------------------------------
+# 5. Install entrypoint — mark / as rshared so bind-mount propagation
+#    works inside rootless Podman's user namespace.
+# ---------------------------------------------------------------------------
+mkdir -p /usr/local/share/install-podman
+printf '#!/bin/sh\nmount --make-rshared /\n' > /usr/local/share/install-podman/entrypoint
+chmod +x /usr/local/share/install-podman/entrypoint
