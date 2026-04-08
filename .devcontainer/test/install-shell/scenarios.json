@@ -163,5 +163,31 @@
                 "add_root_user_config": true
             }
         }
+    },
+    "apt_remote_user_config": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_remote_user_config": true
+            }
+        }
+    },
+    "apt_container_user_config": {
+        "containerUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_container_user_config": true
+            }
+        }
+    },
+    "apt_add_user_config": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-shell": {
+                "add_user_config": "devuser"
+            }
+        }
     }
 }
