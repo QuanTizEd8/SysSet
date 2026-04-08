@@ -1,9 +1,8 @@
 # Install Shell
 
 Install and configure Bash and Zsh with shell frameworks
-([Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/)),
-the [Starship](https://starship.rs/) prompt, and
-[Nerd Fonts](https://www.nerdfonts.com/). Deploys a layered set of system-wide
+([Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/))
+and the [Starship](https://starship.rs/) prompt. Deploys a layered set of system-wide
 and per-user configuration files that work correctly across all shell
 invocation modes — login, interactive, non-interactive, scripts, cron,
 `devcontainer exec`, CI runners, and VS Code tasks.
@@ -29,10 +28,9 @@ With the defaults above, the feature will:
 2. Install **Oh My Zsh** with the `zsh-syntax-highlighting` plugin
 3. Install **Oh My Bash** (no custom themes or plugins by default)
 4. Install the **Starship** prompt binary
-5. Install **Meslo** and **JetBrainsMono** Nerd Fonts
-6. Deploy system-wide config files (`/etc/profile`, `/etc/shellenv`,
+5. Deploy system-wide config files (`/etc/profile`, `/etc/shellenv`,
    `/etc/shellrc`, etc.)
-7. Configure the current non-root user's dotfiles
+6. Configure the current non-root user's dotfiles
    (`~/.bashrc`, `$ZDOTDIR/.zshrc`, `~/.shellenv`, etc.)
 
 ### Minimal example — Zsh only, no frameworks
@@ -43,8 +41,7 @@ With the defaults above, the feature will:
     "ghcr.io/quantized8/sysset/install-shell:0": {
       "install_ohmyzsh": false,
       "install_ohmybash": false,
-      "install_starship": false,
-      "install_fonts": false
+      "install_starship": false
     }
   }
 }
@@ -73,8 +70,7 @@ With the defaults above, the feature will:
   "features": {
     "ghcr.io/quantized8/sysset/install-shell:0": {
       "ohmyzsh_install_dir": "/opt/oh-my-zsh",
-      "ohmybash_install_dir": "/opt/oh-my-bash",
-      "font_dir": "/opt/fonts"
+      "ohmybash_install_dir": "/opt/oh-my-bash"
     }
   }
 }
@@ -107,7 +103,6 @@ custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
 | `install_ohmyzsh` | boolean | `true` | Install Oh My Zsh. Ignored if Zsh is not available. |
 | `install_ohmybash` | boolean | `true` | Install Oh My Bash. |
 | `install_starship` | boolean | `true` | Install the Starship prompt binary to `/usr/local/bin`. |
-| `install_fonts` | boolean | `true` | Install Nerd Fonts and refresh the font cache. |
 | `ohmyzsh_theme` | string | `""` | Custom OMZ theme as a `owner/repo` GitHub slug (e.g. `romkatv/powerlevel10k`). Empty = no custom theme. |
 | `ohmybash_theme` | string | `""` | Custom OMB theme as a `owner/repo` GitHub slug. Empty = no custom theme. |
 | `ohmyzsh_plugins` | string | `"zsh-users/zsh-syntax-highlighting"` | Comma-separated OMZ plugins. GitHub slugs (`owner/repo`) are cloned; plain names (e.g. `git`) are treated as built-in and skipped. |
@@ -119,8 +114,6 @@ custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
 | `ohmybash_custom_dir` | string | `""` | `OSH_CUSTOM` directory. Leave empty to default to `${XDG_CONFIG_HOME}/bash/custom` (e.g. `~/.config/bash/custom`) — per-user, with named themes/plugins symlinked from the system install. Accepts the same three forms as `ohmyzsh_custom_dir`. |
 | `ohmyzsh_branch` | string | `"master"` | Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone. |
 | `ohmybash_branch` | string | `"master"` | Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone. |
-| `font_names` | string | `"Meslo,JetBrainsMono"` | Comma-separated [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts/releases) archive names to install. |
-| `font_dir` | string | `"/usr/share/fonts"` | Target directory for font files. |
 | `add_root_user_config` | boolean | `false` | Configure the root user's dotfiles. |
 | `add_current_user_config` | boolean | `true` | Configure the current non-root user's dotfiles. |
 | `add_container_user_config` | boolean | `false` | Configure the `containerUser` from devcontainer.json. |
@@ -135,7 +128,7 @@ custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
 
 ## Execution order
 
-The installer runs as root at image build time in a single pass with nine
+The installer runs as root at image build time in a single pass with eight
 sequential steps.
 
 ### Bootstrap (`install.sh`)
@@ -146,8 +139,7 @@ then hands off to the main orchestrator at `scripts/install.sh`.
 
 ### Step 1 — Install packages
 
-Installs `zsh`, `git`, `curl`, `ca-certificates`, `fontconfig`, `xz-utils`,
-and `unzip` via the `install-os-pkg` dependency (cross-distro package
+Installs `zsh`, `git`, `curl`, and `ca-certificates` via the `install-os-pkg` dependency (cross-distro package
 installer). `install-os-pkg` is a declared hard dependency and is always
 available. Skipped if `install_zsh` is `false` and all dependencies are
 already present.
@@ -178,23 +170,7 @@ Idempotent — skips if the binary already exists.
 
 Skipped when `install_starship` is `false`.
 
-### Step 5 — Install fonts
-
-Downloads Nerd Fonts archives (`.tar.xz`, falling back to `.zip`) from the
-[ryanoasis/nerd-fonts](https://github.com/ryanoasis/nerd-fonts/releases)
-releases. Each font family listed in `font_names` is extracted to a
-subdirectory under `font_dir`.
-
-When the Oh My Zsh theme is `romkatv/powerlevel10k`, the
-[MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts required
-by Powerlevel10k are installed automatically (these are custom builds by
-romkatv and are **not** part of the official Nerd Fonts project).
-
-Runs `fc-cache -f` to rebuild the font cache after installation.
-
-Skipped when `install_fonts` is `false`.
-
-### Step 6 — Deploy system-wide configuration files
+### Step 5 — Deploy system-wide configuration files
 
 Copies the configuration files from `files/` to their OS-detected system
 locations. The installer detects the correct paths automatically:
@@ -207,14 +183,14 @@ locations. The installer detects the correct paths automatically:
 See [Configuration files](#configuration-files) for the full list of files
 and their purposes.
 
-### Step 7 — Resolve user list
+### Step 6 — Resolve user list
 
 Builds a deduplicated list of users to configure from the
 `add_root_user_config`, `add_current_user_config`,
 `add_container_user_config`, `add_remote_user_config`, and `add_user_config`
 options. Users that do not exist on the system are skipped with a warning.
 
-### Step 8 — Configure users
+### Step 7 — Configure users
 
 For each resolved user:
 
@@ -240,7 +216,7 @@ Behavior is controlled by `user_config_mode`:
 See [Per-user dotfile injection](#per-user-dotfile-injection) for details on
 how the framework blocks are generated.
 
-### Step 9 — Set default shells
+### Step 8 — Set default shells
 
 When `set_user_shells` is `zsh` or `bash`, runs `chsh` for each configured
 user. Automatically:
@@ -539,42 +515,11 @@ the installer:
 
 When the theme is `romkatv/powerlevel10k`, the installer additionally:
 
-- Installs the **MesloLGS NF** fonts from
-  [powerlevel10k-media](https://github.com/romkatv/powerlevel10k-media)
-  (these are custom builds specific to p10k, not part of official Nerd Fonts)
 - Sets `POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true` in the user block
 - Copies `skel/p10k.zsh` to `~/.p10k.zsh` if present in the skel directory
 
----
-
-## Fonts
-
-### Nerd Fonts
-
-The `font_names` option accepts a comma-separated list of font family names
-matching the archive filenames from the
-[nerd-fonts releases](https://github.com/ryanoasis/nerd-fonts/releases)
-(without the file extension). For example:
-
-```jsonc
-"font_names": "Meslo,JetBrainsMono,FiraCode,Hack"
-```
-
-Each font is downloaded as a `.tar.xz` archive (with `.zip` as a fallback),
-extracted to `<font_dir>/<font_name>/`, and deduplicated against existing
-installations.
-
-### MesloLGS NF (Powerlevel10k)
-
-The four MesloLGS NF font files required by Powerlevel10k are **separate**
-from the Nerd Fonts project. They are downloaded from
-[romkatv/powerlevel10k-media](https://github.com/romkatv/powerlevel10k-media)
-only when `ohmyzsh_theme` contains `powerlevel10k`. These fonts are:
-
-- MesloLGS NF Regular.ttf
-- MesloLGS NF Bold.ttf
-- MesloLGS NF Italic.ttf
-- MesloLGS NF Bold Italic.ttf
+> **Note:** Powerlevel10k requires [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media)
+> fonts to render correctly. Use the `install-fonts` feature to install them.
 
 ---
 
@@ -654,7 +599,6 @@ provide `PATH`, `XDG_*`, locale, and other environment variables.
 | `/usr/local/share/oh-my-zsh/` | Oh My Zsh shared installation |
 | `/usr/local/share/oh-my-bash/` | Oh My Bash shared installation |
 | `/usr/local/bin/starship` | Starship binary |
-| `/usr/share/fonts/` | Nerd Fonts and MesloLGS NF fonts |
 | `~/.config/zsh/` | `ZDOTDIR` — per-user Zsh config dir (`.zshrc`, `.zprofile`, `.zlogin`) |
 | `~/.config/zsh/custom/` | Per-user OMZ custom directory (default; symlinks to system install) |
 | `~/.config/bash/custom/` | Per-user OMB custom directory (default; symlinks to system install) |
@@ -673,12 +617,9 @@ package installation. The following packages are installed automatically via
 | Package | Purpose |
 |---|---|
 | `git` | Clone OMZ, OMB, themes, and plugins |
-| `curl` | Download Starship installer, Nerd Fonts, MesloLGS fonts |
+| `curl` | Download Starship installer |
 | `zsh` | The Zsh shell itself |
 | `ca-certificates` | HTTPS certificate validation for git/curl |
-| `fontconfig` | `fc-cache` for font cache rebuilds |
-| `xz-utils` | Extract `.tar.xz` font archives |
-| `unzip` | Fallback extraction for `.zip` font archives |
 
 ---
 
@@ -691,14 +632,13 @@ src/install-shell/
 ├── packages.txt                   # OS package dependencies
 │
 ├── scripts/
-│   └── install.sh                 # Main orchestrator (bash, 9-step flow)
+│   └── install.sh                 # Main orchestrator (bash, 8-step flow)
 │
 ├── scripts/
 │   ├── helpers.sh                 # Shared functions (git_clone, detect_*, etc.)
 │   ├── install_ohmyzsh.sh         # Oh My Zsh: clone + theme + plugins
 │   ├── install_ohmybash.sh        # Oh My Bash: clone + theme + plugins
 │   ├── install_starship.sh        # Starship binary download
-│   ├── install_fonts.sh           # Nerd Fonts + MesloLGS NF download
 │   └── configure_user.sh          # Per-user dotfile copy + block injection
 │
 └── files/

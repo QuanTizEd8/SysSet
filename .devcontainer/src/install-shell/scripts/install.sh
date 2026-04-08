@@ -71,11 +71,6 @@ Oh My Bash options:
   --ohmybash_theme <string>        Custom theme (owner/repo slug)
   --ohmybash_plugins <string>      Comma-separated custom plugin slugs
 
-Fonts:
-  --install_fonts <bool>           Install Nerd Fonts (default: true)
-  --font_names <string>            Comma-separated nerd-fonts archive names
-  --font_dir <path>                Font installation directory
-
 User configuration:
   --add_root_user_config <bool>    Configure root (default: false)
   --add_current_user_config <bool> Configure current user (default: true)
@@ -102,7 +97,6 @@ if [ "$#" -gt 0 ]; then
   INSTALL_OHMYBASH=""
   INSTALL_STARSHIP=""
   STARSHIP_SHELLS=""
-  INSTALL_FONTS=""
   OHMYZSH_INSTALL_DIR=""
   ZDOTDIR=""
   OHMYZSH_CUSTOM_DIR=""
@@ -114,8 +108,6 @@ if [ "$#" -gt 0 ]; then
   OHMYBASH_BRANCH=""
   OHMYBASH_THEME=""
   OHMYBASH_PLUGINS=""
-  FONT_NAMES=""
-  FONT_DIR=""
   ADD_ROOT_USER_CONFIG=""
   ADD_CURRENT_USER_CONFIG=""
   ADD_CONTAINER_USER_CONFIG=""
@@ -133,7 +125,7 @@ if [ "$#" -gt 0 ]; then
       --install_ohmybash)           shift; INSTALL_OHMYBASH="$1"; shift;;
       --install_starship)           shift; INSTALL_STARSHIP="$1"; shift;;
       --starship_shells)            shift; STARSHIP_SHELLS="$1"; shift;;
-      --install_fonts)              shift; INSTALL_FONTS="$1"; shift;;
+
       --ohmyzsh_install_dir)        shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
       --zdotdir)                    shift; ZDOTDIR="$1"; shift;;
       --ohmyzsh_custom_dir)         shift; OHMYZSH_CUSTOM_DIR="$1"; shift;;
@@ -145,8 +137,6 @@ if [ "$#" -gt 0 ]; then
       --ohmybash_branch)            shift; OHMYBASH_BRANCH="$1"; shift;;
       --ohmybash_theme)             shift; OHMYBASH_THEME="$1"; shift;;
       --ohmybash_plugins)           shift; OHMYBASH_PLUGINS="$1"; shift;;
-      --font_names)                 shift; FONT_NAMES="$1"; shift;;
-      --font_dir)                   shift; FONT_DIR="$1"; shift;;
       --add_root_user_config)       shift; ADD_ROOT_USER_CONFIG="$1"; shift;;
       --add_current_user_config)    shift; ADD_CURRENT_USER_CONFIG="$1"; shift;;
       --add_container_user_config)  shift; ADD_CONTAINER_USER_CONFIG="$1"; shift;;
@@ -171,7 +161,6 @@ fi
 : "${INSTALL_OHMYBASH:=true}"
 : "${INSTALL_STARSHIP:=true}"
 : "${STARSHIP_SHELLS=zsh,bash}"
-: "${INSTALL_FONTS:=true}"
 : "${OHMYZSH_INSTALL_DIR:=/usr/local/share/oh-my-zsh}"
 : "${ZDOTDIR:=}"
 : "${OHMYZSH_CUSTOM_DIR:=}"
@@ -183,8 +172,6 @@ fi
 : "${OHMYBASH_BRANCH:=master}"
 : "${OHMYBASH_THEME:=}"
 : "${OHMYBASH_PLUGINS:=}"
-: "${FONT_NAMES=Meslo,JetBrainsMono}"
-: "${FONT_DIR:=/usr/share/fonts}"
 : "${ADD_ROOT_USER_CONFIG:=false}"
 : "${ADD_CURRENT_USER_CONFIG:=true}"
 : "${ADD_CONTAINER_USER_CONFIG:=false}"
@@ -294,24 +281,7 @@ if [[ "$INSTALL_STARSHIP" == true ]]; then
 fi
 
 # ===================================================================
-# Step 5: Install Fonts
-# ===================================================================
-if [[ "$INSTALL_FONTS" == true ]]; then
-  _FONT_ARGS=(--font_dir "$FONT_DIR")
-  [ -n "$FONT_NAMES" ] && _FONT_ARGS+=(--font_names "$FONT_NAMES")
-
-  # Install p10k-specific MesloLGS NF fonts when a p10k theme is selected.
-  if [[ "${OHMYZSH_THEME}" == *powerlevel10k* ]]; then
-    _FONT_ARGS+=(--p10k_fonts)
-  fi
-
-  bash "$_SELF_DIR/install_fonts.sh" \
-    "${_FONT_ARGS[@]}" \
-    $( [[ "$DEBUG" == true ]] && echo "--debug" )
-fi
-
-# ===================================================================
-# Step 6: Deploy system-wide shell configuration files
+# Step 5: Deploy system-wide shell configuration files
 # ===================================================================
 echo "📄 Deploying system-wide shell configuration files..." >&2
 
@@ -383,7 +353,7 @@ if command -v zsh > /dev/null 2>&1; then
 fi
 
 # ===================================================================
-# Step 7: Resolve user list
+# Step 6: Resolve user list
 # ===================================================================
 declare -A _USERS_MAP  # associative array for deduplication
 
@@ -428,7 +398,7 @@ else
 fi
 
 # ===================================================================
-# Step 8: Per-user configuration
+# Step 7: Per-user configuration
 # ===================================================================
 for _username in "${_RESOLVED_USERS[@]}"; do
   # Verify the user exists.
@@ -469,7 +439,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
 done
 
 # ===================================================================
-# Step 9: Set default shells
+# Step 8: Set default shells
 # ===================================================================
 if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
   _TARGET_SHELL=""

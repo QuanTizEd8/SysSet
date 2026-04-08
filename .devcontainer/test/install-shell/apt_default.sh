@@ -7,7 +7,6 @@ source dev-container-features-test-lib
 
 _OMZ=/usr/local/share/oh-my-zsh
 _OMB=/usr/local/share/oh-my-bash
-_FONTS=/usr/share/fonts
 
 # --- Shells ---
 check "zsh is installed" command -v zsh
@@ -30,10 +29,6 @@ check "oh-my-bash main script exists" test -f "${_OMB}/oh-my-bash.sh"
 
 # --- Starship ---
 check "starship binary installed" command -v starship
-
-# --- Fonts ---
-check "font directory exists" test -d "$_FONTS"
-check "at least one nerd font installed" bash -c 'find '"$_FONTS"' -name "*.ttf" -o -name "*.otf" | head -1 | grep -q .'
 
 # --- System config files ---
 check "/etc/profile exists" test -f /etc/profile

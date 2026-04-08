@@ -11,8 +11,7 @@
             "install-shell": {
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
-                "install_starship": false,
-                "install_fonts": false
+                "install_starship": false
             }
         }
     },
@@ -20,7 +19,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-shell": {
-                "install_fonts": false
+                "install_ohmyzsh": false,
+                "install_ohmybash": false,
+                "install_starship": false
             }
         }
     },
@@ -59,8 +60,7 @@
             "install-shell": {
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
-                "install_starship": true,
-                "install_fonts": false
+                "install_starship": true
             }
         }
     },
@@ -78,14 +78,6 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-shell": {}
-        }
-    },
-    "apt_custom_font_dir": {
-        "build": { "dockerfile": "Dockerfile" },
-        "features": {
-            "install-shell": {
-                "font_dir": "/opt/fonts"
-            }
         }
     },
     "apt_user_config": {

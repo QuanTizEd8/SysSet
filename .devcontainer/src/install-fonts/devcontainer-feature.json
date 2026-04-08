@@ -1,0 +1,38 @@
+{
+   "id": "install-fonts",
+   "version": "0.1.0",
+   "name": "Install Fonts",
+   "description": "Install fonts from multiple sources: Nerd Fonts by name, arbitrary direct URLs, and GitHub release assets. Can be used inside a devcontainer or run directly on a host machine.",
+   "options": {
+      "nerd_fonts": {
+         "default": "Meslo,JetBrainsMono",
+         "description": "Comma-separated Nerd Fonts archive names to install (e.g. Meslo,JetBrainsMono,FiraCode). Set to empty string to skip Nerd Font downloads.",
+         "type": "string"
+      },
+      "font_urls": {
+         "default": "",
+         "description": "Comma-separated direct font URLs. Font files (.ttf, .otf, .woff, .woff2) land flat in font_dir; archives (.tar.xz, .tar.gz, .tgz, .zip) extract into font_dir/<archive-name>/ with non-font files removed.",
+         "type": "string"
+      },
+      "gh_release_fonts": {
+         "default": "",
+         "description": "Comma-separated GitHub slugs (owner/repo or owner/repo@tag). Without a tag, the latest release is used; with a tag that specific release is used. All font and archive assets are installed into font_dir/<repo>/.",
+         "type": "string"
+      },
+      "font_dir": {
+         "default": "",
+         "description": "Font installation directory. Leave empty to auto-detect: root/container -> /usr/share/fonts; Linux user -> $XDG_DATA_HOME/fonts; macOS user -> ~/Library/Fonts.",
+         "type": "string"
+      },
+      "p10k_fonts": {
+         "default": false,
+         "description": "Also install the four Powerlevel10k-specific MesloLGS NF fonts from romkatv/powerlevel10k-media.",
+         "type": "boolean"
+      },
+      "debug": {
+         "default": false,
+         "description": "Enable debug output.",
+         "type": "boolean"
+      }
+   }
+}

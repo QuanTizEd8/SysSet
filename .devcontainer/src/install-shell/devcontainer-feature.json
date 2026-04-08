@@ -29,11 +29,7 @@
          "default": "zsh",
          "description": "Comma-separated list of shells to activate the Starship prompt in (`zsh`, `bash`, or both).\nLeave empty to install the binary without activating it in any shell.\nIgnored if `install_starship` is `false` and `starship` is not already on PATH.\nWhen a shell's framework theme (`ohmyzsh_theme` / `ohmybash_theme`) is also set, the framework still loads but Starship owns the prompt (`ZSH_THEME` / `OSH_THEME` is forced to empty with a warning).\n"
       },
-      "install_fonts": {
-         "type": "boolean",
-         "default": true,
-         "description": "Install the [Nerd Fonts](https://www.nerdfonts.com) files to `font_dir` and refresh the font cache."
-      },
+
       "ohmyzsh_plugins": {
          "type": "string",
          "default": "git,zsh-users/zsh-syntax-highlighting",
@@ -120,16 +116,7 @@
          "description": "OSH_CUSTOM directory for Oh My Bash.\nLeave empty to use `${XDG_CONFIG_HOME}/bash/custom` (i.e. `~/.config/bash/custom`) — per-user, themes and plugins are symlinked there from the system install.\nSet to an explicit path to override; `~`- and `$HOME`-prefixed values are expanded per user.\n",
          "type": "string"
       },
-      "font_names": {
-         "default": "Meslo,JetBrainsMono",
-         "description": "Comma-separated list of [Nerd Fonts](https://www.nerdfonts.com) archive names to install (e.g. `Meslo,JetBrainsMono,FiraCode`).\nEach name must match an archive filename from the [nerd-fonts releases](https://github.com/ryanoasis/nerd-fonts/releases) (without the extension).\nWhen the Oh My Zsh theme is `romkatv/powerlevel10k`, the p10k-specific *MesloLGS NF* fonts are installed automatically.\nIgnored if `install_fonts` is false.\n",
-         "type": "string"
-      },
-      "font_dir": {
-         "default": "/usr/share/fonts",
-         "description": "Path to the directory where fonts will be downloaded.",
-         "type": "string"
-      },
+
       "user_config_mode": {
          "default": "overwrite",
          "enum": ["overwrite", "augment", "skip"],

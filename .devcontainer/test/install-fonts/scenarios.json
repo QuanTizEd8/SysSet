@@ -1,0 +1,50 @@
+{
+    "apt_default": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {}
+        }
+    },
+    "apt_p10k_fonts": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {
+                "p10k_fonts": true
+            }
+        }
+    },
+    "apt_custom_font_dir": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {
+                "font_dir": "/opt/fonts"
+            }
+        }
+    },
+    "apt_empty_nerd_fonts": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {
+                "nerd_fonts": ""
+            }
+        }
+    },
+    "apt_font_urls": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {
+                "nerd_fonts": "",
+                "font_urls": "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz"
+            }
+        }
+    },
+    "apt_gh_release_fonts": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {
+                "nerd_fonts": "",
+                "gh_release_fonts": "JetBrains/JetBrainsMono"
+            }
+        }
+    }
+}
