@@ -23,7 +23,7 @@
     // and the fuse-overlayfs noexec issue in nested user namespaces.
     "mounts": [
         {
-            "source": "podman-storage-${devcontainerId}",
+            "source": "podman-storage-devcontainer-${devcontainerId}",
             "target": "/var/lib/containers/storage",
             "type": "volume"
         }
