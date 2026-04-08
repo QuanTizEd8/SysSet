@@ -1,0 +1,8 @@
+{
+    "name": "test-podman",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "runArgs": ["--privileged", "--device=/dev/fuse"],
+    "remoteUser": "devuser"
+}
