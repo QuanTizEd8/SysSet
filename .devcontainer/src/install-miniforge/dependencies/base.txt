@@ -1,0 +1,5 @@
+# Base dependencies for the install-miniforge devcontainer feature.
+# Installed unconditionally before downloading/installing Miniforge.
+bash
+ca-certificates
+curl
