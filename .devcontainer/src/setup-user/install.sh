@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# install.sh — runs as root at image build time.
+#
+# Creates a user account for the dev container: creates a primary group,
+# creates the user with the specified UID/GID/home/shell, grants passwordless
+# sudo (optional), and adds the user to supplementary groups.
+#
+# Feature options (injected as environment variables by the tooling):
+#   USERNAME, USER_ID, GROUP_ID, GROUP_NAME, HOME_DIR, USER_SHELL,
+#   SUDO_ACCESS, EXTRA_GROUPS, REPLACE_EXISTING, SUDOERS_DIR, DEBUG, LOGFILE
 set -euo pipefail
 __cleanup__() {
   echo "↪️ Function entry: __cleanup__" >&2
