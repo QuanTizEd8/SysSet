@@ -9,17 +9,18 @@
 #   USERNAME, USER_ID, GROUP_ID, GROUP_NAME, HOME_DIR, USER_SHELL,
 #   SUDO_ACCESS, EXTRA_GROUPS, REPLACE_EXISTING, SUDOERS_DIR, DEBUG, LOGFILE
 set -euo pipefail
+
 __cleanup__() {
-  echo "↪️ Function entry: __cleanup__" >&2
-  if [ -n "${LOGFILE-}" ]; then
-    exec 1>&3 2>&4
-    wait 2>/dev/null
-    echo "ℹ️ Write logs to file '$LOGFILE'" >&2
-    mkdir -p "$(dirname "$LOGFILE")"
-    cat "$_LOGFILE_TMP" >> "$LOGFILE"
-    rm -f "$_LOGFILE_TMP"
-  fi
-  echo "↩️ Function exit: __cleanup__" >&2
+    echo "↪️ Function entry: __cleanup__" >&2
+    if [ -n "${LOGFILE:-}" ]; then
+        exec 1>&3 2>&4
+        wait 2>/dev/null
+        echo "ℹ️ Write logs to file '$LOGFILE'" >&2
+        mkdir -p "$(dirname "$LOGFILE")"
+        cat "$_LOGFILE_TMP" >> "$LOGFILE"
+        rm -f "$_LOGFILE_TMP"
+    fi
+    echo "↩️ Function exit: __cleanup__" >&2
 }
 
 exit_if_not_root() {
@@ -31,87 +32,250 @@ exit_if_not_root() {
   echo "↩️ Function exit: exit_if_not_root" >&2
 }
 
+# ---------------------------------------------------------------------------
+# Logging — tee stdout+stderr to a temp file; flush to LOGFILE on exit
+# ---------------------------------------------------------------------------
 _LOGFILE_TMP="$(mktemp)"
 exec 3>&1 4>&2
 exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
-echo "↪️ Script entry: User Setup Devcontainer Feature Installer" >&2
+
+echo "↪️ Script entry: User Setup" >&2
 trap __cleanup__ EXIT
+
+# ---------------------------------------------------------------------------
+# Argument parsing (CLI invocation — not used by devcontainer tooling)
+# ---------------------------------------------------------------------------
 if [ "$#" -gt 0 ]; then
-  echo "ℹ️ Script called with arguments: $@" >&2
-  DEBUG=""
-  GID=""
-  HOME_DIR=""
-  LOGFILE=""
-  SUDOERS_DIR=""
-  UID=""
-  USERNAME=""
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '${DEBUG}'" >&2;;
-      --gid) shift; GID="$1"; echo "📩 Read argument 'gid': '${GID}'" >&2; shift;;
-      --home_dir) shift; HOME_DIR="$1"; echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2; shift;;
-      --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2; shift;;
-      --sudoers_dir) shift; SUDOERS_DIR="$1"; echo "📩 Read argument 'sudoers_dir': '${SUDOERS_DIR}'" >&2; shift;;
-      --uid) shift; UID="$1"; echo "📩 Read argument 'uid': '${UID}'" >&2; shift;;
-      --username) shift; USERNAME="$1"; echo "📩 Read argument 'username': '${USERNAME}'" >&2; shift;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
-    esac
-  done
-else
-  echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${GID+defined}" ] && echo "📩 Read argument 'gid': '${GID}'" >&2
-  [ "${HOME_DIR+defined}" ] && echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-  [ "${SUDOERS_DIR+defined}" ] && echo "📩 Read argument 'sudoers_dir': '${SUDOERS_DIR}'" >&2
-  [ "${UID+defined}" ] && echo "📩 Read argument 'uid': '${UID}'" >&2
-  [ "${USERNAME+defined}" ] && echo "📩 Read argument 'username': '${USERNAME}'" >&2
-fi
-[[ "$DEBUG" == true ]] && set -x
-[ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
-[ -z "${GID-}" ] && { echo "ℹ️ Argument 'GID' set to default value '1000'." >&2; GID="1000"; }
-[ -z "${HOME_DIR-}" ] && { echo "ℹ️ Argument 'HOME_DIR' set to default value '/home/vscode'." >&2; HOME_DIR="/home/vscode"; }
-[ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
-[ -z "${SUDOERS_DIR-}" ] && { echo "ℹ️ Argument 'SUDOERS_DIR' set to default value '/etc/sudoers.d'." >&2; SUDOERS_DIR="/etc/sudoers.d"; }
-[ -z "${UID-}" ] && { echo "ℹ️ Argument 'UID' set to default value '1000'." >&2; UID="1000"; }
-[ -z "${USERNAME-}" ] && { echo "ℹ️ Argument 'USERNAME' set to default value 'vscode'." >&2; USERNAME="vscode"; }
-exit_if_not_root
-GROUP_LINE=$(getent group "$GID" || true)
-GROUP_NAME=$(echo "$GROUP_LINE" | cut -d: -f1)
-if [ -n "$GROUP_NAME" ]; then
-    echo "🔍 Found group '$GROUP_NAME' with GID '$GID'."
-    USERS=$(awk -F: -v gid="$GID" '$4 == gid {print $1}' /etc/passwd)
-    for user in $USERS; do
-        echo "🧑 Deleting user '$user' from group."
-        userdel -r "$user" 2>/dev/null || echo "⚠️ Failed to delete user '$user'."
+    echo "ℹ️ Script called with arguments: $*" >&2
+    DEBUG=""
+    EXTRA_GROUPS=""
+    GROUP_ID=""
+    GROUP_NAME=""
+    HOME_DIR=""
+    LOGFILE=""
+    REPLACE_EXISTING=""
+    SUDO_ACCESS=""
+    SUDOERS_DIR=""
+    USER_ID=""
+    USER_SHELL=""
+    USERNAME=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --debug)            shift; DEBUG=true ;;
+            --extra_groups)     shift; EXTRA_GROUPS="$1"; shift ;;
+            --group_id)         shift; GROUP_ID="$1"; shift ;;
+            --group_name)       shift; GROUP_NAME="$1"; shift ;;
+            --home_dir)         shift; HOME_DIR="$1"; shift ;;
+            --logfile)          shift; LOGFILE="$1"; shift ;;
+            --replace_existing) shift; REPLACE_EXISTING="$1"; shift ;;
+            --sudo_access)      shift; SUDO_ACCESS="$1"; shift ;;
+            --sudoers_dir)      shift; SUDOERS_DIR="$1"; shift ;;
+            --user_id)          shift; USER_ID="$1"; shift ;;
+            --user_shell)       shift; USER_SHELL="$1"; shift ;;
+            --username)         shift; USERNAME="$1"; shift ;;
+            --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1 ;;
+            *)   echo "⛔ Unexpected argument: '${1}'" >&2; exit 1 ;;
+        esac
     done
-    if getent group "$GROUP_NAME" >/dev/null; then
-        echo "🧺 Deleting group '$GROUP_NAME'."
-        groupdel "$GROUP_NAME" 2>/dev/null || echo "⚠️  Failed to delete group '$GROUP_NAME'."
+else
+    echo "ℹ️ Script called with no arguments — reading environment variables." >&2
+fi
+
+# ---------------------------------------------------------------------------
+# Apply defaults
+# ---------------------------------------------------------------------------
+DEBUG="${DEBUG:-false}"
+EXTRA_GROUPS="${EXTRA_GROUPS:-}"
+GROUP_ID="${GROUP_ID:-1000}"
+GROUP_NAME="${GROUP_NAME:-}"
+HOME_DIR="${HOME_DIR:-}"
+LOGFILE="${LOGFILE:-}"
+REPLACE_EXISTING="${REPLACE_EXISTING:-true}"
+SUDO_ACCESS="${SUDO_ACCESS:-true}"
+SUDOERS_DIR="${SUDOERS_DIR:-/etc/sudoers.d}"
+USER_ID="${USER_ID:-1000}"
+USER_SHELL="${USER_SHELL:-/bin/bash}"
+USERNAME="${USERNAME:-vscode}"
+
+# Values derived from USERNAME
+[ -z "$GROUP_NAME" ] && GROUP_NAME="$USERNAME"
+[ -z "$HOME_DIR"   ] && HOME_DIR="/home/${USERNAME}"
+
+[[ "$DEBUG" == "true" ]] && set -x
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+exit_if_not_root
+
+if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
+    echo "⛔ user_id must be a non-negative integer, got: '${USER_ID}'" >&2
+    exit 1
+fi
+
+if [[ ! "$GROUP_ID" =~ ^[0-9]+$ ]]; then
+    echo "⛔ group_id must be a non-negative integer, got: '${GROUP_ID}'" >&2
+    exit 1
+fi
+
+if [ ! -x "$USER_SHELL" ]; then
+    echo "⛔ Shell '${USER_SHELL}' does not exist or is not executable on this image." >&2
+    exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Resolve conflicts for the primary group
+# ---------------------------------------------------------------------------
+_group_already_ok=false
+_group_by_gid=$(getent group | awk -F: -v gid="$GROUP_ID" '$3 == gid {print $1}' || true)
+_gid_of_name=$(getent group "$GROUP_NAME" 2>/dev/null | cut -d: -f3 || true)
+
+if [ -n "$_gid_of_name" ] && [ "$_gid_of_name" = "$GROUP_ID" ]; then
+    # Group already correctly configured
+    echo "ℹ️ Group '${GROUP_NAME}' (GID ${GROUP_ID}) already exists."
+    _group_already_ok=true
+elif [ -n "$_gid_of_name" ] && [ "$_gid_of_name" != "$GROUP_ID" ]; then
+    # Group name exists but with the wrong GID
+    if [ "$REPLACE_EXISTING" = "true" ]; then
+        echo "🔍 Group '${GROUP_NAME}' has GID ${_gid_of_name} (want ${GROUP_ID}) — removing."
+        groupdel "$GROUP_NAME" 2>/dev/null || echo "  ⚠️ Failed to delete group '${GROUP_NAME}'." >&2
     else
-        echo "ℹ️  Group '$GROUP_NAME' deleted."
+        echo "⛔ Group '${GROUP_NAME}' exists with GID ${_gid_of_name} (want ${GROUP_ID}). Set replace_existing=true to override." >&2
+        exit 1
     fi
-else
-    echo "ℹ️ No group found with GID '$GID'."
+elif [ -n "$_group_by_gid" ] && [ "$_group_by_gid" != "$GROUP_NAME" ]; then
+    # GID is occupied by a different group
+    if [ "$REPLACE_EXISTING" = "true" ]; then
+        echo "🔍 GID ${GROUP_ID} is in use by group '${_group_by_gid}' — removing members and group."
+        while IFS= read -r _u; do
+            [ -z "$_u" ] && continue
+            echo "  🧑 Removing user '${_u}' (primary group conflict)."
+            userdel "$_u" 2>/dev/null || echo "  ⚠️ Failed to remove user '${_u}'." >&2
+        done < <(awk -F: -v gid="$GROUP_ID" '$4 == gid {print $1}' /etc/passwd)
+        groupdel "$_group_by_gid" 2>/dev/null || echo "  ⚠️ Failed to delete group '${_group_by_gid}'." >&2
+    else
+        echo "⛔ GID ${GROUP_ID} is already used by group '${_group_by_gid}'. Set replace_existing=true to override." >&2
+        exit 1
+    fi
 fi
-USER_LINE=$(awk -F: -v uid="$UID" '$3 == uid {print $0}' /etc/passwd)
-USER_NAME=$(echo "$USER_LINE" | cut -d: -f1)
-if [ -n "$USER_NAME" ]; then
-    echo "🔍 Found user '$USER_NAME' with UID '$UID'."
-    userdel -r "$USER_NAME" 2>/dev/null || echo "⚠️ Failed to delete user '$USER_NAME'."
-else
-    echo "ℹ️  No additional user found with UID '$UID' to delete."
+
+# ---------------------------------------------------------------------------
+# Resolve conflicts for the user account
+# ---------------------------------------------------------------------------
+_user_already_ok=false
+_user_by_uid=$(awk -F: -v uid="$USER_ID" '$3 == uid {print $1}' /etc/passwd || true)
+_uid_of_name=$(id -u "$USERNAME" 2>/dev/null || true)
+
+if [ -n "$_uid_of_name" ] && [ "$_uid_of_name" = "$USER_ID" ]; then
+    # User already correctly configured
+    echo "ℹ️ User '${USERNAME}' (UID ${USER_ID}) already exists."
+    _user_already_ok=true
+elif [ -n "$_uid_of_name" ] && [ "$_uid_of_name" != "$USER_ID" ]; then
+    # Username exists but has the wrong UID
+    if [ "$REPLACE_EXISTING" = "true" ]; then
+        echo "🔍 User '${USERNAME}' has UID ${_uid_of_name} (want ${USER_ID}) — removing."
+        userdel "$USERNAME" 2>/dev/null || echo "  ⚠️ Failed to remove user '${USERNAME}'." >&2
+    else
+        echo "⛔ User '${USERNAME}' exists with UID ${_uid_of_name} (want ${USER_ID}). Set replace_existing=true to override." >&2
+        exit 1
+    fi
+elif [ -n "$_user_by_uid" ] && [ "$_user_by_uid" != "$USERNAME" ]; then
+    # UID is occupied by a different user
+    if [ "$REPLACE_EXISTING" = "true" ]; then
+        echo "🔍 UID ${USER_ID} is in use by '${_user_by_uid}' — removing."
+        userdel "$_user_by_uid" 2>/dev/null || echo "  ⚠️ Failed to remove user '${_user_by_uid}'." >&2
+    else
+        echo "⛔ UID ${USER_ID} is already used by user '${_user_by_uid}'. Set replace_existing=true to override." >&2
+        exit 1
+    fi
 fi
-groupadd --gid $GID $USERNAME;
-useradd \
-    --create-home \
-    --home-dir "$HOME_DIR" \
-    --gid $GID \
-    --shell /bin/bash \
-    --uid $UID \
-    $USERNAME;
-mkdir -p "$SUDOERS_DIR";
-echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" | tee "$SUDOERS_DIR/$USERNAME" > /dev/null;
-chmod 0440 "$SUDOERS_DIR/$USERNAME";
-echo "↩️ Script exit: User Setup Devcontainer Feature Installer" >&2
+
+# ---------------------------------------------------------------------------
+# Create primary group
+# ---------------------------------------------------------------------------
+if [ "$_group_already_ok" != "true" ]; then
+    echo "➕ Creating group '${GROUP_NAME}' (GID ${GROUP_ID})."
+    groupadd --gid "$GROUP_ID" "$GROUP_NAME"
+fi
+
+# ---------------------------------------------------------------------------
+# Create user
+# ---------------------------------------------------------------------------
+if [ "$_user_already_ok" != "true" ]; then
+    echo "➕ Creating user '${USERNAME}' (UID=${USER_ID} GID=${GROUP_ID} home=${HOME_DIR} shell=${USER_SHELL})."
+    useradd \
+        --no-create-home \
+        --home-dir "$HOME_DIR" \
+        --gid      "$GROUP_ID" \
+        --shell    "$USER_SHELL" \
+        --uid      "$USER_ID" \
+        "$USERNAME"
+fi
+
+# Ensure home directory exists with correct ownership and skel contents
+if [ ! -d "$HOME_DIR" ]; then
+    mkdir -p "$HOME_DIR"
+    cp -rn /etc/skel/. "$HOME_DIR/" 2>/dev/null || true
+    chown -R "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
+    echo "  🏠 Created home directory '${HOME_DIR}'."
+else
+    chown "${USERNAME}:${GROUP_NAME}" "$HOME_DIR"
+    echo "  ℹ️ Home directory '${HOME_DIR}' already exists — ownership set."
+fi
+
+# ---------------------------------------------------------------------------
+# Sudo access
+# ---------------------------------------------------------------------------
+if [ "$SUDO_ACCESS" = "true" ]; then
+    if ! command -v sudo > /dev/null 2>&1; then
+        echo "📦 sudo not found — installing."
+        if command -v apt-get > /dev/null 2>&1; then
+            apt-get update -y && apt-get install -y --no-install-recommends sudo
+        elif command -v apk > /dev/null 2>&1; then
+            apk add --no-cache sudo
+        elif command -v dnf > /dev/null 2>&1; then
+            dnf install -y sudo
+        elif command -v microdnf > /dev/null 2>&1; then
+            microdnf install -y sudo
+        elif command -v yum > /dev/null 2>&1; then
+            yum install -y sudo
+        elif command -v zypper > /dev/null 2>&1; then
+            zypper --non-interactive install sudo
+        elif command -v pacman > /dev/null 2>&1; then
+            pacman -S --noconfirm --needed sudo
+        else
+            echo "⛔ No supported package manager found to install sudo." >&2
+            exit 1
+        fi
+    fi
+    mkdir -p "$SUDOERS_DIR"
+    echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
+    chmod 0440 "${SUDOERS_DIR}/${USERNAME}"
+    if command -v visudo > /dev/null 2>&1; then
+        visudo -c -f "${SUDOERS_DIR}/${USERNAME}" || {
+            echo "⛔ sudoers file validation failed." >&2
+            rm -f "${SUDOERS_DIR}/${USERNAME}"
+            exit 1
+        }
+    fi
+    echo "  ✅ Granted passwordless sudo to '${USERNAME}'."
+fi
+
+# ---------------------------------------------------------------------------
+# Supplementary groups
+# ---------------------------------------------------------------------------
+if [ -n "$EXTRA_GROUPS" ]; then
+    IFS=',' read -ra _extra_groups <<< "$EXTRA_GROUPS"
+    for _grp in "${_extra_groups[@]}"; do
+        _grp="${_grp// /}"  # trim spaces
+        [ -z "$_grp" ] && continue
+        if ! getent group "$_grp" > /dev/null 2>&1; then
+            echo "  ⚠️ Supplementary group '${_grp}' does not exist — skipping." >&2
+            continue
+        fi
+        usermod -aG "$_grp" "$USERNAME"
+        echo "  ✅ Added '${USERNAME}' to group '${_grp}'."
+    done
+fi
+
+echo "✅ User '${USERNAME}' (UID=${USER_ID}, GID=${GROUP_ID}) configured successfully."
