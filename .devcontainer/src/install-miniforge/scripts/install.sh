@@ -91,6 +91,7 @@ add_activation_to_rcfile() {
       lines+=("conda activate $ACTIVE_ENV")
   fi
   for path in "${ACTIVATES[@]}"; do
+      [[ -z "$path" ]] && continue
       echo "▶️ Sourcing activation script to '$path'"
       [[ -f "$path" ]] || touch "$path"
       for line in "${lines[@]}"; do
@@ -369,8 +370,10 @@ if [ "$#" -gt 0 ]; then
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
   if [ "${ACTIVATES+defined}" ]; then
-    echo "ℹ️ Parse 'activates' into array: '${ACTIVATES}'" >&2
-    IFS=" :: " read -r -a _tmp_array <<< "${ACTIVATES}"
+    if [ -n "${ACTIVATES-}" ]; then
+      echo "ℹ️ Parse 'activates' into array: '${ACTIVATES}'" >&2
+    fi
+    mapfile -t _tmp_array < <(printf '%s' "${ACTIVATES-}" | sed 's/ :: /\n/g')
     ACTIVATES=("${_tmp_array[@]}")
     for _item in "${ACTIVATES[@]}"; do
       echo "📩 Read argument 'activates': '${_item}'" >&2

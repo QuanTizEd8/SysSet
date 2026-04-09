@@ -298,8 +298,10 @@ if [ "$#" -gt 0 ]; then
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
   if [ "${CHANNELS+defined}" ]; then
-    echo "ℹ️ Parse 'channels' into array: '${CHANNELS}'" >&2
-    IFS=" :: " read -r -a _tmp_array <<< "${CHANNELS}"
+    if [ -n "${CHANNELS-}" ]; then
+      echo "ℹ️ Parse 'channels' into array: '${CHANNELS}'" >&2
+    fi
+    mapfile -t _tmp_array < <(printf '%s' "${CHANNELS-}" | sed 's/ :: /\n/g')
     CHANNELS=("${_tmp_array[@]}")
     for _item in "${CHANNELS[@]}"; do
       echo "📩 Read argument 'channels': '${_item}'" >&2
@@ -310,8 +312,10 @@ else
   [ "${CONDA_DIR+defined}" ] && echo "📩 Read argument 'conda_dir': '${CONDA_DIR}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   if [ "${ENV_DIRS+defined}" ]; then
-    echo "ℹ️ Parse 'env_dirs' into array: '${ENV_DIRS}'" >&2
-    IFS=" :: " read -r -a _tmp_array <<< "${ENV_DIRS}"
+    if [ -n "${ENV_DIRS-}" ]; then
+      echo "ℹ️ Parse 'env_dirs' into array: '${ENV_DIRS}'" >&2
+    fi
+    mapfile -t _tmp_array < <(printf '%s' "${ENV_DIRS-}" | sed 's/ :: /\n/g')
     ENV_DIRS=("${_tmp_array[@]}")
     for _item in "${ENV_DIRS[@]}"; do
       echo "📩 Read argument 'env_dirs': '${_item}'" >&2
@@ -320,8 +324,10 @@ else
     unset _tmp_array
   fi
   if [ "${ENV_FILES+defined}" ]; then
-    echo "ℹ️ Parse 'env_files' into array: '${ENV_FILES}'" >&2
-    IFS=" :: " read -r -a _tmp_array <<< "${ENV_FILES}"
+    if [ -n "${ENV_FILES-}" ]; then
+      echo "ℹ️ Parse 'env_files' into array: '${ENV_FILES}'" >&2
+    fi
+    mapfile -t _tmp_array < <(printf '%s' "${ENV_FILES-}" | sed 's/ :: /\n/g')
     ENV_FILES=("${_tmp_array[@]}")
     for _item in "${ENV_FILES[@]}"; do
       echo "📩 Read argument 'env_files': '${_item}'" >&2
@@ -335,8 +341,10 @@ else
   [ "${PACKAGES+defined}" ] && echo "📩 Read argument 'packages': '${PACKAGES}'" >&2
   [ "${PIP_ENV+defined}" ] && echo "📩 Read argument 'pip_env': '${PIP_ENV}'" >&2
   if [ "${PIP_REQUIREMENTS_FILES+defined}" ]; then
-    echo "ℹ️ Parse 'pip_requirements_files' into array: '${PIP_REQUIREMENTS_FILES}'" >&2
-    IFS=" :: " read -r -a _tmp_array <<< "${PIP_REQUIREMENTS_FILES}"
+    if [ -n "${PIP_REQUIREMENTS_FILES-}" ]; then
+      echo "ℹ️ Parse 'pip_requirements_files' into array: '${PIP_REQUIREMENTS_FILES}'" >&2
+    fi
+    mapfile -t _tmp_array < <(printf '%s' "${PIP_REQUIREMENTS_FILES-}" | sed 's/ :: /\n/g')
     PIP_REQUIREMENTS_FILES=("${_tmp_array[@]}")
     for _item in "${PIP_REQUIREMENTS_FILES[@]}"; do
       echo "📩 Read argument 'pip_requirements_files': '${_item}'" >&2
