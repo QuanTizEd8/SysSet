@@ -39,9 +39,9 @@ Rootless Podman inside a container needs to:
 The combination of requirements adds up to near-privileged access anyway.
 Using targeted overrides offers no meaningful security improvement in practice
 (since anyone running rootless Podman inside a devcontainer already trusts that
-container), while adding maintenance surface and fragility across container
-runtimes. The official `docker-in-docker` feature uses the same `privileged:
-true` approach for the same reasons.
+container), while adding maintenance surface and fragility across container runtimes.
+The official [`docker-in-docker`](https://github.com/devcontainers/features/blob/3df3aed1e7bfcdd91e97fa2d5d7cbefff1dde4cf/src/docker-in-docker/devcontainer-feature.json#L66)
+feature uses the same `privileged: true` approach for the same reasons.
 
 ### Named volume for storage
 
@@ -232,6 +232,7 @@ volume unconditionally. All configuration is now done at image build time in
 
 - [Podman rootless tutorial](https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md)
 - [Podman shortcomings of rootless](https://github.com/containers/podman/blob/main/rootless.md)
+- [Podman troubleshooting guide](https://github.com/containers/podman/blob/main/troubleshooting.md)
 - [fuse-overlayfs](https://github.com/containers/fuse-overlayfs)
 - [containers/storage.conf docs](https://github.com/containers/storage/blob/main/docs/containers-storage.conf.5.md)
 - [devcontainers feature spec](https://containers.dev/implementors/features/)
