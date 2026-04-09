@@ -15,7 +15,7 @@ check "vscode zshtheme file written" test -f "${_ZDOTDIR}/zshtheme"
 check ".zshenv sets ZDOTDIR" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
 check "vscode HOME owned by vscode" bash -c '[ "$(stat -c %U /home/vscode)" = "vscode" ]'
 
-# Root should NOT be configured (add_root_user_config defaults to false)
+# Root should NOT be configured (containerUser resolves to vscode, not root)
 check "root ZDOTDIR/.zshrc NOT configured" bash -c '! test -f /root/.config/zsh/.zshrc'
 
 reportResults

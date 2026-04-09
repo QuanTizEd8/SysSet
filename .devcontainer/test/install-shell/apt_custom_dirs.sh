@@ -21,7 +21,7 @@ check "oh-my-bash main script at custom path" test -f "${_OMB}/oh-my-bash.sh"
 check "omz not at default path" bash -c '! test -d /usr/local/share/oh-my-zsh'
 check "omb not at default path" bash -c '! test -d /usr/local/share/oh-my-bash'
 
-# Root user configured (add_root_user_config=true)
+# Root user configured (via add_container_user_config, _CONTAINER_USER=root)
 check "root .zshenv exists" test -f "${_HOME}/.zshenv"
 check "root ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
 check "root .bashrc exists" test -f "${_HOME}/.bashrc"

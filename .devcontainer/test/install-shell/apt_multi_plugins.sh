@@ -14,8 +14,7 @@ _USER_CUSTOM="${_HOME}/.config/zsh/custom"
 check "zsh-autosuggestions cloned in system custom" test -d "${_SYS_CUSTOM}/plugins/zsh-autosuggestions/.git"
 check "zsh-syntax-highlighting cloned in system custom" test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
 
-# Plugins symlinked into per-user custom dir (add_root_user_config is not set,
-# so the current user is configured — check the current user's home instead)
+# Plugins symlinked into per-user custom dir; check the remoteUser (vscode)'s home
 _CUR_HOME="$(eval echo ~$(id -un))"
 _CUR_CUSTOM="${_CUR_HOME}/.config/zsh/custom"
 check "per-user zsh-autosuggestions symlink exists" test -L "${_CUR_CUSTOM}/plugins/zsh-autosuggestions"
