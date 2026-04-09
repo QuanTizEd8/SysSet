@@ -1,5 +1,6 @@
-ca-certificates
 podman
+ca-certificates
+
 # rootless networking — passt is the new default on Fedora; slirp4netns still required on Debian/Ubuntu
 passt
 slirp4netns

@@ -1,0 +1,6 @@
+{
+    "name": "install-podman",
+    "image": "ubuntu:latest",
+    "containerUser": "ubuntu",
+    "features": {"../src/install-podman": {}}
+}

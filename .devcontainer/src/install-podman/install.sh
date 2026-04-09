@@ -22,9 +22,9 @@ _RESOLVED_USERS=""
 
 add_user() {
     _name="$1"
-    [ -z "$_name" ] && return
+    [ -z "$_name" ] && return 0
     case " ${_RESOLVED_USERS} " in
-        *" ${_name} "*) return ;;  # already in list
+        *" ${_name} "*) return 0 ;;  # already in list
     esac
     _RESOLVED_USERS="${_RESOLVED_USERS} ${_name}"
 }
@@ -99,6 +99,18 @@ fi
 # and fuse-overlayfs's nested-userns noexec issue.  Written to each user's
 # config dir because rootless Podman ignores the system-level graphRoot.
 # ---------------------------------------------------------------------------
+# Write system-level containers.conf.
+# These settings are only required when running Podman as root. Rootless
+# Podman already defaults to cgroupfs and file, but root defaults to the
+# systemd cgroup manager and journald — neither of which is available inside
+# a Docker container.
+# - cgroup_manager=cgroupfs: no systemd inside the container, so the default
+#   systemd manager would fail with cgroup.subtree_control errors at runtime.
+# - events_logger=file: journald is not available inside the container.
+mkdir -p /etc/containers
+printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' \
+    > /etc/containers/containers.conf
+
 GRAPH_ROOT="/var/lib/containers/storage"
 mkdir -p "${GRAPH_ROOT}"
 

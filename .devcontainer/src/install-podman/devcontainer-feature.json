@@ -1,6 +1,6 @@
 {
     "id": "install-podman",
-    "version": "2.0.0",
+    "version": "0.1.0",
     "name": "Rootless Podman",
     "description": "Installs Podman for rootless container execution inside a dev container. Uses native overlay storage on the named volume for fast copy-on-write container creation.",
     "documentationURL": "https://github.com/containers/podman",
