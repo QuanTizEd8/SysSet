@@ -179,7 +179,7 @@ All four sources are processed in sequence within a single feature run.
 |---|---|---|---|
 | `nerd_fonts` | string | `"Meslo,JetBrainsMono"` | Comma-separated [Nerd Fonts](https://www.nerdfonts.com/) archive names to install (e.g. `Meslo,FiraCode,Hack`). Set to empty string to skip Nerd Font downloads. |
 | `font_urls` | string | `""` | Comma-separated direct URLs to download. Individual font files (`.ttf`, `.otf`, `.woff`, `.woff2`) land flat in `font_dir`; archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) extract into `font_dir/<archive-name>/` with non-font files removed. |
-| `gh_release_fonts` | string | `""` | Comma-separated GitHub slugs in `owner/repo` or `owner/repo@tag` form. All font and archive assets from the release are installed into `font_dir/<repo>/`. Without a tag, the latest release is used. |
+| `gh_release_fonts` | string | `""` | Comma-separated GitHub slugs in `owner/repo` or `owner/repo@tag` form (e.g., [JetBrains/JetBrainsMono@v2.304](https://github.com/JetBrains/JetBrainsMono/releases/tag/v2.304)). All font and archive assets from the release are installed into `font_dir/<repo>/`. Without a tag, the latest release is used. |
 | `font_dir` | string | `""` | Font installation directory. Leave empty to auto-detect (see [Font directory auto-detection](#font-directory-auto-detection)). |
 | `p10k_fonts` | boolean | `false` | Install the four [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts required by Powerlevel10k into `font_dir/MesloLGS-NF/`. |
 | `debug` | boolean | `false` | Enable `set -x` trace output in all scripts. |
