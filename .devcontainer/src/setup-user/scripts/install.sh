@@ -229,7 +229,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-    install-os-pkg --manifest "${_SELF_DIR}/packages-sudo.txt" --check_installed
+    install-os-pkg --manifest "${_SELF_DIR}/../dependencies/sudo.txt" --check_installed
     mkdir -p "$SUDOERS_DIR"
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
     chmod 0440 "${SUDOERS_DIR}/${USERNAME}"
