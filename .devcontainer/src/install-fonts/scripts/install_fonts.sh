@@ -245,7 +245,7 @@ install_archive_contents() {
   fi
 
   # Batch fc-query for all TTF/OTF files: build file→tab_sep_psnames map.
-  # fc-query outputs one line per face; %{filename} repeats for multi-face files.
+  # fc-query outputs one line per face; %{file} repeats for multi-face files.
   declare -A _batch_psnames=()
   local _queryfiles=()
   for _f in "${_font_files[@]}"; do
@@ -259,7 +259,7 @@ install_archive_contents() {
       else
         _batch_psnames["$_fname"]="$_pname"
       fi
-    done < <(fc-query --format='%{filename}\t%{postscriptname}\n' \
+    done < <(fc-query --format='%{file}\t%{postscriptname}\n' \
                "${_queryfiles[@]}" 2>/dev/null || true)
   fi
 
@@ -348,9 +348,12 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
 
     echo "ℹ️  Querying release assets for '${_slug}'..." >&2
     _API_RESPONSE="$(mktemp)"
+    _GH_AUTH_ARGS=()
+    [[ -n "${GITHUB_TOKEN:-}" ]] && _GH_AUTH_ARGS=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
     if ! fetch_with_retry 3 curl -fsSL \
         -H "Accept: application/vnd.github+json" \
         -H "X-GitHub-Api-Version: 2022-11-28" \
+        "${_GH_AUTH_ARGS[@]}" \
         "$_API_URL" -o "$_API_RESPONSE"; then
       echo "⚠️  Could not query GitHub release for '${_slug}' — skipping." >&2
       rm -f "$_API_RESPONSE"; continue

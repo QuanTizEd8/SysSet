@@ -48,7 +48,10 @@
         }
     },
     "apt_gh_release_fonts": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
+        },
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
@@ -57,7 +60,10 @@
         }
     },
     "apt_gh_release_fonts_tag": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
+        },
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
