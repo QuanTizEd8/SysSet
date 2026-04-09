@@ -33,16 +33,6 @@
          "description": "Download the Miniforge installer.",
          "type": "boolean"
       },
-      "env_dirs": {
-         "default": "",
-         "description": "Paths to directories containing conda environment files to install.",
-         "type": "string"
-      },
-      "env_files": {
-         "default": "",
-         "description": "Paths to conda environment files to install.",
-         "type": "string"
-      },
       "group": {
          "default": "conda",
          "description": "Name of a user group to give access to conda.",
@@ -79,14 +69,9 @@
          "type": "string"
       },
       "miniforge_version": {
-         "default": "",
-         "description": "Version of the Miniforge variant to install.\nIf not specified, the latest version will be installed.\n",
+         "default": "latest",
+         "description": "Version of the Miniforge variant to install.\nDefaults to 'latest'.\n",
          "type": "string"
-      },
-      "no_cache_clean": {
-         "default": false,
-         "description": "Skip cleaning the conda cache.\nThis skips 'conda clean' commands after installation.\nIt is useful for local installations.\n",
-         "type": "boolean"
       },
       "no_clean": {
          "default": false,
@@ -108,11 +93,29 @@
          "description": "Update the base conda environment.\nThis is done by running `conda update --all`.\nThis is not recommended for production environments.\n",
          "type": "boolean"
       },
+      "update_path": {
+         "default": true,
+         "description": "Write /etc/profile.d/conda_path.sh so conda is available in subsequent shell sessions and Dockerfile RUN layers.",
+         "type": "boolean"
+      },
       "user": {
          "default": "",
          "description": "Name of a user to add to the conda group.\nThis user must already exist.\nIf not specified, it defaults to the real user running this script.\n",
          "type": "string"
+      },
+      "require_root": {
+         "default": "auto",
+         "description": "Whether root is required to run this script.\n'auto' infers from the conda_dir prefix: system paths require root, user paths do not.\n'true' always enforces root. 'false' always skips the check.\n",
+         "type": "string"
       }
    },
-   "version": "0.1.0"
+   "containerEnv": {
+      "CONDA_DIR": "/opt/conda"
+   },
+   "dependsOn": {
+      "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+         "install_self": true
+      }
+   },
+   "version": "0.2.0"
 }

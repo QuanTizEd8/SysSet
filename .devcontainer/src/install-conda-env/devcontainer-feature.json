@@ -1,118 +1,88 @@
 {
-   "description": "Install Miniforge in the development container.",
-   "id": "miniforge",
-   "name": "Miniforge Installation",
+   "id": "conda-env",
+   "name": "Conda Environment",
+   "version": "0.1.0",
+   "description": "Create or update conda environments in the development container.",
    "options": {
-      "activates": {
-         "default": "",
-         "description": "Paths to shell configuration files to append conda initialization to.",
-         "type": "string"
-      },
-      "active_env": {
-         "default": "base",
-         "description": "Name of a conda environment to activate.\nThis adds `conda activate <env>` to the shell configuration files\nspecified in the `activates` parameter,\nand thus only has an effect if the `activates` parameter is set.\n",
-         "type": "string"
-      },
-      "conda_activation_script_path": {
-         "default": "etc/profile.d/conda.sh",
-         "description": "Relative path to the conda activation script.\nThe path is relative to the conda installation directory.\nThis is a constant and does not need to be changed\nunless Miniforge changes this path in the future.\n",
-         "type": "string"
-      },
       "conda_dir": {
-         "default": "/opt/conda",
-         "description": "Path to the conda installation directory.\nThis is the directory where conda will be installed.\nIt corresponds to the `CONDA_DIR` environment variable.\n",
+         "default": "",
+         "description": "Path to the conda installation directory.\nLeave empty to auto-detect via conda in PATH.\n",
          "type": "string"
+      },
+      "env_files": {
+         "default": "",
+         "description": "Paths to conda environment YAML files to create or update.\nSeparate multiple paths with ' :: '.\n",
+         "type": "string"
+      },
+      "env_dirs": {
+         "default": "",
+         "description": "Paths to directories to scan for conda environment YAML files.\nSeparate multiple paths with ' :: '.\n",
+         "type": "string"
+      },
+      "env_name": {
+         "default": "",
+         "description": "Name of a conda environment to create or update from inline package options.\nRequires the 'packages' option to be set.\n",
+         "type": "string"
+      },
+      "packages": {
+         "default": "",
+         "description": "Space-separated list of conda packages to install into the environment\nspecified by 'env_name'.\n",
+         "type": "string"
+      },
+      "python_version": {
+         "default": "",
+         "description": "Python version to use when creating the inline environment specified by 'env_name'.\nExample: '3.11'. Has no effect if 'env_name' is not set.\n",
+         "type": "string"
+      },
+      "channels": {
+         "default": "",
+         "description": "Conda channels to add to the configuration.\nSeparate multiple channels with ' :: '.\n",
+         "type": "string"
+      },
+      "strict_channel_priority": {
+         "default": false,
+         "description": "Set channel_priority to strict in the conda configuration.",
+         "type": "boolean"
+      },
+      "pip_requirements_files": {
+         "default": "",
+         "description": "Paths to pip requirements files to install.\nSeparate multiple paths with ' :: '.\nBy default, packages are installed into the same environment as each env file.\nUse 'pip_env' to override the target environment.\n",
+         "type": "string"
+      },
+      "pip_env": {
+         "default": "",
+         "description": "Name of the conda environment to pip-install requirements into.\nDefaults to installing into each environment as it is created or updated.\n",
+         "type": "string"
+      },
+      "post_env_script": {
+         "default": "",
+         "description": "Path to a script to run after each environment is created or updated.\nThe environment name is passed as the first argument.\n",
+         "type": "string"
+      },
+      "solver": {
+         "default": "auto",
+         "description": "Conda solver to use. 'auto' prefers mamba if available, falls back to conda.\nUse 'mamba' or 'conda' to force a specific solver.\n",
+         "type": "string"
+      },
+      "no_cache_clean": {
+         "default": false,
+         "description": "Skip running 'conda clean' after all environments are set up.",
+         "type": "boolean"
       },
       "debug": {
          "default": false,
          "description": "Enable debug output.",
          "type": "boolean"
       },
-      "download": {
-         "default": false,
-         "description": "Download the Miniforge installer.",
-         "type": "boolean"
-      },
-      "env_dirs": {
-         "default": "",
-         "description": "Paths to directories containing conda environment files to install.",
-         "type": "string"
-      },
-      "env_files": {
-         "default": "",
-         "description": "Paths to conda environment files to install.",
-         "type": "string"
-      },
-      "group": {
-         "default": "conda",
-         "description": "Name of a user group to give access to conda.",
-         "type": "string"
-      },
-      "install": {
-         "default": false,
-         "description": "Install conda and mamba using the Miniforge installer.\nRaises an error if conda is already installed.\n",
-         "type": "boolean"
-      },
-      "installer_dir": {
-         "default": "/tmp/miniforge-installer",
-         "description": "Path to a directory to download the installer to.\nThis is the directory where the Miniforge installer will be downloaded.\n",
-         "type": "string"
-      },
-      "interactive": {
-         "default": false,
-         "description": "Run the installer in interactive mode.\nThis allows the installer to prompt the user.\nThe default is to run the installer in non-interactive mode.\n",
-         "type": "boolean"
-      },
       "logfile": {
          "default": "",
          "description": "Log all output (stdout + stderr) to this file in addition to console.",
          "type": "string"
-      },
-      "mamba_activation_script_path": {
-         "default": "etc/profile.d/mamba.sh",
-         "description": "Relative path to the mamba activation script.\nThe path is relative to the conda installation directory.\nThis is a constant and does not need to be changed\nunless Miniforge changes this path in the future.\n",
-         "type": "string"
-      },
-      "miniforge_name": {
-         "default": "Miniforge3",
-         "description": "Name of the Miniforge variant to install.",
-         "type": "string"
-      },
-      "miniforge_version": {
-         "default": "",
-         "description": "Version of the Miniforge variant to install.\nIf not specified, the latest version will be installed.\n",
-         "type": "string"
-      },
-      "no_cache_clean": {
-         "default": false,
-         "description": "Skip cleaning the conda cache.\nThis skips 'conda clean' commands after installation.\nIt is useful for local installations.\n",
-         "type": "boolean"
-      },
-      "no_clean": {
-         "default": false,
-         "description": "Skip removing installer artifacts after installation.",
-         "type": "boolean"
-      },
-      "reinstall": {
-         "default": false,
-         "description": "Reinstall conda and mamba using the Miniforge installer.\nSame as 'install', but uninstall first if conda is already installed.\n",
-         "type": "boolean"
-      },
-      "set_permission": {
-         "default": false,
-         "description": "Set permissions for the conda installation directory.\nThis is done by adding the '--user' to the conda '--group'\nand setting the group ownership of the conda directory.\".\n",
-         "type": "boolean"
-      },
-      "update_base": {
-         "default": false,
-         "description": "Update the base conda environment.\nThis is done by running `conda update --all`.\nThis is not recommended for production environments.\n",
-         "type": "boolean"
-      },
-      "user": {
-         "default": "",
-         "description": "Name of a user to add to the conda group.\nThis user must already exist.\nIf not specified, it defaults to the real user running this script.\n",
-         "type": "string"
       }
    },
-   "version": "0.1.0"
+   "dependsOn": {
+      "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+         "install_self": true
+      }
+   }
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
 __usage__() {
   echo "Usage:" >&2
   echo "  --activates (array): " >&2
@@ -16,8 +17,6 @@ __usage__() {
   " >&2
   echo "  --debug (boolean): " >&2
   echo "  --download (boolean): " >&2
-  echo "  --env_dirs (array): " >&2
-  echo "  --env_files (array): " >&2
   echo "  --group (string): " >&2
   echo "  --install (boolean): Raises an error if conda is already installed.
   " >&2
@@ -34,9 +33,6 @@ __usage__() {
   echo "  --miniforge_name (string): " >&2
   echo "  --miniforge_version (string): If not specified, the latest version will be installed.
   " >&2
-  echo "  --no_cache_clean (boolean): This skips 'conda clean' commands after installation.
-  It is useful for local installations.
-  " >&2
   echo "  --no_clean (boolean): " >&2
   echo "  --reinstall (boolean): Same as 'install', but uninstall first if conda is already installed.
   " >&2
@@ -46,8 +42,14 @@ __usage__() {
   echo "  --update_base (boolean): This is done by running `conda update --all`.
   This is not recommended for production environments.
   " >&2
+  echo "  --update_path (boolean): Write /etc/profile.d/conda_path.sh so conda is
+  available in subsequent shell sessions and Dockerfile RUN layers.
+  " >&2
   echo "  --user (string): This user must already exist.
   If not specified, it defaults to the real user running this script.
+  " >&2
+  echo "  --require_root (string): Whether root is required ('auto', 'true', 'false').
+  'auto' infers from the conda_dir prefix.
   " >&2
   exit 0
 }
@@ -62,11 +64,9 @@ __cleanup__() {
           rmdir "$INSTALLER_DIR"
       }
   fi
-  find "${CONDA_DIR-}" -follow -type f -name '*.a' -delete 2>/dev/null || true
-  find "${CONDA_DIR-}" -follow -type f -name '*.pyc' -delete 2>/dev/null || true
-  if [[ "${NO_CACHE_CLEAN-}" == false ]] && [[ -f "${CONDA_EXEC-}" ]]; then
-      echo "🧹 Cleaning up conda cache."
-      "$CONDA_EXEC" clean --all --force-pkgs-dirs --yes
+  if [ -n "${CONDA_DIR-}" ] && [ -d "$CONDA_DIR" ]; then
+      find "$CONDA_DIR" -follow -type f -name '*.a' -delete 2>/dev/null || true
+      find "$CONDA_DIR" -follow -type f -name '*.pyc' -delete 2>/dev/null || true
   fi
   if [ -n "${LOGFILE-}" ]; then
     exec 1>&3 2>&4
@@ -105,35 +105,6 @@ add_activation_to_rcfile() {
   echo "↩️ Function exit: add_activation_to_rcfile" >&2
 }
 
-create_or_update_env() {
-  echo "↪️ Function entry: create_or_update_env" >&2
-  local env_file=""
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --env_file) shift; env_file="$1"; echo "📩 Read argument 'env_file': '${env_file}'" >&2; shift;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
-    esac
-  done
-  [ -z "${env_file-}" ] && { echo "⛔ Missing required argument 'env_file'." >&2; exit 1; }
-  local env_name
-  env_name=$(grep -E '^name:' "$env_file" | head -1 | awk '{print $2}')
-  local env_prefix
-  if [ "$env_name" = "base" ]; then
-      env_prefix="$CONDA_DIR"
-  else
-      env_prefix="$CONDA_DIR/envs/$env_name"
-  fi
-  if [ -n "$env_name" ] && [ -d "$env_prefix" ]; then
-      echo "📦 Updating existing conda environment '$env_name' from '$env_file'."
-      "$MAMBA_EXEC" env update --file "$env_file" --yes
-  else
-      echo "📦 Creating conda environment from '$env_file'."
-      "$MAMBA_EXEC" env create --file "$env_file" --yes
-  fi
-  echo "↩️ Function exit: create_or_update_env" >&2
-}
-
 download_miniforge() {
   echo "↪️ Function entry: download_miniforge" >&2
   local installer_url
@@ -146,21 +117,10 @@ download_miniforge() {
       checksum_url="$installer_url.sha256"
   fi
   mkdir -p "$INSTALLER_DIR"
-  if command -v wget >/dev/null 2>&1; then
-      echo "📥 Downloading installer using wget from $installer_url" >&2
-      wget --no-hsts --tries 3 --output-document "$INSTALLER" "$installer_url"
-      if [[ -n "$checksum_url" ]]; then
-          wget --no-hsts --tries 3 --output-document "$CHECKSUM" "$checksum_url"
-      fi
-  elif command -v curl >/dev/null 2>&1; then
-      echo "📥 Downloading installer using curl from $installer_url" >&2
-      curl --fail --location --retry 3 --output "$INSTALLER" "$installer_url"
-      if [[ -n "$checksum_url" ]]; then
-          curl --fail --location --retry 3 --output "$CHECKSUM" "$checksum_url"
-      fi
-  else
-      echo "⛔ Neither wget nor curl is available." >&2
-      exit 1
+  echo "📥 Downloading installer from $installer_url" >&2
+  curl --fail --location --retry 3 --output "$INSTALLER" "$installer_url"
+  if [[ -n "$checksum_url" ]]; then
+      curl --fail --location --retry 3 --output "$CHECKSUM" "$checksum_url"
   fi
   if [[ -n "$checksum_url" ]]; then
       verify_miniforge
@@ -175,6 +135,28 @@ exit_if_not_root() {
       exit 1
   fi
   echo "↩️ Function exit: exit_if_not_root" >&2
+}
+
+check_root_requirement() {
+  echo "↪️ Function entry: check_root_requirement" >&2
+  local _require
+  case "$REQUIRE_ROOT" in
+    true)  _require=true ;;
+    false) _require=false ;;
+    auto)
+      case "$CONDA_DIR" in
+        /opt/*|/usr/*|/var/*|/srv/*|/snap/*) _require=true ;;
+        *) _require=false ;;
+      esac
+      ;;
+    *) echo "⛔ Invalid value for 'require_root': '$REQUIRE_ROOT'. Use 'auto', 'true', or 'false'." >&2; exit 1 ;;
+  esac
+  if [[ "$_require" == true ]]; then
+      exit_if_not_root
+  else
+      echo "ℹ️ Root not required for conda_dir '$CONDA_DIR'. Skipping root check." >&2
+  fi
+  echo "↩️ Function exit: check_root_requirement" >&2
 }
 
 get_script_dir() {
@@ -201,6 +183,11 @@ install_miniforge() {
   "$CONDA_EXEC" env list
   echo "Displaying conda list:"
   "$CONDA_EXEC" list --name base
+  if [[ "$UPDATE_PATH" == true ]]; then
+      echo "ℹ️ Writing /etc/profile.d/conda_path.sh" >&2
+      printf 'export PATH="%s/bin:${PATH}"\n' "$CONDA_DIR" > /etc/profile.d/conda_path.sh
+      echo "✅ /etc/profile.d/conda_path.sh written." >&2
+  fi
   echo "↩️ Function exit: install_miniforge" >&2
 }
 
@@ -226,7 +213,7 @@ set_executable_paths() {
   [ -z "${verify-}" ] && { echo "ℹ️ Argument 'verify' set to default value 'false'." >&2; verify=false; }
   CONDA_EXEC="${CONDA_DIR}/bin/conda"
   MAMBA_EXEC="${CONDA_DIR}/bin/mamba"
-  if [ "${1:-}" != "--verify" ]; then
+  if [[ "$verify" == false ]]; then
       return
   fi
   if [[ ! -f "$CONDA_EXEC" ]]; then
@@ -283,24 +270,6 @@ set_permission() {
   echo "↩️ Function exit: set_permission" >&2
 }
 
-setup_environment() {
-  echo "↪️ Function entry: setup_environment" >&2
-  umask 0002
-  for env_file in "${ENV_FILES[@]}"; do
-      create_or_update_env --env_file "$env_file"
-  done
-  for env_dir in "${ENV_DIRS[@]}"; do
-      find "$env_dir" -type f \( -name "*.yml" -o -name "*.yaml" \) | while IFS= read -r env_file; do
-          create_or_update_env --env_file "$env_file"
-      done
-  done
-  if [[ "$NO_CACHE_CLEAN" == false ]]; then
-      echo "🧹 Cleaning up conda cache."
-      "$MAMBA_EXEC" clean --all -y
-  fi
-  echo "↩️ Function exit: setup_environment" >&2
-}
-
 uninstall_miniforge() {
   echo "↪️ Function entry: uninstall_miniforge" >&2
   echo "🗑 Uninstalling conda (Miniforge)."
@@ -338,11 +307,14 @@ verify_miniforge() {
   echo "↩️ Function exit: verify_miniforge" >&2
 }
 
+
 _LOGFILE_TMP="$(mktemp)"
 exec 3>&1 4>&2
 exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
 trap __cleanup__ EXIT
+
+
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $@" >&2
   ACTIVATES=()
@@ -351,8 +323,6 @@ if [ "$#" -gt 0 ]; then
   CONDA_DIR=""
   DEBUG=""
   DOWNLOAD=""
-  ENV_DIRS=()
-  ENV_FILES=()
   GROUP=""
   INSTALL=""
   INSTALLER_DIR=""
@@ -361,11 +331,12 @@ if [ "$#" -gt 0 ]; then
   MAMBA_ACTIVATION_SCRIPT_PATH=""
   MINIFORGE_NAME=""
   MINIFORGE_VERSION=""
-  NO_CACHE_CLEAN=""
   NO_CLEAN=""
   REINSTALL=""
+  REQUIRE_ROOT=""
   SET_PERMISSION=""
   UPDATE_BASE=""
+  UPDATE_PATH=""
   USER=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -375,8 +346,6 @@ if [ "$#" -gt 0 ]; then
       --conda_dir) shift; CONDA_DIR="$1"; echo "📩 Read argument 'conda_dir': '${CONDA_DIR}'" >&2; shift;;
       --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '${DEBUG}'" >&2;;
       --download) shift; DOWNLOAD=true; echo "📩 Read argument 'download': '${DOWNLOAD}'" >&2;;
-      --env_dirs) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do ENV_DIRS+=("$1"); echo "📩 Read argument 'env_dirs': '${1}'" >&2; shift; done;;
-      --env_files) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do ENV_FILES+=("$1"); echo "📩 Read argument 'env_files': '${1}'" >&2; shift; done;;
       --group) shift; GROUP="$1"; echo "📩 Read argument 'group': '${GROUP}'" >&2; shift;;
       --install) shift; INSTALL=true; echo "📩 Read argument 'install': '${INSTALL}'" >&2;;
       --installer_dir) shift; INSTALLER_DIR="$1"; echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2; shift;;
@@ -385,11 +354,12 @@ if [ "$#" -gt 0 ]; then
       --mamba_activation_script_path) shift; MAMBA_ACTIVATION_SCRIPT_PATH="$1"; echo "📩 Read argument 'mamba_activation_script_path': '${MAMBA_ACTIVATION_SCRIPT_PATH}'" >&2; shift;;
       --miniforge_name) shift; MINIFORGE_NAME="$1"; echo "📩 Read argument 'miniforge_name': '${MINIFORGE_NAME}'" >&2; shift;;
       --miniforge_version) shift; MINIFORGE_VERSION="$1"; echo "📩 Read argument 'miniforge_version': '${MINIFORGE_VERSION}'" >&2; shift;;
-      --no_cache_clean) shift; NO_CACHE_CLEAN=true; echo "📩 Read argument 'no_cache_clean': '${NO_CACHE_CLEAN}'" >&2;;
       --no_clean) shift; NO_CLEAN=true; echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2;;
       --reinstall) shift; REINSTALL=true; echo "📩 Read argument 'reinstall': '${REINSTALL}'" >&2;;
+      --require_root) shift; REQUIRE_ROOT="$1"; echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2; shift;;
       --set_permission) shift; SET_PERMISSION=true; echo "📩 Read argument 'set_permission': '${SET_PERMISSION}'" >&2;;
       --update_base) shift; UPDATE_BASE=true; echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2;;
+      --update_path) shift; UPDATE_PATH=true; echo "📩 Read argument 'update_path': '${UPDATE_PATH}'" >&2;;
       --user) shift; USER="$1"; echo "📩 Read argument 'user': '${USER}'" >&2; shift;;
       --help|-h) __usage__;;
       --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
@@ -413,26 +383,6 @@ else
   [ "${CONDA_DIR+defined}" ] && echo "📩 Read argument 'conda_dir': '${CONDA_DIR}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${DOWNLOAD+defined}" ] && echo "📩 Read argument 'download': '${DOWNLOAD}'" >&2
-  if [ "${ENV_DIRS+defined}" ]; then
-    echo "ℹ️ Parse 'env_dirs' into array: '${ENV_DIRS}'" >&2
-    IFS=" :: " read -r -a _tmp_array <<< "${ENV_DIRS}"
-    ENV_DIRS=("${_tmp_array[@]}")
-    for _item in "${ENV_DIRS[@]}"; do
-      echo "📩 Read argument 'env_dirs': '${_item}'" >&2
-    done
-    unset _item
-    unset _tmp_array
-  fi
-  if [ "${ENV_FILES+defined}" ]; then
-    echo "ℹ️ Parse 'env_files' into array: '${ENV_FILES}'" >&2
-    IFS=" :: " read -r -a _tmp_array <<< "${ENV_FILES}"
-    ENV_FILES=("${_tmp_array[@]}")
-    for _item in "${ENV_FILES[@]}"; do
-      echo "📩 Read argument 'env_files': '${_item}'" >&2
-    done
-    unset _item
-    unset _tmp_array
-  fi
   [ "${GROUP+defined}" ] && echo "📩 Read argument 'group': '${GROUP}'" >&2
   [ "${INSTALL+defined}" ] && echo "📩 Read argument 'install': '${INSTALL}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
@@ -441,11 +391,12 @@ else
   [ "${MAMBA_ACTIVATION_SCRIPT_PATH+defined}" ] && echo "📩 Read argument 'mamba_activation_script_path': '${MAMBA_ACTIVATION_SCRIPT_PATH}'" >&2
   [ "${MINIFORGE_NAME+defined}" ] && echo "📩 Read argument 'miniforge_name': '${MINIFORGE_NAME}'" >&2
   [ "${MINIFORGE_VERSION+defined}" ] && echo "📩 Read argument 'miniforge_version': '${MINIFORGE_VERSION}'" >&2
-  [ "${NO_CACHE_CLEAN+defined}" ] && echo "📩 Read argument 'no_cache_clean': '${NO_CACHE_CLEAN}'" >&2
   [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
   [ "${REINSTALL+defined}" ] && echo "📩 Read argument 'reinstall': '${REINSTALL}'" >&2
+  [ "${REQUIRE_ROOT+defined}" ] && echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2
   [ "${SET_PERMISSION+defined}" ] && echo "📩 Read argument 'set_permission': '${SET_PERMISSION}'" >&2
   [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
+  [ "${UPDATE_PATH+defined}" ] && echo "📩 Read argument 'update_path': '${UPDATE_PATH}'" >&2
   [ "${USER+defined}" ] && echo "📩 Read argument 'user': '${USER}'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
@@ -455,14 +406,6 @@ fi
 [ -z "${CONDA_DIR-}" ] && { echo "ℹ️ Argument 'CONDA_DIR' set to default value '/opt/conda'." >&2; CONDA_DIR="/opt/conda"; }
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
 [ -z "${DOWNLOAD-}" ] && { echo "ℹ️ Argument 'DOWNLOAD' set to default value 'false'." >&2; DOWNLOAD=false; }
-{ [ "${ENV_DIRS+isset}" != "isset" ] || [ ${#ENV_DIRS[@]} -eq 0 ]; } && { echo "ℹ️ Argument 'ENV_DIRS' set to default value '()'." >&2; ENV_DIRS=(); }
-for elem in "${ENV_DIRS[@]}"; do
-  [ -n "${elem-}" ] && [ ! -d "${elem}" ] && { echo "⛔ Directory argument to parameter 'elem' not found: '${elem}'" >&2; exit 1; }
-done
-{ [ "${ENV_FILES+isset}" != "isset" ] || [ ${#ENV_FILES[@]} -eq 0 ]; } && { echo "ℹ️ Argument 'ENV_FILES' set to default value '()'." >&2; ENV_FILES=(); }
-for elem in "${ENV_FILES[@]}"; do
-  [ -n "${elem-}" ] && [ ! -f "${elem}" ] && { echo "⛔ File argument to parameter 'elem' not found: '${elem}'" >&2; exit 1; }
-done
 [ -z "${GROUP-}" ] && { echo "ℹ️ Argument 'GROUP' set to default value 'conda'." >&2; GROUP="conda"; }
 [ -z "${INSTALL-}" ] && { echo "ℹ️ Argument 'INSTALL' set to default value 'false'." >&2; INSTALL=false; }
 [ -z "${INSTALLER_DIR-}" ] && { echo "ℹ️ Argument 'INSTALLER_DIR' set to default value '/tmp/miniforge-installer'." >&2; INSTALLER_DIR="/tmp/miniforge-installer"; }
@@ -470,17 +413,20 @@ done
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${MAMBA_ACTIVATION_SCRIPT_PATH-}" ] && { echo "ℹ️ Argument 'MAMBA_ACTIVATION_SCRIPT_PATH' set to default value 'etc/profile.d/mamba.sh'." >&2; MAMBA_ACTIVATION_SCRIPT_PATH="etc/profile.d/mamba.sh"; }
 [ -z "${MINIFORGE_NAME-}" ] && { echo "ℹ️ Argument 'MINIFORGE_NAME' set to default value 'Miniforge3'." >&2; MINIFORGE_NAME="Miniforge3"; }
-[ -z "${MINIFORGE_VERSION-}" ] && { echo "ℹ️ Argument 'MINIFORGE_VERSION' set to default value ''." >&2; MINIFORGE_VERSION=""; }
-[ -z "${NO_CACHE_CLEAN-}" ] && { echo "ℹ️ Argument 'NO_CACHE_CLEAN' set to default value 'false'." >&2; NO_CACHE_CLEAN=false; }
+[ -z "${MINIFORGE_VERSION-}" ] && { echo "ℹ️ Argument 'MINIFORGE_VERSION' set to default value 'latest'." >&2; MINIFORGE_VERSION="latest"; }
 [ -z "${NO_CLEAN-}" ] && { echo "ℹ️ Argument 'NO_CLEAN' set to default value 'false'." >&2; NO_CLEAN=false; }
 [ -z "${REINSTALL-}" ] && { echo "ℹ️ Argument 'REINSTALL' set to default value 'false'." >&2; REINSTALL=false; }
+[ -z "${REQUIRE_ROOT-}" ] && { echo "ℹ️ Argument 'REQUIRE_ROOT' set to default value 'auto'." >&2; REQUIRE_ROOT="auto"; }
 [ -z "${SET_PERMISSION-}" ] && { echo "ℹ️ Argument 'SET_PERMISSION' set to default value 'false'." >&2; SET_PERMISSION=false; }
 [ -z "${UPDATE_BASE-}" ] && { echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2; UPDATE_BASE=false; }
-[ -z "${USER-}" ] && { echo "ℹ️ Argument 'USER' set to default value ''." >&2; USER=""; }
-exit_if_not_root
+[ -z "${UPDATE_PATH-}" ] && { echo "ℹ️ Argument 'UPDATE_PATH' set to default value 'true'." >&2; UPDATE_PATH=true; }
+[ -z "${USER-}" ] && { echo "ℹ️ Argument 'USER' set to default value '$(id -nu)'." >&2; USER="$(id -nu)"; }
+
+
+check_root_requirement
 set_executable_paths
+
 if [[ "$DOWNLOAD" == true || "$INSTALL" == true || "$REINSTALL" == true ]]; then
-    [ -z "${MINIFORGE_VERSION-}" ] && { echo "⛔ Missing required argument 'MINIFORGE_VERSION' for download/install/reinstall." >&2; exit 1; }
     set_installer_filename
 fi
 if [[ "$DOWNLOAD" == true ]]; then download_miniforge; fi
@@ -504,13 +450,16 @@ if [[ "$INSTALL" == true || "$REINSTALL" == true ]]; then
         install_miniforge
     fi
 fi
+
 set_executable_paths --verify
+
 if [[ ${#ACTIVATES[@]} -gt 0 ]]; then add_activation_to_rcfile; fi
 if [[ "$UPDATE_BASE" == true ]]; then
     echo "⚠️ Updating base conda environment."
     "$MAMBA_EXEC" update -n base --all -y
 fi
-if [[ ${#ENV_FILES[@]} -gt 0 || ${#ENV_DIRS[@]} -gt 0 ]]; then setup_environment; fi
+
 if [[ "$SET_PERMISSION" == true ]]; then set_permission; fi
+
 echo "✅ Conda installation complete."
 echo "↩️ Script exit: Miniforge Installation Devcontainer Feature Installer" >&2
