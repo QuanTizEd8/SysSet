@@ -1,0 +1,79 @@
+{
+    "download_and_install": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true }
+        }
+    },
+    "no_update_path": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "update_path": false }
+        }
+    },
+    "custom_conda_dir": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "conda_dir": "/opt/myforge" }
+        }
+    },
+    "specific_version": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "miniforge_version": "24.7.1-2" }
+        }
+    },
+    "set_permission": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "set_permission": true }
+        }
+    },
+    "activate_bashrc": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "activates": "/etc/bash.bashrc" }
+        }
+    },
+    "activate_multi": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "activates": "/root/.bashrc :: /etc/bash.bashrc" }
+        }
+    },
+    "custom_active_env": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": {
+                "download": true,
+                "install": true,
+                "activates": "/etc/bash.bashrc",
+                "active_env": "myenv"
+            }
+        }
+    },
+    "logfile": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "logfile": "/tmp/miniforge.log" }
+        }
+    },
+    "no_clean": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "no_clean": true }
+        }
+    },
+    "reinstall": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "reinstall": true }
+        }
+    },
+    "debian": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true }
+        }
+    }
+}
