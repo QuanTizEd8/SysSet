@@ -33,7 +33,7 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
 {
   "features": {
     "ghcr.io/quantized8/sysset/install-podman:0": {
-      "add_root_user_config": true
+      "add_user_config": "root"
     }
   }
 }
@@ -57,7 +57,6 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `add_root_user_config` | boolean | `false` | Register subuid/subgid ranges and write Podman storage config for the `root` user. |
 | `add_current_user_config` | boolean | `true` | Configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root. |
 | `add_remote_user_config` | boolean | `true` | Configure Podman for `remoteUser` as set by the devcontainer tooling. No effect when running standalone. |
 | `add_container_user_config` | boolean | `true` | Configure Podman for `containerUser` as set by the devcontainer tooling. No effect when running standalone. |
@@ -160,8 +159,8 @@ Debian/Ubuntu hosts the host sysctl
 ### `OCI runtime error: the requested cgroup controller 'pids' is not available`
 
 Occurs when running Podman as **root**. Root Podman defaults to the `systemd`
-cgroup manager, which requires a running systemd. Either ensure
-`add_root_user_config: true` is set so the feature writes the corrective
+cgroup manager, which requires a running systemd. Either use
+`add_user_config: "root"` so the feature writes the corrective
 `containers.conf`, or run as a non-root user.
 
 ### `newuidmap: write to uid_map failed: Operation not permitted`

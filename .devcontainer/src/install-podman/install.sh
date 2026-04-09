@@ -52,10 +52,6 @@ chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2>/dev/null || true
 # ---------------------------------------------------------------------------
 # 3. Resolve user list
 # ---------------------------------------------------------------------------
-if [ "${ADD_ROOT_USER_CONFIG:-false}" = "true" ]; then
-    add_user "root"
-fi
-
 if [ "${ADD_CURRENT_USER_CONFIG:-true}" = "true" ]; then
     _current="${SUDO_USER:-$(whoami)}"
     if [ -n "$_current" ] && [ "$_current" != "root" ]; then

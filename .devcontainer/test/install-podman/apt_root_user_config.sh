@@ -1,7 +1,6 @@
 #!/bin/bash
-# Verifies that add_root_user_config=true causes root to receive a subuid/subgid
-# entry and a per-user storage.conf, in addition to the remoteUser (vscode).
-# Also verifies that the two subuid ranges do not overlap.
+# Verifies that add_user_config="root" causes root to receive a subuid/subgid
+# entry and a per-user storage.conf.
 set -e
 
 source dev-container-features-test-lib
@@ -9,7 +8,7 @@ source dev-container-features-test-lib
 _GRAPH_ROOT="/var/lib/containers/storage"
 
 # No remoteUser is set so this test runs as root, allowing access to /root/.
-# With add_root_user_config=true and all other user options at their defaults
+# With add_user_config="root" and all other user options at their defaults
 # (add_current_user_config skips root, _REMOTE_USER/_CONTAINER_USER unset),
 # only root should be configured.
 

@@ -10,7 +10,7 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_root_user_config": true
+                "add_user_config": "root"
             }
         }
     },
