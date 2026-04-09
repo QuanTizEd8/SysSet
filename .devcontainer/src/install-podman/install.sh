@@ -64,13 +64,13 @@ if [ "${ADD_CURRENT_USER_CONFIG:-true}" = "true" ]; then
 fi
 
 if [ "${ADD_REMOTE_USER_CONFIG:-true}" = "true" ]; then
-    if [ -n "${_REMOTE_USER:-}" ]; then
+    if [ -n "${_REMOTE_USER:-}" ] && [ "$_REMOTE_USER" != "root" ]; then
         add_user "$_REMOTE_USER"
     fi
 fi
 
 if [ "${ADD_CONTAINER_USER_CONFIG:-true}" = "true" ]; then
-    if [ -n "${_CONTAINER_USER:-}" ]; then
+    if [ -n "${_CONTAINER_USER:-}" ] && [ "$_CONTAINER_USER" != "root" ]; then
         add_user "$_CONTAINER_USER"
     fi
 fi
