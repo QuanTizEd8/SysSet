@@ -1,2 +1,4 @@
 FROM ubuntu:latest
-RUN useradd -m -s /bin/bash devuser
+RUN userdel ubuntu \
+ && useradd -m -s /bin/bash devuser \
+ && truncate -s 0 /etc/subuid /etc/subgid

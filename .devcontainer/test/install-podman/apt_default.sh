@@ -36,7 +36,7 @@ check "vscode storage.conf sets overlay driver"     grep -q 'driver = "overlay"'
 check "vscode storage.conf sets correct graphRoot"  grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" "${_VSCODE_STORAGE_CONF}"
 
 # --- storage.conf ownership ---
-check "vscode .config/containers owned by vscode" bash -c '[ "$(stat -c %U ${_VSCODE_HOME}/.config/containers)" = "vscode" ]'
+check "vscode .config/containers owned by vscode" bash -c '[ "$(stat -c %U /home/vscode/.config/containers)" = "vscode" ]'
 
 # --- system containers.conf ---
 check "system containers.conf exists"              test -f /etc/containers/containers.conf

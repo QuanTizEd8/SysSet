@@ -1,2 +1,3 @@
 FROM ubuntu:latest
-RUN useradd -m -s /bin/bash vscode
+RUN userdel ubuntu \
+ && truncate -s 0 /etc/subuid /etc/subgid

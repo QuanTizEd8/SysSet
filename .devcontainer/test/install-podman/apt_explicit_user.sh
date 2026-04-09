@@ -17,7 +17,7 @@ check "devuser storage.conf overlay driver"     grep -q 'driver = "overlay"' "${
 check "devuser storage.conf graphRoot correct"  grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" "${_DEVUSER_HOME}/.config/containers/storage.conf"
 
 # --- config dir is owned by devuser ---
-check "devuser .config/containers owned by devuser" bash -c '[ "$(stat -c %U ${_DEVUSER_HOME}/.config/containers)" = "devuser" ]'
+check "devuser .config/containers owned by devuser" bash -c '[ "$(stat -c %U /home/devuser/.config/containers)" = "devuser" ]'
 
 # --- root should NOT be configured ---
 check "root NOT in /etc/subuid"        bash -c '! grep -q "^root:" /etc/subuid'
