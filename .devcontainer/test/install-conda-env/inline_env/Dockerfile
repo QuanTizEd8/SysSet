@@ -1,6 +1,4 @@
 FROM ubuntu:latest
-# Pre-install Miniforge and populate /tmp/test-envs with two YAML files for
-# the env_dirs scenario (directory-scan mode).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \
@@ -11,6 +9,3 @@ RUN apt-get update \
  && bash /tmp/miniforge.sh -b -p /opt/conda \
  && rm /tmp/miniforge.sh
 ENV PATH="/opt/conda/bin:${PATH}"
-RUN mkdir -p /tmp/test-envs \
- && printf 'name: direnv1\ndependencies:\n  - numpy\n' > /tmp/test-envs/direnv1.yml \
- && printf 'name: direnv2\ndependencies:\n  - pandas\n' > /tmp/test-envs/direnv2.yml

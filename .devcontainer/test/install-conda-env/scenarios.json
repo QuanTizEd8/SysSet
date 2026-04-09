@@ -18,7 +18,7 @@
         }
     },
     "env_files": {
-        "build": { "dockerfile": "Dockerfile.envfiles" },
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/simple.yml"
@@ -26,7 +26,7 @@
         }
     },
     "env_dirs": {
-        "build": { "dockerfile": "Dockerfile.envdirs" },
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
                 "env_dirs": "/tmp/test-envs"
@@ -34,7 +34,7 @@
         }
     },
     "multi_env_files": {
-        "build": { "dockerfile": "Dockerfile.multienv" },
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/envA.yml :: /tmp/test-envs/envB.yml"
@@ -42,7 +42,7 @@
         }
     },
     "update_existing": {
-        "build": { "dockerfile": "Dockerfile.existing" },
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
                 "env_files": "/tmp/test-envs/simple.yml"
@@ -81,7 +81,7 @@
         }
     },
     "pip_requirements": {
-        "build": { "dockerfile": "Dockerfile.pipreqs" },
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
                 "env_name": "pipenv",
@@ -91,7 +91,7 @@
         }
     },
     "pip_env_override": {
-        "build": { "dockerfile": "Dockerfile.pipreqs" },
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
                 "env_name": "pipenv",
@@ -102,7 +102,7 @@
         }
     },
     "post_env_script": {
-        "build": { "dockerfile": "Dockerfile.postscript" },
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
                 "env_name": "scriptenv",

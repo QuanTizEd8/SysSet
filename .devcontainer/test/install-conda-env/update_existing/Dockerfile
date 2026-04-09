@@ -1,6 +1,4 @@
 FROM ubuntu:latest
-# Pre-install Miniforge, create a YAML, then pre-create the environment so the
-# feature exercises the update (not create) code path.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \
@@ -11,9 +9,7 @@ RUN apt-get update \
  && bash /tmp/miniforge.sh -b -p /opt/conda \
  && rm /tmp/miniforge.sh
 ENV PATH="/opt/conda/bin:${PATH}"
-# Create a YAML that only has numpy, then pre-create the env.
 RUN mkdir -p /tmp/test-envs \
  && printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml \
- && /opt/conda/bin/conda env create --file /tmp/test-envs/simple.yml --yes
-# Bump the YAML to add pandas so the feature will run 'env update'.
-RUN printf 'name: simple\ndependencies:\n  - numpy\n  - pandas\n' > /tmp/test-envs/simple.yml
+ && /opt/conda/bin/conda env create -f /tmp/test-envs/simple.yml \
+ && printf 'name: simple\ndependencies:\n  - numpy\n  - pandas\n' > /tmp/test-envs/simple.yml

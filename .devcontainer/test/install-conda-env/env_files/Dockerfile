@@ -1,6 +1,4 @@
 FROM ubuntu:latest
-# Pre-install Miniforge and two separate YAML files for the multi_env_files
-# scenario (' :: ' separator).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \
@@ -12,5 +10,4 @@ RUN apt-get update \
  && rm /tmp/miniforge.sh
 ENV PATH="/opt/conda/bin:${PATH}"
 RUN mkdir -p /tmp/test-envs \
- && printf 'name: envA\ndependencies:\n  - numpy\n' > /tmp/test-envs/envA.yml \
- && printf 'name: envB\ndependencies:\n  - pandas\n' > /tmp/test-envs/envB.yml
+ && printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml

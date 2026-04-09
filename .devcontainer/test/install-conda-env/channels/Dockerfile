@@ -1,5 +1,4 @@
 FROM ubuntu:latest
-# Pre-install Miniforge so install-conda-env can discover conda on PATH.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \

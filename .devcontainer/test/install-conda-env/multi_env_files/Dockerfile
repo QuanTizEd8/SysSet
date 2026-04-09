@@ -1,6 +1,4 @@
 FROM ubuntu:latest
-# Pre-install Miniforge and place an executable post-env script that writes a
-# sentinel file recording the environment name it received.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \
@@ -11,5 +9,6 @@ RUN apt-get update \
  && bash /tmp/miniforge.sh -b -p /opt/conda \
  && rm /tmp/miniforge.sh
 ENV PATH="/opt/conda/bin:${PATH}"
-RUN printf '#!/bin/bash\necho "$1" > /tmp/post-env-ran\n' > /tmp/post-env.sh \
- && chmod +x /tmp/post-env.sh
+RUN mkdir -p /tmp/test-envs \
+ && printf 'name: envA\ndependencies:\n  - numpy\n' > /tmp/test-envs/envA.yml \
+ && printf 'name: envB\ndependencies:\n  - pandas\n' > /tmp/test-envs/envB.yml

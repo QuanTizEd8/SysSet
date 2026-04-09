@@ -1,6 +1,4 @@
 FROM ubuntu:latest
-# Pre-install Miniforge and create a pip requirements file for the
-# pip_requirements and pip_env_override scenarios.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \
@@ -11,5 +9,5 @@ RUN apt-get update \
  && bash /tmp/miniforge.sh -b -p /opt/conda \
  && rm /tmp/miniforge.sh
 ENV PATH="/opt/conda/bin:${PATH}"
-# Use a package available on PyPI that has no C extensions so it installs fast.
-RUN printf 'tomli\n' > /tmp/requirements.txt
+RUN printf '#!/bin/bash\necho "$1" > /tmp/post-env-ran\n' > /tmp/post-env.sh \
+ && chmod +x /tmp/post-env.sh

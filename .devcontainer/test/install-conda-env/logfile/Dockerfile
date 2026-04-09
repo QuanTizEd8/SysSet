@@ -1,6 +1,4 @@
 FROM ubuntu:latest
-# Pre-install Miniforge and create a /tmp/test-envs directory with a single
-# environment YAML for the env_files scenario.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \
@@ -11,5 +9,3 @@ RUN apt-get update \
  && bash /tmp/miniforge.sh -b -p /opt/conda \
  && rm /tmp/miniforge.sh
 ENV PATH="/opt/conda/bin:${PATH}"
-RUN mkdir -p /tmp/test-envs \
- && printf 'name: simple\ndependencies:\n  - numpy\n' > /tmp/test-envs/simple.yml
