@@ -1,5 +1,5 @@
 {
-   "id": "conda-env",
+   "id": "install-conda-env",
    "name": "Conda Environment",
    "version": "0.1.0",
    "description": "Create or update conda environments in the development container.",
