@@ -9,7 +9,7 @@ source dev-container-features-test-lib
 check "vscode user exists"    bash -c 'id vscode > /dev/null 2>&1'
 
 # --- supplementary group membership ---
-check "vscode is in group builders"   bash -c 'id vscode | grep -qw "builders"'
-check "vscode is in group testers"    bash -c 'id vscode | grep -qw "testers"'
+check "vscode is in group builders"   bash -c 'groups vscode | tr " " "\n" | grep -qx "builders"'
+check "vscode is in group testers"    bash -c 'groups vscode | tr " " "\n" | grep -qx "testers"'
 
 reportResults

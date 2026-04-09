@@ -15,8 +15,9 @@ check "vscode has GID 1000"             bash -c '[ "$(id -g vscode)" = "1000" ]'
 check "vscode primary group is vscode"  bash -c '[ "$(id -gn vscode)" = "vscode" ]'
 
 # --- home directory ---
-check "home directory /home/vscode exists"    test -d /home/vscode
-check "home directory owned by vscode"        bash -c '[ "$(stat -c "%U" /home/vscode)" = "vscode" ]'
+check "home directory /home/vscode exists"         test -d /home/vscode
+check "home directory owned by uid 1000"           bash -c '[ "$(stat -c "%u" /home/vscode)" = "1000" ]'
+check "home directory group-owned by gid 1000"     bash -c '[ "$(stat -c "%g" /home/vscode)" = "1000" ]'
 
 # --- sudo ---
 check "sudo binary is installed"    bash -c 'command -v sudo'
