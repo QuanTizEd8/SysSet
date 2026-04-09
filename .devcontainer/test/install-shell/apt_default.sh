@@ -1,6 +1,6 @@
 #!/bin/bash
 # Verifies the default installation: zsh, Oh My Zsh with default plugin,
-# Oh My Bash, Starship, Nerd Fonts, system config files, and BASH_ENV.
+# Oh My Bash, Starship, system config files, and BASH_ENV.
 set -e
 
 source dev-container-features-test-lib

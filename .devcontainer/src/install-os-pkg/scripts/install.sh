@@ -312,6 +312,24 @@ fi
 OS_RELEASE[pm]="$PKG_PREFIX"
 OS_RELEASE[arch]="$(uname -m)"
 echo "🔍 OS context: pm=${OS_RELEASE[pm]} arch=${OS_RELEASE[arch]} id=${OS_RELEASE[id]-} id_like=${OS_RELEASE[id_like]-} version_id=${OS_RELEASE[version_id]-} version_codename=${OS_RELEASE[version_codename]-}" >&2
+# Install the system command so other features/scripts can call
+# 'install-os-pkg' directly after this feature has run.  Done unconditionally
+# here (before the lifecycle_hook early exit) so the library file exists when
+# hook scripts reference /usr/local/lib/install-os-pkg/install.sh at runtime.
+if [[ "$INSTALL_SELF" == true ]]; then
+    _LIB_DIR="/usr/local/lib/install-os-pkg"
+    _BIN="/usr/local/bin/install-os-pkg"
+    if [ ! -x "$_BIN" ]; then
+        mkdir -p "$_LIB_DIR"
+        cp "$0" "$_LIB_DIR/install.sh"
+        chmod +x "$_LIB_DIR/install.sh"
+        printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" > "$_BIN"
+        chmod +x "$_BIN"
+        echo "✅ Installed system command: $_BIN" >&2
+    fi
+else
+    echo "ℹ️ Skipping system command installation (install_self=false)." >&2
+fi
 # When lifecycle_hook is set, write a hook script and exit without installing.
 if [[ -n "$LIFECYCLE_HOOK" ]]; then
     _HOOK_DIR="/usr/local/share/install-os-pkg"

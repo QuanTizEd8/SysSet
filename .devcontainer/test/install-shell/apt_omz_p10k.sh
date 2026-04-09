@@ -1,7 +1,7 @@
 #!/bin/bash
 # Verifies that setting ohmyzsh_theme=romkatv/powerlevel10k installs the p10k
-# theme, injects the p10k-specific MesloLGS NF fonts, and configures root's
-# ZDOTDIR/.zshrc with the p10k guarded block and correct ZSH_CUSTOM.
+# theme and configures root's ZDOTDIR/.zshrc with the p10k guarded block and
+# correct ZSH_CUSTOM. Font installation is tested separately in install-fonts.
 set -e
 
 source dev-container-features-test-lib
@@ -15,10 +15,6 @@ _USER_CUSTOM="${_ZDOTDIR}/custom"
 # Theme installation in system custom dir
 check "powerlevel10k theme cloned" test -d "${_CUSTOM}/themes/powerlevel10k/.git"
 check "powerlevel10k.zsh-theme file present" test -f "${_CUSTOM}/themes/powerlevel10k/powerlevel10k.zsh-theme"
-
-# p10k-specific fonts (MesloLGS NF)
-check "MesloLGS Regular font present" bash -c 'find /usr/share/fonts -name "MesloLGS NF Regular.ttf" | grep -q .'
-check "MesloLGS Bold font present" bash -c 'find /usr/share/fonts -name "MesloLGS NF Bold.ttf" | grep -q .'
 
 # Root user zshtheme written to ZDOTDIR
 _ZSHTHEME="${_ZDOTDIR}/zshtheme"

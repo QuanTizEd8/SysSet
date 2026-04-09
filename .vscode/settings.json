@@ -1,0 +1,13 @@
+{
+    "chat.checkpoints.showFileChanges": true,
+    "chat.agent.thinking.collapsedTools": "withThinking",
+    "chat.restoreLastPanelSession": true,
+    "chat.viewProgressBadge.enabled": true,
+    "chat.mcp.discovery.enabled": {
+        "claude-desktop": true,
+        "cursor-workspace": true,
+        "cursor-global": true,
+        "windsurf": true
+    },
+    "chat.mcp.gallery.enabled": true
+}
