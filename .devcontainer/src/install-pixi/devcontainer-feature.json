@@ -1,6 +1,7 @@
 {
    "id": "install-pixi",
-   "version": "0.66.0"
+   "version": "0.1.0",
+   "name": "Pixi Installer",
    "description": "Install Pixi in the development container and activate it.",
    "mounts": [
       {
@@ -9,7 +10,6 @@
          "type": "volume"
       }
    ],
-   "name": "Pixi Installation",
    "options": {
       "version": {
          "default": "0.66.0",

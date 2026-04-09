@@ -46,11 +46,16 @@ fi
 [ -z "${INSTALL_PATH-}" ] && { echo "ℹ️ Argument 'INSTALL_PATH' set to default value '/usr/local/bin'." >&2; INSTALL_PATH="/usr/local/bin"; }
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${VERSION-}" ] && { echo "ℹ️ Argument 'VERSION' set to default value '0.66.0'." >&2; VERSION="0.66.0"; }
+
 pixi_bin="${INSTALL_PATH}/pixi"
+
 curl \
   --compressed \
   -fsSLo "$pixi_bin" \
   "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-$(uname -m)-unknown-linux-musl"
-chmod +x "$pixi_bin"
+
+chmod +rx "$pixi_bin"
+
 pixi info
+
 echo "↩️ Script exit: Pixi Installation Devcontainer Feature Installer" >&2
