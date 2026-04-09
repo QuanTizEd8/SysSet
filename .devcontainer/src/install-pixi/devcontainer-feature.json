@@ -1,0 +1,38 @@
+{
+   "id": "install-pixi",
+   "version": "0.66.0"
+   "description": "Install Pixi in the development container and activate it.",
+   "mounts": [
+      {
+         "source": "${localWorkspaceFolderBasename}-pixi",
+         "target": "${containerWorkspaceFolder}/.pixi",
+         "type": "volume"
+      }
+   ],
+   "name": "Pixi Installation",
+   "options": {
+      "version": {
+         "default": "0.66.0",
+         "description": "Version of Pixi to install.",
+         "type": "string"
+      },
+      "debug": {
+         "default": false,
+         "description": "Enable debug output.",
+         "type": "boolean"
+      },
+      "install_path": {
+         "default": "/usr/local/bin",
+         "description": "Path to a bin directory to install the Pixi binary.\n",
+         "type": "string"
+      },
+      "logfile": {
+         "default": "",
+         "description": "Log all output (stdout + stderr) to this file in addition to console.",
+         "type": "string"
+      }
+   },
+   "postCreateCommand": {
+      "pixi_chown": "sudo chown $(whoami) .pixi"
+   }
+}
