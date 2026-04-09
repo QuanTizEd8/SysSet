@@ -1,0 +1,67 @@
+{
+    "default": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": {}
+        }
+    },
+    "no_sudo": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": { "sudo_access": false }
+        }
+    },
+    "custom_user": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": {
+                "username": "devuser",
+                "user_id": "2000",
+                "group_id": "2000",
+                "group_name": "devgroup"
+            }
+        }
+    },
+    "custom_home": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": { "home_dir": "/workspaces/myapp" }
+        }
+    },
+    "custom_shell": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": { "user_shell": "/bin/sh" }
+        }
+    },
+    "extra_groups": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": { "extra_groups": "builders,testers" }
+        }
+    },
+    "replace_existing": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": {}
+        }
+    },
+    "already_configured": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": { "replace_existing": false, "sudo_access": false }
+        }
+    },
+    "alpine": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": {}
+        }
+    },
+    "logfile": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-user": { "logfile": "/tmp/setup-user.log" }
+        }
+    }
+}
