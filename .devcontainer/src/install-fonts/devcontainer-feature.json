@@ -34,5 +34,10 @@
          "description": "Enable debug output.",
          "type": "boolean"
       }
+   },
+   "dependsOn": {
+      "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+         "install_self": true
+      }
    }
 }

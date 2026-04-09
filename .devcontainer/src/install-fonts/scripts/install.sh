@@ -96,12 +96,6 @@ echo "========================================" >&2
 echo "  install-fonts" >&2
 echo "========================================" >&2
 
-# Ensure curl is available.
-if ! command -v curl > /dev/null 2>&1; then
-  echo "⛔ Required command 'curl' not found. Install it first." >&2
-  exit 1
-fi
-
 _FONT_ARGS=(--font_dir "$FONT_DIR")
 [ -n "$NERD_FONTS" ]        && _FONT_ARGS+=(--nerd_fonts "$NERD_FONTS")
 [ -n "$FONT_URLS" ]         && _FONT_ARGS+=(--font_urls "$FONT_URLS")
