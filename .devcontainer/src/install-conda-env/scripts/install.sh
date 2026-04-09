@@ -105,11 +105,11 @@ apply_channels() {
   fi
   for channel in "${CHANNELS[@]}"; do
       echo "📋 Adding channel: $channel" >&2
-      "$SOLVER_EXEC" config --add channels "$channel"
+      "$CONDA_EXEC" config --add channels "$channel"
   done
   if [[ "$STRICT_CHANNEL_PRIORITY" == true ]]; then
       echo "📋 Setting channel_priority to strict." >&2
-      "$SOLVER_EXEC" config --set channel_priority strict
+      "$CONDA_EXEC" config --set channel_priority strict
   fi
   echo "↩️ Function exit: apply_channels" >&2
 }
