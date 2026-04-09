@@ -13,7 +13,7 @@ This guide covers everything needed to write and run tests for features in this 
     - [Directory layout](#directory-layout)
     - [scenarios.json](#scenariosjson)
     - [Scenario scripts](#scenario-scripts)
-    - [Scenario Dockerfiles](#scenario-dockerfiles)
+    - [Scenario Dockerfiles and build context](#scenario-dockerfiles-and-build-context)
   - [Writing tests](#writing-tests)
     - [Anatomy of a scenario script](#anatomy-of-a-scenario-script)
     - [The `check` function](#the-check-function)
@@ -41,9 +41,9 @@ This guide covers everything needed to write and run tests for features in this 
 
 Tests use the **devcontainer CLI** (`@devcontainers/cli`) as the test runner. For each scenario it:
 
-1. Reads `scenarios.json` to find the base Dockerfile and feature options.
-2. Builds a Docker image from `<scenario>/Dockerfile` with the feature applied on top.
-3. Starts a container from the image.
+1. Reads each entry in `scenarios.json` as a `devcontainer.json` configuration object.
+2. Writes that object as the `devcontainer.json` for a temporary project, copies the feature source into it, and builds the container — using a plain `"image"` or `"build": { "dockerfile": ... }` as declared in the scenario.
+3. Starts a container from the built image.
 4. Runs `<scenario>.sh` inside the container.
 5. Reports each named `check` as pass or fail.
 
@@ -70,16 +70,29 @@ Every feature has a mirror directory under `.devcontainer/test/`:
         Dockerfile      ← base image for that scenario
 ```
 
-The `<scenario>.sh` file and the `<scenario>/` subdirectory must share the **same name**, exactly as spelled in `scenarios.json`. Every entry in `scenarios.json` needs both a `<name>.sh` file and a `<name>/Dockerfile`.
+The `<scenario>.sh` script must use exactly the same name as its key in `scenarios.json`. Each entry needs a `<name>.sh` file. The `<name>/` subdirectory is optional: if it exists, the CLI copies its entire contents into the temporary `.devcontainer/` folder before the build, making every file in it available as Docker build context. It is only needed when the scenario has a `"build"` config that references files (a `Dockerfile`, helper scripts, config files, etc.).
 
 ### scenarios.json
 
-`scenarios.json` declares every scenario and the feature options to apply:
+`scenarios.json` maps scenario names to **[devcontainer.json](https://containers.dev/implementors/json_reference/) configuration objects**. The CLI writes each object verbatim as the `devcontainer.json` for the test container, so any property valid in `devcontainer.json` is valid here. The only required field is `"features"`.
+
+The base image can be specified with either `"image"` or `"build"`:
 
 ```jsonc
 {
+    // Simplest form — a plain image reference
     "<scenario-name>": {
-        "build": { "dockerfile": "Dockerfile" },  // always "Dockerfile", relative to <scenario>/
+        "image": "<image>",
+        "features": {
+            "<feature-id>": {
+                "<option>": "<value>"
+            }
+        }
+    },
+
+    // Using a Dockerfile — needed when the scenario requires pre-conditions
+    "<other-scenario>": {
+        "build": { "dockerfile": "Dockerfile" },  // path relative to .devcontainer/ (i.e. relative to <scenario>/)
         "features": {
             "<feature-id>": {
                 "<option>": "<value>"
@@ -89,9 +102,13 @@ The `<scenario>.sh` file and the `<scenario>/` subdirectory must share the **sam
 }
 ```
 
-Each key in the top-level object is the scenario name. The `"dockerfile"` path resolves relative to the scenario's own subdirectory — it is always `"Dockerfile"`.
+When a `<scenario>/` subdirectory exists on disk, the CLI always merges its entire contents into the temporary `.devcontainer/` folder before the build. Files land at `.devcontainer/<their-path-within-scenario>/`, matching exactly their relative path inside `<scenario>/`. This makes every file `COPY`-addressable from the Dockerfile using that same relative path. The `"dockerfile"` value in `"build"` is a path relative to `.devcontainer/` — so it must match the relative path of the Dockerfile within `<scenario>/`. By convention this repo always names them `Dockerfile`, but any filename works.
 
-Feature IDs in `scenarios.json` must match the `"id"` field in `devcontainer-feature.json`, not the directory name. For example, `install-conda-env` has `"id": "conda-env"`, so the key in `scenarios.json` is `install-conda-env` (the folder name) but the feature reference within a devcontainer.json uses `conda-env`.
+Other `devcontainer.json` properties are also valid at the scenario level. For example, `"remoteUser"` sets the user that the test script runs as, and `"build": { "args": { ... } }` passes build arguments to Docker.
+
+Feature keys inside a scenario's `"features"` object must be the **directory name under `src/`**, regardless of the feature's `"id"` field in `devcontainer-feature.json`. The CLI uses the key as a filesystem path to locate and copy the feature source. For example, the directory is `install-conda-env` and its declared `"id"` is `"conda-env"`, but the key in `"features"` is `"install-conda-env"`.
+
+To use a feature that is not in the local `src/` collection, use its fully-qualified registry ID (which contains a `/`), e.g. `"ghcr.io/devcontainers/features/go": {}`. The CLI passes such keys through unchanged without copying anything from local disk. This lets you compose local features with published ones in a single scenario.
 
 ### Scenario scripts
 
@@ -102,9 +119,34 @@ Each `<scenario>.sh`:
 - Has its shebang set to `#!/bin/bash` and `set -e` to abort on errors.
 - Ends with `reportResults`.
 
-### Scenario Dockerfiles
+### Scenario Dockerfiles and build context
 
-`<scenario>/Dockerfile` defines the **base image** for the scenario — the state of the system before the feature runs. Most scenarios use a minimal `FROM ubuntu:latest` (or another distro). Scenarios that require a pre-existing system state (e.g. a user already created, a conda environment pre-installed) set it up in the Dockerfile with `RUN` instructions.
+The `<scenario>/` subdirectory is the **build context** for that scenario. If the directory exists, the CLI merges its entire contents into the temporary `.devcontainer/` folder (not as a nested subfolder — the *contents* land directly in `.devcontainer/`). Everything in it is then available during the Docker build. The subdirectory can contain:
+
+- `Dockerfile` — the conventional name used in this repo, but any filename is valid as long as `"build": { "dockerfile": "<name>" }` matches
+- Any files the Dockerfile needs: shell scripts, config files, seed data, certificates, etc.
+
+**Path mapping.** Because the contents of `<scenario>/` are merged into `.devcontainer/`, paths inside the Dockerfile (and any `devcontainer.json` lifecycle-hook scripts) are relative to `.devcontainer/` — which is the same as their path within `<scenario>/`:
+
+```
+test/<feature>/<scenario>/          →   $TMP/.devcontainer/
+  Dockerfile                        →     Dockerfile
+  setup.sh                          →     setup.sh
+  data/seed.sql                     →     data/seed.sql
+```
+
+Reference them in the Dockerfile using the same relative path:
+
+```dockerfile
+FROM ubuntu:latest
+COPY setup.sh /tmp/setup.sh          # <scenario>/setup.sh
+COPY data/seed.sql /tmp/seed.sql     # <scenario>/data/seed.sql
+RUN bash /tmp/setup.sh
+```
+
+Scenarios that use a plain `"image"` do not need a subdirectory at all — the image is pulled directly without invoking a Dockerfile build.
+
+Use a Dockerfile (and optionally supporting files) when you need to install packages, create files, set up users, or otherwise prepare a pre-condition state that a plain image cannot provide. Most simple scenarios are better served by `"image"` with a suitable base (e.g. `"ubuntu:latest"`, `"debian:latest"`).
 
 ---
 
@@ -418,8 +460,8 @@ check "feature exited cleanly" true
 - **Network access required.** Scenarios that download packages (conda, apt, apk, etc.) require outbound internet access. There is no offline mode.
 - **Conda scenarios are slow.** Each conda scenario builds a full Miniforge base image (300 MB+) and then creates environments on top. Expect 5–15 minutes per scenario depending on network and hardware.
 - **Build cache.** The CLI invokes Docker. Docker's layer cache applies, so repeat runs of the same scenario are faster if the base image layers have not changed. Run `docker system prune` if you need a clean slate.
-- **`test.sh` is required but unused.** The CLI requires a `test.sh` in every `test/<feature>/` directory. All feature directories stub it out. Do not delete it — the CLI will error without it.
-- **`scenarios.json` feature references use the feature `id`,** not the directory name. If a feature's `id` in `devcontainer-feature.json` differs from its directory name (e.g. directory `install-conda-env`, id `conda-env`), the `scenarios.json` key still uses the **directory** name, but this is the folder sent to the CLI — the CLI resolves the feature id internally.
+- **`test.sh` is required by the autogenerated test path.** When the CLI runs without `--skip-autogenerated`, it looks for and executes `test.sh` in the feature's test folder; if the file is absent the CLI fails. With `--skip-autogenerated` (used everywhere in this repo) the file is never checked. The stubs are kept so the tests remain forwards-compatible if autogenerated mode is enabled later.
+- **`scenarios.json` feature references use the directory name under `src/`, not the feature's `id` field.** The CLI looks up `src/<key>` on disk to copy the feature source into the temporary project. If a feature's `id` in `devcontainer-feature.json` differs from its directory name (e.g. directory `install-conda-env`, `"id": "conda-env"`), the key in `"features"` must still be `install-conda-env`.
 - **`${localEnv:VAR}` is resolved at build time.** Build args that reference local environment variables (e.g. `GITHUB_TOKEN`) must be set in the shell before running the CLI. Missing values result in empty strings being passed to Docker.
 
 ---
@@ -428,9 +470,11 @@ check "feature exited cleanly" true
 
 - [Dev Containers — Feature authoring specification](https://containers.dev/implementors/features/)
 - [Dev Containers — Feature distribution specification](https://containers.dev/implementors/features-distribution/)
-- [devcontainers/cli — features test command](https://github.com/devcontainers/cli?tab=readme-ov-file#dev-container-features-test)
+- [devcontainers/cli — features test command](https://github.com/devcontainers/cli/blob/main/docs/features/test.md)
 - [devcontainers/cli — npm package](https://www.npmjs.com/package/@devcontainers/cli)
 - [devcontainers/feature-starter — reference template](https://github.com/devcontainers/feature-starter)
+- [devcontainers/feature-starter — example scenarios.json](https://github.com/devcontainers/feature-starter/blob/main/test/hello/scenarios.json)
 - [`dev-container-features-test-lib` — source](https://github.com/devcontainers/cli/blob/main/src/test/dev-container-features-test-lib)
 - [Dev Containers — scenarios.json schema](https://containers.dev/implementors/features/#testing)
+- [devcontainers/cli — `testCommandImpl.ts` (scenarios.json parsing)](https://github.com/devcontainers/cli/blob/main/src/spec-node/featuresCLI/testCommandImpl.ts)
 - [devcontainers/action — GitHub Action for CI](https://github.com/devcontainers/action)
