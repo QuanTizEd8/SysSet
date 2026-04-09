@@ -1,12 +1,14 @@
 #!/bin/bash
-# Verifies that font_urls with a direct .ttf URL installs the file flat in
-# font_dir (no subdirectory), exercising the individual-file branch.
+# Verifies that font_urls with a direct .ttf URL installs the file under a
+# namespaced sysset-install-fonts-*/url/<host>/<path>/ directory,
+# exercising the individual-file branch.
 set -e
 
 source dev-container-features-test-lib
 
-check "font file installed flat" test -f /usr/share/fonts/JetBrainsMono-Regular.ttf
-check "no subdirectory created" bash -c '! test -d /usr/share/fonts/JetBrainsMono-Regular'
+_FONTS=/usr/share/fonts
+
+check "font file installed" bash -c 'find '"$_FONTS"' -path "*/sysset-install-fonts-*/url/*" -name "JetBrainsMono-Regular.ttf" | grep -q .'
 check "no default Meslo directory" bash -c '! test -d /usr/share/fonts/Meslo'
 
 reportResults

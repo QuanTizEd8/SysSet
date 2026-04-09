@@ -11,12 +11,12 @@
       },
       "font_urls": {
          "default": "",
-         "description": "Comma-separated direct font URLs. Font files (.ttf, .otf, .woff, .woff2) land flat in font_dir; archives (.tar.xz, .tar.gz, .tgz, .zip) extract into font_dir/<archive-name>/ with non-font files removed.",
+         "description": "Comma-separated direct font URLs. Font files (.ttf, .otf, .woff, .woff2) and archives (.tar.xz, .tar.gz, .tgz, .zip) are downloaded and installed. Fonts are deduplicated by PostScript name against already-installed fonts.",
          "type": "string"
       },
       "gh_release_fonts": {
          "default": "",
-         "description": "Comma-separated GitHub slugs (owner/repo or owner/repo@tag). Without a tag, the latest release is used; with a tag that specific release is used. All font and archive assets are installed into font_dir/<repo>/.",
+         "description": "Comma-separated GitHub slugs (owner/repo or owner/repo@tag). Without a tag, the latest release is used; with a tag that specific release is used. All font and archive assets from the release are installed, deduplicated by PostScript name.",
          "type": "string"
       },
       "font_dir": {
@@ -27,6 +27,11 @@
       "p10k_fonts": {
          "default": false,
          "description": "Also install the four Powerlevel10k-specific MesloLGS NF fonts from romkatv/powerlevel10k-media.",
+         "type": "boolean"
+      },
+      "overwrite": {
+         "default": false,
+         "description": "When a font with the same PostScript name is already installed, overwrite it instead of skipping. Default is to skip and log.",
          "type": "boolean"
       },
       "debug": {

@@ -26,10 +26,11 @@ Options:
                                (e.g. "Meslo,JetBrainsMono,FiraCode"). Default: "Meslo,JetBrainsMono".
                                Set to empty string to skip Nerd Font downloads.
   --font_urls <urls>           Comma-separated direct font URLs to download.
-                               Font files (.ttf/.otf/.woff/.woff2) land flat in font_dir.
-                               Archives (.tar.xz/.tar.gz/.tgz/.zip) extract into font_dir/<name>/.
+                               Font files (.ttf/.otf/.woff/.woff2) and archives (.tar.xz/.tar.gz/.tgz/.zip)
+                               are installed, deduplicated by PostScript name.
   --gh_release_fonts <slugs>   Comma-separated GitHub slugs (owner/repo or owner/repo@tag).
-                               Downloads all font/archive assets from the release into font_dir/<repo>/.
+                               Downloads all font/archive assets from the release,
+                               deduplicated by PostScript name.
   --font_dir <path>            Directory where fonts will be installed.
                                Leave empty (default) to auto-detect:
                                  root/container → /usr/share/fonts
@@ -37,6 +38,8 @@ Options:
                                  macOS user     → ~/Library/Fonts
                                Set explicitly to override.
   --p10k_fonts                 Also install Powerlevel10k-specific MesloLGS NF fonts.
+  --overwrite                  Overwrite an existing font when its PostScript name collides with
+                               a font being installed. Default: skip and log the collision.
   --debug                      Enable debug output (set -x).
   -h, --help                   Show this help.
 EOF
@@ -52,6 +55,7 @@ if [ "$#" -gt 0 ]; then
   GH_RELEASE_FONTS=""
   FONT_DIR=""
   P10K_FONTS=""
+  OVERWRITE=""
   DEBUG=""
 
   while [[ $# -gt 0 ]]; do
@@ -61,6 +65,7 @@ if [ "$#" -gt 0 ]; then
       --gh_release_fonts) shift; GH_RELEASE_FONTS="$1"; shift;;
       --font_dir)         shift; FONT_DIR="$1";         shift;;
       --p10k_fonts)       shift; P10K_FONTS="$1";       shift;;
+      --overwrite)        OVERWRITE=true; shift;;
       --debug)            DEBUG=true; shift;;
       --help|-h)          __usage__;;
       --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
@@ -77,6 +82,7 @@ fi
 : "${GH_RELEASE_FONTS=}"
 : "${FONT_DIR=}"   # empty → auto-detect below
 : "${P10K_FONTS:=false}"
+: "${OVERWRITE:=false}"
 : "${DEBUG:=false}"
 
 # Auto-detect font directory when not explicitly set.
@@ -101,6 +107,7 @@ _FONT_ARGS=(--font_dir "$FONT_DIR")
 [ -n "$FONT_URLS" ]         && _FONT_ARGS+=(--font_urls "$FONT_URLS")
 [ -n "$GH_RELEASE_FONTS" ]  && _FONT_ARGS+=(--gh_release_fonts "$GH_RELEASE_FONTS")
 [[ "$P10K_FONTS" == true ]] && _FONT_ARGS+=(--p10k_fonts)
+[[ "$OVERWRITE" == true ]]  && _FONT_ARGS+=(--overwrite)
 [[ "$DEBUG" == true ]]      && _FONT_ARGS+=(--debug)
 
 bash "$_SELF_DIR/install_fonts.sh" "${_FONT_ARGS[@]}"

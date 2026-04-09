@@ -24,8 +24,9 @@ flags.
 
 With the defaults above, the feature will:
 
-1. Install **Meslo** and **JetBrainsMono** Nerd Fonts into `/usr/share/fonts/`
-2. Refresh the system font cache with `fc-cache`
+1. Scan `/usr/share/fonts/` for already-registered fonts (PostScript name index)
+2. Install **Meslo** and **JetBrainsMono** Nerd Fonts into a new timestamped subdirectory
+3. Refresh the system font cache with `fc-cache`
 
 ### Nerd Fonts — custom selection
 
@@ -69,7 +70,9 @@ for example, `Meslo` downloads `Meslo.tar.xz`.
 ```
 
 Supported extensions for individual files: `.ttf`, `.otf`, `.woff`, `.woff2`.
-The file lands flat in `font_dir` (e.g. `/usr/share/fonts/MyFont-Regular.ttf`).
+The file is deduplicated by PostScript name against already-registered fonts and
+installed under a namespaced path:
+`<font_dir>/sysset-install-fonts-<timestamp>/url/<host>/<path>/MyFont-Regular.ttf`
 
 ### Direct URL — archive
 
@@ -84,9 +87,10 @@ The file lands flat in `font_dir` (e.g. `/usr/share/fonts/MyFont-Regular.ttf`).
 }
 ```
 
-Supported archive formats: `.tar.xz`, `.tar.gz`, `.tgz`, `.zip`. The archive
-extracts into `font_dir/<archive-name>/` (e.g.
-`/usr/share/fonts/MyFont-2.0/`) and non-font files are removed.
+Supported archive formats: `.tar.xz`, `.tar.gz`, `.tgz`, `.zip`. Font files
+inside the archive are deduplicated by PostScript name and installed preserving
+the archive's internal directory structure under a namespaced path:
+`<font_dir>/sysset-install-fonts-<timestamp>/url/<host>/<path>/...`
 
 ### GitHub release — latest
 
@@ -103,7 +107,9 @@ extracts into `font_dir/<archive-name>/` (e.g.
 
 Fetches all font/archive assets from the latest release of
 `github.com/JetBrains/JetBrainsMono`. Archives are preferred over individual
-files when both are present. Assets install into `font_dir/JetBrainsMono/`.
+files when both are present. Fonts are deduplicated by PostScript name and
+installed under:
+`<font_dir>/sysset-install-fonts-<timestamp>/gh/JetBrains/JetBrainsMono/<tag>/<release_id>/...`
 
 ### GitHub release — pinned tag
 
@@ -136,7 +142,8 @@ API instead of the latest endpoint.
 Installs the four
 [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts required
 by the [Powerlevel10k](https://github.com/romkatv/powerlevel10k) Zsh theme:
-Regular, Bold, Italic, and Bold Italic. Fonts land in `font_dir/MesloLGS-NF/`.
+Regular, Bold, Italic, and Bold Italic. Fonts land under:
+`<font_dir>/sysset-install-fonts-<timestamp>/p10k/MesloLGS-NF/`
 
 ### Custom font directory
 
@@ -169,7 +176,27 @@ non-standard font paths.
 }
 ```
 
-All four sources are processed in sequence within a single feature run.
+All four sources are processed in a single run in priority order: p10k → nerd
+→ gh → url. Fonts are deduplicated globally across all sources — if two sources
+ship a font with the same PostScript name, only the higher-priority one is
+installed. Set `overwrite: true` to invert this behavior.
+
+### Force-overwrite existing fonts
+
+```jsonc
+{
+  "features": {
+    "ghcr.io/quantized8/sysset/install-fonts:0": {
+      "nerd_fonts": "Meslo",
+      "overwrite": true
+    }
+  }
+}
+```
+
+When `overwrite: true`, fonts with a PostScript name that is already registered
+in `font_dir` are replaced rather than skipped. Useful for upgrading fonts in
+an existing image layer.
 
 ---
 
@@ -178,10 +205,11 @@ All four sources are processed in sequence within a single feature run.
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `nerd_fonts` | string | `"Meslo,JetBrainsMono"` | Comma-separated [Nerd Fonts](https://www.nerdfonts.com/) archive names to install (e.g. `Meslo,FiraCode,Hack`). Set to empty string to skip Nerd Font downloads. |
-| `font_urls` | string | `""` | Comma-separated direct URLs to download. Individual font files (`.ttf`, `.otf`, `.woff`, `.woff2`) land flat in `font_dir`; archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) extract into `font_dir/<archive-name>/` with non-font files removed. |
-| `gh_release_fonts` | string | `""` | Comma-separated GitHub slugs in `owner/repo` or `owner/repo@tag` form (e.g., [JetBrains/JetBrainsMono@v2.304](https://github.com/JetBrains/JetBrainsMono/releases/tag/v2.304)). All font and archive assets from the release are installed into `font_dir/<repo>/`. Without a tag, the latest release is used. |
+| `font_urls` | string | `""` | Comma-separated direct URLs to download. Font files (`.ttf`, `.otf`, `.woff`, `.woff2`) and archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) are installed under a namespaced path derived from the URL. Fonts are deduplicated by PostScript name. |
+| `gh_release_fonts` | string | `""` | Comma-separated GitHub slugs in `owner/repo` or `owner/repo@tag` form. All font and archive assets from the release are installed under `gh/<owner>/<repo>/<tag>/<id>/`. Without a tag, the latest release is used. Fonts are deduplicated by PostScript name. |
 | `font_dir` | string | `""` | Font installation directory. Leave empty to auto-detect (see [Font directory auto-detection](#font-directory-auto-detection)). |
-| `p10k_fonts` | boolean | `false` | Install the four [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts required by Powerlevel10k into `font_dir/MesloLGS-NF/`. |
+| `p10k_fonts` | boolean | `false` | Install the four [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts required by Powerlevel10k under `p10k/MesloLGS-NF/`. |
+| `overwrite` | boolean | `false` | When a font with the same PostScript name is already registered, overwrite it instead of skipping. Default is to skip and log. |
 | `debug` | boolean | `false` | Enable `set -x` trace output in all scripts. |
 
 ---
@@ -209,38 +237,46 @@ present.
 auto-detects `FONT_DIR` if it was not set explicitly. See
 [Font directory auto-detection](#font-directory-auto-detection).
 
-### Step 3 — Install Nerd Fonts
+### Step 3 — Build seen-names index
+
+`scripts/install_fonts.sh` scans all `.ttf` and `.otf` files already present
+in `font_dir` with a single batched `fc-query` call, building an in-memory
+map of PostScript names (`_SEEN_NAMES`). This is the ground truth for
+deduplication throughout the rest of the run.
+
+WOFF and WOFF2 files are excluded — `fc-query` does not handle them and
+fontconfig does not register them.
+
+### Step 4 — Install Powerlevel10k MesloLGS NF fonts (highest priority)
+
+For each of the four MesloLGS NF variants:
+
+1. Downloads the file to a temp path.
+2. Queries its PostScript name; checks against `_SEEN_NAMES`.
+3. If new (or `overwrite: true`): lazily creates
+   `<font_dir>/sysset-install-fonts-<timestamp>/` (once, on first write),
+   copies to `p10k/MesloLGS-NF/<filename>`, and registers the name.
+4. If already registered: logs and skips (or overwrites, if `overwrite: true`).
+
+Skipped when `p10k_fonts` is `false`.
+
+### Step 5 — Install Nerd Fonts
 
 For each name in `nerd_fonts`:
 
-1. Checks whether `font_dir/<name>/` already contains `.ttf` or `.otf` files
-   (idempotent skip).
-2. Downloads `<name>.tar.xz` from the
+1. Downloads `<name>.tar.xz` from the
    [nerd-fonts latest release](https://github.com/ryanoasis/nerd-fonts/releases/latest)
-   with up to 3 retries.
-3. Extracts into `font_dir/<name>/` and removes non-font files (LICENSE,
-   README, etc.).
-4. Sets directory permissions to `755` and file permissions to `644`.
+   with up to 3 retries into a temp archive.
+2. Extracts to a temp directory.
+3. Runs one batched `fc-query` call on all TTF/OTF files in the temp dir.
+4. For each font file: checks PostScript name(s) against `_SEEN_NAMES`;
+   copies accepted files to `nerd/<FontName>/<internal-path>`, preserving
+   the archive's directory structure.
+5. Removes temp archive and temp dir.
 
 Skipped entirely when `nerd_fonts` is empty.
 
-### Step 4 — Install fonts from direct URLs
-
-For each URL in `font_urls`:
-
-- **Archive** (`.tar.xz` / `.tar.gz` / `.tgz` / `.zip`): strips all
-  extensions to derive a directory name, extracts into `font_dir/<dir>/`, and
-  removes non-font files. Idempotent — skips if the directory already
-  contains font files.
-- **Font file** (`.ttf` / `.otf` / `.woff` / `.woff2`): downloads directly
-  to `font_dir/<filename>`. Idempotent — skips if the file already exists.
-- **Unknown extension**: emits a warning and skips without error.
-
-Query strings in URLs are stripped before basename detection.
-
-Skipped entirely when `font_urls` is empty.
-
-### Step 5 — Install fonts from GitHub releases
+### Step 6 — Install fonts from GitHub releases
 
 For each slug in `gh_release_fonts`:
 
@@ -248,30 +284,37 @@ For each slug in `gh_release_fonts`:
 2. Calls the GitHub Releases API:
    - No tag → `GET /repos/<owner>/<repo>/releases/latest`
    - Tag present → `GET /repos/<owner>/<repo>/releases/tags/<tag>`
-3. Parses `browser_download_url` values from the response (no `jq`
-   dependency — uses `grep`/`sed`).
-4. Filters for font (`.ttf`, `.otf`, `.woff`, `.woff2`) and archive
-   (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) assets. If archives are present,
-   only archives are downloaded (individual font files are skipped to avoid
-   duplication); otherwise individual font files are downloaded.
-5. Extracts archives and copies individual font files into
-   `font_dir/<repo>/`. Idempotent — skips if the directory already contains
-   font files.
+3. Extracts `tag_name` and release `id` from the response to form a unique
+   install namespace: `gh/<owner>/<repo>/<tag_name>/<release_id>/`.
+4. Filters assets: if archives are present, only archives are downloaded;
+   otherwise individual font files are downloaded.
+5. Each archive is extracted to a temp dir → batched `fc-query` → accepted
+   fonts copied preserving internal structure.
 
 Skipped entirely when `gh_release_fonts` is empty.
 
-### Step 6 — Install Powerlevel10k MesloLGS NF fonts
+### Step 7 — Install fonts from direct URLs
 
-Downloads the four MesloLGS NF variants (Regular, Bold, Italic, Bold Italic)
-from `github.com/romkatv/powerlevel10k-media` into `font_dir/MesloLGS-NF/`.
-Idempotent — skips if the directory already contains `.ttf` files.
+For each URL in `font_urls`:
 
-Skipped when `p10k_fonts` is `false`.
+- **Archive** (`.tar.xz` / `.tar.gz` / `.tgz` / `.zip`): downloaded to a
+  temp archive, extracted to a temp dir, batched `fc-query` on all font
+  files, accepted fonts copied to
+  `url/<host>/<path>/...` preserving internal structure.
+- **Font file** (`.ttf` / `.otf` / `.woff` / `.woff2`): downloaded to a
+  temp file, PostScript name checked, copied to `url/<host>/<path>/<filename>`.
+- **Unknown extension**: emits a warning and skips without error.
 
-### Step 7 — Refresh font cache
+Query strings in URLs are stripped before basename detection.
 
-Runs `fc-cache -f "$FONT_DIR"` to register the newly installed fonts with
-fontconfig. Silently skipped if `fc-cache` is not available.
+Skipped entirely when `font_urls` is empty.
+
+### Step 8 — Fix permissions and refresh font cache
+
+Set all new install directories to `755`. Then runs `fc-cache -f "$FONT_DIR"`
+to register the newly installed fonts with fontconfig. Silently skipped if
+`fc-cache` is not available. If no new fonts were installed (all requested
+fonts were already registered), the timestamped directory is never created.
 
 ---
 
@@ -307,14 +350,15 @@ Some common names: `Meslo`, `JetBrainsMono`, `FiraCode`, `Hack`,
 
 Accepts any publicly accessible URL. The installer branches on file extension:
 
-- **Individual font file** — lands flat in `font_dir` (no subdirectory).
-- **Archive** — all contents are extracted into `font_dir/<name>/` where
-  `<name>` is the archive filename with all extensions stripped (e.g.
-  `MyFont-2.0.tar.xz` → `MyFont-2.0`). Non-font files inside the archive
-  are deleted after extraction.
+- **Individual font file** — downloaded, PostScript-name checked, then copied
+  to `url/<host>/<path>/<filename>` inside the timestamped install dir.
+- **Archive** — extracted to a temp dir; font files are accepted/rejected
+  individually by PostScript name and copied preserving the archive's internal
+  directory structure under `url/<host>/<path>/...`.
 
 Multiple URLs are separated by commas. Query strings (e.g. `?token=...`) in
-URLs are stripped before the basename is extracted.
+URLs are stripped before basename detection. The `url/<host>/<path>` namespace
+is derived by stripping the protocol, query string, and filename from the URL.
 
 ### GitHub Releases (`gh_release_fonts`)
 
@@ -353,10 +397,53 @@ installed.
 | `/usr/share/fonts/` | Default font directory (root/container) |
 | `~/Library/Fonts/` | Default font directory (macOS user) |
 | `~/.local/share/fonts/` | Default font directory (Linux non-root user, XDG default) |
-| `<font_dir>/<NerdFontName>/` | Nerd Font install directory (one per font family) |
-| `<font_dir>/<archive-name>/` | Archive URL or GitHub release install directory |
-| `<font_dir>/<filename.ttf>` | Individual font file (flat install) |
-| `<font_dir>/MesloLGS-NF/` | Powerlevel10k MesloLGS NF fonts |
+| `<font_dir>/sysset-install-fonts-<timestamp>/` | Timestamped install dir created once per run (only when new fonts are written) |
+| `.../p10k/MesloLGS-NF/` | Powerlevel10k MesloLGS NF fonts |
+| `.../nerd/<FontName>/` | Nerd Font files (archive internal structure preserved) |
+| `.../gh/<owner>/<repo>/<tag>/<id>/` | GitHub release fonts (archive internal structure preserved) |
+| `.../url/<host>/<path>/` | Direct URL fonts (archive internal structure or flat file) |
+
+---
+
+## Font directory structure
+
+All fonts installed in a single run share one timestamped directory, created
+lazily on the first write. If every requested font is already registered, the
+directory is never created.
+
+```
+<font_dir>/
+  sysset-install-fonts-<unix-timestamp>/
+    p10k/
+      MesloLGS-NF/
+        "MesloLGS NF Regular.ttf"
+        "MesloLGS NF Bold.ttf"
+        ...
+    nerd/
+      Meslo/
+        MesloLGLDZNerdFont-Regular.ttf
+        ...
+    gh/
+      JetBrains/
+        JetBrainsMono/
+          v2.304/
+            12345678/
+              fonts/
+                ttf/
+                  JetBrainsMono-Regular.ttf
+                  ...
+    url/
+      example.com/
+        fonts/
+          MyFont-Regular.ttf
+          MyFont-2.0/
+            MyFont-Regular.ttf
+            ...
+```
+
+The timestamp is the Unix epoch at the start of the run (`date +%s`). Running
+the feature again with new fonts creates a second timestamped directory rather
+than modifying the first.
 
 ---
 
@@ -432,6 +519,7 @@ Options:
   --gh_release_fonts <slugs>   Comma-separated GitHub slugs (owner/repo or owner/repo@tag)
   --font_dir <path>            Font installation directory (auto-detected when empty)
   --p10k_fonts                 Install Powerlevel10k MesloLGS NF fonts
+  --overwrite                  Overwrite existing fonts on PostScript name collision
   --debug                      Enable debug output (set -x)
   -h, --help                   Show this help
 ```
@@ -471,7 +559,16 @@ src/install-fonts/
 - **`fc-cache` not available** — the font cache refresh step is silently
   skipped. Fonts are still installed on disk; the cache will be updated the
   next time `fc-cache` is run (e.g. on first login).
-- **Font already present** — each installation step is idempotent. If the
-  target directory (for archives and Nerd Fonts) or file (for individual font
-  files) already exists and contains font data, the step is skipped with an
-  `ℹ️` message. This makes repeated `devcontainer rebuild` runs fast.
+- **Font PostScript name already registered (`overwrite: false`)** — the
+  font file is skipped with an `ℹ️` message and the existing copy is kept.
+  This is the default idempotency mechanism: repeated runs create no new
+  `sysset-install-fonts-*` directory when all requested fonts are already
+  present.
+- **Font PostScript name already registered (`overwrite: true`)** — the new
+  file overwrites the registered name in `_SEEN_NAMES` and is installed.
+  The original file on disk is not removed; both copies exist, but the new
+  one takes precedence for the rest of the current run.
+- **Two sources ship the same PostScript name in one run** — the
+  higher-priority source wins (p10k > nerd > gh > url). The lower-priority
+  source logs a skip. Set `overwrite: true` to invert: the last source
+  processed writes the name.
