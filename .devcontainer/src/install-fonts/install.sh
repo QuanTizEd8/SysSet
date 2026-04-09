@@ -6,6 +6,6 @@ set -e
 _SELF_DIR="$(dirname "$0")"
 
 # Install all dependencies declared in packages.txt (including bash).
-install-os-pkg "$_SELF_DIR/packages.txt"
+install-os-pkg --manifest "$_SELF_DIR/packages.txt" --check_installed
 
 exec bash "$_SELF_DIR/scripts/install.sh" "$@"
