@@ -21,6 +21,6 @@ check "/opt/conda group-owned by conda"      bash -c '[ "$(stat -c "%G" /opt/con
 
 # --- permission bits ---
 check "/opt/conda is group-writable"         bash -c '[ "$(stat -c "%A" /opt/conda | cut -c6)" = "w" ]'
-check "/opt/conda has setgid bit"            bash -c 'stat -c "%A" /opt/conda | grep -qE "^d....(s|S)"'
+check "/opt/conda has setgid bit"            bash -c 'stat -c "%A" /opt/conda | grep -qE "^d.....(s|S)"'
 
 reportResults

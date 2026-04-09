@@ -1,0 +1,134 @@
+{
+    "inline_env": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "myenv",
+                "packages": "numpy pandas"
+            }
+        }
+    },
+    "python_version": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "py311",
+                "python_version": "3.11"
+            }
+        }
+    },
+    "env_files": {
+        "build": { "dockerfile": "Dockerfile.envfiles" },
+        "features": {
+            "install-conda-env": {
+                "env_files": "/tmp/test-envs/simple.yml"
+            }
+        }
+    },
+    "env_dirs": {
+        "build": { "dockerfile": "Dockerfile.envdirs" },
+        "features": {
+            "install-conda-env": {
+                "env_dirs": "/tmp/test-envs"
+            }
+        }
+    },
+    "multi_env_files": {
+        "build": { "dockerfile": "Dockerfile.multienv" },
+        "features": {
+            "install-conda-env": {
+                "env_files": "/tmp/test-envs/envA.yml :: /tmp/test-envs/envB.yml"
+            }
+        }
+    },
+    "update_existing": {
+        "build": { "dockerfile": "Dockerfile.existing" },
+        "features": {
+            "install-conda-env": {
+                "env_files": "/tmp/test-envs/simple.yml"
+            }
+        }
+    },
+    "channels": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "chanenv",
+                "packages": "numpy",
+                "channels": "conda-forge :: defaults"
+            }
+        }
+    },
+    "strict_channel_priority": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "strictenv",
+                "packages": "numpy",
+                "channels": "conda-forge",
+                "strict_channel_priority": true
+            }
+        }
+    },
+    "solver_conda": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "solverenv",
+                "packages": "numpy",
+                "solver": "conda"
+            }
+        }
+    },
+    "pip_requirements": {
+        "build": { "dockerfile": "Dockerfile.pipreqs" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "pipenv",
+                "packages": "pip",
+                "pip_requirements_files": "/tmp/requirements.txt"
+            }
+        }
+    },
+    "pip_env_override": {
+        "build": { "dockerfile": "Dockerfile.pipreqs" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "pipenv",
+                "packages": "pip",
+                "pip_requirements_files": "/tmp/requirements.txt",
+                "pip_env": "pipenv"
+            }
+        }
+    },
+    "post_env_script": {
+        "build": { "dockerfile": "Dockerfile.postscript" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "scriptenv",
+                "packages": "numpy",
+                "post_env_script": "/tmp/post-env.sh"
+            }
+        }
+    },
+    "logfile": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "logenv",
+                "packages": "numpy",
+                "logfile": "/tmp/conda-env.log"
+            }
+        }
+    },
+    "no_cache_clean": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-conda-env": {
+                "env_name": "cleanenv",
+                "packages": "numpy",
+                "no_cache_clean": true
+            }
+        }
+    }
+}
