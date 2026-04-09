@@ -62,6 +62,8 @@ jobs:
 
   test-install-os-pkg:
     name: "Test install-os-pkg manifest resolution (${{ matrix.image }})"
+    needs: discover
+    if: contains(fromJson(needs.discover.outputs.features), 'install-os-pkg')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
