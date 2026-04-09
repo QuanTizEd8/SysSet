@@ -64,5 +64,10 @@
          "description": "Log all output (stdout + stderr) to this file in addition to console.",
          "type": "string"
       }
+   },
+   "dependsOn": {
+      "ghcr.io/quantized8/sysset/install-os-pkg:0": {
+         "install_self": true
+      }
    }
 }

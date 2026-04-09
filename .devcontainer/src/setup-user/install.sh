@@ -103,6 +103,14 @@ USERNAME="${USERNAME:-vscode}"
 
 [[ "$DEBUG" == "true" ]] && set -x
 
+_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ---------------------------------------------------------------------------
+# Install base dependencies (bash is already running, but shadow is needed on
+# Alpine for useradd/userdel/groupadd/groupdel/usermod).
+# ---------------------------------------------------------------------------
+install-os-pkg --manifest "${_SELF_DIR}/packages.txt" --check_installed
+
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
@@ -227,27 +235,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-    if ! command -v sudo > /dev/null 2>&1; then
-        echo "📦 sudo not found — installing."
-        if command -v apt-get > /dev/null 2>&1; then
-            apt-get update -y && apt-get install -y --no-install-recommends sudo
-        elif command -v apk > /dev/null 2>&1; then
-            apk add --no-cache sudo
-        elif command -v dnf > /dev/null 2>&1; then
-            dnf install -y sudo
-        elif command -v microdnf > /dev/null 2>&1; then
-            microdnf install -y sudo
-        elif command -v yum > /dev/null 2>&1; then
-            yum install -y sudo
-        elif command -v zypper > /dev/null 2>&1; then
-            zypper --non-interactive install sudo
-        elif command -v pacman > /dev/null 2>&1; then
-            pacman -S --noconfirm --needed sudo
-        else
-            echo "⛔ No supported package manager found to install sudo." >&2
-            exit 1
-        fi
-    fi
+    install-os-pkg --manifest "${_SELF_DIR}/packages-sudo.txt" --check_installed
     mkdir -p "$SUDOERS_DIR"
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
     chmod 0440 "${SUDOERS_DIR}/${USERNAME}"
