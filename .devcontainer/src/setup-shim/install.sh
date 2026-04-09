@@ -39,7 +39,7 @@ install_shim() {
         exit 1
     fi
     cp "$_src" "$_dst"
-    chmod +x "$_dst"
+    chmod +rx "$_dst"
     echo "  ✅ $1 → ${_dst}"
     return
 }
