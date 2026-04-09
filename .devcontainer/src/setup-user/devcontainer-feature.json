@@ -1,0 +1,43 @@
+{
+   "id": "setup-user",
+   "description": "Set up user(s) for the development container.",
+   "name": "User Setup",
+   "options": {
+      "username": {
+         "default": "vscode",
+         "description": "Username to create.",
+         "type": "string"
+      },
+      "uid": {
+         "default": "1000",
+         "description": "User ID to use for the user.",
+         "type": "string"
+      },
+      "gid": {
+         "default": "1000",
+         "description": "Group ID to use for the user.",
+         "type": "string"
+      },
+      "home_dir": {
+         "default": "/home/vscode",
+         "description": "Home directory for the user.",
+         "type": "string"
+      },
+      "sudoers_dir": {
+         "default": "/etc/sudoers.d",
+         "description": "Directory to create sudoers file in.",
+         "type": "string"
+      },
+      "debug": {
+         "default": false,
+         "description": "Enable debug output.",
+         "type": "boolean"
+      },
+      "logfile": {
+         "default": "",
+         "description": "Log all output (stdout + stderr) to this file in addition to console.",
+         "type": "string"
+      }
+   },
+   "version": "0.1.0"
+}

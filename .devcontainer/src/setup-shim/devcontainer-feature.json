@@ -2,22 +2,25 @@
    "id": "setup-shim",
    "version": "0.1.0",
    "name": "Shim Setup",
-   "description": "Set up shim scripts.",
+   "description": "Install shim wrapper scripts to a dedicated directory prepended to PATH, ensuring they take priority over any existing binaries.",
+   "containerEnv": {
+      "PATH": "/usr/local/share/setup-shim/bin:${containerEnv:PATH}"
+   },
    "options": {
       "code": {
          "type": "boolean",
          "default": true,
-         "description": ""
+         "description": "Install a `code` shim that delegates to the real `code` CLI or falls back to `code-insiders`."
       },
       "devcontainer-info": {
          "type": "boolean",
          "default": true,
-         "description": ""
+         "description": "Install a `devcontainer-info` shim that queries dev container image metadata from meta.env files."
       },
       "systemctl": {
          "type": "boolean",
          "default": true,
-         "description": ""
+         "description": "Install a `systemctl` shim that delegates to the real systemctl when systemd is running, or prints a helpful message suggesting the `service` command."
       },
       "debug": {
          "default": false,

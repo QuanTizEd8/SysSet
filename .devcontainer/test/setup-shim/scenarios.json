@@ -1,0 +1,28 @@
+{
+    "default": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-shim": {}
+        }
+    },
+    "code_only": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-shim": {
+                "code": true,
+                "devcontainer-info": false,
+                "systemctl": false
+            }
+        }
+    },
+    "none_enabled": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "setup-shim": {
+                "code": false,
+                "devcontainer-info": false,
+                "systemctl": false
+            }
+        }
+    }
+}
