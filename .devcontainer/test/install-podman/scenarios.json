@@ -1,0 +1,83 @@
+{
+    "apt_default": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {}
+        }
+    },
+    "apt_root_user_config": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {
+                "add_root_user_config": true
+            }
+        }
+    },
+    "apt_remote_user": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {
+                "add_remote_user_config": true,
+                "add_container_user_config": false,
+                "add_current_user_config": false
+            }
+        }
+    },
+    "apt_container_user": {
+        "containerUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {
+                "add_container_user_config": true,
+                "add_remote_user_config": false,
+                "add_current_user_config": false
+            }
+        }
+    },
+    "apt_explicit_user": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {
+                "add_user_config": "devuser",
+                "add_remote_user_config": false,
+                "add_container_user_config": false,
+                "add_current_user_config": false
+            }
+        }
+    },
+    "apt_multi_user": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {
+                "add_user_config": "alice,bob",
+                "add_remote_user_config": false,
+                "add_container_user_config": false,
+                "add_current_user_config": false
+            }
+        }
+    },
+    "apt_no_users": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {
+                "add_remote_user_config": false,
+                "add_container_user_config": false,
+                "add_current_user_config": false
+            }
+        }
+    },
+    "apt_nonexistent_user": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-podman": {
+                "add_user_config": "ghost",
+                "add_remote_user_config": false,
+                "add_container_user_config": false,
+                "add_current_user_config": false
+            }
+        }
+    }
+}

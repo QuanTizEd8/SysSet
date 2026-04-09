@@ -38,12 +38,30 @@
             }
         }
     },
+    "apt_font_urls_file": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {
+                "nerd_fonts": "",
+                "font_urls": "https://github.com/JetBrains/JetBrainsMono/raw/v2.304/fonts/ttf/JetBrainsMono-Regular.ttf"
+            }
+        }
+    },
     "apt_gh_release_fonts": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
                 "gh_release_fonts": "JetBrains/JetBrainsMono"
+            }
+        }
+    },
+    "apt_gh_release_fonts_tag": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-fonts": {
+                "nerd_fonts": "",
+                "gh_release_fonts": "JetBrains/JetBrainsMono@v2.304"
             }
         }
     }

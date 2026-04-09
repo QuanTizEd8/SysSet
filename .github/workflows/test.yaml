@@ -32,7 +32,7 @@ jobs:
             fi
 
             features=$(echo "$all_features" | while IFS= read -r f; do
-              if echo "$changed" | grep -q "^\.devcontainer/src/$f/"; then
+              if echo "$changed" | grep -qE "^\.devcontainer/(src|test)/$f/"; then
                 echo "$f"
               fi
             done | jq -R . | jq -sc .)
