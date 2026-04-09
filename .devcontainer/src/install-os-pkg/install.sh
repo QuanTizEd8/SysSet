@@ -24,12 +24,15 @@ if ! command -v bash > /dev/null 2>&1; then
     fi
 fi
 
+_SELF_DIR="$(dirname "$0")"
+
+exec bash "$_SELF_DIR/scripts/install.sh" "$@"
+
 # Install the system command so other features/scripts can call
 # 'install-os-pkg' directly after this feature has run.
-_SELF_DIR="$(dirname "$0")"
-_LIB_DIR="/usr/local/lib/install-os-pkg"
-_BIN="/usr/local/bin/install-os-pkg"
 if [ "${INSTALL_SELF:-true}" = "true" ]; then
+    _LIB_DIR="/usr/local/lib/install-os-pkg"
+    _BIN="/usr/local/bin/install-os-pkg"
     if [ ! -x "$_BIN" ]; then
         mkdir -p "$_LIB_DIR"
         cp "$_SELF_DIR/scripts/install.sh" "$_LIB_DIR/install.sh"
@@ -41,5 +44,3 @@ if [ "${INSTALL_SELF:-true}" = "true" ]; then
 else
     echo "ℹ️ Skipping system command installation (install_self=false)." >&2
 fi
-
-exec bash "$_SELF_DIR/scripts/install.sh" "$@"
