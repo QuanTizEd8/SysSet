@@ -1,31 +1,57 @@
 {
    "id": "setup-user",
-   "description": "Set up user(s) for the development container.",
+   "version": "0.1.0",
    "name": "User Setup",
+   "description": "Create and configure a user account for the development container.",
    "options": {
       "username": {
          "default": "vscode",
          "description": "Username to create.",
          "type": "string"
       },
-      "uid": {
+      "user_id": {
          "default": "1000",
-         "description": "User ID to use for the user.",
+         "description": "UID to assign to the user.",
          "type": "string"
       },
-      "gid": {
+      "group_id": {
          "default": "1000",
-         "description": "Group ID to use for the user.",
+         "description": "GID to assign to the user's primary group.",
+         "type": "string"
+      },
+      "group_name": {
+         "default": "",
+         "description": "Name for the user's primary group. Defaults to the username.",
          "type": "string"
       },
       "home_dir": {
-         "default": "/home/vscode",
-         "description": "Home directory for the user.",
+         "default": "",
+         "description": "Home directory for the user. Defaults to /home/<username>.",
          "type": "string"
+      },
+      "user_shell": {
+         "default": "/bin/bash",
+         "description": "Login shell for the user. Must exist on the image.",
+         "type": "string"
+      },
+      "sudo_access": {
+         "default": true,
+         "description": "Grant the user passwordless sudo access. Installs sudo if not present.",
+         "type": "boolean"
+      },
+      "extra_groups": {
+         "default": "",
+         "description": "Comma-separated list of supplementary groups to add the user to. Groups must already exist.",
+         "type": "string"
+      },
+      "replace_existing": {
+         "default": true,
+         "description": "When true, any user or group occupying the requested UID/GID is removed first (home directories are preserved). When false, a conflict causes the script to fail unless the user is already correctly configured.",
+         "type": "boolean"
       },
       "sudoers_dir": {
          "default": "/etc/sudoers.d",
-         "description": "Directory to create sudoers file in.",
+         "description": "Directory for the sudoers drop-in file.",
          "type": "string"
       },
       "debug": {
@@ -38,6 +64,5 @@
          "description": "Log all output (stdout + stderr) to this file in addition to console.",
          "type": "string"
       }
-   },
-   "version": "0.1.0"
+   }
 }
