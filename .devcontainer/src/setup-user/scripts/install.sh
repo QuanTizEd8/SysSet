@@ -106,12 +106,6 @@ USERNAME="${USERNAME:-vscode}"
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # ---------------------------------------------------------------------------
-# Install base dependencies (bash is already running, but shadow is needed on
-# Alpine for useradd/userdel/groupadd/groupdel/usermod).
-# ---------------------------------------------------------------------------
-install-os-pkg --manifest "${_SELF_DIR}/packages.txt" --check_installed
-
-# ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 exit_if_not_root
