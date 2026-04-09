@@ -1,14 +1,4 @@
-FROM ubuntu:latest
-RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates bash \
- && rm -rf /var/lib/apt/lists/* \
- && ARCH="$(uname -m)" \
- && curl --fail --location --retry 3 \
-        --output /tmp/miniforge.sh \
-        "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-${ARCH}.sh" \
- && bash /tmp/miniforge.sh -b -p /opt/conda \
- && rm /tmp/miniforge.sh
-ENV PATH="/opt/conda/bin:${PATH}"
+FROM condaforge/miniforge3
 RUN mkdir -p /tmp/test-envs \
  && printf 'name: direnv1\ndependencies:\n  - numpy\n' > /tmp/test-envs/direnv1.yml \
  && printf 'name: direnv2\ndependencies:\n  - pandas\n' > /tmp/test-envs/direnv2.yml
