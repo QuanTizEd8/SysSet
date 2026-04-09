@@ -4,7 +4,7 @@
    "name": "Shim Setup",
    "description": "Install shim wrapper scripts to a dedicated directory prepended to PATH, ensuring they take priority over any existing binaries.",
    "containerEnv": {
-      "PATH": "/usr/local/share/setup-shim/bin:${containerEnv:PATH}"
+      "PATH": "/usr/local/share/setup-shim/bin:$PATH"
    },
    "options": {
       "code": {
