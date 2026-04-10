@@ -32,7 +32,7 @@ check "bashenv block has no old /opt/conda/bin"      bash -c 'f="$(grep -m1 "^BA
 # --- exactly one block per file (no duplicates) ---
 check "profile.d has exactly one begin marker"       bash -c '[ "$(grep -c ">>> conda PATH (install-miniforge) >>>" /etc/profile.d/conda_bin_path.sh)" -eq 1 ]'
 check "bash.bashrc has exactly one begin marker"     bash -c '[ "$(grep -c ">>> conda PATH (install-miniforge) >>>" /etc/bash.bashrc)" -eq 1 ]'
-check "zshenv has exactly one begin marker"          bash -c '[ "$(grep -c \">>> conda PATH (install-miniforge) >>>\" /etc/zsh/zshenv)" -eq 1 ]'
-check "bashenv has exactly one begin marker"         bash -c 'f="$(grep -m1 "^BASH_ENV=" /etc/environment | sed "s/^BASH_ENV=//; s/^[\"'\'']//; s/[\"'\'']$//")"; [ "$(grep -c \">>> conda PATH (install-miniforge) >>>\" "$f")" -eq 1 ]'
+check "zshenv has exactly one begin marker"          bash -c '[ "$(grep -c ">>> conda PATH (install-miniforge) >>>" /etc/zsh/zshenv)" -eq 1 ]'
+check "bashenv has exactly one begin marker"         bash -c 'f="$(grep -m1 "^BASH_ENV=" /etc/environment | sed "s/^BASH_ENV=//; s/^[\"'\''']//; s/[\"'\''']$//")"; [ "$(grep -c ">>> conda PATH (install-miniforge) >>>" "$f")" -eq 1 ]'
 
 reportResults
