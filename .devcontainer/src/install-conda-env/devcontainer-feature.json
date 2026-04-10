@@ -84,5 +84,10 @@
       "ghcr.io/quantized8/sysset/install-os-pkg:0": {
          "install_self": true
       }
-   }
+   },
+   "installsAfter": [
+      "ghcr.io/quantized8/sysset/install-miniforge",
+      "ghcr.io/quantized8/sysset/install-shell",
+      "ghcr.io/quantized8/sysset/setup-user"
+   ]
 }
