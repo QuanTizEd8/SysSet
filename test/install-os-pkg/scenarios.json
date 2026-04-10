@@ -1,212 +1,363 @@
 {
     "apt_installs_packages": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_no_update": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_update": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "no_update": true
+            }
         }
     },
     "apt_no_clean": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_clean": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "no_clean": true
+            }
         }
     },
     "apt_scripts": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_logfile": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "logfile": "/tmp/install-os-pkg.log" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "logfile": "/tmp/install-os-pkg.log"
+            }
         }
     },
     "apt_empty_dir": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "no_matching_files": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apk_installs_packages": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apk_no_update": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_update": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "no_update": true
+            }
         }
     },
     "dnf_installs_packages": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "zypper_installs_packages": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "pacman_installs_packages": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_pkg_selectors": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_manifest_inline": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
-            "install-os-pkg": { "manifest": "# inline manifest\ntree\ncurl\n" }
+            "install-os-pkg": {
+                "manifest": "# inline manifest\ntree\ncurl\n"
+            }
         }
     },
     "apt_manifest_file": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_manifest_file_debug": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "debug": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "debug": true
+            }
         }
     },
     "apt_manifest_section_selector": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apk_manifest_file": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_manifest_all_sections": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_manifest_scripts": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_system_command": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "install_self_false": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "install_self": false }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "install_self": false
+            }
         }
     },
     "install_self_only": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-os-pkg": {}
         }
     },
     "apt_lifecycle_hook_postcreate": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "postCreate" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "lifecycle_hook": "postCreate"
+            }
         }
     },
     "apt_lifecycle_hook_postcreate_debug": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "postCreate", "debug": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "lifecycle_hook": "postCreate",
+                "debug": true
+            }
         }
     },
     "apt_lifecycle_hook_oncreate": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "onCreate" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "lifecycle_hook": "onCreate"
+            }
         }
     },
     "apt_lifecycle_hook_updatecontent": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lifecycle_hook": "updateContent" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "lifecycle_hook": "updateContent"
+            }
         }
     },
     "apt_keep_repos": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "keep_repos": true, "no_update": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "keep_repos": true,
+                "no_update": true
+            }
         }
     },
     "apt_repo_cleanup": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "no_update": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "no_update": true
+            }
         }
     },
     "apt_key_raw": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_key_dearmor": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_version_selector": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt"
+            }
         }
     },
     "apt_dry_run": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "dry_run": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "dry_run": true
+            }
         }
     },
     "apt_lists_max_age_zero": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "lists_max_age": "0" }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "lists_max_age": "0"
+            }
         }
     },
     "apt_check_installed": {
-        "build": { "dockerfile": "Dockerfile" },
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
         "features": {
-            "install-os-pkg": { "manifest": "/tmp/manifest.txt", "check_installed": true }
+            "install-os-pkg": {
+                "manifest": "/tmp/manifest.txt",
+                "check_installed": true
+            }
         }
     }
 }

@@ -1,12 +1,12 @@
 {
     "default": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "setup-shim": {}
         }
     },
     "code_only": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "setup-shim": {
                 "code": true,
@@ -16,7 +16,7 @@
         }
     },
     "none_enabled": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "setup-shim": {
                 "code": false,

@@ -1,12 +1,12 @@
 {
     "apt_default": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-fonts": {}
         }
     },
     "apt_p10k_fonts": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-fonts": {
                 "p10k_fonts": true
@@ -14,7 +14,7 @@
         }
     },
     "apt_custom_font_dir": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-fonts": {
                 "font_dir": "/opt/fonts"
@@ -22,7 +22,7 @@
         }
     },
     "apt_empty_nerd_fonts": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-fonts": {
                 "nerd_fonts": ""
@@ -30,7 +30,7 @@
         }
     },
     "apt_font_urls": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
@@ -39,7 +39,7 @@
         }
     },
     "apt_font_urls_file": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",

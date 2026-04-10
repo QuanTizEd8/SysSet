@@ -1,18 +1,18 @@
 {
     "apt_no_git": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {}
         }
     },
     "apt_default": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {}
         }
     },
     "apt_no_fonts": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {
                 "install_fonts": false
@@ -20,7 +20,7 @@
         }
     },
     "apt_no_configure_zshrc": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {
                 "configure_zshrc": false
@@ -28,7 +28,7 @@
         }
     },
     "apt_set_default_shell": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {
                 "set_default_shell_for": "root"
@@ -36,7 +36,7 @@
         }
     },
     "apt_multi_plugins": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {
                 "plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting",
@@ -45,7 +45,7 @@
         }
     },
     "apt_custom_install_dir": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {
                 "install_dir": "/opt/oh-my-zsh",
@@ -54,7 +54,7 @@
         }
     },
     "apt_custom_font_dir": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-ohmyzsh": {
                 "font_dir": "/opt/fonts/meslo"
