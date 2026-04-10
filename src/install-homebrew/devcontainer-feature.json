@@ -2,9 +2,55 @@
   "id": "install-homebrew",
   "version": "0.1.0",
   "name": "Install Homebrew",
-  "description": "Installs Homebrew on macOS (and Linux). Ensures bash >=4 is available before handing off to the main installer.",
+  "description": "Installs Homebrew on macOS and Linux. Handles Xcode CLT (macOS) / build-tool dependencies (Linux), installs via the official installer, and exports brew shellenv to the appropriate shell startup files.",
   "documentationURL": "https://github.com/quantized8/sysset/tree/main/src/install-homebrew",
   "options": {
+    "install_user": {
+      "type": "string",
+      "default": "",
+      "description": "User to own the Homebrew installation.\nOn macOS root is not permitted; defaults to SUDO_USER if set, otherwise the first non-system user.\nOn Linux root installs are allowed; defaults to the current user.\nIgnored when not running as root.\n"
+    },
+    "prefix": {
+      "type": "string",
+      "default": "",
+      "description": "Override the Homebrew installation prefix (HOMEBREW_PREFIX).\nDefaults are /opt/homebrew (Apple Silicon), /usr/local (Intel macOS), /home/linuxbrew/.linuxbrew (Linux).\nLeave empty to accept the platform default.\n"
+    },
+    "if_exists": {
+      "type": "string",
+      "default": "skip",
+      "description": "What to do when Homebrew is already installed at the resolved prefix.\n'skip'      — continue to post-install steps without re-running the installer (default).\n'fail'      — print an error and exit non-zero.\n'reinstall' — uninstall then install fresh.\n",
+      "enum": ["skip", "fail", "reinstall"]
+    },
+    "update": {
+      "type": "boolean",
+      "default": true,
+      "description": "Run 'brew update' after installation to fetch the latest formula index."
+    },
+    "export_path": {
+      "type": "string",
+      "default": "auto",
+      "description": "Controls which shell startup files receive 'eval \"$(brew shellenv)\"'.\n'auto' writes to all relevant system-wide files (root + Linux) or user-scoped files (macOS / non-root).\n'' (empty) skips all shell-env writes.\nNewline-separated list of absolute paths: writes only to those files.\n"
+    },
+    "users": {
+      "type": "string",
+      "default": "",
+      "description": "Comma-separated list of additional users whose shell startup files should receive 'eval \"$(brew shellenv)\"'.\nOnly applies when export_path is 'auto' or a path list.\n"
+    },
+    "brew_git_remote": {
+      "type": "string",
+      "default": "",
+      "description": "Override HOMEBREW_BREW_GIT_REMOTE — the git remote for the Homebrew/brew repository.\nUseful for air-gapped environments or mirrors.\n"
+    },
+    "core_git_remote": {
+      "type": "string",
+      "default": "",
+      "description": "Override HOMEBREW_CORE_GIT_REMOTE — the git remote for the homebrew-core tap.\nUseful for air-gapped environments or mirrors.\n"
+    },
+    "no_install_from_api": {
+      "type": "boolean",
+      "default": false,
+      "description": "Set HOMEBREW_NO_INSTALL_FROM_API=1 during installation.\nForces homebrew-core to be cloned as a full git repository rather than relying on the JSON API.\nSlower but useful in environments where the API endpoint is blocked.\n"
+    },
     "debug": {
       "type": "boolean",
       "default": false,
