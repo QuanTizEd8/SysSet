@@ -15,6 +15,6 @@ check "logfile is non-empty"               test -s /tmp/miniforge.log
 check "logfile contains install marker"    grep -q "Miniforge" /tmp/miniforge.log
 check "logfile contains success marker"    grep -q "Conda installation complete" /tmp/miniforge.log
 check "logfile contains bin_dir path"    grep -q "/opt/conda" /tmp/miniforge.log
-check "logfile records conda info output"  grep -q "conda_dir" /tmp/miniforge.log
+check "logfile records conda info output"  grep -q "platform :" /tmp/miniforge.log
 
 reportResults
