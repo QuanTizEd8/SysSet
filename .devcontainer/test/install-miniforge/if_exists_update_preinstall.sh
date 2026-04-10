@@ -13,6 +13,8 @@ check "conda binary installed"              test -f /opt/conda/bin/conda
 check "conda binary is executable"          test -x /opt/conda/bin/conda
 
 # --- conda version was updated ---
+echo "=== conda --version ==="; /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
+echo "=== conda env list ==="; /opt/conda/bin/conda env list 2>&1 || echo "(failed)"
 check "conda --version succeeds"            /opt/conda/bin/conda --version
 check "conda version is not 24.7.1"         bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" != "24.7.1" ]'
 

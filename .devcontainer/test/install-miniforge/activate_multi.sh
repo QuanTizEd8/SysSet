@@ -13,6 +13,8 @@ check "conda --version succeeds"                  /opt/conda/bin/conda --version
 # --- both rc files exist ---
 check "/root/.bashrc exists"                      test -f /root/.bashrc
 check "/etc/bash.bashrc exists"                   test -f /etc/bash.bashrc
+echo "=== /root/.bashrc ==="; cat /root/.bashrc 2>/dev/null || echo "(missing)"
+echo "=== /etc/bash.bashrc ==="; cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
 
 # --- conda.sh sourced in /root/.bashrc ---
 check "conda.sh sourced in /root/.bashrc"         grep -Fq ". '/opt/conda/etc/profile.d/conda.sh'" /root/.bashrc

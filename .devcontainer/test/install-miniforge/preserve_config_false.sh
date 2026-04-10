@@ -14,6 +14,8 @@ check "conda binary is executable"          test -x /opt/conda/bin/conda
 check "conda --version succeeds"            /opt/conda/bin/conda --version
 
 # --- .condarc was removed ---
+echo "=== /root/.condarc ==="; cat /root/.condarc 2>/dev/null || echo "(not present)"
+echo "=== /root/.bashrc (conda initialize block) ==="; grep -A3 'conda initialize' /root/.bashrc 2>/dev/null || echo "(no conda initialize block)"
 check ".condarc removed"                    bash -c '[ ! -f /root/.condarc ]'
 
 # --- conda initialize block removed from .bashrc ---

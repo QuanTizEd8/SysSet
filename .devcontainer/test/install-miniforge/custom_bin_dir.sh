@@ -21,6 +21,10 @@ check "mamba activation script at custom dir"     test -f /opt/myforge/etc/profi
 check "default /opt/conda NOT created"            bash -c '! test -e /opt/conda'
 
 # --- PATH export references the custom directory ---
+echo "=== /etc/profile.d/conda_bin_path.sh ==="; cat /etc/profile.d/conda_bin_path.sh 2>/dev/null || echo "(missing)"
+echo "=== /etc/bash.bashrc ==="; cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+echo "=== /etc/environment ==="; cat /etc/environment 2>/dev/null || echo "(missing)"
+echo "=== conda --version ==="; /opt/myforge/bin/conda --version 2>&1 || echo "(failed)"
 check "profile.d script written"                 test -f /etc/profile.d/conda_bin_path.sh
 check "profile.d script exports /opt/myforge/bin" grep -q '/opt/myforge/bin' /etc/profile.d/conda_bin_path.sh
 check "bash.bashrc exports /opt/myforge/bin"     grep -q '/opt/myforge/bin' /etc/bash.bashrc

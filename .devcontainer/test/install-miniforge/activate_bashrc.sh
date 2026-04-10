@@ -12,6 +12,7 @@ check "conda --version succeeds"                 /opt/conda/bin/conda --version
 
 # --- activation rc file was written ---
 check "/etc/bash.bashrc exists"                  test -f /etc/bash.bashrc
+echo "=== /etc/bash.bashrc ==="; cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
 
 # --- conda.sh source line appended ---
 check "conda.sh sourced in /etc/bash.bashrc"     grep -Fq ". '/opt/conda/etc/profile.d/conda.sh'" /etc/bash.bashrc

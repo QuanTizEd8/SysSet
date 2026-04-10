@@ -11,6 +11,7 @@ check "conda binary installed"                 test -f /opt/conda/bin/conda
 check "conda --version succeeds"               /opt/conda/bin/conda --version
 
 # --- installer artifacts preserved ---
+echo "=== ls /tmp/miniforge-installer/ ==="; ls -la /tmp/miniforge-installer/ 2>/dev/null || echo "(missing or empty)"
 check "installer directory preserved"          test -d /tmp/miniforge-installer
 check "installer .sh file preserved"           bash -c 'ls /tmp/miniforge-installer/*.sh 2>/dev/null | grep -q .'
 

@@ -11,6 +11,9 @@ check "conda binary installed"               test -f /opt/conda/bin/conda
 check "conda --version succeeds"             /opt/conda/bin/conda --version
 
 # --- group created ---
+echo "=== getent group conda ==="; getent group conda 2>&1 || echo "(not found)"
+echo "=== id (current user) ==="; id 2>&1 || echo "(failed)"
+echo "=== stat /opt/conda ==="; stat -c "user=%U group=%G mode=%A" /opt/conda 2>&1 || echo "(failed)"
 check "conda group exists"                   bash -c 'getent group conda >/dev/null 2>&1'
 
 # --- running user added to conda group ---

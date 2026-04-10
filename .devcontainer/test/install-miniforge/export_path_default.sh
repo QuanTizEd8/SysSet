@@ -7,6 +7,11 @@ set -e
 source dev-container-features-test-lib
 
 # --- profile.d login-shell script ---
+echo "=== /etc/profile.d/conda_bin_path.sh ==="; cat /etc/profile.d/conda_bin_path.sh 2>/dev/null || echo "(missing)"
+echo "=== /etc/bash.bashrc ==="; cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
+echo "=== /etc/zsh/zshenv ==="; cat /etc/zsh/zshenv 2>/dev/null || echo "(missing)"
+echo "=== /etc/environment ==="; cat /etc/environment 2>/dev/null || echo "(missing)"
+echo "=== login PATH ==="; bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
 check "profile.d script written"                 test -f /etc/profile.d/conda_bin_path.sh
 check "profile.d script has marked block"        grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
 check "profile.d script exports /opt/conda/bin"  grep -q '/opt/conda/bin' /etc/profile.d/conda_bin_path.sh

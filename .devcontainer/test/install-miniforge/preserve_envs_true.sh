@@ -14,6 +14,7 @@ check "conda binary installed"              test -f /opt/conda/bin/conda
 check "conda binary is executable"          test -x /opt/conda/bin/conda
 
 # --- named environment was preserved ---
+echo "=== conda env list ==="; /opt/conda/bin/conda env list 2>&1 || echo "(failed)"
 check "myenv directory exists"              test -d /opt/conda/envs/myenv
 
 # --- conda is functional ---

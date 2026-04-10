@@ -14,6 +14,8 @@ check "conda binary is executable"          test -x /opt/conda/bin/conda
 check "conda --version succeeds"            /opt/conda/bin/conda --version
 
 # --- .condarc was preserved ---
+echo "=== /root/.condarc ==="; cat /root/.condarc 2>/dev/null || echo "(not present)"
+echo "=== /root/.bashrc (conda initialize block) ==="; grep -A3 'conda initialize' /root/.bashrc 2>/dev/null || echo "(no conda initialize block)"
 check ".condarc still exists"               test -f /root/.condarc
 check ".condarc has expected content"       grep -q 'auto_activate_base' /root/.condarc
 

@@ -14,6 +14,7 @@ check "mamba binary installed"              test -f /opt/conda/bin/mamba
 check "mamba binary is executable"          test -x /opt/conda/bin/mamba
 
 # --- conda runs and reports a non-empty version ---
+echo "=== conda --version ==="; /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
 check "conda --version succeeds"            /opt/conda/bin/conda --version
 check "conda version is non-empty"          bash -c '[ -n "$(/opt/conda/bin/conda --version 2>/dev/null)" ]'
 check "mamba --version succeeds"            /opt/conda/bin/mamba --version

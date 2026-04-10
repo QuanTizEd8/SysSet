@@ -12,6 +12,8 @@ check "conda binary at custom dir"               test -f /opt/myforge/bin/conda
 check "mamba binary at custom dir"               test -f /opt/myforge/bin/mamba
 
 # --- symlink created ---
+echo "=== ls -la /opt ==="; ls -la /opt 2>/dev/null || echo "(failed)"
+echo "=== /etc/profile.d/conda_bin_path.sh ==="; cat /etc/profile.d/conda_bin_path.sh 2>/dev/null || echo "(missing)"
 check "/opt/conda is a symlink"                  test -L /opt/conda
 check "/opt/conda symlink points to /opt/myforge" bash -c '[ "$(readlink /opt/conda)" = "/opt/myforge" ]'
 check "/opt/conda/bin/conda reachable via symlink" test -f /opt/conda/bin/conda

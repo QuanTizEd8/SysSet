@@ -12,6 +12,7 @@ check "conda --version succeeds"                   /opt/conda/bin/conda --versio
 
 # --- rc file written ---
 check "/etc/bash.bashrc exists"                    test -f /etc/bash.bashrc
+echo "=== /etc/bash.bashrc ==="; cat /etc/bash.bashrc 2>/dev/null || echo "(missing)"
 check "conda.sh sourced in /etc/bash.bashrc"       grep -Fq ". '/opt/conda/etc/profile.d/conda.sh'" /etc/bash.bashrc
 check "mamba.sh sourced in /etc/bash.bashrc"       grep -Fq ". '/opt/conda/etc/profile.d/mamba.sh'" /etc/bash.bashrc
 

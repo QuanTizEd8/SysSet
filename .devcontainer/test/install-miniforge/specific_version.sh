@@ -16,6 +16,7 @@ check "mamba binary installed"              test -f /opt/conda/bin/mamba
 check "mamba binary is executable"          test -x /opt/conda/bin/mamba
 
 # --- exact conda version installed ---
+echo "=== conda --version ==="; /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
 check "conda --version succeeds"            /opt/conda/bin/conda --version
 check "conda version is 24.7.1"             bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" = "24.7.1" ]'
 check "mamba --version succeeds"            /opt/conda/bin/mamba --version

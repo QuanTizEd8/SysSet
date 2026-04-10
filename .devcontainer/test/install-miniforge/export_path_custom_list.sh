@@ -10,6 +10,9 @@ check "conda binary installed"              test -f /opt/conda/bin/conda
 check "mamba binary installed"              test -f /opt/conda/bin/mamba
 
 # --- only the specified file is written ---
+echo "=== /tmp/test_bashrc ==="; cat /tmp/test_bashrc 2>/dev/null || echo "(missing)"
+echo "=== /etc/profile.d/conda_bin_path.sh ==="; cat /etc/profile.d/conda_bin_path.sh 2>/dev/null || echo "(not present)"
+echo "=== /etc/bash.bashrc (conda PATH block) ==="; grep 'conda PATH' /etc/bash.bashrc 2>/dev/null || echo "(no block)"
 check "custom target file written"          test -f /tmp/test_bashrc
 check "custom target has marked block"      grep -q 'conda PATH (install-miniforge)' /tmp/test_bashrc
 check "custom target exports /opt/conda/bin" grep -q '/opt/conda/bin' /tmp/test_bashrc
