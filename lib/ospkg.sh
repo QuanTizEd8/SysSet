@@ -327,13 +327,16 @@ ospkg::pkg_matches_selectors() {
 # ── Public: ospkg::parse_manifest ────────────────────────────────────────────
 # Usage: ospkg::parse_manifest <content>
 # Parses manifest content (single string) into caller-scope output variables:
-#   _M_KEY  _M_PRESCRIPT  _M_REPO  _M_PKG  _M_SCRIPT
+#   _M_KEY  _M_PRESCRIPT  _M_REPO  _M_PKG  _M_GROUP  _M_MODULE  _M_SCRIPT
+#
+# group  — package groups / tasks (e.g. dnf group install, zypper -t pattern)
+# module — DNF module streams to enable before group/pkg install (dnf-only)
 ospkg::parse_manifest() {
   local content="$1"
-  _M_PRESCRIPT="" _M_REPO="" _M_KEY="" _M_PKG="" _M_SCRIPT=""
+  _M_PRESCRIPT="" _M_REPO="" _M_KEY="" _M_PKG="" _M_GROUP="" _M_MODULE="" _M_SCRIPT=""
   local _type=pkg _active=true _line _mtype _mselectors _mpkg
   while IFS= read -r _line || [[ -n "$_line" ]]; do
-    if [[ "$_line" =~ ^---[[:space:]]+(key|pkg|prescript|repo|script)(([[:space:]].*)?$) ]]; then
+    if [[ "$_line" =~ ^---[[:space:]]+(key|pkg|prescript|repo|group|module|script)(([[:space:]].*)?$) ]]; then
       _mtype="${BASH_REMATCH[1]}"
       _mselectors="${BASH_REMATCH[2]# }"
       _type="$_mtype"
@@ -346,8 +349,22 @@ ospkg::parse_manifest() {
       pkg)
         if ospkg::pkg_matches_selectors "$_line"; then
           _mpkg="${_line%%\[*}"
-          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"
+          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"  
           [[ -n "$_mpkg" ]] && _M_PKG+="${_mpkg}"$'\n'
+        fi
+        ;;
+      group)
+        if ospkg::pkg_matches_selectors "$_line"; then
+          _mpkg="${_line%%\[*}"
+          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"  
+          [[ -n "$_mpkg" ]] && _M_GROUP+="${_mpkg}"$'\n'
+        fi
+        ;;
+      module)
+        if ospkg::pkg_matches_selectors "$_line"; then
+          _mpkg="${_line%%\[*}"
+          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"
+          [[ -n "$_mpkg" ]] && _M_MODULE+="${_mpkg}"$'\n'
         fi
         ;;
       key)       _M_KEY+="${_line}"$'\n'       ;;
@@ -412,10 +429,10 @@ ospkg::run() {
   fi
 
   # Parse manifest.
-  local _M_PRESCRIPT= _M_REPO= _M_KEY= _M_PKG= _M_SCRIPT=
+  local _M_PRESCRIPT= _M_REPO= _M_KEY= _M_PKG= _M_GROUP= _M_MODULE= _M_SCRIPT=
   if [[ -n "$_manifest_content" ]]; then
     ospkg::parse_manifest "$_manifest_content"
-    echo "ℹ️  Manifest parsed: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') prescript line(s), $(echo -n "$_M_KEY" | wc -l | tr -d ' ') key entry/entries, $(echo -n "$_M_REPO" | wc -l | tr -d ' ') repo line(s), $(echo -n "$_M_PKG" | wc -w | tr -d ' ') pkg(s), $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') script line(s)." >&2
+    echo "ℹ️  Manifest parsed: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') prescript line(s), $(echo -n "$_M_KEY" | wc -l | tr -d ' ') key entry/entries, $(echo -n "$_M_REPO" | wc -l | tr -d ' ') repo line(s), $(echo -n "$_M_MODULE" | wc -l | tr -d ' ') module(s), $(echo -n "$_M_GROUP" | wc -l | tr -d ' ') group(s), $(echo -n "$_M_PKG" | wc -w | tr -d ' ') pkg(s), $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') script line(s)." >&2
   fi
 
   # Prescript.
@@ -506,6 +523,71 @@ ospkg::run() {
       echo "⚠️  A repository was added by the manifest but --no_update is set." >&2
       echo "⚠️  Packages from the new repository will not be found unless the package lists are already up-to-date." >&2
     fi
+  fi
+
+  # Enable DNF module streams (must come before group + pkg install).
+  if [[ -n "$_M_MODULE" ]]; then
+    if [[ "$_OSPKG_PREFIX" = "dnf" ]]; then
+      echo "🔩 Enabling DNF module streams." >&2
+      local _mod
+      while IFS= read -r _mod || [[ -n "$_mod" ]]; do
+        [[ -z "$_mod" ]] && continue
+        if [[ "$_dry_run" == true ]]; then
+          echo "🔍 [dry-run] module: would run: $_OSPKG_PKG_MNGR module enable -y $_mod" >&2
+        else
+          echo "🔩 Enabling module '${_mod}'." >&2
+          "$_OSPKG_PKG_MNGR" module enable -y "$_mod"
+          echo "✅ Module '${_mod}' enabled." >&2
+        fi
+      done <<< "$_M_MODULE"
+      [[ "$_dry_run" == false ]] && echo "✅ DNF module streams enabled." >&2
+    else
+      echo "⚠️  'module' section ignored — DNF/YUM only (current PM: $_OSPKG_PKG_MNGR)." >&2
+    fi
+  else
+    echo "ℹ️  No module entries found — skipping." >&2
+  fi
+
+  # Install package groups.
+  if [[ -n "$_M_GROUP" ]]; then
+    local _grp
+    while IFS= read -r _grp || [[ -n "$_grp" ]]; do
+      [[ -z "$_grp" ]] && continue
+      case "$_OSPKG_PREFIX" in
+        dnf)
+          if [[ "$_dry_run" == true ]]; then
+            echo "🔍 [dry-run] group: would run: $_OSPKG_PKG_MNGR group install -y \"$_grp\"" >&2
+          else
+            echo "📦 Installing group '${_grp}' (dnf)." >&2
+            "$_OSPKG_PKG_MNGR" group install -y "$_grp"
+            echo "✅ Group '${_grp}' installed." >&2
+          fi
+          ;;
+        zypper)
+          if [[ "$_dry_run" == true ]]; then
+            echo "🔍 [dry-run] group: would run: zypper --non-interactive install -t pattern $_grp" >&2
+          else
+            echo "📦 Installing pattern '${_grp}' (zypper)." >&2
+            zypper --non-interactive install -t pattern "$_grp"
+            echo "✅ Pattern '${_grp}' installed." >&2
+          fi
+          ;;
+        pacman)
+          # Pacman group syntax is identical to a regular package — route through ospkg::install.
+          if [[ "$_dry_run" == true ]]; then
+            echo "🔍 [dry-run] group: would run: ${_OSPKG_INSTALL[*]} $_grp" >&2
+          else
+            echo "📦 Installing group '${_grp}' (pacman)." >&2
+            ospkg::install "$_grp"
+          fi
+          ;;
+        *)
+          echo "⚠️  'group' section: '$_grp' — not supported on '$_OSPKG_PKG_MNGR'; skipping." >&2
+          ;;
+      esac
+    done <<< "$_M_GROUP"
+  else
+    echo "ℹ️  No group entries found — skipping." >&2
   fi
 
   # Install packages.
