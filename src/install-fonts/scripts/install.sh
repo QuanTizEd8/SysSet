@@ -105,7 +105,7 @@ if [[ -z "$FONT_DIR" ]]; then
   fi
 fi
 
-ospkg::run --manifest "${_BASE_DIR}/packages.txt" --check_installed
+ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt" --check_installed
 
 [[ "$DEBUG" == true ]] && set -x
 

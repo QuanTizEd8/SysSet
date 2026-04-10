@@ -50,7 +50,7 @@ add_user() {
 # ---------------------------------------------------------------------------
 # 1. Install packages
 # ---------------------------------------------------------------------------
-ospkg::run --manifest "${_BASE_DIR}/packages.txt"
+ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt"
 
 # ---------------------------------------------------------------------------
 # 2. Ensure newuidmap / newgidmap have setuid bit
