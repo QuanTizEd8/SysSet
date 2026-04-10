@@ -79,14 +79,7 @@ __cleanup__() {
       find "$BIN_DIR" -follow -type f -name '*.a' -delete 2>/dev/null || true
       find "$BIN_DIR" -follow -type f -name '*.pyc' -delete 2>/dev/null || true
   fi
-  if [ -n "${LOGFILE-}" ]; then
-    exec 1>&3 2>&4
-    wait 2>/dev/null
-    echo "ℹ️ Write logs to file '$LOGFILE'" >&2
-    mkdir -p "$(dirname "$LOGFILE")"
-    cat "$_LOGFILE_TMP" >> "$LOGFILE"
-    rm -f "$_LOGFILE_TMP"
-  fi
+  logging::cleanup
   echo "↩️ Function exit: __cleanup__" >&2
 }
 
@@ -622,11 +615,11 @@ create_symlink() {
 readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
 readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 
-_LOGFILE_TMP="$(mktemp)"
-exec 3>&1 4>&2
-exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
+_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$_SELF_DIR/_lib/logging.sh"
+logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
-trap __cleanup__ EXIT
+trap '__cleanup__' EXIT
 
 
 if [ "$#" -gt 0 ]; then

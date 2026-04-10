@@ -13,6 +13,10 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ---------------------------------------------------------------------------
 # shellcheck source=helpers.sh
 . "$_SELF_DIR/helpers.sh"
+# shellcheck source=_lib/logging.sh
+. "$_SELF_DIR/_lib/logging.sh"
+logging::setup
+trap 'logging::cleanup' EXIT
 
 # ---------------------------------------------------------------------------
 # Usage
@@ -41,6 +45,7 @@ Options:
   --overwrite                  Overwrite an existing font when its PostScript name collides with
                                a font being installed. Default: skip and log the collision.
   --debug                      Enable debug output (set -x).
+  --logfile <path>             Log all output to this file in addition to console.
   -h, --help                   Show this help.
 EOF
   exit 0
@@ -57,6 +62,7 @@ if [ "$#" -gt 0 ]; then
   P10K_FONTS=""
   OVERWRITE=""
   DEBUG=""
+  LOGFILE=""
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -67,6 +73,7 @@ if [ "$#" -gt 0 ]; then
       --p10k_fonts)       shift; P10K_FONTS="$1";       shift;;
       --overwrite)        OVERWRITE=true; shift;;
       --debug)            DEBUG=true; shift;;
+      --logfile)          shift; LOGFILE="$1"; shift;;
       --help|-h)          __usage__;;
       --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
       *)   echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
@@ -84,6 +91,7 @@ fi
 : "${P10K_FONTS:=false}"
 : "${OVERWRITE:=false}"
 : "${DEBUG:=false}"
+: "${LOGFILE=}"
 
 # Auto-detect font directory when not explicitly set.
 if [[ -z "$FONT_DIR" ]]; then

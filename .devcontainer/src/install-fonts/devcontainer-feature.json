@@ -38,6 +38,11 @@
          "default": false,
          "description": "Enable debug output.",
          "type": "boolean"
+      },
+      "logfile": {
+         "default": "",
+         "description": "Log all output (stdout + stderr) to this file in addition to console.",
+         "type": "string"
       }
    },
    "dependsOn": {

@@ -10,19 +10,6 @@
 #   SUDO_ACCESS, EXTRA_GROUPS, REPLACE_EXISTING, SUDOERS_DIR, DEBUG, LOGFILE
 set -euo pipefail
 
-__cleanup__() {
-    echo "↪️ Function entry: __cleanup__" >&2
-    if [ -n "${LOGFILE:-}" ]; then
-        exec 1>&3 2>&4
-        wait 2>/dev/null
-        echo "ℹ️ Write logs to file '$LOGFILE'" >&2
-        mkdir -p "$(dirname "$LOGFILE")"
-        cat "$_LOGFILE_TMP" >> "$LOGFILE"
-        rm -f "$_LOGFILE_TMP"
-    fi
-    echo "↩️ Function exit: __cleanup__" >&2
-}
-
 exit_if_not_root() {
   echo "↪️ Function entry: exit_if_not_root" >&2
   if [ "$(id -u)" -ne 0 ]; then
@@ -33,14 +20,14 @@ exit_if_not_root() {
 }
 
 # ---------------------------------------------------------------------------
-# Logging — tee stdout+stderr to a temp file; flush to LOGFILE on exit
+# Cleanup / logging
 # ---------------------------------------------------------------------------
-_LOGFILE_TMP="$(mktemp)"
-exec 3>&1 4>&2
-exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
+_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$_SELF_DIR/_lib/logging.sh"
+logging::setup
 
 echo "↪️ Script entry: User Setup" >&2
-trap __cleanup__ EXIT
+trap 'logging::cleanup' EXIT
 
 # ---------------------------------------------------------------------------
 # Argument parsing (CLI invocation — not used by devcontainer tooling)

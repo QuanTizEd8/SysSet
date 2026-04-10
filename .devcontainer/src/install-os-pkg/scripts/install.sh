@@ -1,17 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-__cleanup__() {
-  echo "↪️ Function entry: __cleanup__" >&2
-  if [ -n "${LOGFILE-}" ]; then
-    exec 1>&3 2>&4
-    wait 2>/dev/null
-    echo "ℹ️ Write logs to file '$LOGFILE'" >&2
-    mkdir -p "$(dirname "$LOGFILE")"
-    cat "$_LOGFILE_TMP" >> "$LOGFILE"
-    rm -f "$_LOGFILE_TMP"
-  fi
-  echo "↩️ Function exit: __cleanup__" >&2
-}
 clean_apk() {
   echo "↪️ Function entry: clean_apk" >&2
   rm -rf /var/cache/apk/*
@@ -142,11 +130,11 @@ parse_manifest() {
     esac
   done <<< "$content"
 }
-_LOGFILE_TMP="$(mktemp)"
-exec 3>&1 4>&2
-exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
+_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$_SELF_DIR/_lib/logging.sh"
+logging::setup
 echo "↪️ Script entry: System Package Installation" >&2
-trap __cleanup__ EXIT
+trap 'logging::cleanup' EXIT
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $@" >&2
   DEBUG=""

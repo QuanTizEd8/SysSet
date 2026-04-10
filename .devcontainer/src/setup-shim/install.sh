@@ -1,60 +1,29 @@
-#!/bin/bash
-# install.sh — runs as root at image build time.
-#
-# Copies enabled shim scripts into a dedicated directory that is prepended
-# to PATH via containerEnv in devcontainer-feature.json.  This ensures the
-# shims always shadow any real binary of the same name, without colliding
-# with other files in /usr/local/bin.
-#
-# Feature options (injected as environment variables by the tooling):
-#   CODE, DEVCONTAINER_INFO, SYSTEMCTL, DEBUG, LOGFILE
+#!/bin/sh
+# Bootstrap: ensure bash is available, then hand off to the main install script.
 set -e
 
-_SHIM_BIN="/usr/local/share/setup-shim/bin"
-_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_FILES_DIR="${_SELF_DIR}/files"
-
-# ---------------------------------------------------------------------------
-# Debug / logging
-# ---------------------------------------------------------------------------
-if [ "${DEBUG:-false}" = "true" ]; then
-    set -x
-fi
-
-if [ -n "${LOGFILE:-}" ]; then
-    exec 2>&1
-    exec > >(tee -a "$LOGFILE")
-fi
-
-# ---------------------------------------------------------------------------
-# Install shims
-# ---------------------------------------------------------------------------
-mkdir -p "${_SHIM_BIN}"
-
-install_shim() {
-    _src="${_FILES_DIR}/$1"
-    _dst="${_SHIM_BIN}/$1"
-    if [ ! -f "$_src" ]; then
-        echo "setup-shim: source file not found: ${_src}" >&2
+if ! command -v bash > /dev/null 2>&1; then
+    echo "🔍 bash not found — installing via system package manager." >&2
+    if command -v apk > /dev/null 2>&1; then
+        apk add --no-cache bash
+    elif command -v apt-get > /dev/null 2>&1; then
+        apt-get update && apt-get install -y --no-install-recommends bash
+    elif command -v dnf > /dev/null 2>&1; then
+        dnf install -y bash
+    elif command -v microdnf > /dev/null 2>&1; then
+        microdnf install -y bash
+    elif command -v yum > /dev/null 2>&1; then
+        yum install -y bash
+    elif command -v zypper > /dev/null 2>&1; then
+        zypper --non-interactive install bash
+    elif command -v pacman > /dev/null 2>&1; then
+        pacman -S --noconfirm --needed bash
+    else
+        echo "⛔ No supported package manager found to install bash." >&2
         exit 1
     fi
-    cp "$_src" "$_dst"
-    chmod +rx "$_dst"
-    echo "  ✅ $1 → ${_dst}"
-    return
-}
-
-if [ "${CODE:-true}" = "true" ]; then
-    install_shim "code"
 fi
 
-if [ "${DEVCONTAINER_INFO:-true}" = "true" ]; then
-    install_shim "devcontainer-info"
-fi
+_SELF_DIR="$(dirname "$0")"
 
-if [ "${SYSTEMCTL:-true}" = "true" ]; then
-    install_shim "systemctl"
-fi
-
-echo "setup-shim: done."
-exit 0
+exec bash "$_SELF_DIR/scripts/install.sh" "$@"

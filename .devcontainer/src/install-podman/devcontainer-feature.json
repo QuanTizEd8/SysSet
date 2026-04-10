@@ -53,6 +53,16 @@
             "type": "string",
             "default": "",
             "description": "Comma-separated list of additional usernames to register subuid/subgid ranges and write Podman storage config for."
+        },
+        "debug": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enable debug output."
+        },
+        "logfile": {
+            "type": "string",
+            "default": "",
+            "description": "Log all output (stdout + stderr) to this file in addition to console."
         }
     },
 

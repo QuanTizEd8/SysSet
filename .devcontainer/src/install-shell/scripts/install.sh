@@ -25,20 +25,9 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 # ---------------------------------------------------------------------------
 # Cleanup / logging
 # ---------------------------------------------------------------------------
-__cleanup__() {
-  if [ -n "${LOGFILE-}" ]; then
-    exec 1>&3 2>&4
-    wait 2>/dev/null
-    mkdir -p "$(dirname "$LOGFILE")"
-    cat "$_LOGFILE_TMP" >> "$LOGFILE"
-    rm -f "$_LOGFILE_TMP"
-  fi
-}
-
-_LOGFILE_TMP="$(mktemp)"
-exec 3>&1 4>&2
-exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
-trap __cleanup__ EXIT
+. "$_SELF_DIR/_lib/logging.sh"
+logging::setup
+trap 'logging::cleanup' EXIT
 
 # ---------------------------------------------------------------------------
 # Usage
