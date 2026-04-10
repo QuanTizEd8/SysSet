@@ -54,6 +54,8 @@ jobs:
 
       - name: "Sync _lib/ copies from lib/"
         run: bash sync-lib.sh
+
+      - name: "Install latest devcontainer CLI"
         run: npm install -g @devcontainers/cli
 
       - name: "Test ${{ matrix.feature }} scenarios"
