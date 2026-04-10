@@ -14,3 +14,11 @@ jobs:
         with:
           validate-only: "true"
           base-path-to-features: "./.devcontainer/src"
+
+  check-lib-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Verify _lib/ copies are in sync with .devcontainer/lib/"
+        run: bash .devcontainer/sync-lib.sh --check
