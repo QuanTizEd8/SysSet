@@ -1,48 +1,48 @@
 {
     "download_and_install": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true }
         }
     },
-    "no_update_path": {
-        "build": { "dockerfile": "Dockerfile" },
+    "no_export_path": {
+        "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "download": true, "install": true, "update_path": false }
+            "install-miniforge": { "download": true, "install": true, "export_path": "" }
         }
     },
     "custom_conda_dir": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "download": true, "install": true, "conda_dir": "/opt/myforge" }
+            "install-miniforge": { "download": true, "install": true, "conda_dir": "/opt/myforge", "symlink": false }
         }
     },
     "specific_version": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true, "conda_version": "24.7.1-2" }
         }
     },
     "set_permission": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true, "set_permissions": true }
         }
     },
     "activate_bashrc": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true, "rc_files": "/etc/bash.bashrc" }
         }
     },
     "activate_multi": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true, "rc_files": "/root/.bashrc :: /etc/bash.bashrc" }
         }
     },
     "custom_active_env": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": {
                 "download": true,
@@ -53,13 +53,13 @@
         }
     },
     "logfile": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true, "logfile": "/tmp/miniforge.log" }
         }
     },
     "no_clean": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true, "keep_installer": true }
         }
@@ -71,7 +71,7 @@
         }
     },
     "debian": {
-        "build": { "dockerfile": "Dockerfile" },
+        "image": "debian:latest",
         "features": {
             "install-miniforge": { "download": true, "install": true }
         }
@@ -80,6 +80,36 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-miniforge": { "download": true, "install": true, "set_permissions": true, "users": "testuser1,testuser2" }
+        }
+    },
+    "export_path_default": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-miniforge": { "download": true, "install": true }
+        }
+    },
+    "export_path_custom_dir": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "conda_dir": "/opt/myforge", "symlink": false }
+        }
+    },
+    "export_path_symlink": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "conda_dir": "/opt/myforge", "symlink": true }
+        }
+    },
+    "export_path_disabled": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "export_path": "" }
+        }
+    },
+    "export_path_custom_list": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "export_path": "/tmp/test_bashrc" }
         }
     }
 }

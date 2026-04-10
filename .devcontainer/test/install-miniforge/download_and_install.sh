@@ -1,8 +1,8 @@
 #!/bin/bash
 # download=true, install=true: full Miniforge installation with all defaults.
 # Verifies conda and mamba are installed under /opt/conda, the base environment
-# is functional, activation scripts are in place, and /etc/profile.d/conda_path.sh
-# is written because update_path defaults to true.
+# is functional, activation scripts are in place, and PATH export blocks are
+# written to all system-wide shell startup files (export_path defaults to "auto").
 set -e
 
 source dev-container-features-test-lib
@@ -25,10 +25,18 @@ check "pip installed in base env"                test -f /opt/conda/bin/pip
 check "conda activation script exists"           test -f /opt/conda/etc/profile.d/conda.sh
 check "mamba activation script exists"           test -f /opt/conda/etc/profile.d/mamba.sh
 
-# --- PATH update (update_path=true by default) ---
-check "conda_path.sh written"                    test -f /etc/profile.d/conda_path.sh
-check "conda_path.sh exports /opt/conda/bin"     grep -q '/opt/conda/bin' /etc/profile.d/conda_path.sh
-check "conda_path.sh uses export"                grep -q 'export PATH' /etc/profile.d/conda_path.sh
+# --- PATH export (export_path=auto by default, Debian Case A: public install + root) ---
+check "profile.d script written"                 test -f /etc/profile.d/conda_bin_path.sh
+check "profile.d script has marked block"        grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
+check "profile.d script exports /opt/conda/bin"  grep -q '/opt/conda/bin' /etc/profile.d/conda_bin_path.sh
+check "bash.bashrc has marked block"             grep -q 'conda PATH (install-miniforge)' /etc/bash.bashrc
+check "bash.bashrc exports /opt/conda/bin"       grep -q '/opt/conda/bin' /etc/bash.bashrc
+check "zshenv has marked block"                  grep -q 'conda PATH (install-miniforge)' /etc/zsh/zshenv
+check "zshenv exports /opt/conda/bin"            grep -q '/opt/conda/bin' /etc/zsh/zshenv
+check "BASH_ENV registered in /etc/environment"  grep -q '^BASH_ENV=' /etc/environment
+check "bashenv file has marked block"            bash -c 'f="$(grep -m1 "^BASH_ENV=" /etc/environment | sed "s/^BASH_ENV=//; s/^[\"'\'']//; s/[\"'\'']$//")"; grep -q "conda PATH (install-miniforge)" "$f"'
+check "bashenv exports /opt/conda/bin"           bash -c 'f="$(grep -m1 "^BASH_ENV=" /etc/environment | sed "s/^BASH_ENV=//; s/^[\"'\'']//; s/[\"'\'']$//")"; grep -q "/opt/conda/bin" "$f"'
+check "login PATH includes /opt/conda/bin"       bash -lc 'echo "$PATH"' | grep -q '/opt/conda/bin'
 
 # --- conda functionality ---
 check "conda --version succeeds"                 /opt/conda/bin/conda --version

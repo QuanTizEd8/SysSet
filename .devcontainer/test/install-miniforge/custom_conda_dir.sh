@@ -1,7 +1,8 @@
 #!/bin/bash
-# download=true, install=true, conda_dir=/opt/myforge: Miniforge is installed
-# to a custom directory.  The default /opt/conda path must not be created, and
-# the PATH update file must reference the custom directory.
+# download=true, install=true, conda_dir=/opt/myforge, symlink=false:
+# Miniforge is installed to a custom directory.  The default /opt/conda path
+# must not be created (symlink disabled), and PATH export blocks must reference
+# the custom directory.
 set -e
 
 source dev-container-features-test-lib
@@ -9,19 +10,22 @@ source dev-container-features-test-lib
 # --- custom directory structure ---
 check "conda installed at /opt/myforge"           test -d /opt/myforge
 check "conda binary at custom dir"                test -f /opt/myforge/bin/conda
-check "conda binary is executable"                test -x /opt/myforge/bin/conda
-check "mamba binary at custom dir"                test -f /opt/myforge/bin/mamba
-check "mamba binary is executable"                test -x /opt/myforge/bin/mamba
+check "conda binary is executable"               test -x /opt/myforge/bin/conda
+check "mamba binary at custom dir"               test -f /opt/myforge/bin/mamba
+check "mamba binary is executable"               test -x /opt/myforge/bin/mamba
 check "python installed in custom base env"       test -f /opt/myforge/bin/python
 check "conda activation script at custom dir"     test -f /opt/myforge/etc/profile.d/conda.sh
 check "mamba activation script at custom dir"     test -f /opt/myforge/etc/profile.d/mamba.sh
 
-# --- default directory must NOT exist ---
-check "default /opt/conda NOT created"            bash -c '! test -d /opt/conda'
+# --- default directory must NOT exist (symlink=false) ---
+check "default /opt/conda NOT created"            bash -c '! test -e /opt/conda'
 
-# --- PATH update references the custom directory ---
-check "conda_path.sh written"                     test -f /etc/profile.d/conda_path.sh
-check "conda_path.sh exports /opt/myforge/bin"    grep -q '/opt/myforge/bin' /etc/profile.d/conda_path.sh
+# --- PATH export references the custom directory ---
+check "profile.d script written"                 test -f /etc/profile.d/conda_bin_path.sh
+check "profile.d script exports /opt/myforge/bin" grep -q '/opt/myforge/bin' /etc/profile.d/conda_bin_path.sh
+check "bash.bashrc exports /opt/myforge/bin"     grep -q '/opt/myforge/bin' /etc/bash.bashrc
+check "BASH_ENV registered in /etc/environment"  grep -q '^BASH_ENV=' /etc/environment
+check "bashenv exports /opt/myforge/bin"         bash -c 'f="$(grep -m1 "^BASH_ENV=" /etc/environment | sed "s/^BASH_ENV=//; s/^[\"'\'']//; s/[\"'\'']$//")"; grep -q "/opt/myforge/bin" "$f"'
 
 # --- functionality ---
 check "conda --version succeeds"                  /opt/myforge/bin/conda --version

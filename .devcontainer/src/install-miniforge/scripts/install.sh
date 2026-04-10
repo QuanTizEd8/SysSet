@@ -37,8 +37,16 @@ __usage__() {
   echo "  --update_base (boolean): Update the base conda environment via conda update --all.
   Not recommended for production.
   " >&2
-  echo "  --update_path (boolean): Write /etc/profile.d/conda_path.sh so conda is
-  available in subsequent shell sessions and Dockerfile RUN layers.
+  echo "  --export_path (string): Controls which shell startup files receive the PATH export for \$CONDA_DIR/bin.
+  'auto' writes to all relevant system-wide files (public install + root)
+  or user-scoped files (user install or non-root).
+  '' (empty) skips all PATH writes.
+  Newline-separated list of absolute paths: writes only to those files.
+  " >&2
+  echo "  --symlink (boolean): Create a symlink /opt/conda -> \$CONDA_DIR when conda_dir is not /opt/conda.
+  Ensures containerEnv PATH coverage works even with a custom conda_dir.
+  No-op when conda_dir is already /opt/conda.
+  Script default: false (devcontainer-feature.json default: true).
   " >&2
   echo "  --users (string): Comma-separated list of users to add to the conda group (e.g. 'alice,bob').
   Only applies when set_permissions is true.
@@ -180,11 +188,6 @@ install_miniforge() {
   "$CONDA_EXEC" env list
   echo "Displaying conda list:"
   "$CONDA_EXEC" list --name base
-  if [[ "$UPDATE_PATH" == true ]]; then
-      echo "ℹ️ Writing /etc/profile.d/conda_path.sh" >&2
-      printf 'export PATH="%s/bin:${PATH}"\n' "$CONDA_DIR" > /etc/profile.d/conda_path.sh
-      echo "✅ /etc/profile.d/conda_path.sh written." >&2
-  fi
   echo "↩️ Function exit: install_miniforge" >&2
 }
 
@@ -311,6 +314,214 @@ verify_miniforge() {
 }
 
 
+detect_platform() {
+  echo "↪️ Function entry: detect_platform" >&2
+  local id="" id_like=""
+  if [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    id="${ID:-}"
+    id_like="${ID_LIKE:-}"
+  fi
+  case "$id" in
+    debian|ubuntu)                            echo "debian"; echo "↩️ Function exit: detect_platform" >&2; return ;;
+    alpine)                                   echo "alpine"; echo "↩️ Function exit: detect_platform" >&2; return ;;
+    rhel|centos|fedora|rocky|almalinux)       echo "rhel";   echo "↩️ Function exit: detect_platform" >&2; return ;;
+  esac
+  case "$id_like" in
+    *debian*|*ubuntu*)                        echo "debian"; echo "↩️ Function exit: detect_platform" >&2; return ;;
+    *alpine*)                                 echo "alpine"; echo "↩️ Function exit: detect_platform" >&2; return ;;
+    *rhel*|*fedora*|*centos*|*"Red Hat"*)     echo "rhel";   echo "↩️ Function exit: detect_platform" >&2; return ;;
+  esac
+  if [ "$(uname -s)" = "Darwin" ]; then
+    echo "macos"; echo "↩️ Function exit: detect_platform" >&2; return
+  fi
+  echo "debian"  # fallback
+  echo "↩️ Function exit: detect_platform" >&2
+}
+
+_platform_bashrc() {
+  local platform="$1"
+  case "$platform" in
+    alpine)      echo "/etc/bash/bashrc" ;;
+    rhel|macos)  echo "/etc/bashrc" ;;
+    *)           echo "/etc/bash.bashrc" ;;
+  esac
+}
+
+_platform_zshenv() {
+  local platform="$1"
+  case "$platform" in
+    rhel|macos)  echo "/etc/zshenv" ;;
+    *)           echo "/etc/zsh/zshenv" ;;
+  esac
+}
+
+_detect_bashenv_target() {
+  echo "↪️ Function entry: _detect_bashenv_target" >&2
+  local platform="$1"
+  # 1. Live environment variable
+  if [ -n "${BASH_ENV:-}" ]; then
+    echo "ℹ️ BASH_ENV already set to '${BASH_ENV}'; reusing." >&2
+    echo "$BASH_ENV"
+    echo "↩️ Function exit: _detect_bashenv_target" >&2
+    return
+  fi
+  # 2. Existing /etc/environment entry
+  if [ -f /etc/environment ]; then
+    local env_val
+    env_val="$(grep -m1 '^BASH_ENV=' /etc/environment 2>/dev/null || true)"
+    if [ -n "$env_val" ]; then
+      env_val="${env_val#BASH_ENV=}"
+      env_val="${env_val#[\"\']}"
+      env_val="${env_val%[\"\']}"
+      echo "ℹ️ Found BASH_ENV='${env_val}' in /etc/environment; reusing." >&2
+      echo "$env_val"
+      echo "↩️ Function exit: _detect_bashenv_target" >&2
+      return
+    fi
+  fi
+  # 3. Create new bashenv file and register in /etc/environment
+  local canonical_bashrc
+  canonical_bashrc="$(_platform_bashrc "$platform")"
+  local bashenv_dir
+  bashenv_dir="$(dirname "$canonical_bashrc")"
+  local bashenv_path="${bashenv_dir}/bashenv"
+  echo "ℹ️ No BASH_ENV found; creating '${bashenv_path}' and registering in /etc/environment." >&2
+  mkdir -p "$bashenv_dir"
+  [ -f "$bashenv_path" ] || touch "$bashenv_path"
+  printf 'BASH_ENV="%s"\n' "$bashenv_path" >> /etc/environment
+  echo "$bashenv_path"
+  echo "↩️ Function exit: _detect_bashenv_target" >&2
+}
+
+build_export_path_list() {
+  echo "↪️ Function entry: build_export_path_list" >&2
+  if [ "$EXPORT_PATH" = "" ]; then
+    echo "↩️ Function exit: build_export_path_list" >&2
+    return
+  fi
+  if [ "$EXPORT_PATH" != "auto" ]; then
+    echo "$EXPORT_PATH"
+    echo "↩️ Function exit: build_export_path_list" >&2
+    return
+  fi
+  # auto mode: determine Case A (public + root) vs Case B (user/non-root)
+  local is_public=true
+  local is_root=false
+  case "$CONDA_DIR" in
+    "${HOME}"/*) is_public=false ;;
+  esac
+  [ "$(id -u)" = "0" ] && is_root=true
+  local platform
+  platform="$(detect_platform)"
+  echo "📤 Write output 'platform': '${platform}'" >&2
+  if [ "$is_public" = true ] && [ "$is_root" = true ]; then
+    echo "ℹ️ Case A: system-wide PATH export (public install, root)." >&2
+    # 1. BASH_ENV target (non-login non-interactive bash)
+    local bashenv_target
+    bashenv_target="$(_detect_bashenv_target "$platform")"
+    echo "$bashenv_target"
+    # 2. /etc/profile.d/conda_bin_path.sh (login shells)
+    echo "/etc/profile.d/conda_bin_path.sh"
+    # 3. Global bashrc (non-login interactive bash)
+    local bashrc=""
+    for f in /etc/bash.bashrc /etc/bashrc /etc/bash/bashrc; do
+      [ -f "$f" ] && { bashrc="$f"; break; }
+    done
+    [ -z "$bashrc" ] && bashrc="$(_platform_bashrc "$platform")"
+    echo "$bashrc"
+    # 4. Global zshenv (all Zsh invocations)
+    local zshenv=""
+    for f in /etc/zsh/zshenv /etc/zshenv; do
+      [ -f "$f" ] && { zshenv="$f"; break; }
+    done
+    [ -z "$zshenv" ] && zshenv="$(_platform_zshenv "$platform")"
+    echo "$zshenv"
+  else
+    echo "ℹ️ Case B: user-scoped PATH export." >&2
+    # 1. ~/.bashrc (non-login interactive bash)
+    echo "${HOME}/.bashrc"
+    # 2. Login file
+    local login_file=""
+    for f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile"; do
+      [ -f "$f" ] && { login_file="$f"; break; }
+    done
+    [ -z "$login_file" ] && login_file="${HOME}/.bash_profile"
+    echo "$login_file"
+    # 3. Zsh env file
+    local zdotdir="${ZDOTDIR:-$HOME}"
+    echo "${zdotdir}/.zshenv"
+  fi
+  echo "↩️ Function exit: build_export_path_list" >&2
+}
+
+write_path_block() {
+  echo "↪️ Function entry: write_path_block" >&2
+  local target_file="$1"
+  local begin_marker="# >>> conda PATH (install-miniforge) >>>"
+  local end_marker="# <<< conda PATH (install-miniforge) <<<"
+  local block_content="export PATH=\"${CONDA_DIR}/bin:\${PATH}\""
+  mkdir -p "$(dirname "$target_file")"
+  [ -f "$target_file" ] || touch "$target_file"
+  if grep -qF "$begin_marker" "$target_file"; then
+    awk -v begin="$begin_marker" -v end="$end_marker" -v content="$block_content" '
+      $0 == begin { print; print content; found=1; next }
+      found && $0 == end { print; found=0; next }
+      found { next }
+      { print }
+    ' "$target_file" > "${target_file}.tmp" && mv "${target_file}.tmp" "$target_file"
+    echo "♻️ Updated PATH block in '${target_file}'." >&2
+  else
+    printf '\n%s\n%s\n%s\n' "$begin_marker" "$block_content" "$end_marker" >> "$target_file"
+    echo "✅ Appended PATH block to '${target_file}'." >&2
+  fi
+  echo "↩️ Function exit: write_path_block" >&2
+}
+
+export_path_main() {
+  echo "↪️ Function entry: export_path_main" >&2
+  if [ "$EXPORT_PATH" = "" ]; then
+    echo "ℹ️ export_path is empty; skipping PATH export." >&2
+    echo "↩️ Function exit: export_path_main" >&2
+    return
+  fi
+  local target_files
+  target_files="$(build_export_path_list)"
+  if [ -z "$target_files" ]; then
+    echo "ℹ️ No target files for PATH export." >&2
+    echo "↩️ Function exit: export_path_main" >&2
+    return
+  fi
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    write_path_block "$f"
+  done <<< "$target_files"
+  echo "↩️ Function exit: export_path_main" >&2
+}
+
+create_symlink() {
+  echo "↪️ Function entry: create_symlink" >&2
+  if [[ "$SYMLINK" != true ]]; then
+    echo "ℹ️ symlink=false; skipping symlink creation." >&2
+    echo "↩️ Function exit: create_symlink" >&2
+    return
+  fi
+  if [ "$CONDA_DIR" = "/opt/conda" ]; then
+    echo "ℹ️ conda_dir is already /opt/conda; no symlink needed." >&2
+    echo "↩️ Function exit: create_symlink" >&2
+    return
+  fi
+  if [ -d "/opt/conda" ] && [ ! -L "/opt/conda" ]; then
+    echo "⛔ /opt/conda exists as a real directory; cannot create symlink. Disable symlink or remove the directory." >&2
+    exit 1
+  fi
+  [ -L "/opt/conda" ] && rm -f "/opt/conda"
+  ln -s "$CONDA_DIR" /opt/conda
+  echo "✅ Created symlink /opt/conda -> $CONDA_DIR." >&2
+  echo "↩️ Function exit: create_symlink" >&2
+}
+
 readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
 readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 
@@ -340,7 +551,6 @@ if [ "$#" -gt 0 ]; then
   REQUIRE_ROOT=""
   SET_PERMISSIONS=""
   UPDATE_BASE=""
-  UPDATE_PATH=""
   USERS=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -361,7 +571,8 @@ if [ "$#" -gt 0 ]; then
       --require_root) shift; REQUIRE_ROOT="$1"; echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2; shift;;
       --set_permissions) shift; SET_PERMISSIONS=true; echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2;;
       --update_base) shift; UPDATE_BASE=true; echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2;;
-      --update_path) shift; UPDATE_PATH=true; echo "📩 Read argument 'update_path': '${UPDATE_PATH}'" >&2;;
+      --export_path) shift; EXPORT_PATH="$1"; echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2; shift;;
+      --symlink) shift; SYMLINK=true; echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2;;
       --users) shift; USERS="$1"; echo "📩 Read argument 'users': '${USERS}'" >&2; shift;;
       --help|-h) __usage__;;
       --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
@@ -398,7 +609,8 @@ else
   [ "${REQUIRE_ROOT+defined}" ] && echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2
   [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
   [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
-  [ "${UPDATE_PATH+defined}" ] && echo "📩 Read argument 'update_path': '${UPDATE_PATH}'" >&2
+  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+  [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
   [ "${USERS+defined}" ] && echo "📩 Read argument 'users': '${USERS}'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
@@ -419,7 +631,8 @@ fi
 [ -z "${REQUIRE_ROOT-}" ] && { echo "ℹ️ Argument 'REQUIRE_ROOT' set to default value 'auto'." >&2; REQUIRE_ROOT="auto"; }
 [ -z "${SET_PERMISSIONS-}" ] && { echo "ℹ️ Argument 'SET_PERMISSIONS' set to default value 'false'." >&2; SET_PERMISSIONS=false; }
 [ -z "${UPDATE_BASE-}" ] && { echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2; UPDATE_BASE=false; }
-[ -z "${UPDATE_PATH-}" ] && { echo "ℹ️ Argument 'UPDATE_PATH' set to default value 'true'." >&2; UPDATE_PATH=true; }
+[ -z "${EXPORT_PATH+x}" ] && { echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2; EXPORT_PATH="auto"; }
+[ -z "${SYMLINK+x}" ] && { echo "ℹ️ Argument 'SYMLINK' set to default value 'false'." >&2; SYMLINK=false; }
 [ -z "${USERS-}" ] && { echo "ℹ️ Argument 'USERS' set to default value '$(id -nu)'." >&2; USERS="$(id -nu)"; }
 IFS=',' read -ra _USERS_ARR <<< "$USERS"
 
@@ -453,6 +666,9 @@ if [[ "$INSTALL" == true || "$REINSTALL" == true ]]; then
 fi
 
 set_executable_paths --verify
+
+create_symlink
+export_path_main
 
 if [[ ${#RC_FILES[@]} -gt 0 ]]; then add_activation_to_rcfile; fi
 if [[ "$UPDATE_BASE" == true ]]; then

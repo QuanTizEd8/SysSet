@@ -1,7 +1,8 @@
 {
-   "description": "Install Miniforge in the development container.",
    "id": "install-miniforge",
-   "name": "Miniforge Installation",
+   "version": "0.2.0",
+   "name": "Miniforge Installer",
+   "description": "Install Miniforge in the development container.",
    "options": {
       "rc_files": {
          "default": "",
@@ -15,13 +16,8 @@
       },
       "conda_dir": {
          "default": "/opt/conda",
-         "description": "Path to the conda installation directory.\nThis is the directory where conda will be installed.\nIt corresponds to the `CONDA_DIR` environment variable.\nIf you use a custom path, add a matching `containerEnv`/`remoteEnv` entry\nto your `devcontainer.json` — dynamic option references in `containerEnv`\nare not yet supported by the devcontainer spec.\n",
+         "description": "Path to the conda installation directory.\nThis is the directory where conda will be installed.\nIt corresponds to the `CONDA_DIR` environment variable.\nWith the default `symlink: true`, a symlink `/opt/conda -> <conda_dir>` is\ncreated so that `containerEnv` PATH coverage works for custom paths too.\nIf you disable `symlink`, you must ensure the custom path is on PATH yourself\n(e.g. via `remoteEnv` in your `devcontainer.json`).\n",
          "type": "string"
-      },
-      "debug": {
-         "default": false,
-         "description": "Enable debug output.",
-         "type": "boolean"
       },
       "download": {
          "default": false,
@@ -83,9 +79,14 @@
          "description": "Update the base conda environment.\nThis is done by running `conda update --all`.\nThis is not recommended for production environments.\n",
          "type": "boolean"
       },
-      "update_path": {
+      "export_path": {
+         "default": "auto",
+         "description": "Controls which shell startup files receive the PATH export for $CONDA_DIR/bin.\n'auto' writes to all relevant system-wide files (Case A: public install + root)\nor user-scoped files (Case B: user install or non-root).\n'' (empty) skips all PATH writes.\nNewline-separated list of absolute paths: writes only to those files.\n",
+         "type": "string"
+      },
+      "symlink": {
          "default": true,
-         "description": "Write /etc/profile.d/conda_path.sh so conda is available in subsequent shell sessions and Dockerfile RUN layers.",
+         "description": "Create a symlink /opt/conda -> $CONDA_DIR when conda_dir is not /opt/conda.\nThis ensures containerEnv PATH coverage works even with a custom conda_dir.\nNo-op when conda_dir is already /opt/conda.\n",
          "type": "boolean"
       },
       "users": {
@@ -97,15 +98,23 @@
          "default": "auto",
          "description": "Whether root is required to run this script.\n'auto' infers from conda_dir: system paths (/opt, /usr, /var, /srv, /snap) require root, user paths do not.\n'true' always enforces root. 'false' always skips the check.\n",
          "type": "string"
+      },
+      "debug": {
+         "default": false,
+         "description": "Enable debug output.",
+         "type": "boolean"
       }
    },
    "containerEnv": {
-      "CONDA_DIR": "/opt/conda"
+      "PATH": "/opt/conda/bin:${PATH}"
    },
    "dependsOn": {
       "ghcr.io/quantized8/sysset/install-os-pkg:0": {
          "install_self": true
       }
    },
-   "version": "0.2.0"
+   "installsAfter": [
+      "ghcr.io/quantized8/sysset/install-shell",
+      "ghcr.io/quantized8/sysset/setup-user"
+   ]
 }
