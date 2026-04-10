@@ -6,7 +6,7 @@
    "options": {
       "conda_version": {
          "default": "latest",
-         "description": "Conda version to install (e.g. '24.7.1').\nAccepts a conda version string, not a Miniforge release tag.\nDefaults to 'latest', which resolves to the current latest release via the GitHub API.\nFor a specific version, the script finds the highest build number for that conda version\n(e.g. '24.7.1' resolves to tag '24.7.1-2').\nIf the already-installed conda version matches the resolved version, the install is\nskipped silently regardless of the 'if_exists' setting.\n",
+         "description": "Conda version to install (e.g. '26.3.1').\nAccepts a conda version string, not a Miniforge release tag.\nDefaults to 'latest', which resolves to the current latest release via the GitHub API.\nFor a specific version, the script finds the highest Miniforge build number for that conda version\n(e.g. '24.7.1' resolves to tag '24.7.1-2').\nIf the already-installed conda version matches the resolved version, the install is\nskipped silently regardless of the 'if_exists' setting.\n",
          "type": "string"
       },
       "if_exists": {

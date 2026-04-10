@@ -17,16 +17,11 @@ __usage__() {
   'uninstall' — uninstall then install fresh.
   'update'    — update the base conda environment to the resolved version.
   " >&2
-  echo "  --preserve_envs (boolean): When if_exists is 'uninstall', export all non-base conda
-  environments before uninstalling and recreate them after reinstalling.
-  Each environment is exported with --from-history; on recreation failure the YAML
-  is kept at /tmp/conda-env-preserve for manual recovery.
-  Defaults to true.
+  echo "  --discard_envs: When if_exists is 'uninstall', do NOT export/recreate non-base conda
+  environments across the reinstall. By default environments are preserved.
   " >&2
-  echo "  --preserve_config (boolean): When if_exists is 'uninstall', skip conda init --reverse
-  and preserve .condarc and .conda directories during uninstall.
-  Set to false to perform a full clean uninstall.
-  Defaults to true.
+  echo "  --discard_config: When if_exists is 'uninstall', run conda init --reverse and
+  delete .condarc and .conda during uninstall. By default config is preserved.
   " >&2
   echo "  --group (string): Name of a user group to give access to conda.
   Only applies when set_permissions is true.
@@ -304,11 +299,14 @@ export_envs() {
   echo "↪️ Function entry: export_envs" >&2
   local tmpdir="$1"
   mkdir -p "$tmpdir"
-  # Get non-base env paths: parse JSON array from 'conda env list --json',
-  # skip the base dir (CONDA_DIR itself), handle paths with/without trailing slash.
+  # Get non-base env paths: parse JSON array from 'conda env list --json'.
+  # Filter to lines containing '"', extract the quoted value, then keep only
+  # absolute paths (starts with '/') to skip the 'envs' key and other JSON tokens,
+  # then exclude the base dir (CONDA_DIR itself).
   local env_paths
   env_paths="$("$CONDA_EXEC" env list --json 2>/dev/null \
              | grep '"' | sed 's/.*"\(.*\)".*/\1/' \
+             | grep '^/' \
              | grep -v "^${CONDA_DIR}/*$")" || true
   if [[ -z "$env_paths" ]]; then
     echo "ℹ️ No non-base environments found to preserve." >&2
@@ -348,14 +346,17 @@ recreate_envs() {
     echo "📥 Recreating environment '${env_name}' from '${yaml_path}'." >&2
     if "$CONDA_EXEC" env create --file "$yaml_path"; then
       echo "✅ Recreated environment '${env_name}'." >&2
+      rm -f "$yaml_path"  # only delete on success; keep on failure for manual recovery
     else
-      echo "⚠️ Failed to recreate environment '${env_name}'. YAML saved at '${yaml_path}' for manual recovery." >&2
+      echo "⚠️ Failed to recreate environment '${env_name}'. YAML preserved at '${yaml_path}' for manual recovery." >&2
     fi
   done
   if [[ "$found" == false ]]; then
     echo "ℹ️ No preserved environment YAMLs found in '${tmpdir}'." >&2
   fi
-  rm -rf "$tmpdir"
+  # Remove tmpdir only if empty (all YAMLs were successfully recreated and deleted above).
+  # If any recreations failed, their YAMLs remain in tmpdir for manual recovery.
+  [ -d "$tmpdir" ] && [ -z "$(ls -A "$tmpdir")" ] && rm -rf "$tmpdir"
   echo "↩️ Function exit: recreate_envs" >&2
 }
 
@@ -383,9 +384,8 @@ verify_miniforge() {
   echo "↪️ Function entry: verify_miniforge" >&2
   echo "📦 Verifying installer checksum" >&2
   # Extract the expected hash from the first field of the .sha256 file.
-  # This avoids relying on the filename embedded in the checksum file, which
-  # differs from INSTALLER_FILENAME when conda_version=latest (the rolling
-  # download URL has no version in the name, but the checksum asset does).
+  # Comparing hashes directly avoids relying on the filename embedded inside
+  # the .sha256 file, which may differ from the local filename in edge cases.
   local expected_hash
   expected_hash="$(awk '{print $1}' "$CHECKSUM")"
   local actual_hash
@@ -641,6 +641,8 @@ if [ "$#" -gt 0 ]; then
   SET_PERMISSIONS=""
   UPDATE_BASE=""
   USERS=""
+  PRESERVE_ENVS=""
+  PRESERVE_CONFIG=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --rc_files) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do RC_FILES+=("$1"); echo "📩 Read argument 'rc_files': '${1}'" >&2; shift; done;;
@@ -660,8 +662,8 @@ if [ "$#" -gt 0 ]; then
       --export_path) shift; EXPORT_PATH="$1"; echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2; shift;;
       --symlink) shift; SYMLINK=true; echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2;;
       --users) shift; USERS="$1"; echo "📩 Read argument 'users': '${USERS}'" >&2; shift;;
-      --preserve_envs) shift; PRESERVE_ENVS="$1"; echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2; shift;;
-      --preserve_config) shift; PRESERVE_CONFIG="$1"; echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2; shift;;
+      --discard_envs) shift; PRESERVE_ENVS=false; echo "📩 Read argument 'discard_envs': true" >&2;;
+      --discard_config) shift; PRESERVE_CONFIG=false; echo "📩 Read argument 'discard_config': true" >&2;;
       --help|-h) __usage__;;
       --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
       *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
