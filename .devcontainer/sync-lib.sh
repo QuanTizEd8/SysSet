@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# sync-lib.sh — Copies .devcontainer/lib/ into each feature's scripts/_lib/ directory.
+# sync-lib.sh — Distributes shared files into each feature directory:
+#   - .devcontainer/lib/          → each feature's scripts/_lib/
+#   - .devcontainer/bootstrap.sh  → each feature's install.sh
 #
 # Usage:
 #   bash .devcontainer/sync-lib.sh           # sync all features
@@ -13,6 +15,7 @@ set -euo pipefail
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _LIB_DIR="${_SCRIPT_DIR}/lib"
 _SRC_DIR="${_SCRIPT_DIR}/src"
+_BOOTSTRAP="${_SCRIPT_DIR}/bootstrap.sh"
 
 _check_mode=false
 [[ "${1-}" == "--check" ]] && _check_mode=true
@@ -39,6 +42,7 @@ _any_stale=false
 for _feature_dir in "${_feature_dirs[@]}"; do
   _name="$(basename "$_feature_dir")"
   _dest="${_feature_dir}/scripts/_lib"
+  _bootstrap_dest="${_feature_dir}/install.sh"
 
   if [[ "$_check_mode" == true ]]; then
     if [[ ! -d "$_dest" ]]; then
@@ -53,9 +57,15 @@ for _feature_dir in "${_feature_dirs[@]}"; do
       diff -r "$_LIB_DIR" "$_dest" >&2 || true
       _any_stale=true
     fi
+    if [[ ! -f "$_bootstrap_dest" ]] || ! diff -q "$_BOOTSTRAP" "$_bootstrap_dest" > /dev/null 2>&1; then
+      echo "⛔ ${_name}: install.sh is missing or stale" >&2
+      _any_stale=true
+    fi
   else
+    rm -rf "$_dest"
     mkdir -p "$_dest"
     cp -r "${_LIB_DIR}/." "${_dest}/"
+    cp "$_BOOTSTRAP" "$_bootstrap_dest"
     echo "✅ ${_name}: synced" >&2
   fi
 done

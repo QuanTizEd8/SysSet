@@ -1,5 +1,6 @@
 #!/bin/sh
 # Bootstrap: ensure bash is available, then hand off to the main install script.
+# Single source of truth — distributed to each feature root by sync-lib.sh.
 set -e
 
 if ! command -v bash > /dev/null 2>&1; then
@@ -25,5 +26,4 @@ if ! command -v bash > /dev/null 2>&1; then
 fi
 
 _SELF_DIR="$(dirname "$0")"
-
 exec bash "$_SELF_DIR/scripts/install.sh" "$@"
