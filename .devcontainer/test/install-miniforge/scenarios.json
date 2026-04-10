@@ -20,7 +20,7 @@
     "specific_version": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "conda_version": "24.7.1-2" }
+            "install-miniforge": { "conda_version": "24.7.1" }
         }
     },
     "set_permission": {
@@ -126,6 +126,18 @@
         "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "export_path": "/tmp/test_bashrc" }
+        }
+    },
+    "latest_version": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-miniforge": {}
+        }
+    },
+    "version_match_idempotency": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "conda_version": "24.7.1", "if_exists": "uninstall" }
         }
     }
 }

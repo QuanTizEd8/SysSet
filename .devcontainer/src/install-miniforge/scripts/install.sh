@@ -27,7 +27,6 @@ __usage__() {
   " >&2
   echo "  --keep_installer (boolean): Keep the Miniforge installer and checksum after installation." >&2
   echo "  --logfile (string): Log all output to this file in addition to console." >&2
-  echo "  --miniforge_name (string): Name of the Miniforge variant to install." >&2
   echo "  --conda_version (string): Version of conda to install (e.g. '24.7.1').
   Defaults to 'latest'.
   " >&2
@@ -52,9 +51,6 @@ __usage__() {
   echo "  --users (string): Comma-separated list of users to add to the conda group (e.g. 'alice,bob').
   Only applies when set_permissions is true.
   Defaults to the user running the script.
-  " >&2
-  echo "  --require_root (string): Whether root is required ('auto', 'true', 'false').
-  'auto' infers from conda_dir: system paths require root, user paths do not.
   " >&2
   exit 0
 }
@@ -117,20 +113,15 @@ download_miniforge() {
   local checksum_url
   if [[ "$CONDA_VERSION" == "latest" ]]; then
       installer_url="https://github.com/conda-forge/miniforge/releases/latest/download/${INSTALLER_FILENAME}"
-      checksum_url=""  # TODO: Find a way to get the checksum URL for the latest version.
+      checksum_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}.sha256"
   else
-      installer_url="https://github.com/conda-forge/miniforge/releases/download/${CONDA_VERSION}/${INSTALLER_FILENAME}"
-      checksum_url="$installer_url.sha256"
+      installer_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}"
+      checksum_url="${installer_url}.sha256"
   fi
   mkdir -p "$INSTALLER_DIR"
   echo "📥 Downloading installer from $installer_url" >&2
   curl --fail --location --retry 3 --output "$INSTALLER" "$installer_url"
-  if [[ -n "$checksum_url" ]]; then
-      curl --fail --location --retry 3 --output "$CHECKSUM" "$checksum_url"
-  fi
-  if [[ -n "$checksum_url" ]]; then
-      verify_miniforge
-  fi
+  curl --fail --location --retry 3 --output "$CHECKSUM" "$checksum_url"
   echo "↩️ Function exit: download_miniforge" >&2
 }
 
@@ -146,16 +137,9 @@ exit_if_not_root() {
 check_root_requirement() {
   echo "↪️ Function entry: check_root_requirement" >&2
   local _require
-  case "$REQUIRE_ROOT" in
-    true)  _require=true ;;
-    false) _require=false ;;
-    auto)
-      case "$CONDA_DIR" in
-        /opt/*|/usr/*|/var/*|/srv/*|/snap/*) _require=true ;;
-        *) _require=false ;;
-      esac
-      ;;
-    *) echo "⛔ Invalid value for 'require_root': '$REQUIRE_ROOT'. Use 'auto', 'true', or 'false'." >&2; exit 1 ;;
+  case "$CONDA_DIR" in
+    /opt/*|/usr/*|/var/*|/srv/*|/snap/*) _require=true ;;
+    *) _require=false ;;
   esac
   if [[ "$_require" == true ]]; then
       exit_if_not_root
@@ -251,13 +235,55 @@ set_installer_filename() {
   echo "↪️ Function entry: set_installer_filename" >&2
   local installer_platform="$(uname)-$(uname -m)"
   if [[ "$CONDA_VERSION" == "latest" ]]; then
-      INSTALLER_FILENAME="${MINIFORGE_NAME}-${installer_platform}.sh"
+      INSTALLER_FILENAME="Miniforge3-${installer_platform}.sh"
   else
-      INSTALLER_FILENAME="${MINIFORGE_NAME}-${CONDA_VERSION}-${installer_platform}.sh"
+      INSTALLER_FILENAME="Miniforge3-${MINIFORGE_VERSION}-${installer_platform}.sh"
   fi
   INSTALLER="${INSTALLER_DIR}/${INSTALLER_FILENAME}"
   CHECKSUM="${INSTALLER}.sha256"
   echo "↩️ Function exit: set_installer_filename" >&2
+}
+
+resolve_miniforge_version() {
+  echo "↪️ Function entry: resolve_miniforge_version" >&2
+  local api_base="https://api.github.com/repos/conda-forge/miniforge/releases"
+  local tag conda_ver
+  if [[ "$CONDA_VERSION" == "latest" ]]; then
+    echo "ℹ️ Resolving latest Miniforge release tag from GitHub API." >&2
+    tag="$(curl --fail --silent --location \
+               --header "Accept: application/vnd.github+json" \
+               "${api_base}/latest" \
+           | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
+      echo "⛔ Failed to reach GitHub API to resolve latest Miniforge version." >&2
+      exit 1
+    }
+    [[ -z "$tag" ]] && { echo "⛔ Could not parse tag_name from GitHub API response." >&2; exit 1; }
+  else
+    echo "ℹ️ Resolving Miniforge release tag for conda version '${CONDA_VERSION}' from GitHub API." >&2
+    local releases
+    releases="$(curl --fail --silent --location \
+                     --header "Accept: application/vnd.github+json" \
+                     "${api_base}?per_page=100" \
+                 | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
+      echo "⛔ Failed to reach GitHub API to list Miniforge releases." >&2
+      exit 1
+    }
+    [[ -z "$releases" ]] && { echo "⛔ Received empty release list from GitHub API." >&2; exit 1; }
+    # Find tags matching <version>-<build_number>, pick the highest build number.
+    tag="$(printf '%s\n' "$releases" \
+           | grep -E "^${CONDA_VERSION}-[0-9]+$" \
+           | sort -t- -k2 -n | tail -1)"
+    [[ -z "$tag" ]] && {
+      echo "⛔ No Miniforge release found for conda version '${CONDA_VERSION}'. Check available releases at https://github.com/conda-forge/miniforge/releases" >&2
+      exit 1
+    }
+  fi
+  MINIFORGE_VERSION="$tag"
+  # Extract conda version: the tag is "<conda_version>-<build_number>"; strip the build suffix.
+  conda_ver="${tag%-*}"
+  RESOLVED_CONDA_VERSION="$conda_ver"
+  echo "ℹ️ Resolved Miniforge tag: '${MINIFORGE_VERSION}' (conda version: '${RESOLVED_CONDA_VERSION}')." >&2
+  echo "↩️ Function exit: resolve_miniforge_version" >&2
 }
 
 set_permissions() {
@@ -544,10 +570,8 @@ if [ "$#" -gt 0 ]; then
   INSTALLER_DIR=""
   INTERACTIVE=""
   LOGFILE=""
-  MINIFORGE_NAME=""
   CONDA_VERSION=""
   KEEP_INSTALLER=""
-  REQUIRE_ROOT=""
   SET_PERMISSIONS=""
   UPDATE_BASE=""
   USERS=""
@@ -564,9 +588,7 @@ if [ "$#" -gt 0 ]; then
       --interactive) shift; INTERACTIVE=true; echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2;;
       --keep_installer) shift; KEEP_INSTALLER=true; echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2;;
       --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2; shift;;
-      --miniforge_name) shift; MINIFORGE_NAME="$1"; echo "📩 Read argument 'miniforge_name': '${MINIFORGE_NAME}'" >&2; shift;;
       --conda_version) shift; CONDA_VERSION="$1"; echo "📩 Read argument 'conda_version': '${CONDA_VERSION}'" >&2; shift;;
-      --require_root) shift; REQUIRE_ROOT="$1"; echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2; shift;;
       --set_permissions) shift; SET_PERMISSIONS=true; echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2;;
       --update_base) shift; UPDATE_BASE=true; echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2;;
       --export_path) shift; EXPORT_PATH="$1"; echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2; shift;;
@@ -602,10 +624,8 @@ else
   [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-  [ "${MINIFORGE_NAME+defined}" ] && echo "📩 Read argument 'miniforge_name': '${MINIFORGE_NAME}'" >&2
   [ "${CONDA_VERSION+defined}" ] && echo "📩 Read argument 'conda_version': '${CONDA_VERSION}'" >&2
   [ "${REINSTALL+defined}" ] && echo "⚠️ 'REINSTALL' env var is deprecated; use IF_EXISTS=uninstall." >&2
-  [ "${REQUIRE_ROOT+defined}" ] && echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2
   [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
   [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
@@ -623,9 +643,7 @@ fi
 [ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
 [ -z "${KEEP_INSTALLER-}" ] && { echo "ℹ️ Argument 'KEEP_INSTALLER' set to default value 'false'." >&2; KEEP_INSTALLER=false; }
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
-[ -z "${MINIFORGE_NAME-}" ] && { echo "ℹ️ Argument 'MINIFORGE_NAME' set to default value 'Miniforge3'." >&2; MINIFORGE_NAME="Miniforge3"; }
 [ -z "${CONDA_VERSION-}" ] && { echo "ℹ️ Argument 'CONDA_VERSION' set to default value 'latest'." >&2; CONDA_VERSION="latest"; }
-[ -z "${REQUIRE_ROOT-}" ] && { echo "ℹ️ Argument 'REQUIRE_ROOT' set to default value 'auto'." >&2; REQUIRE_ROOT="auto"; }
 [ -z "${SET_PERMISSIONS-}" ] && { echo "ℹ️ Argument 'SET_PERMISSIONS' set to default value 'false'." >&2; SET_PERMISSIONS=false; }
 [ -z "${UPDATE_BASE-}" ] && { echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2; UPDATE_BASE=false; }
 [ -z "${EXPORT_PATH+x}" ] && { echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2; EXPORT_PATH="auto"; }
@@ -637,6 +655,7 @@ IFS=',' read -ra _USERS_ARR <<< "$USERS"
 check_root_requirement
 set_executable_paths
 
+resolve_miniforge_version
 set_installer_filename
 download_miniforge
 if [[ -f "$CHECKSUM" ]]; then
@@ -647,29 +666,36 @@ fi
 
 if [[ -f "${CONDA_DIR}/bin/conda" ]] || command -v conda >/dev/null 2>&1; then
     echo "⚠️ Conda installation found at '$CONDA_DIR'." >&2
-    case "$IF_EXISTS" in
-      skip)
-        echo "⏭️ if_exists=skip: existing conda detected; skipping install and continuing to post-install steps." >&2
-        ;;
-      fail)
-        echo "⛔ if_exists=fail: conda already installed at '$CONDA_DIR'. Remove it first or set if_exists=skip/uninstall." >&2
-        exit 1
-        ;;
-      uninstall)
-        echo "ℹ️ if_exists=uninstall: uninstalling existing conda, then installing fresh." >&2
-        set_executable_paths --verify
-        uninstall_miniforge
-        install_miniforge
-        ;;
-      update)
-        echo "⛔ if_exists=update: not yet implemented." >&2
-        exit 1
-        ;;
-      *)
-        echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'uninstall', or 'update'." >&2
-        exit 1
-        ;;
-    esac
+    # Version-match idempotency: if installed conda version already matches the
+    # resolved version, skip silently regardless of if_exists.
+    _installed_ver="$("${CONDA_DIR}/bin/conda" --version 2>/dev/null | awk '{print $NF}')" || true
+    if [[ -n "$_installed_ver" && "$_installed_ver" == "$RESOLVED_CONDA_VERSION" ]]; then
+        echo "ℹ️ Installed conda version '${_installed_ver}' matches resolved version '${RESOLVED_CONDA_VERSION}'. Skipping install and continuing to post-install steps." >&2
+    else
+      case "$IF_EXISTS" in
+        skip)
+          echo "⏭️ if_exists=skip: existing conda detected; skipping install and continuing to post-install steps." >&2
+          ;;
+        fail)
+          echo "⛔ if_exists=fail: conda already installed at '$CONDA_DIR'. Remove it first or set if_exists=skip/uninstall." >&2
+          exit 1
+          ;;
+        uninstall)
+          echo "ℹ️ if_exists=uninstall: uninstalling existing conda, then installing fresh." >&2
+          set_executable_paths --verify
+          uninstall_miniforge
+          install_miniforge
+          ;;
+        update)
+          echo "⛔ if_exists=update: not yet implemented." >&2
+          exit 1
+          ;;
+        *)
+          echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'uninstall', or 'update'." >&2
+          exit 1
+          ;;
+      esac
+    fi
 else
     install_miniforge
 fi

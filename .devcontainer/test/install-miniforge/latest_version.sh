@@ -1,9 +1,7 @@
 #!/bin/bash
-# conda_version=24.7.1: Miniforge is installed from a pinned release resolved
-# via the GitHub API (conda 24.7.1 -> tag 24.7.1-2).
-# Verifies the versioned download and install path works end-to-end and that
-# the installed conda version matches the requested version string exactly.
-# Update conda_version in scenarios.json when the pinned release is retired.
+# conda_version=latest (default): the script calls the GitHub API to resolve
+# the current latest Miniforge release tag and installs from that tag.
+# Verifies that installation succeeds and the resolved version is non-empty.
 set -e
 
 source dev-container-features-test-lib
@@ -15,9 +13,9 @@ check "conda binary is executable"          test -x /opt/conda/bin/conda
 check "mamba binary installed"              test -f /opt/conda/bin/mamba
 check "mamba binary is executable"          test -x /opt/conda/bin/mamba
 
-# --- exact conda version installed ---
+# --- conda runs and reports a non-empty version ---
 check "conda --version succeeds"            /opt/conda/bin/conda --version
-check "conda version is 24.7.1"             bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" = "24.7.1" ]'
+check "conda version is non-empty"          bash -c '[ -n "$(/opt/conda/bin/conda --version 2>/dev/null)" ]'
 check "mamba --version succeeds"            /opt/conda/bin/mamba --version
 check "conda info --base returns /opt/conda" bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
 check "base environment is accessible"      /opt/conda/bin/conda env list

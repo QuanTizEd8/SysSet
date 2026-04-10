@@ -4,14 +4,9 @@
    "name": "Miniforge Installer",
    "description": "Install Miniforge in the development container.",
    "options": {
-      "rc_files": {
-         "default": "",
-         "description": "Paths to shell configuration files to append conda initialization to.",
-         "type": "string"
-      },
-      "activate_env": {
-         "default": "base",
-         "description": "Name of a conda environment to activate.\nAdds `conda activate <env>` to the shell configuration files\nspecified in `rc_files`.\nOnly takes effect when `rc_files` is set.\n",
+      "conda_version": {
+         "default": "latest",
+         "description": "Conda version to install (e.g. '24.7.1').\nAccepts a conda version string, not a Miniforge release tag.\nDefaults to 'latest', which resolves to the current latest release via the GitHub API.\nFor a specific version, the script finds the highest build number for that conda version\n(e.g. '24.7.1' resolves to tag '24.7.1-2').\nIf the already-installed conda version matches the resolved version, the install is\nskipped silently regardless of the 'if_exists' setting.\n",
          "type": "string"
       },
       "conda_dir": {
@@ -25,45 +20,30 @@
          "enum": ["skip", "fail", "uninstall", "update"],
          "type": "string"
       },
-      "group": {
-         "default": "conda",
-         "description": "Name of a user group to give access to conda.\nOnly applies when `set_permissions` is true.\n",
-         "type": "string"
-      },
-      "installer_dir": {
-         "default": "/tmp/miniforge-installer",
-         "description": "Path to a directory to download the installer to.\nThis is the directory where the Miniforge installer will be downloaded.\n",
-         "type": "string"
-      },
-      "interactive": {
-         "default": false,
-         "description": "Run the installer in interactive mode.\nThis allows the installer to prompt the user.\nThe default is to run the installer in non-interactive mode.\n",
-         "type": "boolean"
-      },
-      "keep_installer": {
-         "default": false,
-         "description": "Keep the Miniforge installer script and checksum after installation instead of removing them.",
-         "type": "boolean"
-      },
-      "logfile": {
+      "rc_files": {
          "default": "",
-         "description": "Log all output (stdout + stderr) to this file in addition to console.",
+         "description": "Paths to shell configuration files to append conda initialization to.",
          "type": "string"
       },
-      "miniforge_name": {
-         "default": "Miniforge3",
-         "description": "Name of the Miniforge variant to install.",
-         "type": "string"
-      },
-      "conda_version": {
-         "default": "latest",
-         "description": "Version of conda to install (e.g. '24.7.1').\nDefaults to 'latest'. Passed as-is to the Miniforge release URL.\nVersion resolution logic will be added in a later iteration.\n",
+      "activate_env": {
+         "default": "base",
+         "description": "Name of a conda environment to activate.\nAdds `conda activate <env>` to the shell configuration files\nspecified in `rc_files`.\nOnly takes effect when `rc_files` is set.\n",
          "type": "string"
       },
       "set_permissions": {
          "default": false,
          "description": "Set permissions for the conda installation directory.\nCreates the conda group, adds all users listed in `users` to it,\nand applies group ownership and group-write bits to the conda directory.\n",
          "type": "boolean"
+      },
+      "group": {
+         "default": "conda",
+         "description": "Name of a user group to give access to conda.\nOnly applies when `set_permissions` is true.\n",
+         "type": "string"
+      },
+      "users": {
+         "default": "",
+         "description": "Comma-separated list of users to add to the conda group (e.g. 'alice,bob').\nEach user must already exist.\nOnly applies when `set_permissions` is true.\nIf empty, defaults to the user running the script.\n",
+         "type": "string"
       },
       "update_base": {
          "default": false,
@@ -80,20 +60,30 @@
          "description": "Create a symlink /opt/conda -> $CONDA_DIR when conda_dir is not /opt/conda.\nThis ensures PATH export files reference the canonical /opt/conda/bin path\neven when conda is installed to a custom directory.\nNo-op when conda_dir is already /opt/conda.\n",
          "type": "boolean"
       },
-      "users": {
-         "default": "",
-         "description": "Comma-separated list of users to add to the conda group (e.g. 'alice,bob').\nEach user must already exist.\nOnly applies when `set_permissions` is true.\nIf empty, defaults to the user running the script.\n",
+      "interactive": {
+         "default": false,
+         "description": "Run the installer in interactive mode.\nThis allows the installer to prompt the user.\nThe default is to run the installer in non-interactive mode.\n",
+         "type": "boolean"
+      },
+      "installer_dir": {
+         "default": "/tmp/miniforge-installer",
+         "description": "Path to a directory to download the installer to.\nThis is the directory where the Miniforge installer will be downloaded.\n",
          "type": "string"
       },
-      "require_root": {
-         "default": "auto",
-         "description": "Whether root is required to run this script.\n'auto' infers from conda_dir: system paths (/opt, /usr, /var, /srv, /snap) require root, user paths do not.\n'true' always enforces root. 'false' always skips the check.\n",
-         "type": "string"
+      "keep_installer": {
+         "default": false,
+         "description": "Keep the Miniforge installer script and checksum after installation instead of removing them.",
+         "type": "boolean"
       },
       "debug": {
          "default": false,
          "description": "Enable debug output.",
          "type": "boolean"
+      },
+      "logfile": {
+         "default": "",
+         "description": "Log all output (stdout + stderr) to this file in addition to console.",
+         "type": "string"
       }
    },
    "containerEnv": {
