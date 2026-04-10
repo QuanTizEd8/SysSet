@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, rc_files=/etc/bash.bashrc: the conda and mamba
+# rc_files=/etc/bash.bashrc: the conda and mamba
 # activation source lines, plus 'conda activate base', are appended to the
 # specified rc file exactly once.
 set -e

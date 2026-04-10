@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, logfile=/tmp/miniforge.log: all output is
+# logfile=/tmp/miniforge.log: all output is
 # captured to the specified log file in addition to stdout/stderr.
 set -e
 

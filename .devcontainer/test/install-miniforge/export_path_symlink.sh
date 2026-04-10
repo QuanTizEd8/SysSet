@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, conda_dir=/opt/myforge, symlink=true:
+# conda_dir=/opt/myforge, symlink=true:
 # A symlink /opt/conda -> /opt/myforge must be created so that containerEnv
 # PATH coverage works via /opt/conda/bin even with a custom conda_dir.
 set -e

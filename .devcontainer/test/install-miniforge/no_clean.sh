@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, keep_installer=true: the Miniforge installer script
+# keep_installer=true: the Miniforge installer script
 # is NOT removed after installation.  Verifies that the installer directory
 # and the .sh file survive the cleanup trap.
 set -e

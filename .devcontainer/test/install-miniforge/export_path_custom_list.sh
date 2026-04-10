@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, export_path="/tmp/test_bashrc": PATH export is
+# export_path="/tmp/test_bashrc": PATH export is
 # written only to the single specified file; no other system files are modified.
 set -e
 

@@ -11,11 +11,14 @@ __usage__() {
   Corresponds to the CONDA_DIR environment variable.
   " >&2
   echo "  --debug (boolean): Enable debug output." >&2
-  echo "  --download (boolean): Download the Miniforge installer." >&2
+  echo "  --if_exists (string): What to do when conda is already installed at conda_dir.
+  'skip'      — warn and continue to post-install steps (default).
+  'fail'      — print an error and exit non-zero.
+  'uninstall' — uninstall then install fresh.
+  'update'    — reserved; not yet implemented.
+  " >&2
   echo "  --group (string): Name of a user group to give access to conda.
   Only applies when set_permissions is true.
-  " >&2
-  echo "  --install (boolean): Install conda and mamba. Raises an error if already installed.
   " >&2
   echo "  --installer_dir (string): Directory to download the installer to.
   " >&2
@@ -27,8 +30,6 @@ __usage__() {
   echo "  --miniforge_name (string): Name of the Miniforge variant to install." >&2
   echo "  --conda_version (string): Version of conda to install (e.g. '24.7.1').
   Defaults to 'latest'.
-  " >&2
-  echo "  --reinstall (boolean): Reinstall conda. Same as install but uninstalls first.
   " >&2
   echo "  --set_permissions (boolean): Set permissions for the conda installation directory.
   Adds users to the conda group and sets group-write bits.
@@ -538,16 +539,14 @@ if [ "$#" -gt 0 ]; then
   ACTIVATE_ENV=""
   CONDA_DIR=""
   DEBUG=""
-  DOWNLOAD=""
+  IF_EXISTS=""
   GROUP=""
-  INSTALL=""
   INSTALLER_DIR=""
   INTERACTIVE=""
   LOGFILE=""
   MINIFORGE_NAME=""
   CONDA_VERSION=""
   KEEP_INSTALLER=""
-  REINSTALL=""
   REQUIRE_ROOT=""
   SET_PERMISSIONS=""
   UPDATE_BASE=""
@@ -558,16 +557,15 @@ if [ "$#" -gt 0 ]; then
       --activate_env) shift; ACTIVATE_ENV="$1"; echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2; shift;;
       --conda_dir) shift; CONDA_DIR="$1"; echo "📩 Read argument 'conda_dir': '${CONDA_DIR}'" >&2; shift;;
       --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '${DEBUG}'" >&2;;
-      --download) shift; DOWNLOAD=true; echo "📩 Read argument 'download': '${DOWNLOAD}'" >&2;;
+      --if_exists) shift; IF_EXISTS="$1"; echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2; shift;;
       --group) shift; GROUP="$1"; echo "📩 Read argument 'group': '${GROUP}'" >&2; shift;;
-      --install) shift; INSTALL=true; echo "📩 Read argument 'install': '${INSTALL}'" >&2;;
+      --install) shift; echo "⚠️ --install is deprecated; use --if_exists. Ignored." >&2;;
       --installer_dir) shift; INSTALLER_DIR="$1"; echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2; shift;;
       --interactive) shift; INTERACTIVE=true; echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2;;
       --keep_installer) shift; KEEP_INSTALLER=true; echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2;;
       --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2; shift;;
       --miniforge_name) shift; MINIFORGE_NAME="$1"; echo "📩 Read argument 'miniforge_name': '${MINIFORGE_NAME}'" >&2; shift;;
       --conda_version) shift; CONDA_VERSION="$1"; echo "📩 Read argument 'conda_version': '${CONDA_VERSION}'" >&2; shift;;
-      --reinstall) shift; REINSTALL=true; echo "📩 Read argument 'reinstall': '${REINSTALL}'" >&2;;
       --require_root) shift; REQUIRE_ROOT="$1"; echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2; shift;;
       --set_permissions) shift; SET_PERMISSIONS=true; echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2;;
       --update_base) shift; UPDATE_BASE=true; echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2;;
@@ -596,16 +594,17 @@ else
   [ "${ACTIVATE_ENV+defined}" ] && echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
   [ "${CONDA_DIR+defined}" ] && echo "📩 Read argument 'conda_dir': '${CONDA_DIR}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${DOWNLOAD+defined}" ] && echo "📩 Read argument 'download': '${DOWNLOAD}'" >&2
+  [ "${DOWNLOAD+defined}" ] && echo "📩 Read argument 'download (deprecated)': '${DOWNLOAD}'" >&2
+  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
   [ "${GROUP+defined}" ] && echo "📩 Read argument 'group': '${GROUP}'" >&2
-  [ "${INSTALL+defined}" ] && echo "📩 Read argument 'install': '${INSTALL}'" >&2
+  [ "${INSTALL+defined}" ] && echo "⚠️ 'INSTALL' env var is deprecated; use IF_EXISTS." >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${MINIFORGE_NAME+defined}" ] && echo "📩 Read argument 'miniforge_name': '${MINIFORGE_NAME}'" >&2
   [ "${CONDA_VERSION+defined}" ] && echo "📩 Read argument 'conda_version': '${CONDA_VERSION}'" >&2
-  [ "${REINSTALL+defined}" ] && echo "📩 Read argument 'reinstall': '${REINSTALL}'" >&2
+  [ "${REINSTALL+defined}" ] && echo "⚠️ 'REINSTALL' env var is deprecated; use IF_EXISTS=uninstall." >&2
   [ "${REQUIRE_ROOT+defined}" ] && echo "📩 Read argument 'require_root': '${REQUIRE_ROOT}'" >&2
   [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
   [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
@@ -618,16 +617,14 @@ fi
 [ -z "${ACTIVATE_ENV-}" ] && { echo "ℹ️ Argument 'ACTIVATE_ENV' set to default value 'base'." >&2; ACTIVATE_ENV="base"; }
 [ -z "${CONDA_DIR-}" ] && { echo "ℹ️ Argument 'CONDA_DIR' set to default value '/opt/conda'." >&2; CONDA_DIR="/opt/conda"; }
 [ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
-[ -z "${DOWNLOAD-}" ] && { echo "ℹ️ Argument 'DOWNLOAD' set to default value 'false'." >&2; DOWNLOAD=false; }
+[ -z "${IF_EXISTS-}" ] && { echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2; IF_EXISTS="skip"; }
 [ -z "${GROUP-}" ] && { echo "ℹ️ Argument 'GROUP' set to default value 'conda'." >&2; GROUP="conda"; }
-[ -z "${INSTALL-}" ] && { echo "ℹ️ Argument 'INSTALL' set to default value 'false'." >&2; INSTALL=false; }
 [ -z "${INSTALLER_DIR-}" ] && { echo "ℹ️ Argument 'INSTALLER_DIR' set to default value '/tmp/miniforge-installer'." >&2; INSTALLER_DIR="/tmp/miniforge-installer"; }
 [ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
 [ -z "${KEEP_INSTALLER-}" ] && { echo "ℹ️ Argument 'KEEP_INSTALLER' set to default value 'false'." >&2; KEEP_INSTALLER=false; }
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${MINIFORGE_NAME-}" ] && { echo "ℹ️ Argument 'MINIFORGE_NAME' set to default value 'Miniforge3'." >&2; MINIFORGE_NAME="Miniforge3"; }
 [ -z "${CONDA_VERSION-}" ] && { echo "ℹ️ Argument 'CONDA_VERSION' set to default value 'latest'." >&2; CONDA_VERSION="latest"; }
-[ -z "${REINSTALL-}" ] && { echo "ℹ️ Argument 'REINSTALL' set to default value 'false'." >&2; REINSTALL=false; }
 [ -z "${REQUIRE_ROOT-}" ] && { echo "ℹ️ Argument 'REQUIRE_ROOT' set to default value 'auto'." >&2; REQUIRE_ROOT="auto"; }
 [ -z "${SET_PERMISSIONS-}" ] && { echo "ℹ️ Argument 'SET_PERMISSIONS' set to default value 'false'." >&2; SET_PERMISSIONS=false; }
 [ -z "${UPDATE_BASE-}" ] && { echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2; UPDATE_BASE=false; }
@@ -640,29 +637,41 @@ IFS=',' read -ra _USERS_ARR <<< "$USERS"
 check_root_requirement
 set_executable_paths
 
-if [[ "$DOWNLOAD" == true || "$INSTALL" == true || "$REINSTALL" == true ]]; then
-    set_installer_filename
+set_installer_filename
+download_miniforge
+if [[ -f "$CHECKSUM" ]]; then
+    verify_miniforge
+else
+    echo "⚠️ Checksum file not found. Skipping verification." >&2
 fi
-if [[ "$DOWNLOAD" == true ]]; then download_miniforge; fi
-if [[ "$DOWNLOAD" == true || "$INSTALL" == true || "$REINSTALL" == true ]]; then
-    if [[ -f "$CHECKSUM" ]]; then
-        verify_miniforge
-    else
-        echo "⚠️ Checksum file not found. Skipping verification." >&2
-    fi
-fi
-if [[ "$INSTALL" == true || "$REINSTALL" == true ]]; then
-    if command -v conda >/dev/null 2>&1; then
-        echo "⚠️ Conda installation found."
-        if [[ "$REINSTALL" != true ]]; then
-            echo "⏩ Conda is already available."
-        else
-            uninstall_miniforge
-            install_miniforge
-        fi
-    else
+
+if [[ -f "${CONDA_DIR}/bin/conda" ]] || command -v conda >/dev/null 2>&1; then
+    echo "⚠️ Conda installation found at '$CONDA_DIR'." >&2
+    case "$IF_EXISTS" in
+      skip)
+        echo "⏭️ if_exists=skip: existing conda detected; skipping install and continuing to post-install steps." >&2
+        ;;
+      fail)
+        echo "⛔ if_exists=fail: conda already installed at '$CONDA_DIR'. Remove it first or set if_exists=skip/uninstall." >&2
+        exit 1
+        ;;
+      uninstall)
+        echo "ℹ️ if_exists=uninstall: uninstalling existing conda, then installing fresh." >&2
+        set_executable_paths --verify
+        uninstall_miniforge
         install_miniforge
-    fi
+        ;;
+      update)
+        echo "⛔ if_exists=update: not yet implemented." >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'uninstall', or 'update'." >&2
+        exit 1
+        ;;
+    esac
+else
+    install_miniforge
 fi
 
 set_executable_paths --verify

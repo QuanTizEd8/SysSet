@@ -1,7 +1,7 @@
 #!/bin/bash
-# download=true, reinstall=true: conda is pre-installed in the image (see
-# Dockerfile).  The feature detects the existing installation, uninstalls it,
-# and installs a fresh copy.  Verifies the reinstalled conda is functional.
+# if_exists=uninstall: conda is pre-installed in the image (see Dockerfile).
+# The feature detects the existing installation, uninstalls it, and installs a
+# fresh copy.  Verifies the reinstalled conda is functional.
 set -e
 
 source dev-container-features-test-lib
@@ -22,7 +22,8 @@ check "base environment accessible"               /opt/conda/bin/conda env list
 # --- activation scripts exist (fresh install writes them) ---
 check "conda activation script exists"            test -f /opt/conda/etc/profile.d/conda.sh
 
-# --- PATH update written (update_path=true by default) ---
-check "conda_path.sh written"                     test -f /etc/profile.d/conda_path.sh
+# --- PATH update written ---
+check "profile.d script written"                  test -f /etc/profile.d/conda_bin_path.sh
+check "profile.d script has marked block"         grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
 
 reportResults

@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, conda_version=24.7.1-2: Miniforge is
+# conda_version=24.7.1-2: Miniforge is
 # installed from a pinned release rather than the rolling 'latest' URL.
 # This verifies that the versioned download and install path works end-to-end.
 # Update conda_version in scenarios.json when the pinned release is retired.
@@ -21,6 +21,7 @@ check "conda info --base returns /opt/conda" bash -c '[ "$(/opt/conda/bin/conda 
 check "base environment is accessible"      /opt/conda/bin/conda env list
 
 # --- checksum was verified (no error in prior coverage, installer cleaned up) ---
-check "conda_path.sh written"               test -f /etc/profile.d/conda_path.sh
+check "profile.d script written"            test -f /etc/profile.d/conda_bin_path.sh
+check "profile.d script has marked block"   grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
 
 reportResults

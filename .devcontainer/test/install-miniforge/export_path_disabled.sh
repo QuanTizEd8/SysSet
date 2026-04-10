@@ -1,6 +1,7 @@
 #!/bin/bash
-# download=true, install=true, export_path="": PATH export is disabled so none
-# of the system shell startup files are written or modified.
+# export_path="": PATH export is disabled so none of the system shell startup
+# files are written or modified.  conda is still reachable via containerEnv.PATH
+# (the container-level PATH), but the shell startup files must not be touched.
 set -e
 
 source dev-container-features-test-lib
@@ -16,8 +17,5 @@ check "profile.d script NOT written"     bash -c '! test -f /etc/profile.d/conda
 check "bash.bashrc NOT modified"         bash -c '! grep -q "conda PATH (install-miniforge)" /etc/bash.bashrc 2>/dev/null'
 check "zshenv NOT written"               bash -c '! test -f /etc/zsh/zshenv || ! grep -q "conda PATH (install-miniforge)" /etc/zsh/zshenv'
 check "BASH_ENV NOT in /etc/environment" bash -c '! grep -q "^BASH_ENV=" /etc/environment 2>/dev/null'
-
-# --- conda not on default PATH ---
-check "conda not on default PATH"        bash -c '! command -v conda 2>/dev/null'
 
 reportResults

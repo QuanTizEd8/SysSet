@@ -1,7 +1,8 @@
 #!/bin/bash
-# download=true, install=true, export_path="": Miniforge is installed but PATH
-# export blocks are NOT written to any shell startup files, so conda is not on
-# the default PATH for subsequent shell sessions.
+# export_path="": Miniforge is installed but PATH export blocks are NOT written
+# to any shell startup files.  conda is still reachable via containerEnv.PATH
+# (the container-level PATH set by the devcontainer spec), but shell startup
+# files must not be written.
 set -e
 
 source dev-container-features-test-lib
@@ -16,8 +17,5 @@ check "conda --version succeeds"         /opt/conda/bin/conda --version
 check "profile.d script NOT written"     bash -c '! test -f /etc/profile.d/conda_bin_path.sh'
 check "bash.bashrc NOT modified"         bash -c '! grep -q "conda PATH (install-miniforge)" /etc/bash.bashrc 2>/dev/null'
 check "BASH_ENV NOT added to /etc/environment" bash -c '! grep -q "^BASH_ENV=" /etc/environment 2>/dev/null'
-
-# --- conda must NOT be on the login PATH ---
-check "conda not on default PATH"        bash -c '! command -v conda 2>/dev/null'
 
 reportResults

@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true: full Miniforge installation with all defaults.
+# All defaults: full Miniforge installation.
 # Verifies conda and mamba are installed under /opt/conda, the base environment
 # is functional, activation scripts are in place, and PATH export blocks are
 # written to all system-wide shell startup files (export_path defaults to "auto").
