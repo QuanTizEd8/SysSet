@@ -2,4 +2,4 @@ pre-commit:
   commands:
     sync-lib:
       glob: ".devcontainer/lib/*"
-      run: bash .devcontainer/sync-lib.sh && git add .devcontainer/src/*/scripts/_lib/
+      run: bash .devcontainer/sync-lib.sh
