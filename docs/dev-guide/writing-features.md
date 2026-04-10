@@ -121,8 +121,33 @@ Option names use snake_case; the CLI flag uses double-dashes
 }
 ```
 
-Supported types: `"string"`, `"boolean"`. Use `"enum"` to restrict string
-values to a fixed set.
+Supported types: `"string"`, `"boolean"`.
+
+For string options, two properties control how supporting tools (VS Code,
+Codespaces) present the allowed values to users:
+
+| Property | Behaviour |
+|---|---|
+| `"enum"` | **Strict** — the user must choose one of the listed values. Any other value is rejected by the tooling. Use when the script only handles a closed set of values. |
+| `"proposals"` | **Suggestive** — the listed values appear as suggestions in the UI, but the user is free to type any value. Use when the script can handle arbitrary input and you only want to provide convenient defaults. |
+
+```jsonc
+// Closed set — only these three values are accepted
+"mode": {
+  "type": "string",
+  "default": "fast",
+  "enum": ["fast", "safe", "dry_run"],
+  "description": "Operating mode."
+}
+
+// Open set — suggests common versions, but any semver is valid
+"version": {
+  "type": "string",
+  "default": "latest",
+  "proposals": ["latest", "3.12", "3.11", "3.10"],
+  "description": "Version to install."
+}
+```
 
 Always include a `"debug"` option (boolean, default false) and a `"logfile"`
 option (string, default `""`) — they follow the standard from all existing
