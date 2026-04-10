@@ -1,0 +1,3 @@
+# Generated _lib/ copies — synced from .devcontainer/lib/ by sync-lib.sh.
+# Never commit these; CI runs sync-lib.sh after checkout.
+.devcontainer/src/**/_lib/
