@@ -3,6 +3,6 @@
     "image": "ubuntu:latest",
     "containerUser": "ubuntu",
     "features": {
-        "../src/install-shell": {}
+        "../_src/install-shell": {}
     }
 }

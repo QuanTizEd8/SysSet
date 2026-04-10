@@ -2,6 +2,6 @@
     "name": "install-podman",
     "image": "ubuntu:latest",
     "containerUser": "ubuntu",
-    "features": {"../src/install-podman": {}},
+    "features": {"../_src/install-podman": {}},
     "postStartCommand": "podman run --rm hello-world"
 }

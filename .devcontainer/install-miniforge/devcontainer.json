@@ -2,6 +2,6 @@
     "name": "install-miniforge",
     "image": "ubuntu:latest",
     "containerUser": "ubuntu",
-    "features": {"../src/install-miniforge": {}},
+    "features": {"../_src/install-miniforge": {}},
     "postStartCommand": "conda info"
 }
