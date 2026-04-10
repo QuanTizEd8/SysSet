@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
-# This file must be sourced from bash (>=4.0), not sh.
+#!/bin/sh
+# POSIX sh compatible — safe to source from sh and bash scripts alike.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-[[ -n "${_LIB_OS_LOADED-}" ]] && return 0
+[ -n "${_LIB_OS_LOADED-}" ] && return 0
 _LIB_OS_LOADED=1
 
 # os::require_root
