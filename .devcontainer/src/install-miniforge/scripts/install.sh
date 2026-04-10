@@ -109,18 +109,8 @@ add_activation_to_rcfile() {
 
 download_miniforge() {
   echo "↪️ Function entry: download_miniforge" >&2
-  local installer_url
-  local checksum_url
-  if [[ "$CONDA_VERSION" == "latest" ]]; then
-      # The rolling /latest/download/ URL has no version in the filename, but the
-      # checksum asset on the same release IS named with the version tag.
-      local versioned_filename="Miniforge3-${MINIFORGE_VERSION}-${INSTALLER_FILENAME#Miniforge3-}"
-      installer_url="https://github.com/conda-forge/miniforge/releases/latest/download/${INSTALLER_FILENAME}"
-      checksum_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${versioned_filename}.sha256"
-  else
-      installer_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}"
-      checksum_url="${installer_url}.sha256"
-  fi
+  local installer_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}"
+  local checksum_url="${installer_url}.sha256"
   mkdir -p "$INSTALLER_DIR"
   echo "📥 Downloading installer from $installer_url" >&2
   curl --fail --location --retry 3 --output "$INSTALLER" "$installer_url"
@@ -237,11 +227,7 @@ set_executable_paths() {
 set_installer_filename() {
   echo "↪️ Function entry: set_installer_filename" >&2
   local installer_platform="$(uname)-$(uname -m)"
-  if [[ "$CONDA_VERSION" == "latest" ]]; then
-      INSTALLER_FILENAME="Miniforge3-${installer_platform}.sh"
-  else
-      INSTALLER_FILENAME="Miniforge3-${MINIFORGE_VERSION}-${installer_platform}.sh"
-  fi
+  INSTALLER_FILENAME="Miniforge3-${MINIFORGE_VERSION}-${installer_platform}.sh"
   INSTALLER="${INSTALLER_DIR}/${INSTALLER_FILENAME}"
   CHECKSUM="${INSTALLER}.sha256"
   echo "↩️ Function exit: set_installer_filename" >&2
@@ -321,23 +307,26 @@ uninstall_miniforge() {
 
 verify_miniforge() {
   echo "↪️ Function entry: verify_miniforge" >&2
-  echo "📦 Verifying installer checksum"
+  echo "📦 Verifying installer checksum" >&2
+  # Extract the expected hash from the first field of the .sha256 file.
+  # This avoids relying on the filename embedded in the checksum file, which
+  # differs from INSTALLER_FILENAME when conda_version=latest (the rolling
+  # download URL has no version in the name, but the checksum asset does).
+  local expected_hash
+  expected_hash="$(awk '{print $1}' "$CHECKSUM")"
+  local actual_hash
   if command -v sha256sum >/dev/null 2>&1; then
-      if (cd "$INSTALLER_DIR" && sha256sum --check --status "$CHECKSUM"); then
-          echo "✅ Checksum verification passed" >&2
-      else
-          echo "❌ Checksum verification failed" >&2
-          exit 1
-      fi
+      actual_hash="$(sha256sum "$INSTALLER" | awk '{print $1}')"
   elif command -v shasum >/dev/null 2>&1; then
-      if (cd "$INSTALLER_DIR" && shasum --algorithm 256 --check --status "$CHECKSUM"); then
-          echo "✅ Checksum verification passed" >&2
-      else
-          echo "❌ Checksum verification failed" >&2
-          exit 1
-      fi
+      actual_hash="$(shasum --algorithm 256 "$INSTALLER" | awk '{print $1}')"
   else
       echo "⛔ Neither sha256sum nor shasum is available." >&2
+      exit 1
+  fi
+  if [[ "$expected_hash" == "$actual_hash" ]]; then
+      echo "✅ Checksum verification passed" >&2
+  else
+      echo "❌ Checksum verification failed (expected: $expected_hash  actual: $actual_hash)" >&2
       exit 1
   fi
   echo "↩️ Function exit: verify_miniforge" >&2
