@@ -114,7 +114,7 @@
       }
    },
    "installsAfter": [
-      "ghcr.io/quantized8/sysset/install-shell",
-      "ghcr.io/quantized8/sysset/setup-user"
+      // "ghcr.io/quantized8/sysset/install-shell",
+      // "ghcr.io/quantized8/sysset/setup-user"
    ]
 }
