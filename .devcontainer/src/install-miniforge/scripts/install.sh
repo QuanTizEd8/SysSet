@@ -112,8 +112,11 @@ download_miniforge() {
   local installer_url
   local checksum_url
   if [[ "$CONDA_VERSION" == "latest" ]]; then
+      # The rolling /latest/download/ URL has no version in the filename, but the
+      # checksum asset on the same release IS named with the version tag.
+      local versioned_filename="Miniforge3-${MINIFORGE_VERSION}-${INSTALLER_FILENAME#Miniforge3-}"
       installer_url="https://github.com/conda-forge/miniforge/releases/latest/download/${INSTALLER_FILENAME}"
-      checksum_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}.sha256"
+      checksum_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${versioned_filename}.sha256"
   else
       installer_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}"
       checksum_url="${installer_url}.sha256"
