@@ -1,5 +1,5 @@
 #!/bin/bash
-# conda_dir=/opt/myforge, symlink=false:
+# bin_dir=/opt/myforge, symlink=false:
 # Miniforge is installed to a custom directory.  The default /opt/conda path
 # must not be created (symlink disabled), and PATH export blocks must reference
 # the custom directory.

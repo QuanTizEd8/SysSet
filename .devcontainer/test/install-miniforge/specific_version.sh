@@ -1,9 +1,9 @@
 #!/bin/bash
-# conda_version=24.7.1: Miniforge is installed from a pinned release resolved
+# version=24.7.1: Miniforge is installed from a pinned release resolved
 # via the GitHub API (conda 24.7.1 -> tag 24.7.1-2).
 # Verifies the versioned download and install path works end-to-end and that
 # the installed conda version matches the requested version string exactly.
-# Update conda_version in scenarios.json when the pinned release is retired.
+# Update version in scenarios.json when the pinned release is retired.
 set -e
 
 source dev-container-features-test-lib

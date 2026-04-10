@@ -1,5 +1,5 @@
 #!/bin/bash
-# conda_version=24.7.1 + if_exists=uninstall, with conda 24.7.1 pre-installed:
+# version=24.7.1 + if_exists=uninstall, with conda 24.7.1 pre-installed:
 # The version-match check (installed == resolved) fires before if_exists dispatch,
 # so uninstall is never triggered.  Post-install steps (PATH export) still run.
 set -e

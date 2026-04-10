@@ -11,16 +11,16 @@
             "install-miniforge": { "export_path": "" }
         }
     },
-    "custom_conda_dir": {
+    "custom_bin_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "conda_dir": "/opt/myforge", "symlink": false }
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false }
         }
     },
     "specific_version": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "conda_version": "24.7.1" }
+            "install-miniforge": { "version": "24.7.1" }
         }
     },
     "set_permission": {
@@ -107,13 +107,13 @@
     "export_path_custom_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "conda_dir": "/opt/myforge", "symlink": false }
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false }
         }
     },
     "export_path_symlink": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "conda_dir": "/opt/myforge", "symlink": true }
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": true }
         }
     },
     "export_path_disabled": {
@@ -137,7 +137,7 @@
     "version_match_idempotency": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "conda_version": "24.7.1", "if_exists": "uninstall" }
+            "install-miniforge": { "version": "24.7.1", "if_exists": "uninstall" }
         }
     },
     "preserve_envs_true": {

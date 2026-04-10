@@ -1,5 +1,5 @@
 #!/bin/bash
-# conda_dir=/opt/myforge, symlink=false:
+# bin_dir=/opt/myforge, symlink=false:
 # All PATH export blocks must reference the custom directory; /opt/conda must
 # not exist in any form (symlink disabled).
 set -e

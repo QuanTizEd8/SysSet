@@ -1,5 +1,5 @@
 #!/bin/bash
-# conda_version=latest (default): the script calls the GitHub API to resolve
+# version=latest (default): the script calls the GitHub API to resolve
 # the current latest Miniforge release tag and installs from that tag.
 # Verifies that installation succeeds and the resolved version is non-empty.
 set -e
