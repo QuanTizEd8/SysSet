@@ -4,14 +4,14 @@
    "name": "Miniforge Installer",
    "description": "Install Miniforge in the development container.",
    "options": {
-      "conda_version": {
+      "version": {
          "default": "latest",
          "description": "Conda version to install (e.g. '26.3.1').\nAccepts a conda version string, not a Miniforge release tag.\nDefaults to 'latest', which resolves to the current latest release via the GitHub API.\nFor a specific version, the script finds the highest Miniforge build number for that conda version\n(e.g. '24.7.1' resolves to tag '24.7.1-2').\nIf the already-installed conda version matches the resolved version, the install is\nskipped silently regardless of the 'if_exists' setting.\n",
          "type": "string"
       },
       "if_exists": {
          "default": "skip",
-         "description": "What to do when conda is already installed at conda_dir.\n'skip' — warn and continue to post-install steps (idempotent).\n'fail' — print an error and exit non-zero.\n'uninstall' — uninstall the existing installation then install fresh.\n'update' — update the base conda environment to the resolved version.\n",
+         "description": "What to do when conda is already installed at bin_dir.\n'skip' — warn and continue to post-install steps (idempotent).\n'fail' — print an error and exit non-zero.\n'uninstall' — uninstall the existing installation then install fresh.\n'update' — update the base conda environment to the resolved version.\n",
          "enum": ["skip", "fail", "uninstall", "update"],
          "type": "string"
       },
@@ -30,19 +30,19 @@
          "description": "Update the base conda environment.\nThis is done by running `conda update --all`.\nThis is not recommended for production environments.\n",
          "type": "boolean"
       },
-      "conda_dir": {
+      "bin_dir": {
          "default": "/opt/conda",
-         "description": "Path to the conda installation directory.\nThis is the directory where conda will be installed.\nIt corresponds to the `CONDA_DIR` environment variable.\nWith the default `symlink: true`, a symlink `/opt/conda -> <conda_dir>` is\ncreated so that PATH export files always reference the canonical /opt/conda/bin.\nIf you disable `symlink`, PATH exports will reference the custom path directly.\n",
+         "description": "Path to the conda installation directory.\nThis is the directory where conda will be installed.\nIt corresponds to the `BIN_DIR` environment variable.\nWith the default `symlink: true`, a symlink `/opt/conda -> <bin_dir>` is\ncreated so that PATH export files always reference the canonical /opt/conda/bin.\nIf you disable `symlink`, PATH exports will reference the custom path directly.\n",
          "type": "string"
       },
       "export_path": {
          "default": "auto",
-         "description": "Controls which shell startup files receive the PATH export for $CONDA_DIR/bin.\n'auto' writes to all relevant system-wide files (Case A: public install + root)\nor user-scoped files (Case B: user install or non-root).\n'' (empty) skips all PATH writes.\nNewline-separated list of absolute paths: writes only to those files.\n",
+         "description": "Controls which shell startup files receive the PATH export for $BIN_DIR/bin.\n'auto' writes to all relevant system-wide files (Case A: public install + root)\nor user-scoped files (Case B: user install or non-root).\n'' (empty) skips all PATH writes.\nNewline-separated list of absolute paths: writes only to those files.\n",
          "type": "string"
       },
       "symlink": {
          "default": true,
-         "description": "Create a symlink /opt/conda -> $CONDA_DIR when conda_dir is not /opt/conda.\nThis ensures PATH export files reference the canonical /opt/conda/bin path\neven when conda is installed to a custom directory.\nNo-op when conda_dir is already /opt/conda.\n",
+         "description": "Create a symlink /opt/conda -> $BIN_DIR when bin_dir is not /opt/conda.\nThis ensures PATH export files reference the canonical /opt/conda/bin path\neven when conda is installed to a custom directory.\nNo-op when bin_dir is already /opt/conda.\n",
          "type": "boolean"
       },
       "rc_files": {
