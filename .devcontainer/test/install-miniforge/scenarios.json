@@ -139,5 +139,35 @@
         "features": {
             "install-miniforge": { "conda_version": "24.7.1", "if_exists": "uninstall" }
         }
+    },
+    "preserve_envs_true": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": true }
+        }
+    },
+    "preserve_envs_false": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": false }
+        }
+    },
+    "preserve_config_true": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "if_exists": "uninstall", "preserve_config": true }
+        }
+    },
+    "preserve_config_false": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "if_exists": "uninstall", "preserve_config": false }
+        }
+    },
+    "if_exists_update_preinstall": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "if_exists": "update" }
+        }
     }
 }

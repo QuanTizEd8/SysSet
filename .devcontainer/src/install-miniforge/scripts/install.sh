@@ -15,7 +15,18 @@ __usage__() {
   'skip'      — warn and continue to post-install steps (default).
   'fail'      — print an error and exit non-zero.
   'uninstall' — uninstall then install fresh.
-  'update'    — reserved; not yet implemented.
+  'update'    — update the base conda environment to the resolved version.
+  " >&2
+  echo "  --preserve_envs (boolean): When if_exists is 'uninstall', export all non-base conda
+  environments before uninstalling and recreate them after reinstalling.
+  Each environment is exported with --from-history; on recreation failure the YAML
+  is kept at /tmp/conda-env-preserve for manual recovery.
+  Defaults to true.
+  " >&2
+  echo "  --preserve_config (boolean): When if_exists is 'uninstall', skip conda init --reverse
+  and preserve .condarc and .conda directories during uninstall.
+  Set to false to perform a full clean uninstall.
+  Defaults to true.
   " >&2
   echo "  --group (string): Name of a user group to give access to conda.
   Only applies when set_permissions is true.
@@ -289,19 +300,82 @@ set_permissions() {
   echo "↩️ Function exit: set_permissions" >&2
 }
 
+export_envs() {
+  echo "↪️ Function entry: export_envs" >&2
+  local tmpdir="$1"
+  mkdir -p "$tmpdir"
+  # Get non-base env paths: parse JSON array from 'conda env list --json',
+  # skip the base dir (CONDA_DIR itself), handle paths with/without trailing slash.
+  local env_paths
+  env_paths="$("$CONDA_EXEC" env list --json 2>/dev/null \
+             | grep '"' | sed 's/.*"\(.*\)".*/\1/' \
+             | grep -v "^${CONDA_DIR}/*$")" || true
+  if [[ -z "$env_paths" ]]; then
+    echo "ℹ️ No non-base environments found to preserve." >&2
+    echo "↩️ Function exit: export_envs" >&2
+    return
+  fi
+  while IFS= read -r env_path; do
+    [[ -z "$env_path" ]] && continue
+    local env_name
+    env_name="$(basename "$env_path")"
+    local yaml_path="${tmpdir}/${env_name}.yml"
+    echo "📤 Exporting environment '${env_name}' to '${yaml_path}'." >&2
+    if "$CONDA_EXEC" env export --from-history --name "$env_name" > "$yaml_path" 2>/dev/null; then
+      echo "✅ Exported environment '${env_name}'." >&2
+    else
+      echo "⚠️ Failed to export environment '${env_name}'. Skipping." >&2
+      rm -f "$yaml_path"
+    fi
+  done <<< "$env_paths"
+  echo "↩️ Function exit: export_envs" >&2
+}
+
+recreate_envs() {
+  echo "↪️ Function entry: recreate_envs" >&2
+  local tmpdir="$1"
+  if [[ ! -d "$tmpdir" ]]; then
+    echo "ℹ️ No preserved environments directory found at '${tmpdir}'. Skipping." >&2
+    echo "↩️ Function exit: recreate_envs" >&2
+    return
+  fi
+  local found=false
+  for yaml_path in "${tmpdir}"/*.yml; do
+    [[ -f "$yaml_path" ]] || continue
+    found=true
+    local env_name
+    env_name="$(basename "$yaml_path" .yml)"
+    echo "📥 Recreating environment '${env_name}' from '${yaml_path}'." >&2
+    if "$CONDA_EXEC" env create --file "$yaml_path"; then
+      echo "✅ Recreated environment '${env_name}'." >&2
+    else
+      echo "⚠️ Failed to recreate environment '${env_name}'. YAML saved at '${yaml_path}' for manual recovery." >&2
+    fi
+  done
+  if [[ "$found" == false ]]; then
+    echo "ℹ️ No preserved environment YAMLs found in '${tmpdir}'." >&2
+  fi
+  rm -rf "$tmpdir"
+  echo "↩️ Function exit: recreate_envs" >&2
+}
+
 uninstall_miniforge() {
   echo "↪️ Function entry: uninstall_miniforge" >&2
-  echo "🗑 Uninstalling conda (Miniforge)."
-  "$CONDA_EXEC" init --reverse
+  echo "🗑 Uninstalling conda (Miniforge)." >&2
+  if [[ "$PRESERVE_CONFIG" != "true" ]]; then
+    "$CONDA_EXEC" init --reverse
+  fi
   rm -rf "$("$CONDA_EXEC" info --base)"
-  rm -f "$HOME/.condarc"
-  rm -rf "$HOME/.conda"
-  for _u in "${_USERS_ARR[@]}"; do
-      [[ -z "$_u" ]] && continue
-      user_home=$(getent passwd "$_u" | cut -d: -f6)
-      rm -rf "$user_home/.condarc"
-      rm -rf "$user_home/.conda"
-  done
+  if [[ "$PRESERVE_CONFIG" != "true" ]]; then
+    rm -f "$HOME/.condarc"
+    rm -rf "$HOME/.conda"
+    for _u in "${_USERS_ARR[@]}"; do
+        [[ -z "$_u" ]] && continue
+        user_home=$(getent passwd "$_u" | cut -d: -f6)
+        rm -rf "$user_home/.condarc"
+        rm -rf "$user_home/.conda"
+    done
+  fi
   echo "↩️ Function exit: uninstall_miniforge" >&2
 }
 
@@ -586,6 +660,8 @@ if [ "$#" -gt 0 ]; then
       --export_path) shift; EXPORT_PATH="$1"; echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2; shift;;
       --symlink) shift; SYMLINK=true; echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2;;
       --users) shift; USERS="$1"; echo "📩 Read argument 'users': '${USERS}'" >&2; shift;;
+      --preserve_envs) shift; PRESERVE_ENVS="$1"; echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2; shift;;
+      --preserve_config) shift; PRESERVE_CONFIG="$1"; echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2; shift;;
       --help|-h) __usage__;;
       --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
       *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
@@ -623,6 +699,8 @@ else
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
   [ "${USERS+defined}" ] && echo "📩 Read argument 'users': '${USERS}'" >&2
+  [ "${PRESERVE_ENVS+defined}" ] && echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2
+  [ "${PRESERVE_CONFIG+defined}" ] && echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
 { [ "${RC_FILES+isset}" != "isset" ] || [ ${#RC_FILES[@]} -eq 0 ]; } && { echo "ℹ️ Argument 'RC_FILES' set to default value '()'." >&2; RC_FILES=(); }
@@ -642,6 +720,8 @@ fi
 [ -z "${SYMLINK+x}" ] && { echo "ℹ️ Argument 'SYMLINK' set to default value 'false'." >&2; SYMLINK=false; }
 [ -z "${USERS-}" ] && { echo "ℹ️ Argument 'USERS' set to default value '$(id -nu)'." >&2; USERS="$(id -nu)"; }
 IFS=',' read -ra _USERS_ARR <<< "$USERS"
+[ -z "${PRESERVE_ENVS-}" ] && { echo "ℹ️ Argument 'PRESERVE_ENVS' set to default value 'true'." >&2; PRESERVE_ENVS="true"; }
+[ -z "${PRESERVE_CONFIG-}" ] && { echo "ℹ️ Argument 'PRESERVE_CONFIG' set to default value 'true'." >&2; PRESERVE_CONFIG="true"; }
 
 
 check_root_requirement
@@ -675,12 +755,21 @@ if [[ -f "${CONDA_DIR}/bin/conda" ]] || command -v conda >/dev/null 2>&1; then
         uninstall)
           echo "ℹ️ if_exists=uninstall: uninstalling existing conda, then installing fresh." >&2
           set_executable_paths --verify
+          _env_preserve_dir="/tmp/conda-env-preserve"
+          if [[ "$PRESERVE_ENVS" == "true" ]]; then
+            export_envs "$_env_preserve_dir"
+          fi
           uninstall_miniforge
           install_miniforge
+          if [[ "$PRESERVE_ENVS" == "true" ]]; then
+            set_executable_paths --verify
+            recreate_envs "$_env_preserve_dir"
+          fi
           ;;
         update)
-          echo "⛔ if_exists=update: not yet implemented." >&2
-          exit 1
+          echo "ℹ️ if_exists=update: updating conda base environment to version '${RESOLVED_CONDA_VERSION}'." >&2
+          set_executable_paths --verify
+          "$CONDA_EXEC" install --name base --yes "conda=${RESOLVED_CONDA_VERSION}"
           ;;
         *)
           echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'uninstall', or 'update'." >&2

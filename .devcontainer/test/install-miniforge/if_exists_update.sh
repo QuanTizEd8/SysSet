@@ -2,10 +2,8 @@
 # if_exists=update, no pre-existing conda (ubuntu:latest): with no existing
 # conda installation the if_exists check is not triggered and Miniforge installs
 # normally.  This verifies the option is accepted and does not break a fresh
-# install.  The 'update' path itself (pre-existing conda + if_exists=update)
-# exits non-zero ("not yet implemented"), which causes the image build to fail
-# before the test script can run — so it cannot be tested as a devcontainer
-# scenario at this time.
+# install.  See if_exists_update_preinstall for the actual update path test
+# (pre-existing conda + if_exists=update → conda updated in-place).
 set -e
 
 source dev-container-features-test-lib
