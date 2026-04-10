@@ -1,0 +1,32 @@
+# Build tools required by Homebrew on Linux.
+# ref: https://docs.brew.sh/Homebrew-on-Linux#requirements
+#
+# Not needed on macOS — Xcode Command Line Tools provide these, and the
+# installer checks / installs CLT directly in the script.
+
+# Common packages — same name on all package managers
+git
+curl
+file
+
+# Build tools — names differ by ecosystem
+build-essential  [pm=apt]
+procps           [pm=apt]
+
+--- group [pm=dnf]
+development-tools
+
+--- pkg [pm=dnf]
+procps-ng
+
+--- group [pm=pacman]
+base-devel
+
+--- pkg [pm=pacman]
+procps-ng
+
+--- group [pm=zypper]
+devel_basis
+
+--- pkg [pm=zypper]
+procps
