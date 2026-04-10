@@ -337,8 +337,7 @@ trap '__cleanup__' EXIT
 ```
 
 `setup-shim/install.sh` uses a simpler one-line log append (no tee, no temp file). Apply the
-full `logging::setup` + `logging::cleanup` pattern to bring it in line with the others, or
-document this as a deliberate lightweight exception.
+full `logging::setup` + `logging::cleanup` pattern to bring it in line with the others.
 
 **Steps:**
 1. Implement `logging.sh` functions
