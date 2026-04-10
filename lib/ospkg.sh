@@ -349,14 +349,14 @@ ospkg::parse_manifest() {
       pkg)
         if ospkg::pkg_matches_selectors "$_line"; then
           _mpkg="${_line%%\[*}"
-          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"  
+          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"
           [[ -n "$_mpkg" ]] && _M_PKG+="${_mpkg}"$'\n'
         fi
         ;;
       group)
         if ospkg::pkg_matches_selectors "$_line"; then
           _mpkg="${_line%%\[*}"
-          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"  
+          _mpkg="${_mpkg%"${_mpkg##*[! $'\t']}"}"
           [[ -n "$_mpkg" ]] && _M_GROUP+="${_mpkg}"$'\n'
         fi
         ;;
