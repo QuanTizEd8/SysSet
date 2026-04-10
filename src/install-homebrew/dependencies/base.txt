@@ -11,22 +11,14 @@ file
 
 # Build tools — names differ by ecosystem
 build-essential  [pm=apt]
-procps           [pm=apt]
+procps           [pm=apt] [pm=zypper]
+procps-ng        [pm=dnf] [pm=pacman]
 
 --- group [pm=dnf]
 development-tools
 
---- pkg [pm=dnf]
-procps-ng
-
 --- group [pm=pacman]
 base-devel
 
---- pkg [pm=pacman]
-procps-ng
-
 --- group [pm=zypper]
 devel_basis
-
---- pkg [pm=zypper]
-procps
