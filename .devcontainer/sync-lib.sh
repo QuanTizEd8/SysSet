@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# sync-lib.sh — Copies .devcontainer/lib/ into each feature's scripts/_lib/.
+# sync-lib.sh — Copies .devcontainer/lib/ into each feature's scripts/_lib/ directory.
 #
 # Usage:
 #   bash .devcontainer/sync-lib.sh           # sync all features
@@ -60,11 +60,13 @@ for _feature_dir in "${_feature_dirs[@]}"; do
   fi
 done
 
-if [[ "$_any_stale" == true ]]; then
-  echo "" >&2
-  echo "⛔ Stale _lib/ copies detected. Run: bash .devcontainer/sync-lib.sh" >&2
-  exit 1
+if [[ "$_check_mode" == true ]]; then
+  if [[ "$_any_stale" == true ]]; then
+    echo "" >&2
+    echo "⛔ Stale _lib/ copies detected. Run: bash .devcontainer/sync-lib.sh" >&2
+    echo "   (The pre-commit hook runs this automatically when lib/ files are staged.)" >&2
+    exit 1
+  fi
+  echo "✅ All features in sync." >&2
 fi
-
-[[ "$_check_mode" == true ]] && echo "✅ All features in sync." >&2
 exit 0
