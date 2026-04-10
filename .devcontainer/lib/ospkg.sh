@@ -7,6 +7,7 @@ _LIB_OSPKG_LOADED=1
 
 _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OSPKG_LIB_DIR/os.sh"
+. "$_OSPKG_LIB_DIR/net.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
@@ -17,8 +18,6 @@ _OSPKG_UPDATE=()
 _OSPKG_CLEAN=
 _OSPKG_LISTS_PATH=
 _OSPKG_LISTS_PATTERN=
-_OSPKG_FETCH_TOOL=
-_OSPKG_CA_CERTS_OK=
 declare -A _OSPKG_OS_RELEASE=()
 
 # ── Private: clean functions ──────────────────────────────────────────────────
@@ -28,6 +27,10 @@ _ospkg_clean_apk() {
 }
 _ospkg_clean_apt() {
   apt-get clean
+  # apt-get dist-clean is an APT 3.x command that removes /var/lib/apt/lists/*
+  # while preserving the Release/InRelease files for security.
+  # Docs: https://manpages.debian.org/unstable/apt/apt-get.8.en.html#distclean
+  # Fall back to rm -rf on older APT (2.x and below) where the command does not exist.
   apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
   return 0
 }
@@ -45,63 +48,7 @@ _ospkg_clean_zypper() {
   return 0
 }
 
-# ── Private: net / key / repo helpers ────────────────────────────────────────
-_ospkg_ensure_ca_certs() {
-  [[ -n "${_OSPKG_CA_CERTS_OK:-}" ]] && return 0
-  if [[ ! -s /etc/ssl/certs/ca-certificates.crt ]]; then
-    echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
-    "${_OSPKG_INSTALL[@]}" ca-certificates
-  fi
-  _OSPKG_CA_CERTS_OK=true
-  return 0
-}
-
-_ospkg_ensure_fetch_tool() {
-  if [[ -z "${_OSPKG_FETCH_TOOL:-}" ]]; then
-    if command -v curl > /dev/null 2>&1; then
-      _OSPKG_FETCH_TOOL=curl
-    elif command -v wget > /dev/null 2>&1; then
-      _OSPKG_FETCH_TOOL=wget
-    else
-      echo "ℹ️  Neither curl nor wget found — installing curl." >&2
-      "${_OSPKG_INSTALL[@]}" curl
-      _OSPKG_FETCH_TOOL=curl
-    fi
-  fi
-  _ospkg_ensure_ca_certs
-  return 0
-}
-
-_ospkg_fetch_with_retry() {
-  local _max="$1"; shift
-  local _i=1
-  while [[ $_i -le $_max ]]; do
-    "$@" && return 0
-    [[ $_i -lt $_max ]] && echo "⚠️  Fetch attempt $_i/$_max failed — retrying in 3s..." >&2 && sleep 3
-    (( _i++ ))
-  done
-  echo "⛔ Fetch failed after $_max attempt(s)." >&2
-  return 1
-}
-
-_ospkg_fetch_url_stdout() {
-  if [[ "$_OSPKG_FETCH_TOOL" == curl ]]; then
-    _ospkg_fetch_with_retry 3 curl -fsSL "$1"
-  else
-    _ospkg_fetch_with_retry 3 wget -qO- "$1"
-  fi
-  return 0
-}
-
-_ospkg_fetch_url_file() {
-  if [[ "$_OSPKG_FETCH_TOOL" == curl ]]; then
-    _ospkg_fetch_with_retry 3 curl -fsSL "$1" -o "$2"
-  else
-    _ospkg_fetch_with_retry 3 wget -qO "$2" "$1"
-  fi
-  return 0
-}
-
+# ── Private: key / repo helpers ──────────────────────────────────────────────
 _ospkg_ensure_gpg() {
   command -v gpg > /dev/null 2>&1 && return 0
   echo "ℹ️  gpg not found — installing gnupg." >&2
@@ -118,15 +65,15 @@ _ospkg_ensure_gpg() {
 _ospkg_install_key_entry() {
   local _url="$1"
   local _dest="$2"
-  _ospkg_ensure_fetch_tool
+  net::ensure_fetch_tool
   mkdir -p "$(dirname "$_dest")"
   if [[ "$_dest" == *.gpg ]]; then
     _ospkg_ensure_gpg
     echo "🔑 Fetching and dearmoring key → $_dest" >&2
-    _ospkg_fetch_url_stdout "$_url" | gpg --dearmor -o "$_dest"
+    net::fetch_url_stdout "$_url" | gpg --dearmor -o "$_dest"
   else
     echo "🔑 Fetching key → $_dest" >&2
-    _ospkg_fetch_url_file "$_url" "$_dest"
+    net::fetch_url_file "$_url" "$_dest"
   fi
   chmod 0644 "$_dest"
   return 0
