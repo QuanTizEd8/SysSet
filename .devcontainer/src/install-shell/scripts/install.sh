@@ -184,7 +184,7 @@ echo "========================================" >&2
 # Step 1: Install dependencies
 # ===================================================================
 _PKG_MANIFEST="${_BASE_DIR}/packages.txt"
-ospkg::run --manifest "$_PKG_MANIFEST" --check_installed
+ospkg::run --manifest "$_PKG_MANIFEST" --check_installed --no_clean
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
@@ -477,6 +477,8 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
     done
   fi
 fi
+
+ospkg::clean
 
 echo "========================================" >&2
 echo "  install-shell complete" >&2
