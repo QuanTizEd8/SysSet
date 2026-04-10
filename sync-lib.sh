@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # sync-lib.sh — Distributes shared files into each feature directory:
-#   - .devcontainer/lib/          → each feature's scripts/_lib/
-#   - .devcontainer/bootstrap.sh  → each feature's install.sh
+#   - lib/          → each feature's scripts/_lib/
+#   - bootstrap.sh  → each feature's install.sh
 #
 # Usage:
-#   bash .devcontainer/sync-lib.sh           # sync all features
-#   bash .devcontainer/sync-lib.sh --check   # verify copies are up to date
-#                                            # exits non-zero and reports stale features
+#   bash sync-lib.sh           # sync all features
+#   bash sync-lib.sh --check   # verify copies are up to date
+#                              # exits non-zero and reports stale features
 #
 # Features are auto-discovered — never hard-coded. Any feature directory that
 # contains a scripts/ subdirectory receives a scripts/_lib/ copy.

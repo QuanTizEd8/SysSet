@@ -13,14 +13,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Sync _lib/ copies from .devcontainer/lib/"
-        run: bash .devcontainer/sync-lib.sh
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
 
       - name: "Publish Features"
         uses: devcontainers/action@v1
         with:
           publish-features: "true"
-          base-path-to-features: "./.devcontainer/src"
+          base-path-to-features: "./src"
           generate-docs: "true"
 
         env:

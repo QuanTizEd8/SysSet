@@ -1,5 +1,5 @@
 pre-commit:
   commands:
     sync-lib:
-      glob: "{.devcontainer/lib/*,.devcontainer/bootstrap.sh}"
-      run: bash .devcontainer/sync-lib.sh
+      glob: "{lib/*,bootstrap.sh}"
+      run: bash sync-lib.sh

@@ -1,4 +1,4 @@
-# Generated copies — synced by .devcontainer/sync-lib.sh.
+# Generated copies — synced by sync-lib.sh.
 # Never commit these; CI runs sync-lib.sh after checkout.
-.devcontainer/src/**/_lib/
-.devcontainer/src/*/install.sh
+src/**/_lib/
+src/*/install.sh
