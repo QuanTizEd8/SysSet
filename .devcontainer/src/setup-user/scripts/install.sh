@@ -10,19 +10,11 @@
 #   SUDO_ACCESS, EXTRA_GROUPS, REPLACE_EXISTING, SUDOERS_DIR, DEBUG, LOGFILE
 set -euo pipefail
 
-exit_if_not_root() {
-  echo "↪️ Function entry: exit_if_not_root" >&2
-  if [ "$(id -u)" -ne 0 ]; then
-      echo '⛔ This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.' >&2
-      exit 1
-  fi
-  echo "↩️ Function exit: exit_if_not_root" >&2
-}
-
 # ---------------------------------------------------------------------------
 # Cleanup / logging
 # ---------------------------------------------------------------------------
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$_SELF_DIR/_lib/os.sh"
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 
@@ -95,7 +87,7 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
-exit_if_not_root
+os::require_root
 
 if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
     echo "⛔ user_id must be a non-negative integer, got: '${USER_ID}'" >&2

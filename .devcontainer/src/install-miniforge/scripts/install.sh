@@ -121,15 +121,6 @@ download_miniforge() {
   echo "↩️ Function exit: download_miniforge" >&2
 }
 
-exit_if_not_root() {
-  echo "↪️ Function entry: exit_if_not_root" >&2
-  if [ "$(id -u)" -ne 0 ]; then
-      echo '⛔ This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.' >&2
-      exit 1
-  fi
-  echo "↩️ Function exit: exit_if_not_root" >&2
-}
-
 check_root_requirement() {
   echo "↪️ Function entry: check_root_requirement" >&2
   local _require
@@ -138,7 +129,7 @@ check_root_requirement() {
     *) _require=false ;;
   esac
   if [[ "$_require" == true ]]; then
-      exit_if_not_root
+      os::require_root
   else
       echo "ℹ️ Root not required for bin_dir '$BIN_DIR'. Skipping root check." >&2
   fi
@@ -616,6 +607,7 @@ readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
 readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$_SELF_DIR/_lib/os.sh"
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
