@@ -5,12 +5,6 @@
             "install-miniforge": {}
         }
     },
-    "no_export_path": {
-        "image": "ubuntu:latest",
-        "features": {
-            "install-miniforge": { "export_path": "" }
-        }
-    },
     "custom_bin_dir": {
         "image": "ubuntu:latest",
         "features": {

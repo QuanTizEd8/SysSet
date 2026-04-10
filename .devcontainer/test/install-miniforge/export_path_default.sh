@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true (default bin_dir=/opt/conda, export_path=auto):
+# Default options (bin_dir=/opt/conda, export_path=auto):
 # Verifies that all system-wide PATH export blocks are written on Debian/Ubuntu
 # (Case A: public install + root).
 set -e

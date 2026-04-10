@@ -19,9 +19,13 @@ __usage__() {
   " >&2
   echo "  --discard_envs: When if_exists is 'uninstall', do NOT export/recreate non-base conda
   environments across the reinstall. By default environments are preserved.
+  NOTE: the devcontainer-feature.json option is 'preserve_envs' (boolean, default true);
+  the CLI flag is inverted: --discard_envs sets preserve_envs=false.
   " >&2
   echo "  --discard_config: When if_exists is 'uninstall', run conda init --reverse and
   delete .condarc and .conda during uninstall. By default config is preserved.
+  NOTE: the devcontainer-feature.json option is 'preserve_config' (boolean, default true);
+  the CLI flag is inverted: --discard_config sets preserve_config=false.
   " >&2
   echo "  --group (string): Name of a user group to give access to conda.
   Only applies when set_permissions is true.
