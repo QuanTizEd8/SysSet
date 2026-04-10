@@ -1,0 +1,39 @@
+{
+  "id": "install-homebrew",
+  "version": "0.1.0",
+  "name": "Install Homebrew",
+  "description": "Installs Homebrew on macOS (and Linux). Ensures bash >=4 is available before handing off to the main installer.",
+  "documentationURL": "https://github.com/quantized8/sysset/tree/main/src/install-homebrew",
+  "options": {
+    "formulae": {
+      "type": "string",
+      "default": "",
+      "description": "Comma-separated list of Homebrew formulae to install (e.g. 'git,curl,jq')."
+    },
+    "casks": {
+      "type": "string",
+      "default": "",
+      "description": "Comma-separated list of Homebrew casks to install (e.g. 'docker,visual-studio-code')."
+    },
+    "taps": {
+      "type": "string",
+      "default": "",
+      "description": "Comma-separated list of Homebrew taps to add before installing formulae/casks."
+    },
+    "update": {
+      "type": "boolean",
+      "default": true,
+      "description": "Run 'brew update' before installing packages."
+    },
+    "debug": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable debug output (set -x)."
+    },
+    "logfile": {
+      "type": "string",
+      "default": "",
+      "description": "Append install log to this file path."
+    }
+  }
+}
