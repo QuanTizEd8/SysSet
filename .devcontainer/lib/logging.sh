@@ -5,6 +5,8 @@
 [[ -n "${_LIB_LOGGING_LOADED-}" ]] && return 0
 _LIB_LOGGING_LOADED=1
 
+_LIB_LOGGING_SETUP=false
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -22,22 +24,26 @@ logging::setup() {
   _LOGFILE_TMP="$(mktemp)"
   exec 3>&1 4>&2
   exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
+  _LIB_LOGGING_SETUP=true
   return 0
 }
 
 # logging::cleanup — flush temp log to $LOGFILE and restore original fds.
 #
-# If $LOGFILE is unset or empty (no logging requested), just restores fds.
-# Safe to call as an EXIT trap, even if logging::setup was not called
-# (no-op when fds 3/4 are not open — the exec will fail silently in that case).
+# No-op if logging::setup was never called.
+# If $LOGFILE is set, appends the captured output to that file.
+# Always restores the original fds and waits for the tee process to finish.
 logging::cleanup() {
+  [[ "${_LIB_LOGGING_SETUP-}" == true ]] || return 0
+  exec 1>&3 2>&4
+  wait 2>/dev/null
+  exec 3>&- 4>&-
   if [ -n "${LOGFILE-}" ]; then
-    exec 1>&3 2>&4
-    wait 2>/dev/null
     echo "ℹ️ Write logs to file '$LOGFILE'" >&2
     mkdir -p "$(dirname "$LOGFILE")"
     cat "$_LOGFILE_TMP" >> "$LOGFILE"
-    rm -f "$_LOGFILE_TMP"
   fi
+  rm -f "${_LOGFILE_TMP-}"
+  _LIB_LOGGING_SETUP=false
   return 0
 }
