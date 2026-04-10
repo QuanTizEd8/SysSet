@@ -1,6 +1,16 @@
 #!/bin/sh
-# Bootstrap: ensure bash is available, then hand off to the main install script.
-# Single source of truth — distributed to each feature root by sync-lib.sh.
+
+# Bootstrap devcontainer feature `install.sh` script
+#
+# Ensure bash is available, then hand off to the main install script.
+#
+# Notes
+# -----
+# This file is the single source of truth for all `install.sh` scripts;
+# it is distributed to each feature root by `sync-lib.sh`.
+# Therefore, do not edit copies of this file directly —
+# edit this one, and then run `sync-lib.sh` to propagate changes to all features.
+
 set -e
 
 if ! command -v bash > /dev/null 2>&1; then
