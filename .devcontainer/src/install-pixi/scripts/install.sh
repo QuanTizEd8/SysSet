@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2
@@ -34,9 +35,12 @@ fi
 [ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
 [ -z "${VERSION-}" ] && { echo "ℹ️ Argument 'VERSION' set to default value '0.66.0'." >&2; VERSION="0.66.0"; }
 
+ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
+
 pixi_bin="${INSTALL_PATH}/pixi"
 
-curl \
+net::ensure_fetch_tool
+net::fetch_with_retry 3 curl \
   --compressed \
   -fsSLo "$pixi_bin" \
   "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-$(uname -m)-unknown-linux-musl"

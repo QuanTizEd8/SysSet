@@ -19,6 +19,8 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+# shellcheck source=_lib/ospkg.sh
+. "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=_lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
 
@@ -172,10 +174,7 @@ fi
 # ---------------------------------------------------------------------------
 # Preconditions
 # ---------------------------------------------------------------------------
-if [ "$(id -u)" -ne 0 ]; then
-  echo "⛔ This script must be run as root." >&2
-  exit 1
-fi
+os::require_root
 
 echo "========================================" >&2
 echo "  install-shell" >&2
@@ -185,18 +184,14 @@ echo "========================================" >&2
 # Step 1: Install dependencies
 # ===================================================================
 _PKG_MANIFEST="${_BASE_DIR}/packages.txt"
-if ! command -v install-os-pkg > /dev/null 2>&1; then
-  echo "⛔ install-os-pkg not found — it is a required dependency of install-shell." >&2
-  exit 1
-fi
-install-os-pkg --manifest "$_PKG_MANIFEST" --check_installed
+ospkg::run --manifest "$_PKG_MANIFEST" --check_installed
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
     echo "ℹ️  Zsh already installed — skipping." >&2
   else
     echo "📦 Installing Zsh..." >&2
-    install-os-pkg --manifest $'zsh\n'
+    ospkg::install zsh
   fi
 fi
 

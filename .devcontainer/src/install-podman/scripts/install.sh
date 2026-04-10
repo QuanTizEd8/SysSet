@@ -25,6 +25,8 @@ if [ "${DEBUG:-false}" = "true" ]; then
     set -x
 fi
 
+# shellcheck source=_lib/ospkg.sh
+. "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=_lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
@@ -48,12 +50,7 @@ add_user() {
 # ---------------------------------------------------------------------------
 # 1. Install packages
 # ---------------------------------------------------------------------------
-if ! command -v install-os-pkg > /dev/null 2>&1; then
-    echo "install-podman: install-os-pkg not found — it is a required dependency." >&2
-    exit 1
-fi
-
-install-os-pkg --manifest "${_BASE_DIR}/packages.txt"
+ospkg::run --manifest "${_BASE_DIR}/packages.txt"
 
 # ---------------------------------------------------------------------------
 # 2. Ensure newuidmap / newgidmap have setuid bit

@@ -7,12 +7,13 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-# shellcheck source=_lib/net.sh
-. "$_SELF_DIR/_lib/net.sh"
+# shellcheck source=_lib/ospkg.sh
+. "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=_lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
@@ -103,6 +104,8 @@ if [[ -z "$FONT_DIR" ]]; then
     FONT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
   fi
 fi
+
+ospkg::run --manifest "${_BASE_DIR}/packages.txt" --check_installed
 
 [[ "$DEBUG" == true ]] && set -x
 

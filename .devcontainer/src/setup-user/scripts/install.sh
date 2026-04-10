@@ -14,7 +14,7 @@ set -euo pipefail
 # Cleanup / logging
 # ---------------------------------------------------------------------------
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-. "$_SELF_DIR/_lib/os.sh"
+. "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 
@@ -82,12 +82,11 @@ USERNAME="${USERNAME:-vscode}"
 
 [[ "$DEBUG" == "true" ]] && set -x
 
-_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 os::require_root
+ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 
 if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
     echo "⛔ user_id must be a non-negative integer, got: '${USER_ID}'" >&2
@@ -208,7 +207,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-    install-os-pkg --manifest "${_SELF_DIR}/../dependencies/sudo.txt" --check_installed
+    ospkg::run --manifest "${_SELF_DIR}/../dependencies/sudo.txt" --check_installed
     mkdir -p "$SUDOERS_DIR"
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
     chmod 0440 "${SUDOERS_DIR}/${USERNAME}"

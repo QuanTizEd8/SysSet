@@ -239,6 +239,7 @@ setup_environment() {
 }
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 echo "↪️ Script entry: Conda Environment Devcontainer Feature Installer" >&2
@@ -373,6 +374,7 @@ if [[ -n "$ENV_NAME" ]] && [[ -z "$PACKAGES" ]] && [[ -z "$PYTHON_VERSION" ]]; t
     echo "⛔ 'env_name' requires at least one of 'packages' or 'python_version' to be set." >&2
     exit 1
 fi
+ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 discover_conda
 resolve_solver
 apply_channels

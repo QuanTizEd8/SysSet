@@ -116,8 +116,8 @@ download_miniforge() {
   local checksum_url="${installer_url}.sha256"
   mkdir -p "$INSTALLER_DIR"
   echo "📥 Downloading installer from $installer_url" >&2
-  curl --fail --location --retry 3 --output "$INSTALLER" "$installer_url"
-  curl --fail --location --retry 3 --output "$CHECKSUM" "$checksum_url"
+  net::fetch_url_file "$installer_url" "$INSTALLER"
+  net::fetch_url_file "$checksum_url" "$CHECKSUM"
   echo "↩️ Function exit: download_miniforge" >&2
 }
 
@@ -231,9 +231,11 @@ resolve_miniforge_version() {
   echo "↪️ Function entry: resolve_miniforge_version" >&2
   local api_base="https://api.github.com/repos/conda-forge/miniforge/releases"
   local tag conda_ver
+  net::ensure_fetch_tool
+  net::ensure_ca_certs
   if [[ "$VERSION" == "latest" ]]; then
     echo "ℹ️ Resolving latest Miniforge release tag from GitHub API." >&2
-    tag="$(curl --fail --silent --location \
+    tag="$(net::fetch_with_retry 3 curl --fail --silent --location \
                --header "Accept: application/vnd.github+json" \
                "${api_base}/latest" \
            | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
@@ -244,7 +246,7 @@ resolve_miniforge_version() {
   else
     echo "ℹ️ Resolving Miniforge release tag for conda version '${VERSION}' from GitHub API." >&2
     local releases
-    releases="$(curl --fail --silent --location \
+    releases="$(net::fetch_with_retry 3 curl --fail --silent --location \
                      --header "Accept: application/vnd.github+json" \
                      "${api_base}?per_page=100" \
                  | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
@@ -607,11 +609,13 @@ readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
 readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-. "$_SELF_DIR/_lib/os.sh"
+. "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
 trap '__cleanup__' EXIT
+
+ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 
 
 if [ "$#" -gt 0 ]; then
