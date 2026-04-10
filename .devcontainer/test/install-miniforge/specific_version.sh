@@ -1,8 +1,8 @@
 #!/bin/bash
-# download=true, install=true, miniforge_version=24.7.1-2: Miniforge is
+# download=true, install=true, conda_version=24.7.1-2: Miniforge is
 # installed from a pinned release rather than the rolling 'latest' URL.
 # This verifies that the versioned download and install path works end-to-end.
-# Update miniforge_version in scenarios.json when the pinned release is retired.
+# Update conda_version in scenarios.json when the pinned release is retired.
 set -e
 
 source dev-container-features-test-lib

@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, activates=/etc/bash.bashrc, active_env=myenv:
+# download=true, install=true, rc_files=/etc/bash.bashrc, activate_env=myenv:
 # 'conda activate myenv' is appended to the rc file instead of the default
 # 'conda activate base'.
 set -e

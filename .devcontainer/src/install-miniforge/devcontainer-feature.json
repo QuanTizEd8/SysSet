@@ -3,24 +3,19 @@
    "id": "install-miniforge",
    "name": "Miniforge Installation",
    "options": {
-      "activates": {
+      "rc_files": {
          "default": "",
          "description": "Paths to shell configuration files to append conda initialization to.",
          "type": "string"
       },
-      "active_env": {
+      "activate_env": {
          "default": "base",
-         "description": "Name of a conda environment to activate.\nThis adds `conda activate <env>` to the shell configuration files\nspecified in the `activates` parameter,\nand thus only has an effect if the `activates` parameter is set.\n",
-         "type": "string"
-      },
-      "conda_activation_script_path": {
-         "default": "etc/profile.d/conda.sh",
-         "description": "Relative path to the conda activation script.\nThe path is relative to the conda installation directory.\nThis is a constant and does not need to be changed\nunless Miniforge changes this path in the future.\n",
+         "description": "Name of a conda environment to activate.\nAdds `conda activate <env>` to the shell configuration files\nspecified in `rc_files`.\nOnly takes effect when `rc_files` is set.\n",
          "type": "string"
       },
       "conda_dir": {
          "default": "/opt/conda",
-         "description": "Path to the conda installation directory.\nThis is the directory where conda will be installed.\nIt corresponds to the `CONDA_DIR` environment variable.\n",
+         "description": "Path to the conda installation directory.\nThis is the directory where conda will be installed.\nIt corresponds to the `CONDA_DIR` environment variable.\nIf you use a custom path, add a matching `containerEnv`/`remoteEnv` entry\nto your `devcontainer.json` — dynamic option references in `containerEnv`\nare not yet supported by the devcontainer spec.\n",
          "type": "string"
       },
       "debug": {
@@ -35,7 +30,7 @@
       },
       "group": {
          "default": "conda",
-         "description": "Name of a user group to give access to conda.",
+         "description": "Name of a user group to give access to conda.\nOnly applies when `set_permissions` is true.\n",
          "type": "string"
       },
       "install": {
@@ -53,14 +48,14 @@
          "description": "Run the installer in interactive mode.\nThis allows the installer to prompt the user.\nThe default is to run the installer in non-interactive mode.\n",
          "type": "boolean"
       },
+      "keep_installer": {
+         "default": false,
+         "description": "Keep the Miniforge installer script and checksum after installation instead of removing them.",
+         "type": "boolean"
+      },
       "logfile": {
          "default": "",
          "description": "Log all output (stdout + stderr) to this file in addition to console.",
-         "type": "string"
-      },
-      "mamba_activation_script_path": {
-         "default": "etc/profile.d/mamba.sh",
-         "description": "Relative path to the mamba activation script.\nThe path is relative to the conda installation directory.\nThis is a constant and does not need to be changed\nunless Miniforge changes this path in the future.\n",
          "type": "string"
       },
       "miniforge_name": {
@@ -68,24 +63,19 @@
          "description": "Name of the Miniforge variant to install.",
          "type": "string"
       },
-      "miniforge_version": {
+      "conda_version": {
          "default": "latest",
-         "description": "Version of the Miniforge variant to install.\nDefaults to 'latest'.\n",
+         "description": "Version of conda to install (e.g. '24.7.1').\nDefaults to 'latest'. Passed as-is to the Miniforge release URL.\nVersion resolution logic will be added in a later iteration.\n",
          "type": "string"
-      },
-      "no_clean": {
-         "default": false,
-         "description": "Skip removing installer artifacts after installation.",
-         "type": "boolean"
       },
       "reinstall": {
          "default": false,
          "description": "Reinstall conda and mamba using the Miniforge installer.\nSame as 'install', but uninstall first if conda is already installed.\n",
          "type": "boolean"
       },
-      "set_permission": {
+      "set_permissions": {
          "default": false,
-         "description": "Set permissions for the conda installation directory.\nThis is done by adding the '--user' to the conda '--group'\nand setting the group ownership of the conda directory.\".\n",
+         "description": "Set permissions for the conda installation directory.\nCreates the conda group, adds all users listed in `users` to it,\nand applies group ownership and group-write bits to the conda directory.\n",
          "type": "boolean"
       },
       "update_base": {
@@ -98,14 +88,14 @@
          "description": "Write /etc/profile.d/conda_path.sh so conda is available in subsequent shell sessions and Dockerfile RUN layers.",
          "type": "boolean"
       },
-      "user": {
+      "users": {
          "default": "",
-         "description": "Name of a user to add to the conda group.\nThis user must already exist.\nIf not specified, it defaults to the real user running this script.\n",
+         "description": "Comma-separated list of users to add to the conda group (e.g. 'alice,bob').\nEach user must already exist.\nOnly applies when `set_permissions` is true.\nIf empty, defaults to the user running the script.\n",
          "type": "string"
       },
       "require_root": {
          "default": "auto",
-         "description": "Whether root is required to run this script.\n'auto' infers from the conda_dir prefix: system paths require root, user paths do not.\n'true' always enforces root. 'false' always skips the check.\n",
+         "description": "Whether root is required to run this script.\n'auto' infers from conda_dir: system paths (/opt, /usr, /var, /srv, /snap) require root, user paths do not.\n'true' always enforces root. 'false' always skips the check.\n",
          "type": "string"
       }
    },

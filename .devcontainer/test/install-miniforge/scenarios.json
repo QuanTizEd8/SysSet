@@ -20,25 +20,25 @@
     "specific_version": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "download": true, "install": true, "miniforge_version": "24.7.1-2" }
+            "install-miniforge": { "download": true, "install": true, "conda_version": "24.7.1-2" }
         }
     },
     "set_permission": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "download": true, "install": true, "set_permission": true }
+            "install-miniforge": { "download": true, "install": true, "set_permissions": true }
         }
     },
     "activate_bashrc": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "download": true, "install": true, "activates": "/etc/bash.bashrc" }
+            "install-miniforge": { "download": true, "install": true, "rc_files": "/etc/bash.bashrc" }
         }
     },
     "activate_multi": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "download": true, "install": true, "activates": "/root/.bashrc :: /etc/bash.bashrc" }
+            "install-miniforge": { "download": true, "install": true, "rc_files": "/root/.bashrc :: /etc/bash.bashrc" }
         }
     },
     "custom_active_env": {
@@ -47,8 +47,8 @@
             "install-miniforge": {
                 "download": true,
                 "install": true,
-                "activates": "/etc/bash.bashrc",
-                "active_env": "myenv"
+                "rc_files": "/etc/bash.bashrc",
+                "activate_env": "myenv"
             }
         }
     },
@@ -61,7 +61,7 @@
     "no_clean": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "download": true, "install": true, "no_clean": true }
+            "install-miniforge": { "download": true, "install": true, "keep_installer": true }
         }
     },
     "reinstall": {
@@ -74,6 +74,12 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-miniforge": { "download": true, "install": true }
+        }
+    },
+    "multi_user_permissions": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "download": true, "install": true, "set_permissions": true, "users": "testuser1,testuser2" }
         }
     }
 }

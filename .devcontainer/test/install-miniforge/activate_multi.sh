@@ -1,5 +1,5 @@
 #!/bin/bash
-# download=true, install=true, activates="/root/.bashrc :: /etc/bash.bashrc":
+# download=true, install=true, rc_files="/root/.bashrc :: /etc/bash.bashrc":
 # activation lines are appended to both rc files, verifying the ' :: ' array
 # separator is correctly parsed from the env-var-mode input.
 set -e
