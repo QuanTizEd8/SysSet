@@ -11,8 +11,8 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-# shellcheck source=helpers.sh
-. "$_SELF_DIR/helpers.sh"
+# shellcheck source=_lib/net.sh
+. "$_SELF_DIR/_lib/net.sh"
 # shellcheck source=_lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup

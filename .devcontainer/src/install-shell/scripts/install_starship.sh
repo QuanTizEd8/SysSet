@@ -7,9 +7,9 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-# shellcheck source=helpers.sh
 _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-. "$_SCRIPTS_DIR/helpers.sh"
+# shellcheck source=_lib/net.sh
+. "$_SCRIPTS_DIR/_lib/net.sh"
 
 # ---------------------------------------------------------------------------
 # Usage
@@ -62,7 +62,7 @@ echo "ℹ️  Installing Starship to '${BIN_DIR}'..." >&2
 _INSTALLER_SCRIPT="$(mktemp)"
 trap 'rm -f "$_INSTALLER_SCRIPT"' EXIT
 
-fetch_with_retry 3 curl -fsSL "https://starship.rs/install.sh" -o "$_INSTALLER_SCRIPT"
+net::fetch_with_retry 3 curl -fsSL "https://starship.rs/install.sh" -o "$_INSTALLER_SCRIPT"
 chmod +x "$_INSTALLER_SCRIPT"
 
 # The official installer supports --yes (non-interactive) and --bin-dir.

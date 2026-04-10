@@ -19,8 +19,8 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-# shellcheck source=../scripts/helpers.sh
-. "$_SELF_DIR/helpers.sh"
+# shellcheck source=_lib/shell.sh
+. "$_SELF_DIR/_lib/shell.sh"
 
 # ---------------------------------------------------------------------------
 # Cleanup / logging
@@ -290,7 +290,7 @@ if [ -f "$_src" ]; then
 fi
 
 # --- Bash system-wide bashrc ---
-_SYS_BASHRC="$(detect_sys_bashrc)"
+_SYS_BASHRC="$(shell::detect_bashrc)"
 _src="${_FILES_DIR}/bash/bashrc"
 if [ -f "$_src" ]; then
   mkdir -p "$(dirname "$_SYS_BASHRC")"
@@ -323,7 +323,7 @@ fi
 
 # --- Zsh system-wide files ---
 if command -v zsh > /dev/null 2>&1; then
-  _ZSH_ETC="$(detect_zsh_etcdir)"
+  _ZSH_ETC="$(shell::detect_zshdir)"
   mkdir -p "$_ZSH_ETC"
 
   for _name in zshenv zprofile zshrc; do
