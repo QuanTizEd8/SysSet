@@ -311,6 +311,7 @@ if [[ "$INSTALL_SELF" == true ]]; then
         mkdir -p "$_LIB_DIR"
         cp "$0" "$_LIB_DIR/install.sh"
         chmod +x "$_LIB_DIR/install.sh"
+        cp -r "$_SELF_DIR/_lib" "$_LIB_DIR/"
         printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" > "$_BIN"
         chmod +x "$_BIN"
         echo "✅ Installed system command: $_BIN" >&2
