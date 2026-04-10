@@ -122,6 +122,12 @@
             "install-miniforge": { "export_path": "/tmp/test_bashrc" }
         }
     },
+    "export_path_idempotency": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false }
+        }
+    },
     "latest_version": {
         "image": "ubuntu:latest",
         "features": {
