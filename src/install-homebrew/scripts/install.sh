@@ -8,6 +8,7 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 # ospkg::detect (lazy) is only called on Linux, not macOS.
 . "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
+. "$_SELF_DIR/_lib/shell.sh"
 logging::setup
 echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
 trap 'logging::cleanup' EXIT
@@ -175,26 +176,18 @@ export_shellenv_main() {
   # auto mode
   local _is_root=false
   [ "$(id -u)" = "0" ] && _is_root=true
-  local _platform
-  _platform="$(detect_platform)"
   if [ "$_is_root" = true ] && [ "$(uname -s)" != "Darwin" ]; then
     echo "ℹ️ Case A: system-wide shellenv export (root + Linux)." >&2
+    # BASH_ENV target (non-login non-interactive bash)
+    local _bashenv_target
+    _bashenv_target="$(shell::ensure_bashenv)"
+    write_shellenv_block "$_bashenv_target"
     # /etc/profile.d/brew.sh — login shells
     write_shellenv_block "/etc/profile.d/brew.sh"
     # Global bashrc — non-login interactive bash
-    local _bashrc=""
-    for _f in /etc/bash.bashrc /etc/bashrc /etc/bash/bashrc; do
-      [ -f "$_f" ] && { _bashrc="$_f"; break; }
-    done
-    [ -z "$_bashrc" ] && _bashrc="$(_platform_bashrc "$_platform")"
-    write_shellenv_block "$_bashrc"
+    write_shellenv_block "$(shell::detect_bashrc)"
     # Global zshenv — all zsh sessions
-    local _zshenv=""
-    for _f in /etc/zsh/zshenv /etc/zshenv; do
-      [ -f "$_f" ] && { _zshenv="$_f"; break; }
-    done
-    [ -z "$_zshenv" ] && _zshenv="$(_platform_zshenv "$_platform")"
-    write_shellenv_block "$_zshenv"
+    write_shellenv_block "$(shell::detect_zshdir)/zshenv"
   else
     echo "ℹ️ Case B: user-scoped shellenv export." >&2
     export_shellenv_for_user "$RESOLVED_INSTALL_USER"
@@ -213,52 +206,6 @@ export_shellenv_main() {
 }
 
 # ── Helper functions ──────────────────────────────────────────────────────────
-
-detect_platform() {
-  echo "↪️ Function entry: detect_platform" >&2
-  local id="" id_like=""
-  if [ -f /etc/os-release ]; then
-    # shellcheck disable=SC1091
-    . /etc/os-release
-    id="${ID:-}"
-    id_like="${ID_LIKE:-}"
-  fi
-  case "$id" in
-    debian|ubuntu)                            echo "debian"; echo "↩️ Function exit: detect_platform" >&2; return 0 ;;
-    alpine)                                   echo "alpine"; echo "↩️ Function exit: detect_platform" >&2; return 0 ;;
-    rhel|centos|fedora|rocky|almalinux)       echo "rhel";   echo "↩️ Function exit: detect_platform" >&2; return 0 ;;
-  esac
-  case "$id_like" in
-    *debian*|*ubuntu*)                        echo "debian"; echo "↩️ Function exit: detect_platform" >&2; return 0 ;;
-    *alpine*)                                 echo "alpine"; echo "↩️ Function exit: detect_platform" >&2; return 0 ;;
-    *rhel*|*fedora*|*centos*|*"Red Hat"*)     echo "rhel";   echo "↩️ Function exit: detect_platform" >&2; return 0 ;;
-  esac
-  if [ "$(uname -s)" = "Darwin" ]; then
-    echo "macos"; echo "↩️ Function exit: detect_platform" >&2; return 0
-  fi
-  echo "debian"  # fallback
-  echo "↩️ Function exit: detect_platform" >&2
-  return 0
-}
-
-_platform_bashrc() {
-  local platform="$1"
-  case "$platform" in
-    alpine)      echo "/etc/bash/bashrc" ;;
-    rhel|macos)  echo "/etc/bashrc" ;;
-    *)           echo "/etc/bash.bashrc" ;;
-  esac
-  return 0
-}
-
-_platform_zshenv() {
-  local platform="$1"
-  case "$platform" in
-    rhel|macos)  echo "/etc/zshenv" ;;
-    *)           echo "/etc/zsh/zshenv" ;;
-  esac
-  return 0
-}
 
 detect_brew_prefix() {
   echo "↪️ Function entry: detect_brew_prefix" >&2

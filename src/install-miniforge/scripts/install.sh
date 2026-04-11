@@ -397,87 +397,6 @@ verify_miniforge() {
 }
 
 
-detect_platform() {
-  echo "↪️ Function entry: detect_platform" >&2
-  local id="" id_like=""
-  if [ -f /etc/os-release ]; then
-    # shellcheck disable=SC1091
-    . /etc/os-release
-    id="${ID:-}"
-    id_like="${ID_LIKE:-}"
-  fi
-  case "$id" in
-    debian|ubuntu)                            echo "debian"; echo "↩️ Function exit: detect_platform" >&2; return ;;
-    alpine)                                   echo "alpine"; echo "↩️ Function exit: detect_platform" >&2; return ;;
-    rhel|centos|fedora|rocky|almalinux)       echo "rhel";   echo "↩️ Function exit: detect_platform" >&2; return ;;
-  esac
-  case "$id_like" in
-    *debian*|*ubuntu*)                        echo "debian"; echo "↩️ Function exit: detect_platform" >&2; return ;;
-    *alpine*)                                 echo "alpine"; echo "↩️ Function exit: detect_platform" >&2; return ;;
-    *rhel*|*fedora*|*centos*|*"Red Hat"*)     echo "rhel";   echo "↩️ Function exit: detect_platform" >&2; return ;;
-  esac
-  if [ "$(uname -s)" = "Darwin" ]; then
-    echo "macos"; echo "↩️ Function exit: detect_platform" >&2; return
-  fi
-  echo "debian"  # fallback
-  echo "↩️ Function exit: detect_platform" >&2
-}
-
-_platform_bashrc() {
-  local platform="$1"
-  case "$platform" in
-    alpine)      echo "/etc/bash/bashrc" ;;
-    rhel|macos)  echo "/etc/bashrc" ;;
-    *)           echo "/etc/bash.bashrc" ;;
-  esac
-}
-
-_platform_zshenv() {
-  local platform="$1"
-  case "$platform" in
-    rhel|macos)  echo "/etc/zshenv" ;;
-    *)           echo "/etc/zsh/zshenv" ;;
-  esac
-}
-
-_detect_bashenv_target() {
-  echo "↪️ Function entry: _detect_bashenv_target" >&2
-  local platform="$1"
-  # 1. Live environment variable
-  if [ -n "${BASH_ENV:-}" ]; then
-    echo "ℹ️ BASH_ENV already set to '${BASH_ENV}'; reusing." >&2
-    echo "$BASH_ENV"
-    echo "↩️ Function exit: _detect_bashenv_target" >&2
-    return
-  fi
-  # 2. Existing /etc/environment entry
-  if [ -f /etc/environment ]; then
-    local env_val
-    env_val="$(grep -m1 '^BASH_ENV=' /etc/environment 2>/dev/null || true)"
-    if [ -n "$env_val" ]; then
-      env_val="${env_val#BASH_ENV=}"
-      env_val="${env_val#[\"\']}"
-      env_val="${env_val%[\"\']}"
-      echo "ℹ️ Found BASH_ENV='${env_val}' in /etc/environment; reusing." >&2
-      echo "$env_val"
-      echo "↩️ Function exit: _detect_bashenv_target" >&2
-      return
-    fi
-  fi
-  # 3. Create new bashenv file and register in /etc/environment
-  local canonical_bashrc
-  canonical_bashrc="$(_platform_bashrc "$platform")"
-  local bashenv_dir
-  bashenv_dir="$(dirname "$canonical_bashrc")"
-  local bashenv_path="${bashenv_dir}/bashenv"
-  echo "ℹ️ No BASH_ENV found; creating '${bashenv_path}' and registering in /etc/environment." >&2
-  mkdir -p "$bashenv_dir"
-  [ -f "$bashenv_path" ] || touch "$bashenv_path"
-  printf 'BASH_ENV="%s"\n' "$bashenv_path" >> /etc/environment
-  echo "$bashenv_path"
-  echo "↩️ Function exit: _detect_bashenv_target" >&2
-}
-
 build_export_path_list() {
   echo "↪️ Function entry: build_export_path_list" >&2
   if [ "$EXPORT_PATH" = "" ]; then
@@ -497,30 +416,20 @@ build_export_path_list() {
   esac
   [ "$(id -u)" = "0" ] && is_root=true
   local platform
-  platform="$(detect_platform)"
+  platform="$(os::platform)"
   echo "📤 Write output 'platform': '${platform}'" >&2
   if [ "$is_public" = true ] && [ "$is_root" = true ]; then
     echo "ℹ️ Case A: system-wide PATH export (public install, root)." >&2
     # 1. BASH_ENV target (non-login non-interactive bash)
     local bashenv_target
-    bashenv_target="$(_detect_bashenv_target "$platform")"
+    bashenv_target="$(shell::ensure_bashenv)"
     echo "$bashenv_target"
     # 2. /etc/profile.d/conda_bin_path.sh (login shells)
     echo "/etc/profile.d/conda_bin_path.sh"
     # 3. Global bashrc (non-login interactive bash)
-    local bashrc=""
-    for f in /etc/bash.bashrc /etc/bashrc /etc/bash/bashrc; do
-      [ -f "$f" ] && { bashrc="$f"; break; }
-    done
-    [ -z "$bashrc" ] && bashrc="$(_platform_bashrc "$platform")"
-    echo "$bashrc"
+    echo "$(shell::detect_bashrc)"
     # 4. Global zshenv (all Zsh invocations)
-    local zshenv=""
-    for f in /etc/zsh/zshenv /etc/zshenv; do
-      [ -f "$f" ] && { zshenv="$f"; break; }
-    done
-    [ -z "$zshenv" ] && zshenv="$(_platform_zshenv "$platform")"
-    echo "$zshenv"
+    echo "$(shell::detect_zshdir)/zshenv"
   else
     echo "ℹ️ Case B: user-scoped PATH export." >&2
     # 1. ~/.bashrc (non-login interactive bash)
@@ -611,6 +520,7 @@ readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
+. "$_SELF_DIR/_lib/shell.sh"
 logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
 trap '__cleanup__' EXIT
