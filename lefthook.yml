@@ -9,3 +9,9 @@ pre-commit:
     shellcheck:
       glob: "*.{sh,bash}"
       run: if command -v shellcheck >/dev/null 2>&1; then shellcheck {staged_files}; fi
+
+pre-push:
+  commands:
+    unit-tests:
+      glob: "{lib/**,test/unit/**}"
+      run: bash test/run-unit.sh

@@ -50,5 +50,5 @@ checksum::verify_sha256_sidecar() {
     return 1
   }
   checksum::verify_sha256 "$_file" "$_expected"
-  return 0
+  return $?
 }

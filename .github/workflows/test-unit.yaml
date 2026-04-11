@@ -1,0 +1,37 @@
+name: Unit Tests
+
+on:
+  push:
+    paths:
+      - "lib/**"
+      - "test/unit/**"
+      - ".github/workflows/test-unit.yaml"
+  pull_request:
+    paths:
+      - "lib/**"
+      - "test/unit/**"
+      - ".github/workflows/test-unit.yaml"
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    name: Unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Sync lib into feature scripts
+        run: bash sync-lib.sh
+
+      - name: Run unit tests
+        run: bash test/run-unit.sh

@@ -1,4 +1,4 @@
-.PHONY: fmt fmt-check lint sync
+.PHONY: fmt fmt-check lint sync test-unit
 
 # Apply shfmt formatting to all tracked shell files.
 fmt:
@@ -16,3 +16,7 @@ lint:
 # Sync generated _lib/ copies and install.sh stubs from canonical sources.
 sync:
 	bash sync-lib.sh
+
+# Run lib/ unit tests via bats-core (requires git submodules to be initialised).
+test-unit:
+	bash test/run-unit.sh
