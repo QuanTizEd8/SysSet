@@ -109,3 +109,17 @@ os::font_dir() {
   fi
   return 0
 }
+
+# os::is_container
+# Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI),
+# 1 otherwise.  Uses the same heuristics as Homebrew's check-run-command-as-root()
+# (Library/Homebrew/brew.sh) so that brew can run as root in devcontainers.
+os::is_container() {
+  [ -f /.dockerenv ] && return 0
+  [ -f /run/.containerenv ] && return 0
+  if [ -f /proc/1/cgroup ] &&
+    grep -qE 'azpl_job|actions_job|docker|garden|kubepods' /proc/1/cgroup 2> /dev/null; then
+    return 0
+  fi
+  return 1
+}

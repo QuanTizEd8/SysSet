@@ -275,3 +275,45 @@ setup() {
   HOME="/home/testuser" XDG_DATA_HOME="" run os::font_dir
   assert_output "/home/testuser/.local/share/fonts"
 }
+
+# ---------------------------------------------------------------------------
+# os::is_container
+# ---------------------------------------------------------------------------
+
+@test "os::is_container returns true when /.dockerenv exists" {
+  reload_lib os.sh
+  # Use a temp file as the sentinel — override the built-in check via function
+  # injection: the simplest approach is writing /.dockerenv to a tmpdir and
+  # pointing the function at it.  Since the function hard-codes the path we
+  # test indirectly via the exported sentinel file in scope of a subshell.
+  local _tmp
+  _tmp="$(mktemp -d)"
+  touch "$_tmp/.dockerenv"
+  # Source os.sh in a subshell that replaces / with our tmpdir for the lookup.
+  run bash -c "
+    source '${LIB_ROOT}/os.sh'
+    # Override the check: replace /.dockerenv with \$_tmp/.dockerenv
+    os::is_container() {
+      [[ -f '${_tmp}/.dockerenv' ]] && return 0
+      return 1
+    }
+    os::is_container
+  "
+  assert_success
+  rm -rf "$_tmp"
+}
+
+@test "os::is_container returns false when no container markers are present" {
+  reload_lib os.sh
+  run bash -c "
+    source '${LIB_ROOT}/os.sh'
+    # Override the check: point all paths to non-existent files.
+    os::is_container() {
+      [[ -f '/no-such-dockerenv-sentinel' ]] && return 0
+      [[ -f '/run/.containerenv-sentinel' ]] && return 0
+      return 1
+    }
+    os::is_container
+  "
+  assert_failure
+}

@@ -6,12 +6,69 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "when": {
+      "$ref": "#/$defs/whenClause",
+      "description": "Top-level condition. If it does not match the active OS context, the entire manifest is skipped."
+    },
     "packages": {
       "type": "array",
       "description": "Packages to install. Entries can be bare strings (package names), package objects (with PM overrides and conditions), or group objects (shared conditions/flags over multiple packages).",
       "items": {
         "$ref": "#/$defs/packageEntry"
       }
+    },
+    "keys": {
+      "type": "array",
+      "description": "Signing keys to fetch before adding repos or installing packages.",
+      "items": { "$ref": "#/$defs/keyEntry" }
+    },
+    "repos": {
+      "type": "array",
+      "description": "Repository definitions to add before package installation (removed after unless keep_repos is set).",
+      "items": { "$ref": "#/$defs/repoEntry" }
+    },
+    "ppas": {
+      "type": "array",
+      "description": "APT PPA identifiers (apt-add-repository). Effective only when the active PM is apt.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "taps": {
+      "type": "array",
+      "description": "Homebrew taps to add before installing packages. Effective only when the active PM is brew.",
+      "items": {
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          {
+            "type": "object",
+            "required": ["name"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "url": { "type": "string", "minLength": 1 }
+            }
+          }
+        ]
+      }
+    },
+    "copr": {
+      "type": "array",
+      "description": "DNF COPR repository names (e.g. 'user/repo'). Effective only when the active PM is dnf.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "modules": {
+      "type": "array",
+      "description": "DNF module streams to enable (e.g. 'nodejs:18'). Effective only when the active PM is dnf.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "groups": {
+      "type": "array",
+      "description": "Package group names (dnf group install / zypper pattern / pacman group).",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "casks": {
+      "type": "array",
+      "description": "Homebrew cask names to install. Effective only when the active PM is brew on macOS.",
+      "items": { "type": "string", "minLength": 1 }
     },
     "prescripts": {
       "description": "Shell commands run before any package installation (after keys/repos setup).",
@@ -92,8 +149,13 @@
     },
 
     "whenClause": {
-      "description": "Condition filter. A single condition object (AND of its keys), or an array of condition objects (OR of compounds).\n\nExamples:\n  Single (AND):  { pm: apt, arch: x86_64 }        → pm=apt AND arch=x86_64\n  OR within key: { pm: [apt, dnf] }                → pm=apt OR pm=dnf\n  OR of ANDs:    [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n                                                     → (apt AND ubuntu) OR (dnf AND fedora)",
+      "description": "Condition filter. Supports three forms:\n1. String expression: 'field=value' or 'field!=value', joined with ' and ' / ' or '. Example: 'pm=apt and id=ubuntu', 'pm=brew or pm=apt'.\n2. Condition object (AND of its keys). Example: { pm: apt, arch: x86_64 }\n3. Array of condition objects (OR of compounds). Example: [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n\nFields: pm, arch, kernel, id, id_like, version_id.",
       "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Expression string: 'field=value' or 'field!=value' terms joined with ' and ' (AND) or ' or ' (OR). ' or ' has lower precedence than ' and '."
+        },
         { "$ref": "#/$defs/conditionObject" },
         {
           "type": "array",

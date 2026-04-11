@@ -19,11 +19,12 @@ if [ "$#" -gt 0 ]; then
   LIFECYCLE_HOOK=""
   LOGFILE=""
   MANIFEST=""
-  NO_CLEAN=""
-  NO_UPDATE=""
+  KEEP_CACHE=""
+  UPDATE=""
   LISTS_MAX_AGE=""
   DRY_RUN=""
-  CHECK_INSTALLED=""
+  SKIP_INSTALLED=""
+  PREFER_LINUXBREW=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --debug)
@@ -71,15 +72,21 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
         shift
         ;;
-      --no_clean)
+      --keep_cache | --no_clean)
         shift
-        NO_CLEAN=true
-        echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
+        KEEP_CACHE=true
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        ;;
+      --update)
+        shift
+        UPDATE="$1"
+        echo "📩 Read argument 'update': '${UPDATE}'" >&2
+        shift
         ;;
       --no_update)
         shift
-        NO_UPDATE=true
-        echo "📩 Read argument 'no_update': '${NO_UPDATE}'" >&2
+        UPDATE=false
+        echo "📩 Read argument 'no_update' (alias for update=false): 'false'" >&2
         ;;
       --lists_max_age)
         shift
@@ -92,10 +99,15 @@ if [ "$#" -gt 0 ]; then
         DRY_RUN=true
         echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
         ;;
-      --check_installed)
+      --skip_installed | --check_installed)
         shift
-        CHECK_INSTALLED=true
-        echo "📩 Read argument 'check_installed': '${CHECK_INSTALLED}'" >&2
+        SKIP_INSTALLED=true
+        echo "📩 Read argument 'skip_installed': '${SKIP_INSTALLED}'" >&2
+        ;;
+      --prefer_linuxbrew)
+        shift
+        PREFER_LINUXBREW=true
+        echo "📩 Read argument 'prefer_linuxbrew': '${PREFER_LINUXBREW}'" >&2
         ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
@@ -116,16 +128,32 @@ else
   [ "${LIFECYCLE_HOOK+defined}" ] && echo "📩 Read argument 'lifecycle_hook': '${LIFECYCLE_HOOK}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
-  [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
-  [ "${NO_UPDATE+defined}" ] && echo "📩 Read argument 'no_update': '${NO_UPDATE}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+  # Back-compat: honour NO_CLEAN env var (old name).
+  if [ "${NO_CLEAN+defined}" ] && [ -z "${KEEP_CACHE:-}" ]; then
+    KEEP_CACHE="${NO_CLEAN:-}"
+    echo "📩 Read argument 'no_clean' (env alias): '${KEEP_CACHE}'" >&2
+  fi
+  [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
+  # Back-compat: honour NO_UPDATE env var (old name, inverted).
+  if [ "${NO_UPDATE+defined}" ] && [ -z "${UPDATE:-}" ]; then
+    if [ "${NO_UPDATE:-}" = "true" ]; then UPDATE=false; else UPDATE=true; fi
+    echo "📩 Read argument 'no_update' (env alias): mapping to update='${UPDATE}'" >&2
+  fi
   [ "${LISTS_MAX_AGE+defined}" ] && echo "📩 Read argument 'lists_max_age': '${LISTS_MAX_AGE}'" >&2
   [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
-  [ "${CHECK_INSTALLED+defined}" ] && echo "📩 Read argument 'check_installed': '${CHECK_INSTALLED}'" >&2
+  [ "${SKIP_INSTALLED+defined}" ] && echo "📩 Read argument 'skip_installed': '${SKIP_INSTALLED}'" >&2
+  # Back-compat: honour CHECK_INSTALLED env var (old name).
+  if [ "${CHECK_INSTALLED+defined}" ] && [ -z "${SKIP_INSTALLED:-}" ]; then
+    SKIP_INSTALLED="${CHECK_INSTALLED:-}"
+    echo "📩 Read argument 'check_installed' (env alias): '${SKIP_INSTALLED}'" >&2
+  fi
+  [ "${PREFER_LINUXBREW+defined}" ] && echo "📩 Read argument 'prefer_linuxbrew': '${PREFER_LINUXBREW}'" >&2
 fi
 
 [[ "${DEBUG:-}" == true ]] && set -x
 : "${DEBUG:=false}"
-: "${INSTALL_SELF:=true}"
+: "${INSTALL_SELF:=false}"
 : "${MANIFEST:=}"
 if [[ -z "$MANIFEST" && "$INSTALL_SELF" != true ]]; then
   echo "⛔ 'MANIFEST' is required when 'install_self' is false." >&2
@@ -155,15 +183,16 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   fi
 fi
 : "${LOGFILE:=}"
-: "${NO_CLEAN:=false}"
-: "${NO_UPDATE:=false}"
+: "${KEEP_CACHE:=false}"
+: "${UPDATE:=true}"
 : "${LISTS_MAX_AGE:=300}"
 if ! [[ "$LISTS_MAX_AGE" =~ ^[0-9]+$ ]]; then
   echo "⛔ Invalid lists_max_age value: '$LISTS_MAX_AGE'. Must be a non-negative integer." >&2
   exit 1
 fi
 : "${DRY_RUN:=false}"
-: "${CHECK_INSTALLED:=false}"
+: "${SKIP_INSTALLED:=false}"
+: "${PREFER_LINUXBREW:=false}"
 
 # Install the system command so other features/scripts can call 'install-os-pkg'
 # directly.  Done unconditionally (before lifecycle_hook early exit) so the
@@ -199,11 +228,12 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive"
   [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos"
   [[ -n "$LOGFILE" ]] && _HOOK_OPTS+=" --logfile $(printf '%q' "$LOGFILE")"
-  [[ "$NO_CLEAN" == true ]] && _HOOK_OPTS+=" --no_clean"
-  [[ "$NO_UPDATE" == true ]] && _HOOK_OPTS+=" --no_update"
+  [[ "$KEEP_CACHE" == true ]] && _HOOK_OPTS+=" --keep_cache"
+  [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --no_update"
   _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
   [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run"
-  [[ "$CHECK_INSTALLED" == true ]] && _HOOK_OPTS+=" --check_installed"
+  [[ "$SKIP_INSTALLED" == true ]] && _HOOK_OPTS+=" --skip_installed"
+  [[ "$PREFER_LINUXBREW" == true ]] && _HOOK_OPTS+=" --prefer_linuxbrew"
   case "$LIFECYCLE_HOOK" in
     onCreate) _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
     updateContent) _HOOK_FILE="$_HOOK_DIR/update-content.sh" ;;
@@ -218,12 +248,13 @@ fi
 
 _OSPKG_ARGS=()
 [[ -n "$MANIFEST" ]] && _OSPKG_ARGS+=(--manifest "$MANIFEST")
-[[ "$NO_UPDATE" == true ]] && _OSPKG_ARGS+=(--no_update)
-[[ "$NO_CLEAN" == true ]] && _OSPKG_ARGS+=(--no_clean)
+[[ "$UPDATE" == false ]] && _OSPKG_ARGS+=(--no_update)
+[[ "$KEEP_CACHE" == true ]] && _OSPKG_ARGS+=(--keep_cache)
 [[ "$KEEP_REPOS" == true ]] && _OSPKG_ARGS+=(--keep_repos)
 _OSPKG_ARGS+=(--lists_max_age "$LISTS_MAX_AGE")
 [[ "$DRY_RUN" == true ]] && _OSPKG_ARGS+=(--dry_run)
-[[ "$CHECK_INSTALLED" == true ]] && _OSPKG_ARGS+=(--check_installed)
+[[ "$SKIP_INSTALLED" == true ]] && _OSPKG_ARGS+=(--skip_installed)
+[[ "$PREFER_LINUXBREW" == true ]] && _OSPKG_ARGS+=(--prefer_linuxbrew)
 [[ "$INTERACTIVE" == true ]] && _OSPKG_ARGS+=(--interactive)
 ospkg::run "${_OSPKG_ARGS[@]}"
 echo "✅ Package installation complete."

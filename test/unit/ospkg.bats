@@ -15,6 +15,7 @@ setup() {
 @test "ospkg::detect identifies apt-get ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "apt-get"
+  create_fake_bin "uname" "Linux"
   prepend_fake_bin_path
   ospkg::detect
   [[ "$_OSPKG_PREFIX" == "apt" ]]
@@ -25,7 +26,7 @@ setup() {
 @test "ospkg::detect identifies apk ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "apk"
-  create_pass_through_bin "uname"
+  create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "apk" ]]
   [[ "$_OSPKG_PKG_MNGR" == "apk" ]]
@@ -35,7 +36,7 @@ setup() {
 @test "ospkg::detect identifies dnf ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "dnf"
-  create_pass_through_bin "uname"
+  create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "dnf" ]]
   [[ "$_OSPKG_PKG_MNGR" == "dnf" ]]
@@ -61,7 +62,7 @@ setup() {
 @test "ospkg::detect identifies zypper ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "zypper"
-  create_pass_through_bin "uname"
+  create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "zypper" ]]
   [[ "$_OSPKG_PKG_MNGR" == "zypper" ]]
@@ -71,7 +72,7 @@ setup() {
 @test "ospkg::detect identifies microdnf ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "microdnf"
-  create_pass_through_bin "uname"
+  create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "dnf" ]]
   [[ "$_OSPKG_PKG_MNGR" == "microdnf" ]]
@@ -85,6 +86,7 @@ setup() {
 _seed_apt_context() {
   reload_lib ospkg.sh
   create_fake_bin "apt-get"
+  create_fake_bin "uname" "Linux"
   prepend_fake_bin_path
   ospkg::detect
   _OSPKG_OS_RELEASE[pm]="apt"
@@ -230,7 +232,7 @@ _seed_apt_context() {
   reload_lib ospkg.sh
   # Seed a microdnf-like context: detected, but no update command.
   create_fake_bin "microdnf"
-  create_pass_through_bin "uname"
+  create_fake_bin "uname" "Linux"
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   run ospkg::update
   assert_success
@@ -273,4 +275,197 @@ _seed_apt_context() {
   # The fake apt-get stub handles 'clean' and 'dist-clean'.
   run ospkg::clean
   assert_success
+}
+
+# ---------------------------------------------------------------------------
+# ospkg::detect — brew paths
+# ---------------------------------------------------------------------------
+
+@test "ospkg::detect identifies brew on macOS (Darwin)" {
+  reload_lib ospkg.sh
+  # Fake 'uname' returning Darwin and a fake 'brew' binary.
+  create_fake_bin "uname" "Darwin"
+  create_fake_bin "brew" ""
+  prepend_fake_bin_path
+  # 'sw_vers' must exist (macOS only command path).
+  create_fake_bin "sw_vers" "14.0"
+  ospkg::detect
+  [[ "$_OSPKG_PREFIX" == "brew" ]]
+  [[ "$_OSPKG_PKG_MNGR" == "brew" ]]
+  [[ "${_OSPKG_OS_RELEASE[id]}" == "macos" ]]
+}
+
+@test "ospkg::detect selects brew when _OSPKG_PREFER_LINUXBREW=true and brew is on PATH" {
+  reload_lib ospkg.sh
+  create_fake_bin "uname" "Linux"
+  create_fake_bin "apt-get" ""
+  create_fake_bin "brew" ""
+  prepend_fake_bin_path
+  _OSPKG_PREFER_LINUXBREW=true
+  ospkg::detect
+  [[ "$_OSPKG_PREFIX" == "brew" ]]
+  [[ "$_OSPKG_PKG_MNGR" == "brew" ]]
+}
+
+@test "ospkg::detect falls back to native PM when _OSPKG_PREFER_LINUXBREW=true but brew absent" {
+  reload_lib ospkg.sh
+  create_fake_bin "uname" "Linux"
+  create_fake_bin "apt-get" ""
+  # Use restricted PATH so real brew is not found.
+  _OSPKG_PREFER_LINUXBREW=true
+  PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
+  [[ "$_OSPKG_PREFIX" == "apt" ]]
+  [[ "$_OSPKG_PKG_MNGR" == "apt-get" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _ospkg_is_yaml_manifest  (format detection)
+# ---------------------------------------------------------------------------
+
+@test "_ospkg_is_yaml_manifest returns true for YAML with packages: key" {
+  _seed_apt_context
+  local _yaml
+  _yaml="$(printf 'packages:\n  - curl\n  - wget\n')"
+  _ospkg_is_yaml_manifest "$_yaml"
+}
+
+@test "_ospkg_is_yaml_manifest returns true for YAML with apt: key" {
+  _seed_apt_context
+  local _yaml
+  _yaml="$(printf 'apt:\n  packages:\n    - curl\n')"
+  _ospkg_is_yaml_manifest "$_yaml"
+}
+
+@test "_ospkg_is_yaml_manifest returns true for JSON object" {
+  _seed_apt_context
+  local _json
+  _json='{"packages":["curl","wget"]}'
+  _ospkg_is_yaml_manifest "$_json"
+}
+
+@test "_ospkg_is_yaml_manifest returns false for text-DSL with --- header" {
+  _seed_apt_context
+  local _dsl
+  _dsl="$(printf -- '--- pkg\ncurl\nwget\n')"
+  run _ospkg_is_yaml_manifest "$_dsl"
+  assert_failure
+}
+
+@test "_ospkg_is_yaml_manifest returns false for bare package list" {
+  _seed_apt_context
+  local _dsl
+  _dsl="$(printf 'curl\nwget\ngit\n')"
+  run _ospkg_is_yaml_manifest "$_dsl"
+  assert_failure
+}
+
+@test "_ospkg_is_yaml_manifest returns false for text-DSL with inline selectors" {
+  _seed_apt_context
+  local _dsl
+  _dsl="$(printf 'curl [pm=apt]\nwget [pm=apt]\n')"
+  run _ospkg_is_yaml_manifest "$_dsl"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# ospkg::parse_manifest_yaml  (requires jq)
+# ---------------------------------------------------------------------------
+
+@test "ospkg::parse_manifest_yaml emits package records from plain packages list" {
+  _seed_apt_context
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  printf '{"packages":["curl","wget","git"]}' > "$_json_file"
+  local _output
+  _output="$(ospkg::parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  [[ "$_output" == *'"kind":"package"'* ]]
+  [[ "$_output" == *'"name":"curl"'* ]]
+  [[ "$_output" == *'"name":"wget"'* ]]
+}
+
+@test "ospkg::parse_manifest_yaml emits prescript record" {
+  _seed_apt_context
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  printf '{"prescripts":"echo hello\\n","packages":["curl"]}' > "$_json_file"
+  local _output
+  _output="$(ospkg::parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  [[ "$_output" == *'"kind":"prescript"'* ]]
+}
+
+@test "ospkg::parse_manifest_yaml filters packages with when clause" {
+  _seed_apt_context
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  # brew-only package should NOT appear for apt context.
+  printf '{"packages":[{"name":"brew-pkg","when":"pm=brew"},{"name":"apt-pkg","when":"pm=apt"}]}' \
+    > "$_json_file"
+  local _output
+  _output="$(ospkg::parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  [[ "$_output" != *'"name":"brew-pkg"'* ]]
+  [[ "$_output" == *'"name":"apt-pkg"'* ]]
+}
+
+@test "ospkg::parse_manifest_yaml skips the manifest when top-level when mismatches" {
+  _seed_apt_context
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  printf '{"when":"pm=brew","packages":["should-not-appear"]}' > "$_json_file"
+  local _output
+  _output="$(ospkg::parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  [[ -z "$_output" ]]
+}
+
+@test "ospkg::parse_manifest_yaml emits packages from pm-specific apt block" {
+  _seed_apt_context
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  printf '{"apt":{"packages":["libssl-dev"]},"brew":{"packages":["openssl"]}}' > "$_json_file"
+  local _output
+  _output="$(ospkg::parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  [[ "$_output" == *'"name":"libssl-dev"'* ]]
+  [[ "$_output" != *'"name":"openssl"'* ]]
+}
+
+@test "ospkg::run YAML path works on macOS (portable mktemp)" {
+  [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  reload_lib ospkg.sh
+
+  # A fake yq that ignores its arguments and emits a fixed JSON manifest.
+  local _fake_yq="${BATS_TEST_TMPDIR}/bin/yq"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\necho '"'"'{"packages":["foo"]}'"'"'\n' > "$_fake_yq"
+  chmod +x "$_fake_yq"
+
+  logging::cleanup() { return 0; }
+  ospkg::detect() {
+    _OSPKG_PREFIX="brew"
+    _OSPKG_PKG_MNGR="brew"
+    _OSPKG_DETECTED=true
+    _OSPKG_OS_RELEASE[pm]="brew"
+    _OSPKG_OS_RELEASE[kernel]="darwin"
+    _OSPKG_OS_RELEASE[id]="macos"
+    _OSPKG_OS_RELEASE[id_like]="macos"
+    _OSPKG_OS_RELEASE[arch]="arm64"
+    return 0
+  }
+  _ospkg_ensure_yq() {
+    _OSPKG_YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
+    return 0
+  }
+
+  run ospkg::run --manifest $'packages:\n  - foo\n' --dry_run
+  assert_success
+  assert_output --partial "[dry-run] packages: foo"
 }
