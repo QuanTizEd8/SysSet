@@ -1,0 +1,50 @@
+{
+    "apt_default": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-homebrew": {}
+        }
+    },
+    "debian": {
+        "image": "debian:latest",
+        "features": {
+            "install-homebrew": {}
+        }
+    },
+    "export_path_disabled": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-homebrew": { "export_path": "" }
+        }
+    },
+    "export_path_custom_file": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-homebrew": { "export_path": "/tmp/custom-brew.sh" }
+        }
+    },
+    "export_path_idempotent": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-homebrew": {}
+        }
+    },
+    "if_exists_skip": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-homebrew": {}
+        }
+    },
+    "update_false": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-homebrew": { "update": false }
+        }
+    },
+    "logfile": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-homebrew": { "logfile": "/tmp/brew.log" }
+        }
+    }
+}
