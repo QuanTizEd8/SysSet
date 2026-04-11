@@ -46,14 +46,22 @@ sysset/
 │   ├── install-os-pkg/
 │   ├── install-shell/
 │   ├── ...
-│   └── run-fail-scenarios.sh
+│   ├── run-fail-scenarios.sh
+│   └── unit/                   ← bats unit tests for lib/
+│       ├── *.bats              (one per lib/ module)
+│       ├── helpers/
+│       ├── setup_suite.bash
+│       └── bats/               ← git submodules (bats-core, bats-assert, …)
 ├── lib/                        ← Shared bash library (canonical source)
 │   ├── logging.sh
 │   ├── os.sh
 │   ├── net.sh
 │   ├── ospkg.sh
 │   ├── shell.sh
-│   └── git.sh
+│   ├── git.sh
+│   ├── github.sh
+│   ├── checksum.sh
+│   └── users.sh
 ├── bootstrap.sh                ← Shared bootstrap template (canonical source)
 ├── sync-lib.sh                 ← Build tool: distributes lib/ and bootstrap.sh
 ├── lefthook.yml                ← Pre-commit hook configuration
@@ -143,12 +151,15 @@ There is one file per concern:
 
 | File | Namespace | Provides |
 |---|---|---|
-| `os.sh` | `os::` | `os::require_root` |
+| `os.sh` | `os::` | Kernel/arch/distro detection, `os::require_root`, `os::font_dir` |
 | `logging.sh` | `logging::` | `logging::setup`, `logging::cleanup` |
 | `net.sh` | `net::` | URL fetching with retry, curl/wget detection, CA cert installation |
 | `ospkg.sh` | `ospkg::` | Cross-distro package manager abstraction, manifest parsing and execution |
-| `shell.sh` | `shell::` | Shell config path detection, theme/plugin resolution |
+| `shell.sh` | `shell::` | Shell config path detection, block writing, theme/plugin resolution |
 | `git.sh` | `git::` | Idempotent shallow cloning |
+| `github.sh` | `github::` | GitHub Releases API: fetch JSON, latest tag, asset URLs |
+| `checksum.sh` | `checksum::` | SHA-256 file verification (direct hash or .sha256 sidecar) |
+| `users.sh` | `users::` | Resolve user list from env vars, set login shell |
 
 Each file uses a guard variable (`_LIB_<NAME>_LOADED`) to prevent
 double-sourcing when multiple scripts source the same library.
@@ -156,6 +167,11 @@ double-sourcing when multiple scripts source the same library.
 **Edit only the files in `lib/`** — never the copies under
 `src/*/scripts/_lib/`. After editing, run `bash sync-lib.sh` to propagate
 changes (or simply stage the file; the pre-commit hook does it automatically).
+
+Every public function in `lib/` is covered by the bats unit suite under
+`test/unit/`. Run `make test-unit` to verify changes locally before pushing.
+See [Testing — Unit tests for lib/](testing.md#unit-tests-for-lib) for the
+full guide.
 
 ---
 
@@ -376,6 +392,7 @@ directory.
 | File | Trigger | Purpose |
 |---|---|---|
 | `test.yaml` | push, PR, manual | Discover changed features, run scenario tests and fail-scenario tests |
+| `test-unit.yaml` | push, PR touching `lib/` or `test/unit/`, manual | Run bats unit suite on ubuntu + macos |
 | `validate.yml` | PR, manual | Validate all `devcontainer-feature.json` files via `devcontainers/action` |
 | `lint.yaml` | push, PR | Check shfmt formatting and shellcheck lint across all shell files |
 | `release.yaml` | manual only | Publish features to GHCR and generate documentation PRs |

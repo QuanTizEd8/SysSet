@@ -12,9 +12,9 @@ Each non-blank, non-comment line is a package to install, optionally filtered by
 
 ```
 # comment
-pkg1
-pkg2    [pm=apt]          # only on apt systems
-pkg3    [pm=apk,dnf]      # on apk or dnf (OR between values)
+pkg1                           # unconditional package
+pkg2    [pm=apt]               # only on apt systems
+pkg3    [pm=apk,dnf]           # on apk or dnf (OR between values)
 pkg4    [pm=apt] [id=ubuntu]   # apt AND Ubuntu (AND between selectors)
 ```
 
