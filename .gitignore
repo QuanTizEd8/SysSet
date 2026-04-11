@@ -2,5 +2,3 @@
 # Never commit these; CI runs sync-lib.sh after checkout.
 src/**/_lib/
 src/*/install.sh
-# Exception: install-homebrew has a hand-crafted bootstrap (not generated).
-!src/install-homebrew/install.sh
