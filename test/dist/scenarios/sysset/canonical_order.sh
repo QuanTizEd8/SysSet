@@ -19,9 +19,8 @@ DIST="${REPO_ROOT}/dist"
 bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
 
 _bundle_dir="$(mktemp -d)"
-_install_dir="$(mktemp -d)"
 _logfile="$(mktemp)"
-trap 'rm -rf "$_bundle_dir" "$_install_dir" "$_logfile"' EXIT
+trap 'rm -rf "$_bundle_dir" "$_logfile"' EXIT
 
 tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
 
@@ -30,13 +29,12 @@ _manifest="$(mktemp --suffix=.json)"
 cat > "$_manifest" << EOF
 {
   "features": [
-    { "id": "install-pixi",
-      "options": { "version": "0.66.0", "install_path": "${_install_dir}" } },
+    { "id": "install-pixi", "options": { "version": "0.66.0" } },
     { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt" } }
   ]
 }
 EOF
-trap 'rm -rf "$_bundle_dir" "$_install_dir" "$_logfile"; rm -f "$_manifest"' EXIT
+trap 'rm -rf "$_bundle_dir" "$_logfile"; rm -f "$_manifest"' EXIT
 
 check "sysset.sh completes with canonical-order manifest" \
   bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest" --logfile "$_logfile"

@@ -16,17 +16,15 @@ _PIXI_VERSION="0.41.4"
 bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
 
 _PORT=18532
-_install_dir="$(mktemp -d)"
-trap 'stop_file_server; rm -rf "$_install_dir"' EXIT
+trap 'stop_file_server' EXIT
 start_file_server "${REPO_ROOT}/dist" "$_PORT"
 export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
 
 check "get.sh installs pixi with explicit --version" \
   sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi \
-  --version "$_PIXI_VERSION" \
-  --install_path "$_install_dir"
+  --version "$_PIXI_VERSION"
 
 check "installed pixi reports expected version" \
-  bash -c "'${_install_dir}/pixi' --version | grep -q '${_PIXI_VERSION}'"
+  bash -c "pixi --version | grep -q '${_PIXI_VERSION}'"
 
 reportResults

@@ -20,7 +20,7 @@ export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
 
 # install-os-pkg requires root (ospkg::install calls package manager as root).
 check "get.sh installs install-os-pkg on macOS (brew installs tree)" \
-  sudo env PATH="$PATH" bash "${REPO_ROOT}/dist/get.sh" install-os-pkg \
+  sudo env PATH="$PATH" SYSSET_BASE_URL="$SYSSET_BASE_URL" bash "${REPO_ROOT}/dist/get.sh" install-os-pkg \
   --manifest "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt"
 
 check "tree binary installed by install-os-pkg" \

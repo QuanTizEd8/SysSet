@@ -34,30 +34,24 @@ check "sysset-all: scripts/sysset.sh present after extraction" \
 check "sysset-all: scripts/_lib/ospkg.sh present" \
   test -f "${_bundle_dir}/scripts/_lib/ospkg.sh"
 
-# Provide an install_path that does not require root for pixi.
-_install_dir="$(mktemp -d)"
-trap 'rm -rf "$_bundle_dir" "$_install_dir"' EXIT
-
-# Build a manifest that points pixi to our writable install dir.
+# Build a manifest that installs install-pixi (to /usr/local/bin) and install-os-pkg.
 _manifest="$(mktemp --suffix=.json)"
 cat > "$_manifest" << EOF
 {
   "features": [
-    { "id": "install-pixi",
-      "options": { "version": "0.66.0", "install_path": "${_install_dir}" } },
+    { "id": "install-pixi", "options": { "version": "0.66.0" } },
     { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt" } }
   ]
 }
 EOF
+trap 'rm -rf "$_bundle_dir"; rm -f "$_manifest"' EXIT
 
 # ── Run sysset.sh ─────────────────────────────────────────────────────────────
 check "sysset.sh runs JSON manifest to completion" \
   bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
 
 check "pixi installed by sysset" \
-  test -f "${_install_dir}/pixi"
+  command -v pixi
 check "tree installed by install-os-pkg" \
   command -v tree
-
-rm -f "$_manifest"
 reportResults

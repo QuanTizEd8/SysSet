@@ -18,10 +18,9 @@ DIST="${REPO_ROOT}/dist"
 bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
 
 _bundle_dir="$(mktemp -d)"
-_install_dir="$(mktemp -d)"
 _logfile="$(mktemp)"
 _manifest="$(mktemp --suffix=.json)"
-trap 'rm -rf "$_bundle_dir" "$_install_dir" "$_logfile"; rm -f "$_manifest"' EXIT
+trap 'rm -rf "$_bundle_dir" "$_logfile"; rm -f "$_manifest"' EXIT
 
 tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
 
@@ -29,8 +28,7 @@ cat > "$_manifest" << EOF
 {
   "override_install_order": true,
   "features": [
-    { "id": "install-pixi",
-      "options": { "version": "0.66.0", "install_path": "${_install_dir}" } },
+    { "id": "install-pixi", "options": { "version": "0.66.0" } },
     { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt" } }
   ]
 }

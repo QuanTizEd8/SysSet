@@ -26,21 +26,14 @@ start_file_server "${REPO_ROOT}/dist" "$_PORT"
 export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
 
 # ── Run get.sh ────────────────────────────────────────────────────────────────
-# install-pixi does not require root when INSTALL_PATH is writable.
-_install_dir="$(mktemp -d)"
-trap 'stop_file_server; rm -rf "$_install_dir"' EXIT
-
+# install-pixi requires root (ospkg::require_root); installs pixi to /usr/local/bin.
 check "get.sh installs install-pixi successfully" \
-  sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi \
-  --install_path "$_install_dir"
+  sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi
 
-check "pixi binary present after install" \
-  test -f "${_install_dir}/pixi"
-
-check "pixi binary is executable" \
-  test -x "${_install_dir}/pixi"
+check "pixi binary present in PATH after install" \
+  command -v pixi
 
 check "pixi --version succeeds" \
-  bash -c "'${_install_dir}/pixi' --version"
+  pixi --version
 
 reportResults
