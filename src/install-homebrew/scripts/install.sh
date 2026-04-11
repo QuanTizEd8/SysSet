@@ -23,36 +23,6 @@ install_linux_deps() {
   return 0
 }
 
-ensure_xcode_clt() {
-  echo "↪️ Function entry: ensure_xcode_clt" >&2
-  if xcode-select -p > /dev/null 2>&1; then
-    echo "✅ Xcode Command Line Tools already installed at '$(xcode-select -p)'." >&2
-    echo "↩️ Function exit: ensure_xcode_clt" >&2
-    return 0
-  fi
-  echo "🔍 Xcode Command Line Tools not found — installing headlessly." >&2
-  # Headless CLT install pattern: create sentinel, find the softwareupdate
-  # package name, install, remove sentinel.
-  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-  local _pkg
-  _pkg="$(softwareupdate -l 2>&1 |
-    grep -E '\*.*Command Line Tools' |
-    tail -1 |
-    sed 's/.*\* //')" || true
-  if [ -z "$_pkg" ]; then
-    rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    echo "⛔ No 'Command Line Tools' package found in softwareupdate -l." >&2
-    echo "   Install manually with: xcode-select --install" >&2
-    exit 1
-  fi
-  echo "📦 Installing via softwareupdate: '${_pkg}'" >&2
-  softwareupdate -i "$_pkg" --verbose
-  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-  echo "✅ Xcode Command Line Tools installed." >&2
-  echo "↩️ Function exit: ensure_xcode_clt" >&2
-  return 0
-}
-
 run_brew_installer() {
   echo "↪️ Function entry: run_brew_installer" >&2
   echo "📦 Running Homebrew installer as user '${RESOLVED_INSTALL_USER}'." >&2
@@ -66,8 +36,6 @@ run_brew_installer() {
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
-  net::ensure_fetch_tool
-  net::ensure_ca_certs
   echo "📥 Downloading Homebrew installer to '${_tmpfile}'." >&2
   net::fetch_url_file "$_installer_url" "$_tmpfile"
   if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then

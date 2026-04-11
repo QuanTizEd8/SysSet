@@ -34,6 +34,54 @@ _find_bash4() {
   return 1
 }
 
+# _ensure_xcode_clt — headlessly install Xcode Command Line Tools on macOS.
+# Required before Homebrew can be installed.
+_ensure_xcode_clt() {
+  if xcode-select -p > /dev/null 2>&1; then
+    echo "✅ Xcode Command Line Tools already installed at '$(xcode-select -p)'." >&2
+    return 0
+  fi
+  echo "🔍 Xcode Command Line Tools not found — installing headlessly." >&2
+  # Headless CLT install pattern: create sentinel, find the softwareupdate
+  # package name, install, remove sentinel.
+  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  _pkg="$(softwareupdate -l 2>&1 |
+    grep -E '\*.*Command Line Tools' |
+    tail -1 |
+    sed 's/.*\* //')" || true
+  if [ -z "$_pkg" ]; then
+    rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+    echo "⛔ No 'Command Line Tools' package found in softwareupdate -l." >&2
+    echo "   Install manually with: xcode-select --install" >&2
+    exit 1
+  fi
+  echo "📦 Installing via softwareupdate: '${_pkg}'" >&2
+  softwareupdate -i "$_pkg" --verbose
+  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  echo "✅ Xcode Command Line Tools installed." >&2
+  return 0
+}
+
+# _install_homebrew_bare — install Homebrew non-interactively.
+# Respects HOMEBREW_PREFIX if set (the only install-time option that matters).
+# All other Homebrew configuration is applied by scripts/install.sh afterwards.
+_install_homebrew_bare() {
+  echo "🔍 Homebrew not found — installing Homebrew." >&2
+  _ensure_xcode_clt
+  if ! command -v curl > /dev/null 2>&1 && ! command -v wget > /dev/null 2>&1; then
+    echo "⛔ Neither curl nor wget found. Cannot download the Homebrew installer." >&2
+    exit 1
+  fi
+  if command -v curl > /dev/null 2>&1; then
+    _brew_script="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  else
+    _brew_script="$(wget -qO- https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  fi
+  NONINTERACTIVE=1 /bin/bash -c "$_brew_script"
+  echo "✅ Homebrew installed." >&2
+  return 0
+}
+
 if ! _find_bash4 > /dev/null; then
   echo "🔍 bash >=4 not found — installing via system package manager." >&2
   if command -v apk > /dev/null 2>&1; then
@@ -56,6 +104,10 @@ if ! _find_bash4 > /dev/null; then
     port install bash
   elif command -v nix-env > /dev/null 2>&1; then
     nix-env -i bash
+  elif [ "$(uname -s)" = "Darwin" ]; then
+    # On macOS, Homebrew is the path to bash >=4 when no package manager exists.
+    _install_homebrew_bare
+    brew install bash
   else
     echo "⛔ No supported package manager found to install bash >=4." >&2
     exit 1
