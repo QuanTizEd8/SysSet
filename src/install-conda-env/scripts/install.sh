@@ -281,13 +281,15 @@ setup_environment() {
 }
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 echo "↪️ Script entry: Conda Environment Devcontainer Feature Installer" >&2
 trap 'logging::cleanup' EXIT
 if [ "$#" -gt 0 ]; then
-  echo "ℹ️ Script called with arguments: $@" >&2
+  echo "ℹ️ Script called with arguments: $*" >&2
   CHANNELS=()
   CONDA_DIR=""
   DEBUG=""

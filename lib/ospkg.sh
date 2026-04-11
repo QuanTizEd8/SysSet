@@ -6,7 +6,9 @@
 _LIB_OSPKG_LOADED=1
 
 _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/os.sh
 . "$_OSPKG_LIB_DIR/os.sh"
+# shellcheck source=lib/net.sh
 . "$_OSPKG_LIB_DIR/net.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
@@ -399,7 +401,7 @@ ospkg::parse_manifest() {
 #                   [--keep_repos] [--lists_max_age <N>] [--dry_run]
 #                   [--check_installed] [--interactive]
 ospkg::run() {
-  local _manifest= _no_update=false _no_clean=false _keep_repos=false
+  local _manifest='' _no_update=false _no_clean=false _keep_repos=false
   local _lists_max_age=300 _dry_run=false _check_installed=false _interactive=false
 
   while [[ $# -gt 0 ]]; do
@@ -474,7 +476,7 @@ ospkg::run() {
   fi
 
   # Parse manifest.
-  local _M_PRESCRIPT= _M_REPO= _M_KEY= _M_PKG= _M_GROUP= _M_MODULE= _M_SCRIPT=
+  local _M_PRESCRIPT='' _M_REPO='' _M_KEY='' _M_PKG='' _M_GROUP='' _M_MODULE='' _M_SCRIPT=''
   if [[ -n "$_manifest_content" ]]; then
     ospkg::parse_manifest "$_manifest_content"
     echo "ℹ️  Manifest parsed: $(echo -n "$_M_PRESCRIPT" | wc -l | tr -d ' ') prescript line(s), $(echo -n "$_M_KEY" | wc -l | tr -d ' ') key entry/entries, $(echo -n "$_M_REPO" | wc -l | tr -d ' ') repo line(s), $(echo -n "$_M_MODULE" | wc -l | tr -d ' ') module(s), $(echo -n "$_M_GROUP" | wc -l | tr -d ' ') group(s), $(echo -n "$_M_PKG" | wc -w | tr -d ' ') pkg(s), $(echo -n "$_M_SCRIPT" | wc -l | tr -d ' ') script line(s)." >&2

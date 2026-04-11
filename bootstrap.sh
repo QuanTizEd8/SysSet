@@ -25,6 +25,7 @@ _find_bash4() {
     "$HOME/.nix-profile/bin/bash" \
     /nix/var/nix/profiles/default/bin/bash; do
     command -v "$_c" > /dev/null 2>&1 || continue
+    # shellcheck disable=SC2016
     _v=$("$_c" -c 'echo ${BASH_VERSINFO[0]}' 2> /dev/null) || continue
     [ "${_v:-0}" -ge 4 ] && {
       echo "$_c"

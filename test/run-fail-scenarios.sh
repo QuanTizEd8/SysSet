@@ -38,7 +38,7 @@ _require_base_image() {
   fi
   _BASE_IMAGE="fail-test-base-${FEATURE}"
   echo "ℹ️ Building base image '${_BASE_IMAGE}' (packages: ${pkgs})..."
-  docker build -q -t "$_BASE_IMAGE" - <<DOCKERFILE
+  docker build -q -t "$_BASE_IMAGE" - << DOCKERFILE
 FROM ubuntu:latest
 RUN apt-get update -qq \
  && apt-get install -y --no-install-recommends ${pkgs} \
@@ -47,16 +47,24 @@ DOCKERFILE
 }
 
 fail_scenario() {
-  local label="$1"; shift
+  local label="$1"
+  shift
   local -a net_args=()
   local -a env_args=()
   local use_base=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --network) net_args=(--network "$2"); use_base=true; shift 2 ;;
-      *=*)       env_args+=(-e "$1"); shift ;;
-      *)         shift ;;
+      --network)
+        net_args=(--network "$2")
+        use_base=true
+        shift 2
+        ;;
+      *=*)
+        env_args+=(-e "$1")
+        shift
+        ;;
+      *) shift ;;
     esac
   done
 
@@ -76,16 +84,16 @@ fail_scenario() {
     "${env_args[@]+"${env_args[@]}"}" \
     -v "${REPO_ROOT}:/repo" \
     "$image" \
-    bash -c "${pre_cmd}bash /repo/${INSTALL_SCRIPT}" 2>&1 \
-  || rc=$?
+    bash -c "${pre_cmd}bash /repo/${INSTALL_SCRIPT}" 2>&1 ||
+    rc=$?
 
   if [[ $rc -ne 0 ]]; then
     echo "✅ PASS: '${label}' exited ${rc} (non-zero as expected)"
-    (( _pass++ )) || true
+    ((_pass++)) || true
   else
     echo "❌ FAIL: '${label}' exited 0 (expected non-zero)"
     _errors+=("$label")
-    (( _fail++ )) || true
+    ((_fail++)) || true
   fi
 }
 

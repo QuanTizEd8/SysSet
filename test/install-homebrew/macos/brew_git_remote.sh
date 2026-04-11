@@ -29,7 +29,7 @@ fi
 
 # Use the current remote URL so the git set-url call is a safe no-op.
 _REMOTE_URL="$(git -C "$_BREW_REPO" remote get-url origin 2> /dev/null ||
-               echo "https://github.com/Homebrew/brew")"
+  echo "https://github.com/Homebrew/brew")"
 echo "ℹ️  Using brew_git_remote: ${_REMOTE_URL}"
 
 _cleanup() {

@@ -6,6 +6,7 @@
 _LIB_SHELL_LOADED=1
 
 _SHELL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/os.sh
 . "$_SHELL_LIB_DIR/os.sh"
 
 # shell::detect_bashrc
@@ -55,7 +56,7 @@ shell::detect_zshdir() {
   _compiled="$(strings "$(command -v zsh 2> /dev/null)" 2> /dev/null |
     grep -m1 -E '^/etc/(zsh/)?zshenv$' || true)"
   if [ -n "$_compiled" ]; then
-    echo "$(dirname "$_compiled")"
+    dirname "$_compiled"
     return 0
   fi
   # os::platform fallback.
@@ -215,7 +216,7 @@ shell::system_path_files() {
   done
   shell::ensure_bashenv
   [ -n "$_profiled" ] && echo "/etc/profile.d/${_profiled}"
-  echo "$(shell::detect_bashrc)"
+  shell::detect_bashrc
   echo "$(shell::detect_zshdir)/zshenv"
   return 0
 }

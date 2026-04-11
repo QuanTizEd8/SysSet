@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2088  # ~/ in check labels is intentional (display only)
 # default: all options at their defaults.
 #
 # macOS runners have Homebrew pre-installed → if_exists=skip (default) applies.

@@ -25,11 +25,11 @@ if [ "${DEBUG:-false}" = "true" ]; then
   set -x
 fi
 
-# shellcheck source=_lib/ospkg.sh
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=_lib/logging.sh
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
-# shellcheck source=_lib/users.sh
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/users.sh"
 logging::setup
 trap 'logging::cleanup' EXIT

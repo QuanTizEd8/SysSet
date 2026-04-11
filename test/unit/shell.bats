@@ -253,10 +253,13 @@ zsh-syntax-highlighting"
   assert_success
 }
 
-@test "shell::resolve_home returns /root for the root user" {
+@test "shell::resolve_home returns the correct home for the root user" {
   reload_lib shell.sh
+  # Use eval to get the platform-actual home (e.g. /root on Linux, /var/root on macOS).
+  local _root_home
+  _root_home="$(eval echo '~root')"
   run shell::resolve_home "root"
-  assert_output "/root"
+  assert_output "$_root_home"
   assert_success
 }
 
@@ -275,10 +278,14 @@ zsh-syntax-highlighting"
   reload_lib shell.sh
   local _home="${BATS_TEST_TMPDIR}/sync_home"
   mkdir -p "$_home"
-  local _f="${_home}/rc"
-  shell::sync_block --files "$_f" --marker "myblock" --content "export X=1"
-  assert_file_exists "$_f"
-  run grep "export X=1" "$_f"
+  # Use a distinct variable name: shell::sync_block internally reads lines with
+  # 'while IFS= read -r _f', which (without a local declaration) overwrites any
+  # caller-scoped '_f' after the loop ends with an empty value.  Avoid the clash
+  # by using a different name here.
+  local _syncfile="${_home}/rc"
+  shell::sync_block --files "$_syncfile" --marker "myblock" --content "export X=1"
+  assert_file_exists "$_syncfile"
+  run grep "export X=1" "$_syncfile"
   assert_success
 }
 
@@ -336,23 +343,28 @@ zsh-syntax-highlighting"
   assert_success
 }
 
-@test "shell::ensure_bashenv reads BASH_ENV from /etc/environment via grep" {
+@test "shell::ensure_bashenv reads BASH_ENV from _SHELL_ENV_FILE when entry exists" {
   reload_lib shell.sh
-  # Override grep to simulate /etc/environment containing BASH_ENV.
-  grep() {
-    case "$*" in
-      *'/etc/environment')
-        echo 'BASH_ENV="/etc/bash/bashenv"'
-        return 0
-        ;;
-      *)
-        command grep "$@"
-        ;;
-    esac
-  }
-  export -f grep
-  run shell::ensure_bashenv
+  local _env="${BATS_TEST_TMPDIR}/environment"
+  printf 'BASH_ENV="/etc/bash/bashenv"\n' > "$_env"
+  _SHELL_ENV_FILE="$_env" run shell::ensure_bashenv
+  assert_success
   assert_output --partial "/etc/bash/bashenv"
+}
+
+@test "shell::ensure_bashenv creates bashenv file and registers it when no entry exists" {
+  reload_lib shell.sh
+  local _env="${BATS_TEST_TMPDIR}/environment"
+  touch "$_env" # exists but empty — no BASH_ENV entry
+  # Stub detect_bashrc so the bashenv dir is inside BATS_TEST_TMPDIR.
+  shell::detect_bashrc() { echo "${BATS_TEST_TMPDIR}/bash.bashrc"; }
+  export -f shell::detect_bashrc
+  _SHELL_ENV_FILE="$_env" run shell::ensure_bashenv
+  assert_success
+  # Output must be the created bashenv path.
+  assert_output --partial "${BATS_TEST_TMPDIR}/bashenv"
+  # _SHELL_ENV_FILE must now contain a BASH_ENV= line.
+  run grep "BASH_ENV=" "$_env"
   assert_success
 }
 

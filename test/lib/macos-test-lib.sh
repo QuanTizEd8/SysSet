@@ -71,7 +71,10 @@ block_cleanup() {
     $0 == bm { skip=1; next }
     $0 == em { skip=0; next }
     !skip    { print }
-  ' "$f" > "$tmp" && mv "$tmp" "$f" || rm -f "$tmp"
+  ' "$f" > "$tmp" && mv "$tmp" "$f"
+  local rc=$?
+  [[ $rc -ne 0 ]] && rm -f "$tmp"
+  return $rc
 }
 
 # Remove a named block from every standard user init file in $HOME.

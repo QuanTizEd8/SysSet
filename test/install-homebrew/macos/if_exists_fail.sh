@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2088  # ~/ in check labels is intentional (display only)
 # if_exists_fail: if_exists=fail when brew is pre-installed must exit non-zero.
 # No dotfiles are touched (the installer exits before export_shellenv_main).
 set -e

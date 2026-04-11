@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016,SC2088  # bash -c literal script, ~/ in labels
 # if_exists_reinstall: Homebrew is already installed (by the runner or the
 # preceding fresh_install scenario).  Running the feature with if_exists=reinstall
 # must uninstall then reinstall Homebrew from scratch and then run post-install

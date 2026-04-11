@@ -19,16 +19,17 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-# shellcheck source=_lib/ospkg.sh
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=_lib/shell.sh
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/shell.sh"
-# shellcheck source=_lib/users.sh
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/users.sh"
 
 # ---------------------------------------------------------------------------
 # Cleanup / logging
 # ---------------------------------------------------------------------------
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 trap 'logging::cleanup' EXIT
@@ -323,6 +324,7 @@ if [[ "$INSTALL_OHMYZSH" == true ]]; then
     # Pass an explicit system-path custom dir to the install script so themes
     # and plugins are cloned there.  Per-user paths (~/$HOME-prefixed) and
     # the empty default are handled at configure-user time via symlinks.
+    # shellcheck disable=SC2016
     if [ -n "$OHMYZSH_CUSTOM_DIR" ] &&
       [[ "$OHMYZSH_CUSTOM_DIR" != '~'* ]] &&
       [[ "$OHMYZSH_CUSTOM_DIR" != '$HOME'* ]]; then
@@ -345,6 +347,7 @@ if [[ "$INSTALL_OHMYBASH" == true ]]; then
     --theme "$OHMYBASH_THEME"
     --plugins "$OHMYBASH_PLUGINS"
   )
+  # shellcheck disable=SC2016
   if [ -n "$OHMYBASH_CUSTOM_DIR" ] &&
     [[ "$OHMYBASH_CUSTOM_DIR" != '~'* ]] &&
     [[ "$OHMYBASH_CUSTOM_DIR" != '$HOME'* ]]; then
@@ -359,8 +362,9 @@ fi
 # Step 4: Install Starship
 # ===================================================================
 if [[ "$INSTALL_STARSHIP" == true ]]; then
-  bash "$_SELF_DIR/install_starship.sh" \
-    $([[ "$DEBUG" == true ]] && echo "--debug")
+  _starship_args=()
+  [[ "$DEBUG" == true ]] && _starship_args+=(--debug)
+  bash "$_SELF_DIR/install_starship.sh" "${_starship_args[@]}"
 fi
 
 # ===================================================================

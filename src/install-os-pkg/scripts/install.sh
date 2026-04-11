@@ -2,14 +2,16 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 echo "↪️ Script entry: System Package Installation" >&2
 trap 'logging::cleanup' EXIT
 
 if [ "$#" -gt 0 ]; then
-  echo "ℹ️ Script called with arguments: $@" >&2
+  echo "ℹ️ Script called with arguments: $*" >&2
   DEBUG=""
   DIR=""
   INTERACTIVE=""
@@ -27,98 +29,98 @@ if [ "$#" -gt 0 ]; then
       --debug)
         shift
         DEBUG=true
-        echo "📩 Read argument 'debug': '"$DEBUG"'" >&2
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
         ;;
       --dir)
         shift
         DIR="$1"
-        echo "📩 Read argument 'dir': '"$DIR"'" >&2
+        echo "📩 Read argument 'dir': '${DIR}'" >&2
         shift
         ;;
       --install_self)
         shift
         INSTALL_SELF="$1"
-        echo "📩 Read argument 'install_self': '"$INSTALL_SELF"'" >&2
+        echo "📩 Read argument 'install_self': '${INSTALL_SELF}'" >&2
         shift
         ;;
       --interactive)
         shift
         INTERACTIVE=true
-        echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2
+        echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
         ;;
       --keep_repos)
         shift
         KEEP_REPOS=true
-        echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2
+        echo "📩 Read argument 'keep_repos': '${KEEP_REPOS}'" >&2
         ;;
       --lifecycle_hook)
         shift
         LIFECYCLE_HOOK="$1"
-        echo "📩 Read argument 'lifecycle_hook': '"$LIFECYCLE_HOOK"'" >&2
+        echo "📩 Read argument 'lifecycle_hook': '${LIFECYCLE_HOOK}'" >&2
         shift
         ;;
       --logfile)
         shift
         LOGFILE="$1"
-        echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
         shift
         ;;
       --manifest)
         shift
         MANIFEST="$1"
-        echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2
+        echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
         shift
         ;;
       --no_clean)
         shift
         NO_CLEAN=true
-        echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2
+        echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
         ;;
       --no_update)
         shift
         NO_UPDATE=true
-        echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2
+        echo "📩 Read argument 'no_update': '${NO_UPDATE}'" >&2
         ;;
       --lists_max_age)
         shift
         LISTS_MAX_AGE="$1"
-        echo "📩 Read argument 'lists_max_age': '"$LISTS_MAX_AGE"'" >&2
+        echo "📩 Read argument 'lists_max_age': '${LISTS_MAX_AGE}'" >&2
         shift
         ;;
       --dry_run)
         shift
         DRY_RUN=true
-        echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2
+        echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
         ;;
       --check_installed)
         shift
         CHECK_INSTALLED=true
-        echo "📩 Read argument 'check_installed': '"$CHECK_INSTALLED"'" >&2
+        echo "📩 Read argument 'check_installed': '${CHECK_INSTALLED}'" >&2
         ;;
       --*)
-        echo "⛔ Unknown option: "$1"" >&2
+        echo "⛔ Unknown option: '${1}'" >&2
         exit 1
         ;;
       *)
-        echo "⛔ Unexpected argument: "$1"" >&2
+        echo "⛔ Unexpected argument: '${1}'" >&2
         exit 1
         ;;
     esac
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '"$DEBUG"'" >&2
-  [ "${INSTALL_SELF+defined}" ] && echo "📩 Read argument 'install_self': '"$INSTALL_SELF"'" >&2
-  [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '"$INTERACTIVE"'" >&2
-  [ "${KEEP_REPOS+defined}" ] && echo "📩 Read argument 'keep_repos': '"$KEEP_REPOS"'" >&2
-  [ "${LIFECYCLE_HOOK+defined}" ] && echo "📩 Read argument 'lifecycle_hook': '"$LIFECYCLE_HOOK"'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '"$LOGFILE"'" >&2
-  [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '"$MANIFEST"'" >&2
-  [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '"$NO_CLEAN"'" >&2
-  [ "${NO_UPDATE+defined}" ] && echo "📩 Read argument 'no_update': '"$NO_UPDATE"'" >&2
-  [ "${LISTS_MAX_AGE+defined}" ] && echo "📩 Read argument 'lists_max_age': '"$LISTS_MAX_AGE"'" >&2
-  [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '"$DRY_RUN"'" >&2
-  [ "${CHECK_INSTALLED+defined}" ] && echo "📩 Read argument 'check_installed': '"$CHECK_INSTALLED"'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${INSTALL_SELF+defined}" ] && echo "📩 Read argument 'install_self': '${INSTALL_SELF}'" >&2
+  [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
+  [ "${KEEP_REPOS+defined}" ] && echo "📩 Read argument 'keep_repos': '${KEEP_REPOS}'" >&2
+  [ "${LIFECYCLE_HOOK+defined}" ] && echo "📩 Read argument 'lifecycle_hook': '${LIFECYCLE_HOOK}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+  [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
+  [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
+  [ "${NO_UPDATE+defined}" ] && echo "📩 Read argument 'no_update': '${NO_UPDATE}'" >&2
+  [ "${LISTS_MAX_AGE+defined}" ] && echo "📩 Read argument 'lists_max_age': '${LISTS_MAX_AGE}'" >&2
+  [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
+  [ "${CHECK_INSTALLED+defined}" ] && echo "📩 Read argument 'check_installed': '${CHECK_INSTALLED}'" >&2
 fi
 
 [[ "$DEBUG" == true ]] && set -x
@@ -134,7 +136,7 @@ fi
 # so inline-manifest detection works correctly.
 if [[ -n "$MANIFEST" && "$MANIFEST" != *$'\n'* && "$MANIFEST" == *'\n'* ]]; then
   MANIFEST="$(printf '%b' "$MANIFEST")"
-  echo "ℹ️  Expanded literal \\n escapes in MANIFEST value." >&2
+  printf 'ℹ️  Expanded literal \\n escapes in MANIFEST value.\n' >&2
 fi
 : "${INTERACTIVE:=false}"
 : "${KEEP_REPOS:=false}"

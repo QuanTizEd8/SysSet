@@ -14,7 +14,9 @@ set -euo pipefail
 # Cleanup / logging
 # ---------------------------------------------------------------------------
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 

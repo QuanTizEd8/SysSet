@@ -12,7 +12,7 @@ set -euo pipefail
 # Shared helpers
 # ---------------------------------------------------------------------------
 _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=_lib/shell.sh
+# shellcheck source=/dev/null
 . "$_SCRIPTS_DIR/_lib/shell.sh"
 
 # ---------------------------------------------------------------------------
@@ -71,6 +71,7 @@ inject_guarded_block() {
 # ---------------------------------------------------------------------------
 resolve_custom_dir() {
   local _raw="$1" _home="$2"
+  # shellcheck disable=SC2016
   if [[ "$_raw" == '~'* ]]; then
     printf '%s%s' "$_home" "${_raw#\~}"
   elif [[ "$_raw" == '$HOME'* ]]; then
@@ -260,6 +261,7 @@ echo "ℹ️  Configuring user '${USERNAME}' (home: ${_HOME}, mode: ${USER_CONFI
 _XDG_CONFIG_HOME="${_HOME}/.config"
 
 # Expand ZDOTDIR option (may be ~-prefixed, $HOME-prefixed, or absolute).
+# shellcheck disable=SC2016
 if [ -z "${ZDOTDIR-}" ]; then
   _ZDOTDIR="${_XDG_CONFIG_HOME}/zsh"
 elif [[ "$ZDOTDIR" == '~'* ]]; then
@@ -290,7 +292,7 @@ fi
 if [ -n "$SKEL_DIR" ] && [ -d "$SKEL_DIR" ]; then
   # Collect skel files (excluding p10k.zsh which is handled separately).
   while IFS= read -r -d '' _skel_file; do
-    _rel="${_skel_file#${SKEL_DIR}/}"
+    _rel="${_skel_file#"${SKEL_DIR}"/}"
 
     # Skip p10k.zsh — it's copied only when p10k theme is selected.
     [[ "$_rel" == "p10k.zsh" ]] && continue
@@ -373,9 +375,13 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
   fi
 
   # Build Oh My Zsh theme file content.
+  # shellcheck disable=SC2016
   _ZSHTHEME_CONTENT+="export ZSH=\"${OHMYZSH_INSTALL_DIR}\""$'\n'
+  # shellcheck disable=SC2016
   _ZSHTHEME_CONTENT+='ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"'$'\n'
+  # shellcheck disable=SC2016
   _ZSHTHEME_CONTENT+='[ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"'$'\n'
+  # shellcheck disable=SC2016
   _ZSHTHEME_CONTENT+='ZSH_COMPDUMP="${ZSH_CACHE_DIR}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"'$'\n'
   _ZSHTHEME_CONTENT+="ZSH_CUSTOM=\"${_OMZ_CUSTOM_DIR}\""$'\n'
 
@@ -399,9 +405,11 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
     _ZSHTHEME_CONTENT+='POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true'$'\n'
   fi
 
+  # shellcheck disable=SC2016
   _ZSHTHEME_CONTENT+='[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"'$'\n'
 
   if [[ "$_IS_P10K" == true ]] && [[ "$_ZSH_USE_STARSHIP" != true ]]; then
+    # shellcheck disable=SC2016
     _ZSHTHEME_CONTENT+='[[ ! -f "${HOME}/.p10k.zsh" ]] || source "${HOME}/.p10k.zsh"'$'\n'
   fi
 
@@ -435,6 +443,7 @@ if [[ "$STARSHIP_SHELLS" == *zsh* ]]; then
   if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
     echo "⚠️  starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway." >&2
   fi
+  # shellcheck disable=SC2016
   _ZSHTHEME_CONTENT+='command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"'$'\n'
 fi
 
@@ -491,7 +500,9 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
 
   # Build Oh My Bash theme file content.
   _BASHTHEME_CONTENT+="export OSH=\"${OHMYBASH_INSTALL_DIR}\""$'\n'
+  # shellcheck disable=SC2016
   _BASHTHEME_CONTENT+='OSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-bash"'$'\n'
+  # shellcheck disable=SC2016
   _BASHTHEME_CONTENT+='[ -d "$OSH_CACHE_DIR" ] || mkdir -p "$OSH_CACHE_DIR"'$'\n'
   _BASHTHEME_CONTENT+="OSH_CUSTOM=\"${_OMB_CUSTOM_DIR}\""$'\n'
 
@@ -509,6 +520,7 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
     _BASHTHEME_CONTENT+='plugins=()'$'\n'
   fi
 
+  # shellcheck disable=SC2016
   _BASHTHEME_CONTENT+='[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"'$'\n'
 
   # Create custom directory and symlink installer-managed items if per-user.
@@ -528,6 +540,7 @@ if [[ "$STARSHIP_SHELLS" == *bash* ]]; then
   if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
     echo "⚠️  starship_shells includes 'bash' but starship is not on PATH — integration injected anyway." >&2
   fi
+  # shellcheck disable=SC2016
   _BASHTHEME_CONTENT+='command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"'$'\n'
 fi
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2088  # ~/ in check labels is intentional (display only)
 # export_path_disabled: export_path="" skips all shellenv writes.
 # Verifies that brew is intact (if_exists=skip) and that no dotfiles are touched.
 set -e

@@ -133,8 +133,16 @@ EOF
   export -f uname
   run net::ensure_ca_certs
   assert_success
-  # Must set the cache flag even on macOS.
-  [[ "$_NET_CA_CERTS_OK" == "true" ]]
+  # Verify that _NET_CA_CERTS_OK was set inside the call by re-running in a
+  # subshell that checks the flag after the call returns.
+  run bash -c "
+    source '${BATS_TEST_DIRNAME}/../../lib/net.sh'
+    uname() { echo 'Darwin'; }
+    export -f uname
+    net::ensure_ca_certs
+    [[ \"\${_NET_CA_CERTS_OK}\" == 'true' ]] && echo 'CACHED'
+  "
+  assert_output --partial "CACHED"
 }
 
 # ---------------------------------------------------------------------------
@@ -147,7 +155,7 @@ EOF
   _NET_CA_CERTS_OK=true
   # Override fetch_with_retry to record which tool is called.
   net::fetch_with_retry() {
-    shift           # strip max-attempts
+    shift          # strip max-attempts
     echo "tool=$1" # print the command name
     return 0
   }

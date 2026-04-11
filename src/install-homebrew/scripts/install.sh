@@ -6,8 +6,11 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
 # ospkg.sh is sourced for net::* and os::* access.
 # ospkg::detect (lazy) is only called on Linux, not macOS.
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/shell.sh"
 logging::setup
 echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
@@ -72,7 +75,7 @@ uninstall_brew() {
 export_shellenv_for_user() {
   echo "↪️ Function entry: export_shellenv_for_user" >&2
   local _user="$1"
-  local _brew_content='eval "$('''${RESOLVED_PREFIX}/bin/brew''' shellenv)"'
+  # shellcheck disable=SC2016  # shellcheck disable=SC2016  local _brew_content='eval "$('''${RESOLVED_PREFIX}/bin/brew''' shellenv)"'
   shell::sync_block \
     --files "$(shell::user_init_files --home "$(shell::resolve_home "$_user")")" \
     --marker "brew shellenv (install-homebrew)" \
@@ -88,6 +91,7 @@ export_shellenv_main() {
     echo "↩️ Function exit: export_shellenv_main" >&2
     return 0
   fi
+  # shellcheck disable=SC2016
   local _brew_content='eval "$('"${RESOLVED_PREFIX}/bin/brew"' shellenv)"'
   local _marker="brew shellenv (install-homebrew)"
   if [ "$EXPORT_PATH" != "auto" ]; then

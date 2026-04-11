@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016,SC2088  # bash -c literal script, ~/ in labels
 # fresh_install: uninstall the pre-installed Homebrew, then run the feature
 # to install it from scratch.  This exercises the full install code path on
 # macOS: net::fetch_url_file download, official installer run as a non-root
@@ -82,7 +83,7 @@ check "shellenv block references correct brew prefix" \
              grep -qF "'"${_BREW_PREFIX}/bin/brew"'" ~/.bash_profile 2>/dev/null'
 
 # ── Step 6: Verify brew --prefix returns expected prefix ─────────────────────
-_ACTUAL_PREFIX="$("${_BREW}" --prefix 2>/dev/null || true)"
+_ACTUAL_PREFIX="$("${_BREW}" --prefix 2> /dev/null || true)"
 echo "=== brew --prefix: ${_ACTUAL_PREFIX} ==="
 check "brew --prefix returns expected prefix" test "$_ACTUAL_PREFIX" = "$_BREW_PREFIX"
 

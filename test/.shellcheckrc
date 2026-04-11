@@ -1,0 +1,7 @@
+# .shellcheckrc — shellcheck defaults for test/ scripts.
+#
+# SC1091: test scenario scripts source 'dev-container-features-test-lib',
+#         a runtime-installed devcontainer CLI library not tracked in this repo.
+# SC2016: assertion commands intentionally pass shell snippets in single quotes
+#         (e.g. bash -c 'echo $VAR') — expansion is deferred by design.
+disable=SC1091,SC2016

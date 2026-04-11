@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2088  # ~/ in check labels is intentional (display only)
 # export_path_custom_file: export_path="/tmp/test-brew-custom.sh"
 # Verifies the shellenv block is written only to the specified file and that
 # no personal dotfiles are touched.

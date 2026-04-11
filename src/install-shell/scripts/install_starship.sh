@@ -8,7 +8,7 @@ set -euo pipefail
 # Shared helpers
 # ---------------------------------------------------------------------------
 _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=_lib/net.sh
+# shellcheck source=/dev/null
 . "$_SCRIPTS_DIR/_lib/net.sh"
 
 # ---------------------------------------------------------------------------

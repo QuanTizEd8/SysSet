@@ -18,9 +18,9 @@ set -euo pipefail
 # Shared helpers
 # ---------------------------------------------------------------------------
 _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=_lib/net.sh
+# shellcheck source=/dev/null
 . "$_SCRIPTS_DIR/_lib/net.sh"
-# shellcheck source=_lib/github.sh
+# shellcheck source=/dev/null
 . "$_SCRIPTS_DIR/_lib/github.sh"
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,8 @@ _ensure_install_dir() {
 # a mktemp path with no extension).
 # ---------------------------------------------------------------------------
 extract_archive() {
-  local _arc="$1" _dest="$2" _name="${3:-$(basename "$_arc")}"
+  local _arc="$1" _dest="$2"
+  local _name="${3:-$(basename "$_arc")}"
   mkdir -p "$_dest"
   case "$_name" in
     *.tar.xz) tar -xJf "$_arc" -C "$_dest" ;;
@@ -302,7 +303,7 @@ install_archive_contents() {
   fi
 
   for _f in "${_font_files[@]}"; do
-    local _rel_path="${_f#${_tmpdir}/}"
+    local _rel_path="${_f#"${_tmpdir}"/}"
     local _psnames_str
     case "$_f" in
       *.woff | *.woff2) _psnames_str="" ;;

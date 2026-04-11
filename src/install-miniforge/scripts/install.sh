@@ -144,7 +144,8 @@ check_root_requirement() {
 
 get_script_dir() {
   echo "↪️ Function entry: get_script_dir" >&2
-  local script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  local script_dir
+  script_dir="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
   echo "📤 Write output 'script_dir': '${script_dir}'" >&2
   echo "${script_dir}"
   echo "↩️ Function exit: get_script_dir" >&2
@@ -239,7 +240,8 @@ set_executable_paths() {
 
 set_installer_filename() {
   echo "↪️ Function entry: set_installer_filename" >&2
-  local installer_platform="$(os::kernel)-$(os::arch)"
+  local installer_platform
+  installer_platform="$(os::kernel)-$(os::arch)"
   INSTALLER_FILENAME="Miniforge3-${MINIFORGE_VERSION}-${installer_platform}.sh"
   INSTALLER="${INSTALLER_DIR}/${INSTALLER_FILENAME}"
   CHECKSUM="${INSTALLER}.sha256"
@@ -445,10 +447,15 @@ readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
 readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/shell.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/github.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/checksum.sh"
 logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
@@ -457,7 +464,7 @@ trap '__cleanup__' EXIT
 ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 
 if [ "$#" -gt 0 ]; then
-  echo "ℹ️ Script called with arguments: $@" >&2
+  echo "ℹ️ Script called with arguments: $*" >&2
   RC_FILES=()
   ACTIVATE_ENV=""
   BIN_DIR=""

@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/logging.sh"
+# shellcheck source=/dev/null
 . "$_SELF_DIR/_lib/github.sh"
 logging::setup
 echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2
 trap 'logging::cleanup' EXIT
 if [ "$#" -gt 0 ]; then
-  echo "ℹ️ Script called with arguments: $@" >&2
+  echo "ℹ️ Script called with arguments: $*" >&2
   DEBUG=""
   INSTALL_PATH=""
   LOGFILE=""

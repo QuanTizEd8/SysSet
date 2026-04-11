@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016,SC2088  # bash -c literal script, ~/ in labels
 # export_path_idempotent: run the feature twice with export_path=auto.
 # The second run must update the shellenv blocks in-place without appending
 # a duplicate — each begin marker must appear exactly once per file.
