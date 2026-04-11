@@ -34,6 +34,10 @@ jobs:
       - name: Sync lib into feature scripts
         run: bash sync-lib.sh
 
+      - name: Install bash ≥4 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bash
+
       - name: Run unit tests
         run: bash test/run-unit.sh
 
