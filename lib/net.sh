@@ -32,6 +32,8 @@ net::fetch_with_retry() {
 # via ospkg::install if not.  Requires ospkg.sh to have been sourced first.
 net::ensure_ca_certs() {
   [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
+  # macOS uses its own keychain; curl/wget use it natively without a .crt file.
+  [ "$(uname -s)" = "Darwin" ] && { _NET_CA_CERTS_OK=true; return 0; }
   if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
     [ -n "${_LIB_OSPKG_LOADED-}" ] || {
       echo "⛔ net.sh: ospkg.sh must be sourced before net::ensure_ca_certs" >&2
