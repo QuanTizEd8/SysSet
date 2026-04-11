@@ -63,18 +63,31 @@ eve"
 bob"
 }
 
-@test "users::resolve_list excludes root from auto-detected paths" {
-  # Root must be excluded when it comes from SUDO_USER / _REMOTE_USER / _CONTAINER_USER
-  # (the build user is root, but it should not be treated as a target user).
+@test "users::resolve_list includes root as fallback when it is the only user" {
+  # When the build user is root and no other non-root users are auto-detected,
+  # root is included so the feature has a target to configure (e.g. plain
+  # container images or standalone macOS use with no remoteUser).
+  ADD_CURRENT_USER_CONFIG=true \
+    SUDO_USER=root \
+    ADD_REMOTE_USER_CONFIG=false \
+    ADD_CONTAINER_USER_CONFIG=false \
+    ADD_USER_CONFIG="" \
+    run users::resolve_list
+  assert_output "root"
+  assert_success
+}
+
+@test "users::resolve_list excludes root when a non-root user is also detected" {
+  # Root must not be added when a non-root remoteUser / containerUser is present;
+  # the build runs as root but the target for configuration is the named user.
   ADD_CURRENT_USER_CONFIG=true \
     SUDO_USER=root \
     ADD_REMOTE_USER_CONFIG=true \
-    _REMOTE_USER=root \
-    ADD_CONTAINER_USER_CONFIG=true \
-    _CONTAINER_USER=root \
+    _REMOTE_USER=alice \
+    ADD_CONTAINER_USER_CONFIG=false \
     ADD_USER_CONFIG="" \
     run users::resolve_list
-  assert_output ""
+  assert_output "alice"
   assert_success
 }
 

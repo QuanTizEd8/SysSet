@@ -14,7 +14,7 @@ check "brew binary is executable" test -x "$_BREW"
 echo "=== brew --version ==="
 "$_BREW" --version 2>&1 || echo "(failed)"
 check "brew --version succeeds" "$_BREW" --version
-check "brew --version reports Homebrew" bash -c '"$_BREW" --version | grep -q Homebrew' _BREW="$_BREW"
+check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
 # --- shellenv still exported (export_path=auto by default) ---
 check "profile.d/brew.sh written" test -f /etc/profile.d/brew.sh

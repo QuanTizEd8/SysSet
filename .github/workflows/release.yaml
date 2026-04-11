@@ -1,10 +1,17 @@
-name: "Release dev container features & Generate Documentation"
+name: "Publish: GHCR Features + GitHub Release"
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (leave empty to use the latest v* tag)"
+        required: false
 
 jobs:
-  deploy:
-    if: ${{ github.ref == 'refs/heads/main' }}
+  publish:
+    if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -12,39 +19,63 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-tags: true # needed for git describe when workflow_dispatch has no tag input
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=$(git describe --tags --match 'v*' --abbrev=0)" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: "Sync _lib/ copies from lib/"
         run: bash sync-lib.sh
 
-      - name: "Publish Features"
+      - name: "Build distribution artifacts"
+        run: bash build-artifacts.sh "${{ steps.tag.outputs.tag }}"
+
+      - name: "Publish Features to GHCR"
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
         with:
           publish-features: "true"
           base-path-to-features: "./src"
           generate-docs: "true"
-
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: "Create or update GitHub Release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          _tag="${{ steps.tag.outputs.tag }}"
+          if gh release view "$_tag" > /dev/null 2>&1; then
+            echo "ℹ️  Release $_tag already exists — uploading/replacing assets." >&2
+            gh release upload "$_tag" dist/* --clobber
+          else
+            gh release create "$_tag" dist/* \
+              --title "$_tag" \
+              --generate-notes
+          fi
+
       - name: Create PR for Documentation
-        id: push_image_info
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          echo "Start."
-          # Configure git and Push updates
           git config --global user.email github-actions[bot]@users.noreply.github.com
           git config --global user.name github-actions[bot]
           git config pull.rebase false
           branch=automated-documentation-update-$GITHUB_RUN_ID
           git checkout -b $branch
           message='Automated documentation update'
-          # Add / update and commit
-          git add */**/README.md
+          git add '*/**/README.md'
           git commit -m 'Automated documentation update [skip ci]' || export NO_UPDATES=true
-          # Push
-          if [ "$NO_UPDATES" != "true" ] ; then
-              git push origin "$branch"
-              gh pr create --title "$message" --body "$message"
+          if [ "$NO_UPDATES" != "true" ]; then
+            git push origin "$branch"
+            gh pr create --title "$message" --body "$message"
           fi

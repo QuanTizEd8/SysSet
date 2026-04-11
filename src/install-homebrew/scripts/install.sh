@@ -301,7 +301,7 @@ if [[ "$#" -gt 0 ]]; then
   PREFIX=""
   IF_EXISTS=""
   UPDATE=""
-  EXPORT_PATH=""
+  unset EXPORT_PATH
   USERS=""
   BREW_GIT_REMOTE=""
   CORE_GIT_REMOTE=""

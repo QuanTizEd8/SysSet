@@ -13,9 +13,12 @@ _LIB_USERS_LOADED=1
 # Reads the standard devcontainer user-config env vars and prints one
 # deduplicated username per line to stdout.
 #
-# Root is excluded from auto-detected paths (CURRENT_USER, REMOTE_USER,
-# CONTAINER_USER) since the build user running as root is not a target user.
-# Root IS included when explicitly listed in ADD_USER_CONFIG.
+# Root is excluded from the auto-detected paths (CURRENT_USER, REMOTE_USER,
+# CONTAINER_USER) when other non-root users exist, since the build process
+# running as root should not override a named container user.  However, when
+# the build user IS root and no other users are found, root is included as a
+# fallback so the feature still has a target (e.g. plain images, standalone
+# macOS use).  Root is always accepted in ADD_USER_CONFIG.
 #
 # Env vars consumed (all optional):
 #   ADD_CURRENT_USER_CONFIG   — "true" to include SUDO_USER / whoami (default: true)
@@ -44,11 +47,20 @@ users::resolve_list() {
     return 0
   }
 
-  # Auto-detected users: skip root (the build user running as root is not a
-  # target user for shell/tool configuration).
+  # Auto-detected users: root is deferred — only added as a fallback when
+  # no other user is found.  In a devcontainer with a remoteUser/containerUser
+  # the build runs as root, but configuration should target the named user, not
+  # root.  When there is genuinely no other user (e.g. a plain container image
+  # with no remoteUser or a standalone macOS install), root is the intended
+  # target and should be included.
+  local _root_queued=false
   if [ "${ADD_CURRENT_USER_CONFIG:-true}" = "true" ]; then
     local _cur="${SUDO_USER:-$(whoami)}"
-    [ "$_cur" != "root" ] && _users_add "$_cur"
+    if [ "$_cur" != "root" ]; then
+      _users_add "$_cur"
+    else
+      _root_queued=true
+    fi
   fi
 
   if [ "${ADD_REMOTE_USER_CONFIG:-true}" = "true" ] && [ -n "${_REMOTE_USER:-}" ]; then
@@ -71,6 +83,12 @@ users::resolve_list() {
       _users_add "$_extra"
     done
     IFS="$_old_ifs"
+  fi
+
+  # Root fallback: if the build user was root and no other users were resolved,
+  # include root so the feature has a target to configure.
+  if [ "$_root_queued" = "true" ] && [ -z "$_out" ]; then
+    _users_add "root"
   fi
 
   # Print one name per line (strip leading space from _out).

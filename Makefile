@@ -21,3 +21,8 @@ sync:
 # Run lib/ unit tests via bats-core (requires git submodules to be initialised).
 test-unit:
 	bash test/run-unit.sh
+
+# Build standalone distribution artifacts into dist/.
+# Accepts an optional VERSION variable: make artifacts VERSION=v1.0.0
+artifacts:
+	bash build-artifacts.sh $(VERSION)

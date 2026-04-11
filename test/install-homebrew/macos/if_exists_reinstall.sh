@@ -29,6 +29,10 @@ echo "=== Running install-homebrew with if_exists=reinstall ==="
 bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
   --if_exists reinstall
 echo "=== Feature completed ==="
+# The feature's internal uninstall+reinstall removes /opt/homebrew/bin/bash
+# (installed by an earlier scenario) without reinstalling it.  Clear the
+# command hash table so subsequent 'bash …' calls fall through to /bin/bash.
+hash -r
 
 # ── Verify brew is functional after reinstall ────────────────────────────────
 echo "=== brew --version ==="
@@ -38,7 +42,7 @@ check "brew prefix directory exists after reinstall" test -d "$_BREW_PREFIX"
 check "brew binary present after reinstall" test -f "$_BREW"
 check "brew binary is executable after reinstall" test -x "$_BREW"
 check "brew --version succeeds after reinstall" "$_BREW" --version
-check "brew --version reports Homebrew" bash -c '"$_BREW" --version | grep -q Homebrew' _BREW="$_BREW"
+check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
 # ── Verify shellenv blocks written (Case B: non-root on macOS) ───────────────
 echo "=== ~/.zprofile ==="

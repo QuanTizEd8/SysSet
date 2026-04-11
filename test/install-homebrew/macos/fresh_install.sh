@@ -64,7 +64,7 @@ check "brew prefix directory exists" test -d "$_BREW_PREFIX"
 check "brew binary installed" test -f "$_BREW"
 check "brew binary is executable" test -x "$_BREW"
 check "brew --version succeeds" "$_BREW" --version
-check "brew --version reports Homebrew" bash -c '"$_BREW" --version | grep -q Homebrew' _BREW="$_BREW"
+check "brew --version reports Homebrew" bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
 
 # ── Step 5: Case B shellenv export written to user dotfiles ──────────────────
 echo "=== ~/.zprofile ==="
