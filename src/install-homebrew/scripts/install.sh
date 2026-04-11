@@ -16,6 +16,11 @@ logging::setup
 echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
 trap 'logging::cleanup' EXIT
 
+# ── Constants ────────────────────────────────────────────────────────────────
+_BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD"
+_BREW_INSTALLER_URL="${_BREW_INSTALL_BASE_URL}/install.sh"
+_BREW_UNINSTALLER_URL="${_BREW_INSTALL_BASE_URL}/uninstall.sh"
+
 # ── High-level steps ──────────────────────────────────────────────────────────
 
 install_linux_deps() {
@@ -34,13 +39,12 @@ run_brew_installer() {
   [ -n "${CORE_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_CORE_GIT_REMOTE=${CORE_GIT_REMOTE}")
   [[ "${NO_INSTALL_FROM_API}" == true ]] && _env_vars+=("HOMEBREW_NO_INSTALL_FROM_API=1")
   [ -n "${PREFIX-}" ] && _env_vars+=("HOMEBREW_PREFIX=${PREFIX}")
-  local _installer_url="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
   local _tmpfile
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
   echo "📥 Downloading Homebrew installer to '${_tmpfile}'." >&2
-  net::fetch_url_file "$_installer_url" "$_tmpfile"
+  net::fetch_url_file "$_BREW_INSTALLER_URL" "$_tmpfile"
   if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
     echo "ℹ️ Installing as '${RESOLVED_INSTALL_USER}' via sudo." >&2
     sudo -u "$RESOLVED_INSTALL_USER" env "${_env_vars[@]}" /bin/bash "$_tmpfile"
@@ -55,12 +59,11 @@ run_brew_installer() {
 uninstall_brew() {
   echo "↪️ Function entry: uninstall_brew" >&2
   echo "🗑 Uninstalling Homebrew at '${RESOLVED_PREFIX}'." >&2
-  local _uninstall_url="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
   local _tmpfile
   _tmpfile="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
-  net::fetch_url_file "$_uninstall_url" "$_tmpfile"
+  net::fetch_url_file "$_BREW_UNINSTALLER_URL" "$_tmpfile"
   if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
     sudo -u "$RESOLVED_INSTALL_USER" env NONINTERACTIVE=1 /bin/bash "$_tmpfile" \
       --path "$RESOLVED_PREFIX"
