@@ -5,8 +5,8 @@
 # yq (mikefarah/yq) is fetched by sysset.sh from GitHub Releases when absent.
 # This test verifies the auto-install path on macOS (darwin/arm64 or amd64).
 #
-# install-pixi is used because it is macOS-compatible and does not depend on
-# brew (which cannot run as root).  install-os-pkg is Linux-only.
+# setup-shim is used because it requires no package manager (no ospkg::run
+# call), works on macOS as root, and produces verifiable shim artifacts.
 # Requires: root for sysset.sh (os::require_root).
 set -euo pipefail
 
@@ -36,13 +36,13 @@ fi
 
 cat > "$_manifest" << 'EOF'
 features:
-  - id: install-pixi
+  - id: setup-shim
 EOF
 
 check "sysset.sh processes YAML manifest on macOS" \
   sudo env PATH="$PATH" bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
 
-check "pixi installed by YAML-driven install (macOS)" \
-  command -v pixi
+check "code shim installed by YAML-driven sysset (macOS)" \
+  test -f /usr/local/share/setup-shim/bin/code
 
 reportResults
