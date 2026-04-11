@@ -80,16 +80,23 @@ Always run `bash sync-lib.sh` before running feature tests locally.
 
 ## Shared Library (`lib/`)
 
+**Always check `lib/` before implementing something from scratch.** The library covers the most common operations feature scripts need. Prefer calling a lib function over writing inline logic — this keeps scripts shorter, consistent, and testable.
+
+When implementing a new feature or editing an existing one, abstract any reusable logic into `lib/` rather than copy-pasting it across scripts. A function belongs in `lib/` when it is (or could be) called from more than one feature, or when it encapsulates a non-trivial detail that is easy to get wrong (e.g. SHA-256 verification, GitHub API pagination, user deduplication).
+
 | Module | Key API |
 |---|---|
 | `logging.sh` | `logging::setup` · `logging::cleanup` |
-| `os.sh` | `os::require_root` |
+| `os.sh` | `os::require_root` · `os::kernel` · `os::arch` · `os::id` · `os::id_like` · `os::platform` · `os::font_dir` |
 | `ospkg.sh` | `ospkg::detect` · `ospkg::install <pkg>...` · `ospkg::update` · `ospkg::clean` · `ospkg::run [--manifest <f>] [--check_installed] [--no_clean] [--no_update] [--dry_run]` |
 | `net.sh` | `net::fetch_url_stdout <url>` · `net::fetch_url_file <url> <dest>` · `net::fetch_with_retry <n> <cmd...>` · `net::ensure_fetch_tool` · `net::ensure_ca_certs` |
 | `git.sh` | `git::clone --url <url> --dir <dir> [--branch <branch>]` |
-| `shell.sh` | `shell::detect_bashrc` · `shell::detect_zshdir` · `shell::resolve_home <user>` · `shell::resolve_omz_theme` · `shell::plugin_names_from_slugs <csv>` |
+| `shell.sh` | `shell::detect_bashrc` · `shell::detect_zshdir` · `shell::resolve_home <user>` · `shell::resolve_omz_theme` · `shell::plugin_names_from_slugs <csv>` · `shell::write_block` · `shell::remove_block` · `shell::export_path` · `shell::export_env` |
+| `github.sh` | `github::fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` · `github::latest_tag <owner/repo>` · `github::release_tags <owner/repo> [--per_page <n>]` · `github::release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` |
+| `checksum.sh` | `checksum::verify_sha256 <file> <expected_hash>` · `checksum::verify_sha256_sidecar <file> <sha256_file>` |
+| `users.sh` | `users::resolve_list` · `users::set_login_shell <shell_path> <username>...` |
 
-`ospkg.sh` internally sources `os.sh` and `net.sh`, so sourcing `ospkg.sh` first is sufficient for most features.
+`ospkg.sh` internally sources `os.sh` and `net.sh`, so sourcing `ospkg.sh` first is sufficient for most features. Source `github.sh`, `checksum.sh`, `shell.sh`, `git.sh`, and `users.sh` explicitly when needed.
 
 ## Code Style
 

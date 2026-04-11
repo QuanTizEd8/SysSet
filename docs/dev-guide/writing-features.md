@@ -37,6 +37,9 @@ library available to every script.
       - [Manifest format overview](#manifest-format-overview)
     - [`shell.sh`](#shellsh)
     - [`git.sh`](#gitsh)
+    - [`github.sh`](#githubsh)
+    - [`checksum.sh`](#checksumsh)
+    - [`users.sh`](#userssh)
   - [Static files](#static-files)
   - [Sync and pre-commit](#sync-and-pre-commit)
   - [References](#references)
@@ -45,7 +48,11 @@ library available to every script.
 
 ## Quick-start checklist
 
-1. Create `src/<feature-id>/devcontainer-feature.json` with `"id"` matching
+1. **Before writing any logic** — read [Shared library reference](#shared-library-reference)
+   below. Many common operations (kernel/arch detection, GitHub API calls,
+   checksum verification, user resolution, shell changes) are already
+   implemented. Use library functions instead of reinventing them.
+2. Create `src/<feature-id>/devcontainer-feature.json` with `"id"` matching
    the directory name.
 2. Create `src/<feature-id>/scripts/install.sh` following the structure
    described below.
@@ -221,18 +228,33 @@ and `net.sh` automatically, but `logging.sh` and others must be sourced
 explicitly.
 
 ```bash
-# ospkg.sh is almost always needed; it pulls in os.sh and net.sh automatically.
+# ospkg.sh pulls in os.sh and net.sh automatically.
 # shellcheck source=_lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
-
-# Source others as needed:
 # shellcheck source=_lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
+
+# Source additional modules only when their functions are needed:
+# shellcheck source=_lib/github.sh
+. "$_SELF_DIR/_lib/github.sh"    # github::fetch_release_json, ::latest_tag, etc.
+# shellcheck source=_lib/checksum.sh
+. "$_SELF_DIR/_lib/checksum.sh"  # checksum::verify_sha256, ::verify_sha256_sidecar
+# shellcheck source=_lib/users.sh
+. "$_SELF_DIR/_lib/users.sh"     # users::resolve_list, ::set_login_shell
 # shellcheck source=_lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"
+. "$_SELF_DIR/_lib/shell.sh"     # shell::write_block, ::export_path, etc.
 # shellcheck source=_lib/git.sh
-. "$_SELF_DIR/_lib/git.sh"
+. "$_SELF_DIR/_lib/git.sh"       # git::clone
 ```
+
+> **Check the library first.** Before writing inline logic for any of the
+> common operations below, confirm there is not already a lib function for it:
+> `os::kernel` / `os::arch` instead of `uname -s` / `uname -m`;
+> `os::font_dir` instead of manual platform detection;
+> `github::latest_tag` instead of a hand-rolled API call;
+> `checksum::verify_sha256_sidecar` instead of inline sha256sum/shasum logic;
+> `users::resolve_list` + `users::set_login_shell` instead of a local
+> deduplication loop and manual `chsh` calls.
 
 ### Logging setup and the EXIT trap
 
@@ -349,7 +371,14 @@ fi
 ```
 
 Use the library functions for common operations (downloading, package
-installation, cloning) — see [Shared library reference](#shared-library-reference) below.
+installation, cloning, GitHub API calls, checksum verification, user
+resolution, shell changes) — see [Shared library reference](#shared-library-reference)
+below.
+
+When writing new logic, ask: could this be useful in more than one feature,
+or does it encapsulate a non-trivial detail easy to get wrong? If yes, add it
+to `lib/` rather than keeping it inline, then run `bash sync-lib.sh` to
+propagate it. See [Sync and pre-commit](#sync-and-pre-commit).
 
 End the script with a clear success message:
 
@@ -425,6 +454,10 @@ ospkg::clean
 All library files live in `lib/` and are synced to `scripts/_lib/` in each
 feature. Source them from `$_SELF_DIR/_lib/<file>.sh`.
 
+> **Always check here before implementing something from scratch.** If a
+> function does what you need, use it. If you are writing logic that could
+> benefit other features, add it to `lib/` instead of keeping it inline.
+
 ### `os.sh`
 
 Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
@@ -432,6 +465,12 @@ Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
 | Function | Signature | Description |
 |---|---|---|
 | `os::require_root` | `os::require_root` | Exits 1 with a message if the current user is not root. |
+| `os::kernel` | `os::kernel` | Prints the kernel name (`Linux` or `Darwin`). Cached after first call. Use instead of `uname -s`. |
+| `os::arch` | `os::arch` | Prints the CPU architecture (e.g. `x86_64`, `aarch64`, `arm64`). Cached after first call. Use instead of `uname -m`. |
+| `os::id` | `os::id` | Prints the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`). |
+| `os::id_like` | `os::id_like` | Prints the `ID_LIKE` field from `/etc/os-release`. |
+| `os::platform` | `os::platform` | Prints a canonical platform tag: `debian` \| `alpine` \| `rhel` \| `macos`. |
+| `os::font_dir` | `os::font_dir` | Prints the appropriate font directory for the current user: `/usr/share/fonts` (root), `~/Library/Fonts` (macOS non-root), `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root). |
 
 ### `logging.sh`
 
@@ -529,12 +568,85 @@ manifest format, all selector keys, and examples.
 | `shell::resolve_home` | `shell::resolve_home <username>` | Prints the home directory for a user via `eval echo "~<user>"`. |
 | `shell::resolve_omz_theme` | `shell::resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` | Given an `owner/repo` slug and `ZSH_CUSTOM`, prints the `ZSH_THEME` value for oh-my-zsh. |
 | `shell::plugin_names_from_slugs` | `shell::plugin_names_from_slugs <csv-slugs>` | Extracts repository names (basenames) from a comma-separated list of `owner/repo` slugs. |
+| `shell::write_block` | `shell::write_block --file <f> --marker <m> --content <c>` | Writes a fenced `# BEGIN <m>` … `# END <m>` block into a file. Idempotent: replaces any existing block with the same marker. |
+| `shell::remove_block` | `shell::remove_block --file <f> --marker <m>` | Removes a fenced block (by marker) from a file. |
+| `shell::export_path` | `shell::export_path --users <list> --path <dir> [--marker <m>] [--rc_files <list>]` | Appends a `PATH` export block to each user's shell RC files. |
+| `shell::export_env` | `shell::export_env --users <list> --name <VAR> --value <val> [--marker <m>] [--rc_files <list>]` | Appends an `export VAR=val` block to each user's shell RC files. |
 
 ### `git.sh`
 
 | Function | Signature | Description |
 |---|---|---|
 | `git::clone` | `git::clone --url <url> --dir <dir> [--branch <branch>]` | Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists. On failure, removes the partial clone so re-runs do not silently skip a broken directory. |
+
+### `github.sh`
+
+Source explicitly. Requires `net.sh` (and `ospkg.sh`) to have been sourced first. Respects the `GITHUB_TOKEN` environment variable for all API calls.
+
+| Function | Signature | Description |
+|---|---|---|
+| `github::fetch_release_json` | `github::fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` | Fetches GitHub Releases API JSON. Without `--tag`: `/releases/latest`. Without `--dest`: writes to stdout. |
+| `github::latest_tag` | `github::latest_tag <owner/repo>` | Prints the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
+| `github::release_tags` | `github::release_tags <owner/repo> [--per_page <n>]` | Prints one tag per line (newest first) from `/releases?per_page=<n>` (default 100). Useful for version matching. |
+| `github::release_asset_urls` | `github::release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` | Prints `browser_download_url` values from a release. `--filter` applies an extended-regex grep to the URL list. |
+
+Typical patterns:
+
+```bash
+# Resolve "latest" to a concrete tag:
+if [[ "$VERSION" == "latest" ]]; then
+  VERSION="$(github::latest_tag owner/repo)" || { echo "⛔ Failed to resolve version." >&2; exit 1; }
+fi
+
+# Pick a release tag matching a partial version string:
+releases="$(github::release_tags owner/repo)"
+tag="$(printf '%s\n' "$releases" | grep "^${VERSION//./\\.}" | head -1)"
+
+# Fetch release JSON to a temp file, then parse it yourself:
+json="$(mktemp)"
+github::fetch_release_json owner/repo --tag "$tag" --dest "$json"
+```
+
+### `checksum.sh`
+
+Source explicitly. Works transparently with `sha256sum` (Linux) or `shasum` (macOS).
+
+| Function | Signature | Description |
+|---|---|---|
+| `checksum::verify_sha256` | `checksum::verify_sha256 <file> <expected_hash>` | Verifies the SHA-256 digest of `<file>` against `<expected_hash>`. Exits 1 on mismatch. |
+| `checksum::verify_sha256_sidecar` | `checksum::verify_sha256_sidecar <file> <sha256_file>` | Reads the expected hash from the first whitespace-separated field of `<sha256_file>` then delegates to `checksum::verify_sha256`. Use for `.sha256` sidecar files. |
+
+Typical pattern:
+
+```bash
+net::fetch_url_file "$DOWNLOAD_URL" /tmp/tool.bin
+net::fetch_url_file "$DOWNLOAD_URL.sha256" /tmp/tool.bin.sha256
+checksum::verify_sha256_sidecar /tmp/tool.bin /tmp/tool.bin.sha256
+```
+
+### `users.sh`
+
+Source explicitly. Reads the standard devcontainer user-config env vars
+(`ADD_CURRENT_USER_CONFIG`, `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`,
+`ADD_USER_CONFIG`).
+
+| Function | Signature | Description |
+|---|---|---|
+| `users::resolve_list` | `users::resolve_list` | Prints one deduplicated username per line to stdout. Root is excluded from auto-detected paths (CURRENT, REMOTE, CONTAINER user) but **allowed** when explicitly listed in `ADD_USER_CONFIG`. |
+| `users::set_login_shell` | `users::set_login_shell <shell_path> <username>...` | Registers `<shell_path>` in `/etc/shells`, patches Alpine PAM if needed, then calls `chsh -s` for each user. Skips users already on that shell; warns (does not abort) on `chsh` failure. |
+
+Typical bash caller pattern:
+
+```bash
+mapfile -t _RESOLVED_USERS < <(users::resolve_list)
+if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
+  echo "ℹ️  No users to configure." >&2
+fi
+for _username in "${_RESOLVED_USERS[@]}"; do
+  # ... per-user configuration ...
+done
+users::set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
+```
 
 ---
 
