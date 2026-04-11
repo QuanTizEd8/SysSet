@@ -217,7 +217,7 @@ _sync_init_files() {
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
     _files="$(shell::system_path_files --profile_d "${_slug}.sh")"
   else
-    _files="$(shell::user_init_files --home "$(shell::resolve_home "$RESOLVED_INSTALL_USER")")" 
+    _files="$(shell::user_init_files --home "$(shell::resolve_home "$RESOLVED_INSTALL_USER")")"
   fi
   if [ "$_has_content" = true ]; then
     shell::sync_block --files "$_files" --marker "$_marker" --content "$_content"
@@ -229,7 +229,7 @@ _sync_init_files() {
     IFS=',' read -ra _EXTRA_USERS <<< "$USERS"
     for _u in "${_EXTRA_USERS[@]}"; do
       [[ -z "$_u" ]] && continue
-      _files="$(shell::user_init_files --home "$(shell::resolve_home "$_u")")" 
+      _files="$(shell::user_init_files --home "$(shell::resolve_home "$_u")")"
       if [ "$_has_content" = true ]; then
         shell::sync_block --files "$_files" --marker "$_marker" --content "$_content"
       else
