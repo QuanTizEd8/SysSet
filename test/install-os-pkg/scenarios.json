@@ -16,7 +16,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.txt",
-                "no_update": true
+                "update": false
             }
         }
     },
@@ -27,7 +27,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.txt",
-                "no_clean": true
+                "keep_cache": true
             }
         }
     },
@@ -89,7 +89,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.txt",
-                "no_update": true
+                "update": false
             }
         }
     },
@@ -282,7 +282,7 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.txt",
                 "keep_repos": true,
-                "no_update": true
+                "update": false
             }
         }
     },
@@ -293,7 +293,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.txt",
-                "no_update": true
+                "update": false
             }
         }
     },
@@ -356,7 +356,7 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.txt",
-                "check_installed": true
+                "skip_installed": true
             }
         }
     }
