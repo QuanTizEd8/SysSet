@@ -1,5 +1,5 @@
 ---
-description: "Use when working with CI test workflows (.github/workflows/test*.yaml), the install-os-pkg manifest dry-run tests (test/install-os-pkg/dry-run/), or fail scenario scripts (test/**/fail_scenarios.sh, test/run-fail-scenarios.sh). Covers macOS GHA runner behaviour, dry-run test structure, adding dry-run cases, fail-scenario conventions, and CI trigger logic."
+description: "Use when working with CI test workflows (.github/workflows/test*.yaml), the install-os-pkg manifest dry-run tests (test/install-os-pkg/dry-run/), or fail scenario scripts (test/**/fail_scenarios.sh, test/run-fail-scenarios.sh). Covers macOS GHA runner behaviour, macOS native feature scenarios, dry-run test structure, adding dry-run cases, fail-scenario conventions, and CI trigger logic."
 applyTo: "test/install-os-pkg/dry-run/**, test/**/fail_scenarios.sh, test/run-fail-scenarios.sh, .github/workflows/test*.yaml"
 ---
 
@@ -9,8 +9,9 @@ applyTo: "test/install-os-pkg/dry-run/**, test/**/fail_scenarios.sh, test/run-fa
 
 | Workflow | File | Trigger | Runs on |
 |---|---|---|---|
-| Feature scenario tests | `test.yaml` | push/PR (changed features), manual | ubuntu-latest |
-| Lib unit tests | `test-unit.yaml` | push/PR touching `lib/**` or `test/unit/**`, manual | ubuntu-latest + **macos-latest** |
+| Feature scenario tests (Linux) | `test.yaml` | push/PR (changed features), manual | ubuntu-latest |
+| Feature scenario tests (macOS) | `test-macos.yaml` | push/PR (changed features with macOS scenarios), manual | macos-latest |
+| Lib unit tests | `test-unit.yaml` | push/PR touching `lib/**` or `test/unit/**`, manual | ubuntu-latest + macos-latest + linux containers |
 | Schema validation | `validate.yml` | PR, manual | ubuntu-latest |
 | Lint | `lint.yaml` | push, PR | ubuntu-latest |
 | Release | `release.yaml` | manual only | ubuntu-latest |
@@ -19,7 +20,9 @@ All workflows run `bash sync-lib.sh` as their first step.
 
 ## macOS GHA Runner
 
-Unit tests (`test-unit.yaml`) run on both `ubuntu-latest` and `macos-latest`. Feature scenario tests require Docker and run only on `ubuntu-latest` — macOS GHA runners do not support Docker.
+Unit tests (`test-unit.yaml`) run on `ubuntu-latest`, `macos-latest`, and several Linux distribution containers. Feature scenario tests that use Docker run only on `ubuntu-latest` — macOS GHA runners cannot run Docker containers.
+
+Features that require a real macOS environment (e.g. `install-homebrew`) use a separate workflow (`test-macos.yaml`) that runs native bash scenario scripts directly on a `macos-latest` runner without Docker.
 
 ### bash version on macOS
 
@@ -30,7 +33,15 @@ macOS ships bash 3.2 (GNU GPL licence prevents Apple bundling bash 4+). All lib/
 3. Re-execs itself under the first bash ≥4 found.
 4. Prepends that executable's directory to `PATH` so `#!/usr/bin/env bash` sub-scripts (bats-exec-test, bats-exec-suite) also resolve to bash ≥4.
 
-The `macos-latest` runner has Homebrew bash pre-installed. For local development: `brew install bash`.
+The GHA `macos-latest` runner does **not** have bash ≥4 pre-installed. `test-unit.yaml` adds an explicit step:
+
+```yaml
+- name: Install bash ≥4 (macOS)
+  if: runner.os == 'macOS'
+  run: brew install bash
+```
+
+For local development: `brew install bash`.
 
 ### macOS-specific test behaviour
 
@@ -57,6 +68,61 @@ bash test/run-unit.sh
 # Watch CI run
 gh run watch
 ```
+
+## macOS Feature Scenarios
+
+`test-macos.yaml` runs feature tests that require a real macOS environment. These scenarios run native bash scripts directly on a `macos-latest` runner — no Docker, no devcontainer CLI.
+
+### Directory structure
+
+```
+test/<feature>/macos/
+  <scenario>.sh         native bash scenario script
+test/lib/
+  macos-test-lib.sh     check() / fail_check() / reportResults() / shellenv_block_cleanup()
+```
+
+### Script anatomy
+
+Scenario scripts source `test/lib/macos-test-lib.sh` (not `dev-container-features-test-lib`). The repo root is passed as positional argument `$1`. The `check` / `reportResults` API is identical to devcontainer CLI scenarios:
+
+```bash
+#!/usr/bin/env bash
+set -e
+REPO_ROOT="$1"
+source "${REPO_ROOT}/test/lib/macos-test-lib.sh"
+
+# Run the installer directly
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
+
+check "brew binary present"     test -f "$(brew --prefix)/bin/brew"
+check "brew --version succeeds" "$(brew --prefix)/bin/brew" --version
+
+# Negative check
+fail_check "brew not writable by root" test -w "$(brew --prefix)/bin/brew"
+
+reportResults
+```
+
+`test/lib/macos-test-lib.sh` additional API:
+- `fail_check "label" <cmd>` — passes when `<cmd>` exits **non-zero** (inverse of `check`)
+- `shellenv_block_cleanup <file>` — removes `install-homebrew` shellenv blocks from a dotfile in-place; useful in `trap ... EXIT` cleanup
+
+### Running macOS scenarios locally
+
+```bash
+# All macOS scenarios for a feature
+bash test/run-macos.sh <feature>
+
+# Single scenario
+bash test/run-macos.sh <feature> --filter <scenario_name>
+```
+
+### CI discovery
+
+`test-macos.yaml` automatically discovers features that have at least one file under `test/<feature>/macos/*.sh`. On push/PR, only features with both macOS scenarios AND changed files under `src/<feature>/` or `test/<feature>/` are tested. On `workflow_dispatch`, all features with macOS scenarios are tested.
+
+No changes to `test-macos.yaml` are needed when adding a new macOS scenario — discovery is fully automatic.
 
 ## install-os-pkg Dry-Run Tests
 
@@ -179,7 +245,15 @@ No changes to `test.yaml` are needed when adding a new feature — discovery is 
 
 ### Unit test triggers
 
-`test-unit.yaml` triggers on any change to `lib/**` or `test/unit/**`. The full suite always runs (no per-module discovery). `fail-fast: false` ensures a macOS failure does not cancel the ubuntu run.
+`test-unit.yaml` triggers on any change to `lib/**` or `test/unit/**`. It runs the full suite across three job groups — no per-module discovery:
+
+| Job | Runs on | Notes |
+|---|---|---|
+| `unit-native` | ubuntu-latest + macos-latest | Installs bash ≥4 on macOS via `brew install bash` |
+| `unit-linux` | debian:bookworm, fedora:latest, rockylinux:9 containers | Validates glibc distro compatibility |
+| `unit-alpine` | alpine:3.20 container (ubuntu-latest host) | Validates musl/Alpine compatibility |
+
+`fail-fast: false` ensures a failure in one matrix cell does not cancel the rest.
 
 A lefthook **pre-push** hook also runs the full bats suite locally when `lib/` or `test/unit/` files are changed:
 
