@@ -210,13 +210,21 @@ if [[ "$_is_yaml" == true ]] && ! command -v yq > /dev/null 2>&1; then
   _install_yq
 fi
 
-# Choose parser: prefer yq (handles both JSON and YAML natively).
-if command -v yq > /dev/null 2>&1; then
-  _PARSER="yq"
-else
-  _PARSER="jq"
-fi
+# ── Normalise manifest to JSON ────────────────────────────────────────────────
+# Always use jq for all queries (consistent, no cross-tool syntax gaps).
+# YAML manifests are converted to JSON first using yq, then jq takes over.
+# This avoids subtle incompatibilities between jq and mikefarah/yq flag sets
+# (e.g. --arg is not supported by yq) and tostring behaviour differences.
+_PARSER="jq"
 echo "ℹ️  Using parser: ${_PARSER}" >&2
+
+if [[ "$_is_yaml" == true ]]; then
+  _json_manifest="$(mktemp)"
+  trap 'rm -f "$_json_manifest"' EXIT
+  echo "ℹ️  Converting YAML manifest to JSON via yq..." >&2
+  yq -o=json '.' "$_MANIFEST" > "$_json_manifest"
+  _MANIFEST="$_json_manifest"
+fi
 
 # ── Parse manifest top-level fields ──────────────────────────────────────────
 _override_order="$("$_PARSER" -r '.override_install_order // false' "$_MANIFEST")"
@@ -325,11 +333,12 @@ for _feature in "${_sorted_features[@]}"; do
   # Extract options for this feature from the manifest.
   # .value | tostring converts booleans and numbers to strings so they are
   # safely forwarded as shell arguments.
-  # Feature IDs are [a-z][a-z0-9-]* slugs so direct interpolation is safe;
-  # avoids --arg which yq (mikefarah/yq) does not support.
+  # SC2016: $feat is a jq variable bound by --arg, not a bash variable — no expansion intended.
+  # shellcheck disable=SC2016
   mapfile -t _opts < <(
     "$_PARSER" -r \
-      ".features[] | select(.id == \"${_feature}\") | .options // {} | to_entries[] | \"--\(.key)\", \"\(.value | tostring)\"" \
+      --arg feat "$_feature" \
+      '.features[] | select(.id == $feat) | .options // {} | to_entries[] | "--\(.key)", "\(.value | tostring)"' \
       "$_MANIFEST"
   )
 
