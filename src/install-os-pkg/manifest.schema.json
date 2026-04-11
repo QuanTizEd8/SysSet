@@ -1,0 +1,473 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/QuanTizEd8/SysSet/main/src/install-os-pkg/manifest.schema.json",
+  "title": "OS Package Manifest",
+  "description": "Declarative YAML/JSON manifest for cross-platform OS package installation. Replaces the text-based manifest DSL. Consumed by ospkg::run() in lib/ospkg.sh.\n\nExecution order: prescripts → PM-block setup (keys, repos, taps, ppas, copr, modules) → package-manager update → packages → PM-block scripts → scripts → repo cleanup → cache clean.\n\nInline keys/repos/scripts on package entries and groups are collected and executed in the same batch order — structural co-location is for authoring convenience, not execution sequencing.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "packages": {
+      "type": "array",
+      "description": "Packages to install. Entries can be bare strings (package names), package objects (with PM overrides and conditions), or group objects (shared conditions/flags over multiple packages).",
+      "items": {
+        "$ref": "#/$defs/packageEntry"
+      }
+    },
+    "prescripts": {
+      "description": "Shell commands run before any package installation (after keys/repos setup).",
+      "$ref": "#/$defs/scriptBlock"
+    },
+    "scripts": {
+      "description": "Shell commands run after all packages are installed (before repo cleanup and cache clean).",
+      "$ref": "#/$defs/scriptBlock"
+    },
+    "apt": {
+      "$ref": "#/$defs/aptBlock"
+    },
+    "apk": {
+      "$ref": "#/$defs/apkBlock"
+    },
+    "brew": {
+      "$ref": "#/$defs/brewBlock"
+    },
+    "dnf": {
+      "$ref": "#/$defs/dnfBlock"
+    },
+    "yum": {
+      "$ref": "#/$defs/yumBlock"
+    },
+    "pacman": {
+      "$ref": "#/$defs/pacmanBlock"
+    },
+    "zypper": {
+      "$ref": "#/$defs/zypperBlock"
+    }
+  },
+
+  "$defs": {
+
+    "conditionValue": {
+      "description": "A single value or array of values. Arrays are OR'd: the condition matches if any value matches.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      ]
+    },
+
+    "conditionObject": {
+      "type": "object",
+      "description": "A set of conditions AND'd together. Each key is a condition name; its value is a string or array of strings (OR'd). All keys must match for the condition object to match.",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "pm": {
+          "$ref": "#/$defs/conditionValue",
+          "description": "Package manager: apt, apk, brew, dnf, yum, pacman, zypper."
+        },
+        "arch": {
+          "$ref": "#/$defs/conditionValue",
+          "description": "CPU architecture from uname -m: x86_64, aarch64, armv7l, i686, etc."
+        },
+        "kernel": {
+          "$ref": "#/$defs/conditionValue",
+          "description": "OS kernel: linux, darwin."
+        },
+        "id": {
+          "$ref": "#/$defs/conditionValue",
+          "description": "OS ID from /etc/os-release (or 'macos' on macOS): ubuntu, debian, alpine, fedora, arch, rhel, opensuse-leap, macos, etc."
+        },
+        "id_like": {
+          "$ref": "#/$defs/conditionValue",
+          "description": "OS ID_LIKE from /etc/os-release (or 'macos' on macOS): debian, rhel, arch, suse, etc."
+        },
+        "version_id": {
+          "$ref": "#/$defs/conditionValue",
+          "description": "OS VERSION_ID from /etc/os-release: 22.04, 39, 3.19, 15.6, etc."
+        }
+      }
+    },
+
+    "whenClause": {
+      "description": "Condition filter. A single condition object (AND of its keys), or an array of condition objects (OR of compounds).\n\nExamples:\n  Single (AND):  { pm: apt, arch: x86_64 }        → pm=apt AND arch=x86_64\n  OR within key: { pm: [apt, dnf] }                → pm=apt OR pm=dnf\n  OR of ANDs:    [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n                                                     → (apt AND ubuntu) OR (dnf AND fedora)",
+      "oneOf": [
+        { "$ref": "#/$defs/conditionObject" },
+        {
+          "type": "array",
+          "description": "OR of compound conditions. The entry matches if any condition object matches.",
+          "items": { "$ref": "#/$defs/conditionObject" },
+          "minItems": 1
+        }
+      ]
+    },
+
+    "scriptBlock": {
+      "description": "Shell command(s). A string is executed as a single script. An array of strings is joined with newlines before execution.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      ]
+    },
+
+    "flagsValue": {
+      "description": "Extra flags passed verbatim to the package manager's install command. A string is split on whitespace; an array is passed as-is.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      ]
+    },
+
+    "keyEntry": {
+      "type": "object",
+      "description": "A signing key to download and install. Used for apt (gpg), rpm (rpm --import), pacman (pacman-key), etc.",
+      "required": ["url", "dest"],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to download the signing key from."
+        },
+        "dest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Destination file path for the key. If the path ends in .gpg, the key is automatically dearmored via gpg --dearmor."
+        },
+        "dearmor": {
+          "type": "boolean",
+          "description": "Explicitly control dearmoring. When omitted, dearmoring is auto-detected from the dest file extension (.gpg → true)."
+        }
+      }
+    },
+
+    "repoEntry": {
+      "type": "string",
+      "description": "Repository definition in the active PM's native format. Examples:\n  apt:    \"deb [signed-by=/usr/share/keyrings/foo.gpg] https://repo.example.com bookworm main\"\n  apk:    \"@community https://dl-cdn.alpinelinux.org/alpine/edge/community\"\n  dnf/yum: .repo file content or a baseurl string\n  pacman: INI section for /etc/pacman.conf\n  zypper: zypper addrepo arguments\n\nRepositories are added before package installation and removed after (unless keep_repos is set).",
+      "minLength": 1
+    },
+
+    "packageEntry": {
+      "description": "A package to install. Can be a bare string (package name), a package object, or a group object.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Bare package name, installed via the detected package manager."
+        },
+        { "$ref": "#/$defs/packageObject" },
+        { "$ref": "#/$defs/groupObject" }
+      ]
+    },
+
+    "packageObject": {
+      "type": "object",
+      "description": "A package with optional PM-specific name overrides, conditions, flags, and inline setup (keys, repos, scripts).\n\nThe 'name' field is the default package name. PM override keys (apt, brew, etc.) replace it when that PM is active. If every expected PM has an explicit override, 'name' acts as a label only (never passed to the PM).",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Default package name, or a label when all target PMs have explicit overrides."
+        },
+        "when": {
+          "$ref": "#/$defs/whenClause",
+          "description": "Condition filter. The package is skipped when the condition does not match."
+        },
+        "flags": {
+          "$ref": "#/$defs/flagsValue",
+          "description": "Extra flags for the PM's install command. Pair with a 'when' condition if the flags are PM-specific (e.g. --no-install-recommends for apt)."
+        },
+        "version": {
+          "type": "string",
+          "description": "Version constraint in the active PM's syntax (e.g. '=1.2.3-1' for apt, '>=1.2' for brew)."
+        },
+        "prescript": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands collected and run in the prescript phase (before package installation)."
+        },
+        "script": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands collected and run in the script phase (after package installation)."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keyEntry" },
+          "description": "Signing keys collected and fetched in the key phase (before repos)."
+        },
+        "repos": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repoEntry" },
+          "description": "Repository definitions collected and added in the repo phase (after keys, before update)."
+        }
+      },
+      "patternProperties": {
+        "^(apt|apk|brew|dnf|yum|pacman|zypper)$": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Package name override for this package manager. When the active PM matches, this name is installed instead of 'name'."
+        }
+      }
+    },
+
+    "groupObject": {
+      "type": "object",
+      "description": "A group of packages that share conditions, flags, and/or inline setup. The group's 'when', 'flags', 'keys', 'repos', 'prescript', and 'script' apply to every package in the group.\n\nGroups can nest: a group's 'packages' array can contain strings, package objects, or further groups.",
+      "required": ["packages"],
+      "additionalProperties": false,
+      "properties": {
+        "packages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/packageEntry" },
+          "minItems": 1,
+          "description": "The packages in this group. Inherits the group's when/flags/keys/repos/scripts."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable label for log output. Not used for installation."
+        },
+        "when": {
+          "$ref": "#/$defs/whenClause",
+          "description": "Condition filter applied to all packages in the group. Combined (AND'd) with any per-package 'when' conditions."
+        },
+        "flags": {
+          "$ref": "#/$defs/flagsValue",
+          "description": "Extra flags applied to all packages in the group. Merged with any per-package flags."
+        },
+        "prescript": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands collected and run in the prescript phase."
+        },
+        "script": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands collected and run in the script phase."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keyEntry" },
+          "description": "Signing keys collected and fetched in the key phase."
+        },
+        "repos": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repoEntry" },
+          "description": "Repository definitions collected and added in the repo phase."
+        }
+      }
+    },
+
+    "aptBlock": {
+      "type": "object",
+      "description": "apt-specific setup. Only evaluated when apt is the detected package manager (Debian, Ubuntu, etc.).",
+      "additionalProperties": false,
+      "properties": {
+        "ppas": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "PPAs to add via add-apt-repository. Example: 'ppa:deadsnakes/ppa'."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keyEntry" },
+          "description": "Signing keys fetched before adding repositories."
+        },
+        "repos": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Repository lines written to /etc/apt/sources.list.d/. Format: 'deb [signed-by=/path/to/key.gpg] https://repo.example.com suite component'."
+        },
+        "scripts": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands run when apt is the active PM."
+        }
+      }
+    },
+
+    "apkBlock": {
+      "type": "object",
+      "description": "apk-specific setup. Only evaluated when apk is the detected package manager (Alpine Linux).",
+      "additionalProperties": false,
+      "properties": {
+        "repos": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Repository lines appended to /etc/apk/repositories. Example: '@community https://dl-cdn.alpinelinux.org/alpine/edge/community'."
+        },
+        "scripts": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands run when apk is the active PM."
+        }
+      }
+    },
+
+    "brewBlock": {
+      "type": "object",
+      "description": "Homebrew-specific setup. Only evaluated when brew is the detected package manager (macOS, Linuxbrew).",
+      "additionalProperties": false,
+      "properties": {
+        "taps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tapEntry"
+          },
+          "description": "Homebrew taps to add before installation."
+        },
+        "casks": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Homebrew casks to install (macOS GUI applications: .app bundles, .pkg installers). No Linux equivalent."
+        },
+        "scripts": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands run when brew is the active PM."
+        }
+      }
+    },
+
+    "tapEntry": {
+      "description": "A Homebrew tap. Can be a short name string ('user/repo') or an object with a custom URL.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tap short name. Example: 'homebrew/cask', 'user/repo'."
+        },
+        {
+          "type": "object",
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Tap name in 'user/repo' format."
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Custom Git URL for the tap (when not hosted on GitHub)."
+            }
+          }
+        }
+      ]
+    },
+
+    "dnfBlock": {
+      "type": "object",
+      "description": "dnf-specific setup. Only evaluated when dnf is the detected package manager (Fedora, RHEL 8+, etc.).",
+      "additionalProperties": false,
+      "properties": {
+        "copr": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "COPR repositories to enable via dnf copr enable. Example: 'user/project'."
+        },
+        "repos": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Repository configuration written to /etc/yum.repos.d/."
+        },
+        "modules": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "DNF modules to enable. Format: 'module:stream' or 'module:stream/profile'. Example: 'nodejs:18/common'."
+        },
+        "groups": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "DNF package groups to install. Example: 'development-tools'."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keyEntry" },
+          "description": "RPM signing keys to import via rpm --import."
+        },
+        "scripts": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands run when dnf is the active PM."
+        }
+      }
+    },
+
+    "yumBlock": {
+      "type": "object",
+      "description": "yum-specific setup. Only evaluated when yum is the detected package manager (RHEL 7, CentOS 7, Amazon Linux, etc.).",
+      "additionalProperties": false,
+      "properties": {
+        "repos": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Repository configuration written to /etc/yum.repos.d/."
+        },
+        "groups": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Yum package groups to install."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keyEntry" },
+          "description": "RPM signing keys to import via rpm --import."
+        },
+        "scripts": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands run when yum is the active PM."
+        }
+      }
+    },
+
+    "pacmanBlock": {
+      "type": "object",
+      "description": "pacman-specific setup. Only evaluated when pacman is the detected package manager (Arch Linux, Manjaro, etc.).",
+      "additionalProperties": false,
+      "properties": {
+        "repos": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Repository configuration appended to /etc/pacman.conf. INI-style section format."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keyEntry" },
+          "description": "PGP keys to receive via pacman-key --recv-keys and locally sign."
+        },
+        "scripts": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands run when pacman is the active PM."
+        }
+      }
+    },
+
+    "zypperBlock": {
+      "type": "object",
+      "description": "zypper-specific setup. Only evaluated when zypper is the detected package manager (openSUSE, SLES, etc.).",
+      "additionalProperties": false,
+      "properties": {
+        "repos": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Repositories to add via zypper addrepo."
+        },
+        "keys": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keyEntry" },
+          "description": "GPG keys to import for package verification."
+        },
+        "scripts": {
+          "$ref": "#/$defs/scriptBlock",
+          "description": "Shell commands run when zypper is the active PM."
+        }
+      }
+    }
+  }
+}
