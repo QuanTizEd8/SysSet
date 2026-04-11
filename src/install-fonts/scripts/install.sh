@@ -12,9 +12,9 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-# shellcheck source=/dev/null
+# shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 trap 'logging::cleanup' EXIT

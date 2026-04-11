@@ -22,7 +22,7 @@ if [ "${DEBUG:-false}" = "true" ]; then
   set -x
 fi
 
-# shellcheck source=/dev/null
+# shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 trap 'logging::cleanup' EXIT

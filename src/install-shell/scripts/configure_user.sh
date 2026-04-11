@@ -12,7 +12,7 @@ set -euo pipefail
 # Shared helpers
 # ---------------------------------------------------------------------------
 _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=/dev/null
+# shellcheck source=lib/shell.sh
 . "$_SCRIPTS_DIR/_lib/shell.sh"
 
 # ---------------------------------------------------------------------------

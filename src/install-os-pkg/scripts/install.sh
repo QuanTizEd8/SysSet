@@ -2,9 +2,9 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=/dev/null
+# shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 echo "↪️ Script entry: System Package Installation" >&2

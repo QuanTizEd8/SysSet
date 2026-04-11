@@ -413,6 +413,7 @@ export_path_main() {
       _target_files="$(shell::system_path_files --profile_d "conda_bin_path.sh")"
     else
       echo "ℹ️ Case B: user-scoped PATH export." >&2
+      # shellcheck disable=SC2119 # no args → uses $HOME default, intentional
       _target_files="$(shell::user_path_files)"
     fi
   fi
@@ -447,15 +448,15 @@ readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
 readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=/dev/null
+# shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/checksum.sh
 . "$_SELF_DIR/_lib/checksum.sh"
 logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2

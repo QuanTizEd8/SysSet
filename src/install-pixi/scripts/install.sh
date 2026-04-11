@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=/dev/null
+# shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
 logging::setup
 echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2

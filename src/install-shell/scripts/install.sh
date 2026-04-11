@@ -19,17 +19,17 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-# shellcheck source=/dev/null
+# shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
 
 # ---------------------------------------------------------------------------
 # Cleanup / logging
 # ---------------------------------------------------------------------------
-# shellcheck source=/dev/null
+# shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging::setup
 trap 'logging::cleanup' EXIT

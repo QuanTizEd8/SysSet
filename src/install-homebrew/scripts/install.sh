@@ -6,11 +6,11 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
 # ospkg.sh is sourced for net::* and os::* access.
 # ospkg::detect (lazy) is only called on Linux, not macOS.
-# shellcheck source=/dev/null
+# shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-# shellcheck source=/dev/null
+# shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
 logging::setup
 echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
