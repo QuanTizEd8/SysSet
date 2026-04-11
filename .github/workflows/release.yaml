@@ -24,11 +24,13 @@ jobs:
 
       - name: Determine release tag
         id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ inputs.tag }}" ]; then
-            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${INPUT_TAG}" ]; then
+            echo "tag=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=$(git describe --tags --match 'v*' --abbrev=0)" >> "$GITHUB_OUTPUT"
           fi
@@ -37,7 +39,9 @@ jobs:
         run: bash sync-lib.sh
 
       - name: "Build distribution artifacts"
-        run: bash build-artifacts.sh "${{ steps.tag.outputs.tag }}"
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: bash build-artifacts.sh "${RELEASE_TAG}"
 
       - name: "Publish Features to GHCR"
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
@@ -51,14 +55,14 @@ jobs:
       - name: "Create or update GitHub Release"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          _tag="${{ steps.tag.outputs.tag }}"
-          if gh release view "$_tag" > /dev/null 2>&1; then
-            echo "ℹ️  Release $_tag already exists — uploading/replacing assets." >&2
-            gh release upload "$_tag" dist/* --clobber
+          if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            echo "ℹ️  Release ${RELEASE_TAG} already exists — uploading/replacing assets." >&2
+            gh release upload "${RELEASE_TAG}" dist/* --clobber
           else
-            gh release create "$_tag" dist/* \
-              --title "$_tag" \
+            gh release create "${RELEASE_TAG}" dist/* \
+              --title "${RELEASE_TAG}" \
               --generate-notes
           fi
 

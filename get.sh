@@ -63,6 +63,10 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --tag)
       shift
+      if [ "$#" -eq 0 ]; then
+        echo "⛔ --tag requires a value." >&2
+        exit 1
+      fi
       _tag="$1"
       shift
       ;;

@@ -89,7 +89,7 @@ $(
   )
   <unknown features in manifest order>
 EOF
-  exit 0
+  exit "${1:-0}"
 }
 
 # ── Argument parsing (CLI-only) ───────────────────────────────────────────────
@@ -102,12 +102,20 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --tag)
       shift
+      if [[ $# -eq 0 ]]; then
+        echo "⛔ --tag requires a value." >&2
+        exit 1
+      fi
       _TAG="$1"
       echo "📩 Read argument 'tag': '${_TAG}'" >&2
       shift
       ;;
     --logfile)
       shift
+      if [[ $# -eq 0 ]]; then
+        echo "⛔ --logfile requires a value." >&2
+        exit 1
+      fi
       LOGFILE="$1"
       echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
       shift
@@ -139,7 +147,7 @@ done
 # ── Validate inputs ───────────────────────────────────────────────────────────
 if [[ -z "$_MANIFEST" ]]; then
   echo "⛔ No manifest file specified." >&2
-  __usage__
+  __usage__ 1
 fi
 if [[ ! -f "$_MANIFEST" ]]; then
   echo "⛔ Manifest not found: '${_MANIFEST}'" >&2
