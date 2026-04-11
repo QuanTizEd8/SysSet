@@ -68,16 +68,15 @@ _ensure_xcode_clt() {
 _install_homebrew_bare() {
   echo "🔍 Homebrew not found — installing Homebrew." >&2
   _ensure_xcode_clt
-  if ! command -v curl > /dev/null 2>&1 && ! command -v wget > /dev/null 2>&1; then
-    echo "⛔ Neither curl nor wget found. Cannot download the Homebrew installer." >&2
-    exit 1
-  fi
-  if command -v curl > /dev/null 2>&1; then
-    _brew_script="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  else
-    _brew_script="$(wget -qO- https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  fi
-  NONINTERACTIVE=1 /bin/bash -c "$_brew_script"
+  _self_dir="$(dirname "$0")"
+  # shellcheck source=/dev/null
+  . "$_self_dir/scripts/_lib/net.sh"
+  _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
+  net::fetch_url_file \
+    "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" \
+    "$_tmpfile"
+  NONINTERACTIVE=1 /bin/bash "$_tmpfile"
+  rm -f "$_tmpfile"
   echo "✅ Homebrew installed." >&2
   return 0
 }
