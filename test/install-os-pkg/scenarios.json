@@ -213,12 +213,10 @@
         }
     },
     "install_self_false": {
-        "build": {
-            "dockerfile": "Dockerfile"
-        },
+        "image": "debian:latest",
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.txt",
+                "manifest": "tree",
                 "install_self": false
             }
         }
@@ -226,7 +224,9 @@
     "install_self_only": {
         "image": "debian:latest",
         "features": {
-            "install-os-pkg": {}
+            "install-os-pkg": {
+                "install_self": true
+            }
         }
     },
     "apt_lifecycle_hook_postcreate": {
