@@ -58,16 +58,35 @@ reportResults() {
   fi
 }
 
+# Remove a named block (identified by marker) from a file, in-place.
+# No-op when the file does not exist or contains no block.
+# Usage: block_cleanup "<marker>" "<file>"
+block_cleanup() {
+  local marker="$1" f="$2"
+  [[ -f "$f" ]] || return 0
+  local bm="# >>> ${marker} >>>" em="# <<< ${marker} <<<"
+  local tmp
+  tmp="$(mktemp)"
+  awk -v bm="$bm" -v em="$em" '
+    $0 == bm { skip=1; next }
+    $0 == em { skip=0; next }
+    !skip    { print }
+  ' "$f" > "$tmp" && mv "$tmp" "$f" || rm -f "$tmp"
+}
+
+# Remove a named block from every standard user init file in $HOME.
+# Usage: block_cleanup_all "<marker>"
+block_cleanup_all() {
+  local marker="$1"
+  local f
+  for f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile" \
+    "${HOME}/.bashrc" "${HOME}/.zprofile" "${HOME}/.zshenv" "${HOME}/.zshrc"; do
+    block_cleanup "$marker" "$f"
+  done
+}
+
 # Remove the install-homebrew shellenv block from a file, in-place.
 # No-op when the file does not exist or contains no block.
 shellenv_block_cleanup() {
-  local f="$1"
-  [[ -f "$f" ]] || return 0
-  local tmp
-  tmp="$(mktemp)"
-  awk '
-    /^# >>> brew shellenv \(install-homebrew\) >>>$/ { skip=1; next }
-    /^# <<< brew shellenv \(install-homebrew\) <<<$/ { skip=0; next }
-    !skip { print }
-  ' "$f" > "$tmp" && mv "$tmp" "$f" || rm -f "$tmp"
+  block_cleanup "brew shellenv (install-homebrew)" "$1"
 }

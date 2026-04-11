@@ -157,3 +157,59 @@ v2.0.0"
   assert_output "https://example.com/tool-linux-x86_64.tar.gz"
   refute_output --partial "darwin"
 }
+
+# ---------------------------------------------------------------------------
+# github::fetch_release_json  (option parsing and header injection)
+# ---------------------------------------------------------------------------
+
+@test "github::fetch_release_json rejects unknown option" {
+  run github::fetch_release_json "owner/repo" --bogus
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+@test "github::fetch_release_json includes Authorization header when GITHUB_TOKEN is set" {
+  # Override fetch_with_retry to print all its arguments so we can inspect headers.
+  net::fetch_with_retry() {
+    printf '%s\n' "$@"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  GITHUB_TOKEN="mytoken" run github::fetch_release_json "owner/repo"
+  assert_output --partial "Authorization: Bearer mytoken"
+}
+
+@test "github::fetch_release_json builds a tag URL when --tag is given" {
+  net::fetch_with_retry() {
+    printf '%s\n' "$@"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run github::fetch_release_json "owner/repo" --tag "v2.0.0"
+  assert_output --partial "releases/tags/v2.0.0"
+}
+
+# ---------------------------------------------------------------------------
+# github::release_asset_urls  (--tag forwarding)
+# ---------------------------------------------------------------------------
+
+@test "github::release_asset_urls accepts --tag option" {
+  github::fetch_release_json() {
+    local _dest=""
+    while [ "$#" -gt 0 ]; do
+      [ "$1" = "--dest" ] && {
+        shift
+        _dest="$1"
+        shift
+        continue
+      }
+      shift
+    done
+    [ -n "$_dest" ] && printf '{"assets":[{"browser_download_url":"https://example.com/v2.tar.gz"}]}\n' > "$_dest"
+    return 0
+  }
+  export -f github::fetch_release_json
+  run github::release_asset_urls "owner/repo" --tag "v2.0.0"
+  assert_success
+  assert_output "https://example.com/v2.tar.gz"
+}

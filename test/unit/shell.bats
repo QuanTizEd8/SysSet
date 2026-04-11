@@ -252,3 +252,137 @@ zsh-syntax-highlighting"
   assert_output "$HOME"
   assert_success
 }
+
+@test "shell::resolve_home returns /root for the root user" {
+  reload_lib shell.sh
+  run shell::resolve_home "root"
+  assert_output "/root"
+  assert_success
+}
+
+@test "shell::resolve_home returns unexpanded tilde for unknown user" {
+  reload_lib shell.sh
+  run shell::resolve_home "___no_such_user_xyz___"
+  assert_output "~___no_such_user_xyz___"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# shell::sync_block
+# ---------------------------------------------------------------------------
+
+@test "shell::sync_block writes a block when --content is provided" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/sync_home"
+  mkdir -p "$_home"
+  local _f="${_home}/rc"
+  shell::sync_block --files "$_f" --marker "myblock" --content "export X=1"
+  assert_file_exists "$_f"
+  run grep "export X=1" "$_f"
+  assert_success
+}
+
+@test "shell::sync_block removes an existing block when --content is absent" {
+  reload_lib shell.sh
+  local _f="${BATS_TEST_TMPDIR}/rcremove"
+  shell::write_block --file "$_f" --marker "removetest" --content "export Y=2"
+  shell::sync_block --files "$_f" --marker "removetest"
+  run grep "removetest" "$_f"
+  assert_failure
+}
+
+@test "shell::sync_block skips removal for non-existent file" {
+  reload_lib shell.sh
+  local _f="${BATS_TEST_TMPDIR}/nope_rc"
+  # File doesn't exist; sync_block with no --content should be a no-op (no error).
+  run shell::sync_block --files "$_f" --marker "absent"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# shell::system_path_files
+# ---------------------------------------------------------------------------
+
+@test "shell::system_path_files returns bashrc and zshenv paths" {
+  reload_lib shell.sh
+  strings() { echo "/etc/bash.bashrc"; }
+  export -f strings
+  BASH_ENV="/etc/bashenv"
+  run shell::system_path_files
+  # Output must contain the bashrc and zshenv paths.
+  assert_output --partial "/etc/bash.bashrc"
+  assert_output --partial "zshenv"
+  assert_success
+}
+
+@test "shell::system_path_files includes profile.d path when --profile_d is given" {
+  reload_lib shell.sh
+  strings() { echo "/etc/bash.bashrc"; }
+  export -f strings
+  BASH_ENV="/etc/bashenv"
+  run shell::system_path_files --profile_d "myenv.sh"
+  assert_output --partial "/etc/profile.d/myenv.sh"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# shell::ensure_bashenv
+# ---------------------------------------------------------------------------
+
+@test "shell::ensure_bashenv returns BASH_ENV when already set in environment" {
+  reload_lib shell.sh
+  BASH_ENV="/usr/local/etc/bashenv" run shell::ensure_bashenv
+  assert_output --partial "/usr/local/etc/bashenv"
+  assert_success
+}
+
+@test "shell::ensure_bashenv reads BASH_ENV from /etc/environment via grep" {
+  reload_lib shell.sh
+  # Override grep to simulate /etc/environment containing BASH_ENV.
+  grep() {
+    case "$*" in
+      *'/etc/environment')
+        echo 'BASH_ENV="/etc/bash/bashenv"'
+        return 0
+        ;;
+      *)
+        command grep "$@"
+        ;;
+    esac
+  }
+  export -f grep
+  run shell::ensure_bashenv
+  assert_output --partial "/etc/bash/bashenv"
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# shell::user_path_files  (additional scenario)
+# ---------------------------------------------------------------------------
+
+@test "shell::user_path_files picks .bash_login when it is the login file" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homePF"
+  mkdir -p "$_home"
+  touch "${_home}/.bash_login"
+  run shell::user_path_files --home "$_home"
+  assert_output "${_home}/.bash_login
+${_home}/.bashrc
+${_home}/.zshenv"
+}
+
+# ---------------------------------------------------------------------------
+# shell::user_init_files  (additional scenario)
+# ---------------------------------------------------------------------------
+
+@test "shell::user_init_files picks .bash_login when it is the login file" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeIF"
+  mkdir -p "$_home"
+  touch "${_home}/.bash_login"
+  run shell::user_init_files --home "$_home"
+  assert_output "${_home}/.bash_login
+${_home}/.bashrc
+${_home}/.zprofile
+${_home}/.zshrc"
+}

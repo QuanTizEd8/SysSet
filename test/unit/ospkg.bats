@@ -58,6 +58,26 @@ setup() {
   assert_output --partial "No supported package manager"
 }
 
+@test "ospkg::detect identifies zypper ecosystem" {
+  reload_lib ospkg.sh
+  create_fake_bin "zypper"
+  prepend_fake_bin_path
+  ospkg::detect
+  [[ "$_OSPKG_PREFIX" == "zypper" ]]
+  [[ "$_OSPKG_PKG_MNGR" == "zypper" ]]
+  [[ "$_OSPKG_DETECTED" == true ]]
+}
+
+@test "ospkg::detect identifies microdnf ecosystem" {
+  reload_lib ospkg.sh
+  create_fake_bin "microdnf"
+  prepend_fake_bin_path
+  ospkg::detect
+  [[ "$_OSPKG_PREFIX" == "dnf" ]]
+  [[ "$_OSPKG_PKG_MNGR" == "microdnf" ]]
+  [[ "${#_OSPKG_UPDATE[@]}" -eq 0 ]]
+}
+
 # ---------------------------------------------------------------------------
 # ospkg::eval_selector_block  (direct calls after seeding OS context)
 # ---------------------------------------------------------------------------
@@ -173,4 +193,84 @@ _seed_apt_context() {
   ospkg::parse_manifest "$_manifest"
   [[ "$_M_PKG" != *"# a comment"* ]]
   [[ "$_M_PKG" == *"curl"* ]]
+}
+
+@test "ospkg::parse_manifest populates _M_GROUP" {
+  _seed_apt_context
+  local _manifest
+  _manifest="$(
+    printf -- "--- group\ndevelopment-tools\n"
+  )"
+  ospkg::parse_manifest "$_manifest"
+  [[ "$_M_GROUP" == *"development-tools"* ]]
+}
+
+@test "ospkg::parse_manifest populates _M_MODULE" {
+  _seed_apt_context
+  local _manifest
+  _manifest="$(
+    printf -- "--- module\nnodejs:18\n"
+  )"
+  ospkg::parse_manifest "$_manifest"
+  [[ "$_M_MODULE" == *"nodejs:18"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# ospkg::update
+# ---------------------------------------------------------------------------
+
+@test "ospkg::update rejects unknown option" {
+  _seed_apt_context
+  run ospkg::update --bogus
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+@test "ospkg::update skips when update command array is empty" {
+  reload_lib ospkg.sh
+  # Seed a microdnf-like context: detected, but no update command.
+  create_fake_bin "microdnf"
+  prepend_fake_bin_path
+  ospkg::detect
+  run ospkg::update
+  assert_success
+  assert_output --partial "not supported"
+}
+
+@test "ospkg::update runs update command with --force" {
+  _seed_apt_context
+  # The fake apt-get stub exits 0 for any subcommand.
+  run ospkg::update --force
+  assert_success
+}
+
+# ---------------------------------------------------------------------------
+# ospkg::install
+# ---------------------------------------------------------------------------
+
+@test "ospkg::install invokes the install command" {
+  _seed_apt_context
+  run ospkg::install curl
+  assert_success
+}
+
+@test "ospkg::install skips when apt packages are already installed" {
+  _seed_apt_context
+  # Fake dpkg that reports the package as installed (exit 0).
+  create_fake_bin "dpkg" ""
+  prepend_fake_bin_path
+  run ospkg::install curl
+  assert_success
+  assert_output --partial "already installed"
+}
+
+# ---------------------------------------------------------------------------
+# ospkg::clean
+# ---------------------------------------------------------------------------
+
+@test "ospkg::clean succeeds for apt context" {
+  _seed_apt_context
+  # The fake apt-get stub handles 'clean' and 'dist-clean'.
+  run ospkg::clean
+  assert_success
 }

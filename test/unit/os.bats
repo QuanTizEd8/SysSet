@@ -186,6 +186,33 @@ setup() {
   assert_output "rhel"
 }
 
+@test "os::platform returns rhel for ID=rhel" {
+  reload_lib os.sh
+  _OS_ID="rhel"
+  _OS_ID_LIKE=""
+  _OS_RELEASE_LOADED=1
+  run os::platform
+  assert_output "rhel"
+}
+
+@test "os::platform returns rhel for ID=rocky" {
+  reload_lib os.sh
+  _OS_ID="rocky"
+  _OS_ID_LIKE=""
+  _OS_RELEASE_LOADED=1
+  run os::platform
+  assert_output "rhel"
+}
+
+@test "os::platform returns rhel when ID_LIKE contains fedora" {
+  reload_lib os.sh
+  _OS_ID="custom"
+  _OS_ID_LIKE="fedora"
+  _OS_RELEASE_LOADED=1
+  run os::platform
+  assert_output "rhel"
+}
+
 # ---------------------------------------------------------------------------
 # os::require_root
 # ---------------------------------------------------------------------------

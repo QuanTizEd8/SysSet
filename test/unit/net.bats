@@ -113,3 +113,73 @@ EOF
   net::ensure_fetch_tool
   [[ "$_NET_FETCH_TOOL" == "curl" ]]
 }
+
+# ---------------------------------------------------------------------------
+# net::ensure_ca_certs  (caching and Darwin short-circuit)
+# ---------------------------------------------------------------------------
+
+@test "net::ensure_ca_certs is a no-op when already cached" {
+  reload_lib net.sh
+  _NET_CA_CERTS_OK=true
+  # If idempotency guard works, the function must return 0 immediately
+  # without touching any file paths or calling ospkg.
+  run net::ensure_ca_certs
+  assert_success
+}
+
+@test "net::ensure_ca_certs is a no-op on Darwin" {
+  reload_lib net.sh
+  uname() { echo "Darwin"; }
+  export -f uname
+  run net::ensure_ca_certs
+  assert_success
+  # Must set the cache flag even on macOS.
+  [[ "$_NET_CA_CERTS_OK" == "true" ]]
+}
+
+# ---------------------------------------------------------------------------
+# net::fetch_url_stdout  /  net::fetch_url_file  (routing tests)
+# ---------------------------------------------------------------------------
+
+@test "net::fetch_url_stdout routes to curl when _NET_FETCH_TOOL=curl" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  # Override fetch_with_retry to record which tool is called.
+  net::fetch_with_retry() {
+    shift           # strip max-attempts
+    echo "tool=$1" # print the command name
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run net::fetch_url_stdout "https://example.com"
+  assert_output --partial "tool=curl"
+}
+
+@test "net::fetch_url_stdout routes to wget when _NET_FETCH_TOOL=wget" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
+  net::fetch_with_retry() {
+    shift
+    echo "tool=$1"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run net::fetch_url_stdout "https://example.com"
+  assert_output --partial "tool=wget"
+}
+
+@test "net::fetch_url_file routes to curl when _NET_FETCH_TOOL=curl" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  net::fetch_with_retry() {
+    shift
+    echo "tool=$1"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run net::fetch_url_file "https://example.com" "/tmp/out"
+  assert_output --partial "tool=curl"
+}
