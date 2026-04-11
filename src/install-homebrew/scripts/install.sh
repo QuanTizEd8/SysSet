@@ -372,12 +372,7 @@ if [ "$(os::kernel)" != "Darwin" ]; then
   install_linux_deps
 fi
 
-# ── Step 2: macOS — Xcode Command Line Tools ──────────────────────────────────────────────
-if [ "$(os::kernel)" = "Darwin" ]; then
-  ensure_xcode_clt
-fi
-
-# ── Step 3: Install / skip / reinstall Homebrew ───────────────────────────────
+# ── Step 2: Install / skip / reinstall Homebrew ───────────────────────────────
 _BREW_EXEC="${RESOLVED_PREFIX}/bin/brew"
 if [ -f "$_BREW_EXEC" ]; then
   echo "⚠️ Homebrew found at '${_BREW_EXEC}'." >&2
@@ -404,14 +399,14 @@ else
   run_brew_installer
 fi
 
-# ── Step 4: Verify brew executable ───────────────────────────────────────────
+# ── Step 3: Verify brew executable ───────────────────────────────────────────
 if [ ! -f "$_BREW_EXEC" ]; then
   echo "⛔ Homebrew executable not found at '${_BREW_EXEC}' after installation." >&2
   exit 1
 fi
 echo "✅ Homebrew $("$_BREW_EXEC" --version | head -1) is available at '${_BREW_EXEC}'." >&2
 
-# ── Step 5: brew update ───────────────────────────────────────────────────────
+# ── Step 4: brew update ───────────────────────────────────────────────────────
 if [[ "$UPDATE" == true ]]; then
   echo "🔄 Running 'brew update'." >&2
   if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
@@ -422,10 +417,10 @@ if [[ "$UPDATE" == true ]]; then
   echo "✅ brew update completed." >&2
 fi
 
-# ── Step 6: Export shellenv ───────────────────────────────────────────────────
+# ── Step 5: Export shellenv ───────────────────────────────────────────────────
 export_shellenv_main
 
-# ── Step 7: brew doctor (warn only) ──────────────────────────────────────────
+# ── Step 6: brew doctor (warn only) ──────────────────────────────────────────
 echo "ℹ️ Running 'brew doctor' (warnings only)." >&2
 if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
   sudo -u "$RESOLVED_INSTALL_USER" "$_BREW_EXEC" doctor 2>&1 || true
