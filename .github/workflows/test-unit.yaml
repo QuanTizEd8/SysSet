@@ -14,7 +14,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  unit-tests:
+  # ── Native runners: ubuntu bare + macOS ──────────────────────────────────
+  unit-native:
     name: Unit tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -35,3 +36,61 @@ jobs:
 
       - name: Run unit tests
         run: bash test/run-unit.sh
+
+  # ── Linux distribution containers (glibc-based) ──────────────────────────
+  # GHA runner (ubuntu-latest) hosts the job; steps execute inside the
+  # container.  Alpine is handled separately (musl vs glibc runner tooling).
+  unit-linux:
+    name: Unit tests (container / ${{ matrix.distro }})
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian
+            image: debian:bookworm
+            install: apt-get update -qq && apt-get install -y --no-install-recommends bash git
+          - distro: fedora
+            image: fedora:latest
+            install: dnf install -y bash git
+          - distro: rockylinux
+            image: rockylinux:9
+            install: dnf install -y bash git
+
+    steps:
+      # git is needed by actions/checkout; install it before the checkout step.
+      - name: Install build tools
+        run: ${{ matrix.install }}
+
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Sync lib into feature scripts
+        run: bash sync-lib.sh
+
+      - name: Run unit tests
+        run: bash test/run-unit.sh
+
+  # ── Alpine (musl) — avoid glibc/musl runner incompatibility ─────────────
+  # Checkout happens on the ubuntu runner; tests run via docker run with the
+  # workspace volume-mounted into alpine, sidestepping the runner tooling issue.
+  unit-alpine:
+    name: Unit tests (container / alpine)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Run unit tests (alpine container)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/repo" \
+            -w /repo \
+            alpine:3.20 \
+            sh -c "apk add --no-cache bash git && bash test/run-unit.sh"
