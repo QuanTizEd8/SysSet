@@ -18,6 +18,12 @@ _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SCRIPTS_DIR/_lib/git.sh"
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+_GITHUB_BASE_URL="https://github.com"
+_OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/ohmyzsh/ohmyzsh"
+
+# ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
@@ -113,7 +119,7 @@ echo "ℹ️  Installing Oh My Zsh to '${INSTALL_DIR}' (branch: ${BRANCH})..." >
 # Clone Oh My Zsh
 # ---------------------------------------------------------------------------
 umask g-w,o-w
-git::clone --url "https://github.com/ohmyzsh/ohmyzsh" --dir "$INSTALL_DIR" --branch "$BRANCH"
+git::clone --url "$_OHMYZSH_REPO_URL" --dir "$INSTALL_DIR" --branch "$BRANCH"
 
 # Set oh-my-zsh update metadata so 'omz update' knows which remote/branch.
 git -C "$INSTALL_DIR" config oh-my-zsh.remote origin
@@ -130,7 +136,7 @@ mkdir -p "${ZSH_CUSTOM_DIR}/themes" "${ZSH_CUSTOM_DIR}/plugins"
 if [ -n "${THEME}" ]; then
   _THEME_REPO_NAME="$(basename "$THEME")"
   git::clone \
-    --url "https://github.com/${THEME}" \
+    --url "${_GITHUB_BASE_URL}/${THEME}" \
     --dir "${ZSH_CUSTOM_DIR}/themes/${_THEME_REPO_NAME}"
   echo "ℹ️  Installed custom theme '${THEME}'." >&2
 fi
@@ -150,7 +156,7 @@ if [ -n "${PLUGINS}" ]; then
     fi
     _PLUGIN_NAME="$(basename "$_slug")"
     git::clone \
-      --url "https://github.com/${_slug}" \
+      --url "${_GITHUB_BASE_URL}/${_slug}" \
       --dir "${ZSH_CUSTOM_DIR}/plugins/${_PLUGIN_NAME}"
     echo "ℹ️  Installed custom plugin '${_slug}'." >&2
   done

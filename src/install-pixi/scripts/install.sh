@@ -10,6 +10,10 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 logging::setup
 echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2
 trap 'logging::cleanup' EXIT
+
+# ── Constants ────────────────────────────────────────────────────────────────
+_PIXI_RELEASES_BASE_URL="https://github.com/prefix-dev/pixi/releases/download"
+
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
   DEBUG=""
@@ -95,7 +99,7 @@ net::ensure_fetch_tool
 net::fetch_with_retry 3 curl \
   --compressed \
   -fsSLo "$pixi_bin" \
-  "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-$(os::arch)-unknown-linux-musl"
+  "${_PIXI_RELEASES_BASE_URL}/v${VERSION}/pixi-$(os::arch)-unknown-linux-musl"
 
 chmod +rx "$pixi_bin"
 

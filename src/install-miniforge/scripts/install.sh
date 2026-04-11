@@ -118,7 +118,7 @@ add_activation_to_rcfile() {
 
 download_miniforge() {
   echo "↪️ Function entry: download_miniforge" >&2
-  local installer_url="https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}"
+  local installer_url="${_MINIFORGE_RELEASES_URL}/download/${MINIFORGE_VERSION}/${INSTALLER_FILENAME}"
   local checksum_url="${installer_url}.sha256"
   mkdir -p "$INSTALLER_DIR"
   echo "📥 Downloading installer from $installer_url" >&2
@@ -273,7 +273,7 @@ resolve_miniforge_version() {
       grep -E "^${VERSION}-[0-9]+$" |
       sort -t- -k2 -n | tail -1)"
     [[ -z "$tag" ]] && {
-      echo "⛔ No Miniforge release found for conda version '${VERSION}'. Check available releases at https://github.com/conda-forge/miniforge/releases" >&2
+      echo "⛔ No Miniforge release found for conda version '${VERSION}'. Check available releases at ${_MINIFORGE_RELEASES_URL}" >&2
       exit 1
     }
   fi
@@ -461,6 +461,9 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
 trap '__cleanup__' EXIT
+
+# ── Constants ────────────────────────────────────────────────────────────────
+_MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
 
 ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 

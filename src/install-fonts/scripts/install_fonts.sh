@@ -24,6 +24,12 @@ _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SCRIPTS_DIR/_lib/github.sh"
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+_P10K_BASE_URL="https://github.com/romkatv/powerlevel10k-media/raw/master"
+_NF_BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
+
+# ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
@@ -318,7 +324,6 @@ install_archive_contents() {
 # ---------------------------------------------------------------------------
 if [[ "$P10K_FONTS" == true ]]; then
   echo "ℹ️  Installing Powerlevel10k MesloLGS NF fonts..." >&2
-  _P10K_BASE_URL="https://github.com/romkatv/powerlevel10k-media/raw/master"
   _P10K_FONT_FILES=(
     "MesloLGS%20NF%20Regular.ttf"
     "MesloLGS%20NF%20Bold.ttf"
@@ -342,7 +347,6 @@ fi
 # Step 2 — Nerd Fonts from official releases
 # ---------------------------------------------------------------------------
 if [[ -n "$NERD_FONTS" ]]; then
-  _NF_BASE_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download"
   IFS=',' read -r -a _FONT_LIST <<< "$NERD_FONTS"
   for _font_name in "${_FONT_LIST[@]}"; do
     _font_name="${_font_name// /}"
