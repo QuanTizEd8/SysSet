@@ -18,6 +18,7 @@ exists where it does, and how the moving parts fit together.
     - [The bootstrap pattern](#the-bootstrap-pattern)
     - [The sync mechanism](#the-sync-mechanism)
     - [Pre-commit hook](#pre-commit-hook)
+  - [Code style — `shfmt` and `shellcheck`](#code-style--shfmt-and-shellcheck)
   - [Generated / git-ignored copies](#generated--git-ignored-copies)
   - [Development environment — `.devcontainer/`](#development-environment--devcontainer)
     - [Per-feature dev containers](#per-feature-dev-containers)
@@ -56,6 +57,9 @@ sysset/
 ├── bootstrap.sh                ← Shared bootstrap template (canonical source)
 ├── sync-lib.sh                 ← Build tool: distributes lib/ and bootstrap.sh
 ├── lefthook.yml                ← Pre-commit hook configuration
+├── Makefile                    ← Developer convenience targets (fmt, lint, sync)
+├── .editorconfig               ← Editor / shfmt style config
+├── .shellcheckrc               ← shellcheck defaults
 ├── .devcontainer/              ← Dev environment configuration ONLY
 │   ├── devcontainer.json
 │   ├── _src                   → ../src  (symlink)
@@ -197,26 +201,91 @@ the working tree is consistent before building or testing.
 
 ### Pre-commit hook
 
-[Lefthook](https://github.com/evilmartians/lefthook) is configured to run
-`bash sync-lib.sh` automatically whenever `lib/*` or `bootstrap.sh` is staged
-for a commit, so the generated copies in `src/` are always in sync with the
-canonical sources.
+[Lefthook](https://github.com/evilmartians/lefthook) runs three commands on
+every commit, scoped to only the **staged files**:
 
-```yaml
-# lefthook.yml
-pre-commit:
-  commands:
-    sync-lib:
-      glob: "{lib/*,bootstrap.sh}"
-      run: bash sync-lib.sh
-```
+| Command | Trigger glob | What it does |
+|---|---|---|
+| `sync-lib` | `lib/*`, `bootstrap.sh` | Regenerates `_lib/` copies and `install.sh` stubs |
+| `shfmt -d` | `*.sh`, `*.bash`, `*.bats` | Fails if any staged file isn't formatted |
+| `shellcheck` | `*.sh`, `*.bash` | Lints staged files |
+
+Both `shfmt` and `shellcheck` are no-ops when the tool is absent from `PATH`
+(safe for environments where only one tool is installed). CI enforces both
+strictly on every push and PR.
 
 Install the hooks once after cloning:
 
 ```bash
-npx lefthook install
-# or: brew install lefthook && lefthook install
+brew install lefthook
+lefthook install
 ```
+
+---
+
+## Code style — `shfmt` and `shellcheck`
+
+All shell scripts in this repository are formatted with
+[shfmt](https://github.com/mvdan/sh) and linted with
+[shellcheck](https://www.shellcheck.net/).
+
+### Style configuration
+
+`.editorconfig` is the single source of truth for shfmt style. The key
+settings for `*.sh` and `*.bats` files:
+
+| Setting | Value | Effect |
+|---|---|---|
+| `indent_size` | `2` | Two-space indentation |
+| `switch_case_indent` | `true` | Case branches indented inside `case` blocks |
+| `function_next_line` | `false` | Opening brace on the same line as `fn() {` |
+| `space_redirects` | `true` | Space between redirect operator and target |
+| `binary_next_line` | `false` | `&&` / `\|\|` at end of line (not start) |
+
+`*.bats` uses `shell_variant = bats` so shfmt applies bats-aware parsing.
+
+### Shellcheck configuration
+
+`.shellcheckrc` sets global defaults:
+
+```ini
+shell=bash          # default dialect for files without a shebang
+external-sources=true   # follow source/. directives
+```
+
+Per-file or per-line overrides use inline directives:
+
+```bash
+# shellcheck disable=SC2034
+```
+
+### Developer workflow
+
+The [Makefile](../../Makefile) provides convenience targets:
+
+```bash
+make fmt          # auto-format all shell files in place (shfmt -w)
+make fmt-check    # check formatting without writing (used in CI)
+make lint         # run shellcheck on all tracked .sh/.bash files
+make sync         # regenerate _lib/ copies and install.sh stubs
+```
+
+VS Code users get formatting automatically via the
+`foxundermoon.shell-format` extension (format on save) and inline lint
+diagnostics via `timonwong.shellcheck`. Recommended extensions are listed in
+`.vscode/extensions.json` and will be suggested when you open the repo.
+
+### CI enforcement
+
+`.github/workflows/lint.yaml` runs on every push and PR:
+
+1. Installs shfmt `v3.10.0` (pinned binary download)
+2. Installs shellcheck (via apt)
+3. `shfmt -d --apply-ignore .` — fails if any file differs from formatted
+4. `shellcheck $(git ls-files -- '*.sh' '*.bash')` — fails on any lint error
+
+`--apply-ignore` causes shfmt to respect `.gitignore`, so the generated
+`src/*/install.sh` stubs and `_lib/` copies are automatically excluded.
 
 ---
 
@@ -308,6 +377,7 @@ directory.
 |---|---|---|
 | `test.yaml` | push, PR, manual | Discover changed features, run scenario tests and fail-scenario tests |
 | `validate.yml` | PR, manual | Validate all `devcontainer-feature.json` files via `devcontainers/action` |
+| `lint.yaml` | push, PR | Check shfmt formatting and shellcheck lint across all shell files |
 | `release.yaml` | manual only | Publish features to GHCR and generate documentation PRs |
 
 All three workflows run `bash sync-lib.sh` as their first step before

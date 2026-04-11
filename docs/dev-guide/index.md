@@ -15,10 +15,18 @@ testing them, and publishing releases.
   ```bash
   npm install -g @devcontainers/cli
   ```
-- **Lefthook** (optional but recommended) — runs `sync-lib.sh` automatically
+- **shfmt** — bash formatter ([mvdan/sh](https://github.com/mvdan/sh)):
+  ```bash
+  brew install shfmt
+  ```
+- **shellcheck** — bash linter:
+  ```bash
+  brew install shellcheck
+  ```
+- **Lefthook** — runs `sync-lib.sh`, shfmt, and shellcheck automatically
   on commit:
   ```bash
-  brew install lefthook   # or: npm install -g @evilmartians/lefthook
+  brew install lefthook
   lefthook install
   ```
 
@@ -28,7 +36,7 @@ testing them, and publishing releases.
 
 | Section | Description |
 |---|---|
-| [Repository structure](repo-structure.md) | Directory layout, synced files, dev container setup, CI workflows |
+| [Repository structure](repo-structure.md) | Directory layout, synced files, code style tooling, dev container setup, CI workflows |
 | [Writing features](writing-features.md) | Feature anatomy, bootstrap pattern, argument parsing, shared library reference |
 | [Testing](testing.md) | Test framework, scenario scripts, running tests locally and in CI |
 | [Publishing](publishing.md) | Versioning, GHCR publication, making packages public, adding to the index |
