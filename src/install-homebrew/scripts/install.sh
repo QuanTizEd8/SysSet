@@ -45,6 +45,7 @@ run_brew_installer() {
   trap "rm -f '${_tmpfile}'" RETURN
   echo "📥 Downloading Homebrew installer to '${_tmpfile}'." >&2
   net::fetch_url_file "$_BREW_INSTALLER_URL" "$_tmpfile"
+  chmod a+r "$_tmpfile"
   echo "ℹ️ Installing as '${RESOLVED_INSTALL_USER}'." >&2
   _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_tmpfile"
   echo "✅ Homebrew installer completed." >&2
@@ -60,6 +61,7 @@ uninstall_brew() {
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
   net::fetch_url_file "$_BREW_UNINSTALLER_URL" "$_tmpfile"
+  chmod a+r "$_tmpfile"
   _brew_run_as_install_user env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$RESOLVED_PREFIX"
   echo "✅ Homebrew uninstalled." >&2
   echo "↩️ Function exit: uninstall_brew" >&2
