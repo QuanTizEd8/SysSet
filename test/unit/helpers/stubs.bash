@@ -27,3 +27,17 @@ create_fake_bin() {
 prepend_fake_bin_path() {
   export PATH="${BATS_TEST_TMPDIR}/bin:${PATH}"
 }
+
+# create_pass_through_bin <name>
+#
+# Adds a symlink inside ${BATS_TEST_TMPDIR}/bin that points to the real
+# <name> binary on the host.  Use this when a test restricts PATH to
+# ${BATS_TEST_TMPDIR}/bin for isolation but still needs certain system
+# tools (e.g. uname) to be accessible.  No-op if the binary is not found.
+create_pass_through_bin() {
+  local _name="$1"
+  local _real
+  _real="$(command -v "$_name")" || return 0
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  ln -sf "$_real" "${BATS_TEST_TMPDIR}/bin/${_name}"
+}
