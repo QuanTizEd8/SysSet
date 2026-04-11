@@ -23,6 +23,8 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=_lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
+# shellcheck source=_lib/users.sh
+. "$_SELF_DIR/_lib/users.sh"
 
 # ---------------------------------------------------------------------------
 # Cleanup / logging
@@ -436,36 +438,7 @@ fi
 # ===================================================================
 # Step 6: Resolve user list
 # ===================================================================
-declare -A _USERS_MAP # associative array for deduplication
-
-if [[ "$ADD_CURRENT_USER_CONFIG" == true ]]; then
-  _CURRENT_USER="${SUDO_USER:-$(whoami)}"
-  if [ -n "$_CURRENT_USER" ] && [ "$_CURRENT_USER" != "root" ]; then
-    _USERS_MAP["$_CURRENT_USER"]=1
-  fi
-fi
-
-if [[ "$ADD_CONTAINER_USER_CONFIG" == true ]]; then
-  if [ -n "${_CONTAINER_USER:-}" ]; then
-    _USERS_MAP["$_CONTAINER_USER"]=1
-  fi
-fi
-
-if [[ "$ADD_REMOTE_USER_CONFIG" == true ]]; then
-  if [ -n "${_REMOTE_USER:-}" ]; then
-    _USERS_MAP["$_REMOTE_USER"]=1
-  fi
-fi
-
-if [ -n "$ADD_USER_CONFIG" ]; then
-  IFS=',' read -r -a _EXTRA_USERS <<< "$ADD_USER_CONFIG"
-  for _u in "${_EXTRA_USERS[@]}"; do
-    _u="${_u// /}"
-    [ -n "$_u" ] && _USERS_MAP["$_u"]=1
-  done
-fi
-
-_RESOLVED_USERS=("${!_USERS_MAP[@]}")
+mapfile -t _RESOLVED_USERS < <(users::resolve_list)
 
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
   echo "ℹ️  No users to configure." >&2
@@ -540,43 +513,7 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
       ;;
   esac
 
-  if ! command -v chsh > /dev/null 2>&1; then
-    echo "⚠️  chsh not found — skipping shell change. Install the 'passwd' package." >&2
-  else
-    # Ensure the target shell is in /etc/shells.
-    _SHELLS_FILE=/etc/shells
-    [ -f /usr/share/defaults/etc/shells ] && _SHELLS_FILE=/usr/share/defaults/etc/shells
-    if [ -f "$_SHELLS_FILE" ] && ! grep -qx "$_TARGET_SHELL" "$_SHELLS_FILE" 2> /dev/null; then
-      echo "$_TARGET_SHELL" >> "$_SHELLS_FILE"
-      echo "ℹ️  Added '${_TARGET_SHELL}' to '${_SHELLS_FILE}'." >&2
-    fi
-
-    # On Alpine, PAM may require a password for chsh even when run as root.
-    if [ -f /etc/pam.d/chsh ]; then
-      if ! grep -Eq '^auth[[:blank:]]+sufficient[[:blank:]]+pam_rootok\.so' /etc/pam.d/chsh 2> /dev/null; then
-        if grep -Eq '^auth(.*)pam_rootok\.so' /etc/pam.d/chsh 2> /dev/null; then
-          awk '/^auth(.*)pam_rootok\.so$/ { $2 = "sufficient" } { print }' \
-            /etc/pam.d/chsh > /tmp/_chsh.tmp && mv /tmp/_chsh.tmp /etc/pam.d/chsh
-        else
-          printf 'auth sufficient pam_rootok.so\n' >> /etc/pam.d/chsh
-        fi
-        echo "ℹ️  Fixed pam_rootok.so in /etc/pam.d/chsh." >&2
-      fi
-    fi
-
-    for _username in "${_RESOLVED_USERS[@]}"; do
-      _current_shell="$(getent passwd "$_username" 2> /dev/null | cut -d: -f7 || true)"
-      if [ "$_current_shell" = "$_TARGET_SHELL" ]; then
-        echo "ℹ️  Shell for '${_username}' already set to '${_TARGET_SHELL}'." >&2
-        continue
-      fi
-      if chsh -s "$_TARGET_SHELL" "$_username" 2> /dev/null; then
-        echo "✅ Shell for '${_username}' set to '${_TARGET_SHELL}'." >&2
-      else
-        echo "⚠️  chsh failed for '${_username}'." >&2
-      fi
-    done
-  fi
+  users::set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
 fi
 
 ospkg::clean

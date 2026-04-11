@@ -239,7 +239,7 @@ set_executable_paths() {
 
 set_installer_filename() {
   echo "↪️ Function entry: set_installer_filename" >&2
-  local installer_platform="$(uname)-$(uname -m)"
+  local installer_platform="$(os::kernel)-$(os::arch)"
   INSTALLER_FILENAME="Miniforge3-${MINIFORGE_VERSION}-${installer_platform}.sh"
   INSTALLER="${INSTALLER_DIR}/${INSTALLER_FILENAME}"
   CHECKSUM="${INSTALLER}.sha256"
@@ -248,31 +248,18 @@ set_installer_filename() {
 
 resolve_miniforge_version() {
   echo "↪️ Function entry: resolve_miniforge_version" >&2
-  local api_base="https://api.github.com/repos/conda-forge/miniforge/releases"
   local tag conda_ver
-  net::ensure_fetch_tool
-  net::ensure_ca_certs
   if [[ "$VERSION" == "latest" ]]; then
     echo "ℹ️ Resolving latest Miniforge release tag from GitHub API." >&2
-    tag="$(net::fetch_with_retry 3 curl --fail --silent --location \
-      --header "Accept: application/vnd.github+json" \
-      "${api_base}/latest" |
-      grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
-      echo "⛔ Failed to reach GitHub API to resolve latest Miniforge version." >&2
-      exit 1
-    }
-    [[ -z "$tag" ]] && {
-      echo "⛔ Could not parse tag_name from GitHub API response." >&2
+    tag="$(github::latest_tag conda-forge/miniforge)" || {
+      echo "⛔ Failed to resolve latest Miniforge version." >&2
       exit 1
     }
   else
     echo "ℹ️ Resolving Miniforge release tag for conda version '${VERSION}' from GitHub API." >&2
     local releases
-    releases="$(net::fetch_with_retry 3 curl --fail --silent --location \
-      --header "Accept: application/vnd.github+json" \
-      "${api_base}?per_page=100" |
-      grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
-      echo "⛔ Failed to reach GitHub API to list Miniforge releases." >&2
+    releases="$(github::release_tags conda-forge/miniforge)" || {
+      echo "⛔ Failed to list Miniforge releases." >&2
       exit 1
     }
     [[ -z "$releases" ]] && {
@@ -398,26 +385,7 @@ uninstall_miniforge() {
 verify_miniforge() {
   echo "↪️ Function entry: verify_miniforge" >&2
   echo "📦 Verifying installer checksum" >&2
-  # Extract the expected hash from the first field of the .sha256 file.
-  # Comparing hashes directly avoids relying on the filename embedded inside
-  # the .sha256 file, which may differ from the local filename in edge cases.
-  local expected_hash
-  expected_hash="$(awk '{print $1}' "$CHECKSUM")"
-  local actual_hash
-  if command -v sha256sum > /dev/null 2>&1; then
-    actual_hash="$(sha256sum "$INSTALLER" | awk '{print $1}')"
-  elif command -v shasum > /dev/null 2>&1; then
-    actual_hash="$(shasum --algorithm 256 "$INSTALLER" | awk '{print $1}')"
-  else
-    echo "⛔ Neither sha256sum nor shasum is available." >&2
-    exit 1
-  fi
-  if [[ "$expected_hash" == "$actual_hash" ]]; then
-    echo "✅ Checksum verification passed" >&2
-  else
-    echo "❌ Checksum verification failed (expected: $expected_hash  actual: $actual_hash)" >&2
-    exit 1
-  fi
+  checksum::verify_sha256_sidecar "$INSTALLER" "$CHECKSUM"
   echo "↩️ Function exit: verify_miniforge" >&2
 }
 
@@ -483,6 +451,8 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
 . "$_SELF_DIR/_lib/shell.sh"
+. "$_SELF_DIR/_lib/github.sh"
+. "$_SELF_DIR/_lib/checksum.sh"
 logging::setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
 trap '__cleanup__' EXIT

@@ -20,6 +20,8 @@ set -euo pipefail
 _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=_lib/net.sh
 . "$_SCRIPTS_DIR/_lib/net.sh"
+# shellcheck source=_lib/github.sh
+. "$_SCRIPTS_DIR/_lib/github.sh"
 
 # ---------------------------------------------------------------------------
 # Usage
@@ -376,21 +378,11 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
     _owner="${_repo_path%%/*}"
     _repo_name="${_repo_path##*/}"
 
-    if [[ -n "$_tag" ]]; then
-      _API_URL="https://api.github.com/repos/${_repo_path}/releases/tags/${_tag}"
-    else
-      _API_URL="https://api.github.com/repos/${_repo_path}/releases/latest"
-    fi
-
     echo "ℹ️  Querying release assets for '${_slug}'..." >&2
     _API_RESPONSE="$(mktemp)"
-    _GH_AUTH_ARGS=()
-    [[ -n "${GITHUB_TOKEN:-}" ]] && _GH_AUTH_ARGS=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-    if ! net::fetch_with_retry 3 curl -fsSL \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "${_GH_AUTH_ARGS[@]}" \
-      "$_API_URL" -o "$_API_RESPONSE"; then
+    _fetch_args=()
+    [[ -n "$_tag" ]] && _fetch_args+=(--tag "$_tag")
+    if ! github::fetch_release_json "$_repo_path" "${_fetch_args[@]}" --dest "$_API_RESPONSE"; then
       echo "⚠️  Could not query GitHub release for '${_slug}' — skipping." >&2
       rm -f "$_API_RESPONSE"
       continue

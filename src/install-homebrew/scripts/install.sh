@@ -140,7 +140,7 @@ export_shellenv_main() {
   # auto mode
   local _is_root=false
   [ "$(id -u)" = "0" ] && _is_root=true
-  if [ "$_is_root" = true ] && [ "$(uname -s)" != "Darwin" ]; then
+  if [ "$_is_root" = true ] && [ "$(os::kernel)" != "Darwin" ]; then
     echo "ℹ️ Case A: system-wide shellenv export (root + Linux)." >&2
     while IFS= read -r _f; do
       shell::write_block --file "$_f" --marker "$_marker" --content "$_brew_content"
@@ -166,8 +166,8 @@ export_shellenv_main() {
 
 detect_brew_prefix() {
   echo "↪️ Function entry: detect_brew_prefix" >&2
-  if [ "$(uname -s)" = "Darwin" ]; then
-    if [ "$(uname -m)" = "arm64" ]; then
+  if [ "$(os::kernel)" = "Darwin" ]; then
+    if [ "$(os::arch)" = "arm64" ]; then
       echo "/opt/homebrew"
     else
       echo "/usr/local"
@@ -193,7 +193,7 @@ detect_install_user() {
     return 0
   fi
   # Running as root.
-  if [ "$(uname -s)" = "Darwin" ]; then
+  if [ "$(os::kernel)" = "Darwin" ]; then
     # The official Homebrew installer refuses to run as root on macOS.
     # We must find a non-root user to install as.
     if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
@@ -400,12 +400,12 @@ RESOLVED_INSTALL_USER="$(detect_install_user)"
 echo "ℹ️ Install user: '${RESOLVED_INSTALL_USER}'." >&2
 
 # ── Step 1: Linux build dependencies ─────────────────────────────────────────
-if [ "$(uname -s)" != "Darwin" ]; then
+if [ "$(os::kernel)" != "Darwin" ]; then
   install_linux_deps
 fi
 
-# ── Step 2: macOS — Xcode Command Line Tools ──────────────────────────────────
-if [ "$(uname -s)" = "Darwin" ]; then
+# ── Step 2: macOS — Xcode Command Line Tools ──────────────────────────────────────────────
+if [ "$(os::kernel)" = "Darwin" ]; then
   ensure_xcode_clt
 fi
 

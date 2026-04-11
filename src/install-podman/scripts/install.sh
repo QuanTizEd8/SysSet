@@ -29,23 +29,10 @@ fi
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=_lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
+# shellcheck source=_lib/users.sh
+. "$_SELF_DIR/_lib/users.sh"
 logging::setup
 trap 'logging::cleanup' EXIT
-
-# ---------------------------------------------------------------------------
-# Helper: add a username to _RESOLVED_USERS if not already present.
-# ---------------------------------------------------------------------------
-_RESOLVED_USERS=""
-
-add_user() {
-  local _name="$1"
-  [ -z "$_name" ] && return 0
-  case " ${_RESOLVED_USERS} " in
-    *" ${_name} "*) return 0 ;; # already in list
-  esac
-  _RESOLVED_USERS="${_RESOLVED_USERS} ${_name}"
-  return 0
-}
 
 # ---------------------------------------------------------------------------
 # 1. Install packages
@@ -64,34 +51,9 @@ chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2> /dev/null || true
 # ---------------------------------------------------------------------------
 # 3. Resolve user list
 # ---------------------------------------------------------------------------
-if [ "${ADD_CURRENT_USER_CONFIG:-true}" = "true" ]; then
-  _current="${SUDO_USER:-$(whoami)}"
-  if [ -n "$_current" ] && [ "$_current" != "root" ]; then
-    add_user "$_current"
-  fi
-fi
+mapfile -t _RESOLVED_USERS < <(users::resolve_list)
 
-if [ "${ADD_REMOTE_USER_CONFIG:-true}" = "true" ]; then
-  if [ -n "${_REMOTE_USER:-}" ] && [ "$_REMOTE_USER" != "root" ]; then
-    add_user "$_REMOTE_USER"
-  fi
-fi
-
-if [ "${ADD_CONTAINER_USER_CONFIG:-true}" = "true" ]; then
-  if [ -n "${_CONTAINER_USER:-}" ] && [ "$_CONTAINER_USER" != "root" ]; then
-    add_user "$_CONTAINER_USER"
-  fi
-fi
-
-if [ -n "${ADD_USER_CONFIG:-}" ]; then
-  IFS=',' read -ra _extra_users <<< "$ADD_USER_CONFIG"
-  for _u in "${_extra_users[@]}"; do
-    _u="${_u// /}" # trim spaces
-    [ -n "$_u" ] && add_user "$_u"
-  done
-fi
-
-if [ -z "$_RESOLVED_USERS" ]; then
+if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
   echo "install-podman: No users to configure." >&2
 fi
 
@@ -119,7 +81,7 @@ GRAPH_ROOT="/var/lib/containers/storage"
 mkdir -p "${GRAPH_ROOT}"
 
 SUBUID_OFFSET=100000
-for _username in $_RESOLVED_USERS; do
+for _username in "${_RESOLVED_USERS[@]}"; do
   if ! id "$_username" > /dev/null 2>&1; then
     echo "install-podman: User '${_username}' does not exist — skipping." >&2
     continue

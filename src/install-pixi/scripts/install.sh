@@ -3,6 +3,7 @@ set -euo pipefail
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 . "$_SELF_DIR/_lib/logging.sh"
+. "$_SELF_DIR/_lib/github.sh"
 logging::setup
 echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2
 trap 'logging::cleanup' EXIT
@@ -76,11 +77,22 @@ ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 
 pixi_bin="${INSTALL_PATH}/pixi"
 
+if [[ "$VERSION" == "latest" ]]; then
+  echo "ℹ️ Resolving latest Pixi release tag from GitHub API." >&2
+  VERSION="$(github::latest_tag prefix-dev/pixi)" || {
+    echo "⛔ Failed to resolve latest Pixi version." >&2
+    exit 1
+  }
+  # Strip the leading 'v' prefix from the tag (e.g. v0.66.0 → 0.66.0).
+  VERSION="${VERSION#v}"
+  echo "ℹ️ Resolved Pixi version: '${VERSION}'." >&2
+fi
+
 net::ensure_fetch_tool
 net::fetch_with_retry 3 curl \
   --compressed \
   -fsSLo "$pixi_bin" \
-  "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-$(uname -m)-unknown-linux-musl"
+  "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-$(os::arch)-unknown-linux-musl"
 
 chmod +rx "$pixi_bin"
 

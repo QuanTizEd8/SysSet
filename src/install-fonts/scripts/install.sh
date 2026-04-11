@@ -132,13 +132,7 @@ fi
 
 # Auto-detect font directory when not explicitly set.
 if [[ -z "$FONT_DIR" ]]; then
-  if [[ $EUID -eq 0 ]]; then
-    FONT_DIR="/usr/share/fonts"
-  elif [[ "$(uname)" == "Darwin" ]]; then
-    FONT_DIR="$HOME/Library/Fonts"
-  else
-    FONT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/fonts"
-  fi
+  FONT_DIR="$(os::font_dir)"
 fi
 
 ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt" --check_installed

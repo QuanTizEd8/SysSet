@@ -93,3 +93,19 @@ os::require_root() {
   fi
   return 0
 }
+
+# os::font_dir
+# Prints the appropriate font directory for the current user.
+#   root (id -u = 0): /usr/share/fonts
+#   macOS non-root:   ~/Library/Fonts
+#   Linux non-root:   ${XDG_DATA_HOME:-~/.local/share}/fonts
+os::font_dir() {
+  if [ "$(id -u)" -eq 0 ]; then
+    echo "/usr/share/fonts"
+  elif [ "$(os::kernel)" = "Darwin" ]; then
+    echo "${HOME}/Library/Fonts"
+  else
+    echo "${XDG_DATA_HOME:-${HOME}/.local/share}/fonts"
+  fi
+  return 0
+}
