@@ -45,12 +45,8 @@ run_brew_installer() {
   trap "rm -f '${_tmpfile}'" RETURN
   echo "📥 Downloading Homebrew installer to '${_tmpfile}'." >&2
   net::fetch_url_file "$_BREW_INSTALLER_URL" "$_tmpfile"
-  if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
-    echo "ℹ️ Installing as '${RESOLVED_INSTALL_USER}' via sudo." >&2
-    sudo -u "$RESOLVED_INSTALL_USER" env "${_env_vars[@]}" /bin/bash "$_tmpfile"
-  else
-    env "${_env_vars[@]}" /bin/bash "$_tmpfile"
-  fi
+  echo "ℹ️ Installing as '${RESOLVED_INSTALL_USER}'." >&2
+  _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_tmpfile"
   echo "✅ Homebrew installer completed." >&2
   echo "↩️ Function exit: run_brew_installer" >&2
   return 0
@@ -64,12 +60,7 @@ uninstall_brew() {
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
   net::fetch_url_file "$_BREW_UNINSTALLER_URL" "$_tmpfile"
-  if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
-    sudo -u "$RESOLVED_INSTALL_USER" env NONINTERACTIVE=1 /bin/bash "$_tmpfile" \
-      --path "$RESOLVED_PREFIX"
-  else
-    NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$RESOLVED_PREFIX"
-  fi
+  _brew_run_as_install_user env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$RESOLVED_PREFIX"
   echo "✅ Homebrew uninstalled." >&2
   echo "↩️ Function exit: uninstall_brew" >&2
   return 0
@@ -247,6 +238,23 @@ _sync_init_files() {
   return 0
 }
 
+# _brew_run_as_install_user <cmd> [args...]
+# Run a command as RESOLVED_INSTALL_USER when the current process is root and
+# the install user is not root. Uses runuser(1) on Linux (no sudo config
+# needed for root) and sudo on macOS (runuser is absent there).
+_brew_run_as_install_user() {
+  echo "↪️ Function entry: _brew_run_as_install_user" >&2
+  if [ "$(id -u)" != "0" ] || [ "${RESOLVED_INSTALL_USER}" = "root" ]; then
+    "$@"
+  elif [ "$(os::kernel)" = "Darwin" ]; then
+    sudo -u "${RESOLVED_INSTALL_USER}" "$@"
+  else
+    runuser -u "${RESOLVED_INSTALL_USER}" -- "$@"
+  fi
+  echo "↩️ Function exit: _brew_run_as_install_user" >&2
+  return 0
+}
+
 detect_install_user() {
   echo "↪️ Function entry: detect_install_user" >&2
   if [ -n "${INSTALL_USER-}" ]; then
@@ -282,13 +290,20 @@ detect_install_user() {
       fi
     fi
   else
-    # Linux: root installs are supported by the Homebrew installer.
+    # Linux: Homebrew's installer refuses root in container environments where
+    # /.dockerenv is absent (Docker BuildKit + cgroup v2 on modern GHA runners).
+    # Create a dedicated 'linuxbrew' user and run the installer as that user.
     if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
       echo "ℹ️ Linux root: using SUDO_USER='${SUDO_USER}' as install_user." >&2
       echo "$SUDO_USER"
     else
-      echo "ℹ️ Linux root: installing as root." >&2
-      echo "root"
+      if ! id linuxbrew &> /dev/null; then
+        echo "ℹ️ Linux root: creating 'linuxbrew' user for Homebrew installation." >&2
+        useradd --create-home --shell /bin/bash linuxbrew
+      else
+        echo "ℹ️ Linux root: 'linuxbrew' user already exists." >&2
+      fi
+      echo "linuxbrew"
     fi
   fi
   echo "↩️ Function exit: detect_install_user" >&2
@@ -513,11 +528,7 @@ enforce_options
 # ── Step 4: brew update ───────────────────────────────────────────────────────
 if [[ "$UPDATE" == true ]]; then
   echo "🔄 Running 'brew update'." >&2
-  if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
-    sudo -u "$RESOLVED_INSTALL_USER" "$_BREW_EXEC" update
-  else
-    "$_BREW_EXEC" update
-  fi
+  _brew_run_as_install_user "$_BREW_EXEC" update
   echo "✅ brew update completed." >&2
 fi
 
@@ -526,11 +537,7 @@ export_shellenv_main
 
 # ── Step 6: brew doctor (warn only) ──────────────────────────────────────────
 echo "ℹ️ Running 'brew doctor' (warnings only)." >&2
-if [ "$(id -u)" = "0" ] && [ "$RESOLVED_INSTALL_USER" != "root" ]; then
-  sudo -u "$RESOLVED_INSTALL_USER" "$_BREW_EXEC" doctor 2>&1 || true
-else
-  "$_BREW_EXEC" doctor 2>&1 || true
-fi
+_brew_run_as_install_user "$_BREW_EXEC" doctor 2>&1 || true
 
 echo "✅ Homebrew installation complete." >&2
 echo "↩️ Script exit: Homebrew Installation Devcontainer Feature Installer" >&2
