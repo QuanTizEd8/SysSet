@@ -137,7 +137,7 @@ fi
 
 ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt" --check_installed
 
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 
 echo "========================================" >&2
 echo "  install-fonts" >&2

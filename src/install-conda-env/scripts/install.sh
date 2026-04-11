@@ -475,7 +475,7 @@ else
   [ "${SOLVER+defined}" ] && echo "📩 Read argument 'solver': '${SOLVER}'" >&2
   [ "${STRICT_CHANNEL_PRIORITY+defined}" ] && echo "📩 Read argument 'strict_channel_priority': '${STRICT_CHANNEL_PRIORITY}'" >&2
 fi
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 { [ "${CHANNELS+isset}" != "isset" ] || [ ${#CHANNELS[@]} -eq 0 ]; } && {
   echo "ℹ️ Argument 'CHANNELS' set to default value '()'." >&2
   CHANNELS=()

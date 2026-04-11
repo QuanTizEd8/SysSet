@@ -35,7 +35,11 @@ check "sysset-all: scripts/_lib/ospkg.sh present" \
   test -f "${_bundle_dir}/scripts/_lib/ospkg.sh"
 
 # Build a manifest that installs install-pixi (to /usr/local/bin) and install-os-pkg.
-_manifest="$(mktemp --suffix=.json)"
+# Use a tmpdir for the manifest so we can control the .json extension
+# (BusyBox mktemp on Alpine does not support --suffix).
+_manifest_dir="$(mktemp -d)"
+_manifest="${_manifest_dir}/manifest.json"
+trap 'rm -rf "$_bundle_dir" "$_manifest_dir"' EXIT
 cat > "$_manifest" << EOF
 {
   "features": [
@@ -44,7 +48,6 @@ cat > "$_manifest" << EOF
   ]
 }
 EOF
-trap 'rm -rf "$_bundle_dir"; rm -f "$_manifest"' EXIT
 
 # ── Run sysset.sh ─────────────────────────────────────────────────────────────
 check "sysset.sh runs JSON manifest to completion" \

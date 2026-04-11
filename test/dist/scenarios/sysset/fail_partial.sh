@@ -19,8 +19,10 @@ DIST="${REPO_ROOT}/dist"
 bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
 
 _bundle_dir="$(mktemp -d)"
-_manifest="$(mktemp --suffix=.json)"
-trap 'rm -rf "$_bundle_dir"; rm -f "$_manifest"' EXIT
+# Use a tmpdir so we can control the .json extension (BusyBox mktemp lacks --suffix).
+_manifest_dir="$(mktemp -d)"
+_manifest="${_manifest_dir}/manifest.json"
+trap 'rm -rf "$_bundle_dir" "$_manifest_dir"' EXIT
 
 tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
 

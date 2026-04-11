@@ -62,7 +62,7 @@ else
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
 fi
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 [ -z "${DEBUG-}" ] && {
   echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
   DEBUG=false

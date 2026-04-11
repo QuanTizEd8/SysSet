@@ -639,7 +639,7 @@ else
   [ "${PRESERVE_ENVS+defined}" ] && echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2
   [ "${PRESERVE_CONFIG+defined}" ] && echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
 fi
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 { [ "${RC_FILES+isset}" != "isset" ] || [ ${#RC_FILES[@]} -eq 0 ]; } && {
   echo "ℹ️ Argument 'RC_FILES' set to default value '()'." >&2
   RC_FILES=()

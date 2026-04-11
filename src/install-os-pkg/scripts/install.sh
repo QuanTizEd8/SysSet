@@ -123,7 +123,7 @@ else
   [ "${CHECK_INSTALLED+defined}" ] && echo "📩 Read argument 'check_installed': '${CHECK_INSTALLED}'" >&2
 fi
 
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 : "${DEBUG:=false}"
 : "${INSTALL_SELF:=true}"
 : "${MANIFEST:=}"

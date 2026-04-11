@@ -64,7 +64,7 @@ fi
 : "${BIN_DIR:=/usr/local/bin}"
 : "${DEBUG:=false}"
 
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 
 # Skip if already installed.
 if [ -x "${BIN_DIR}/starship" ]; then

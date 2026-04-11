@@ -100,7 +100,7 @@ fi
 : "${THEME:=}"
 : "${OSH_CUSTOM_DIR:=${INSTALL_DIR}/custom}"
 
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 
 echo "ℹ️  Installing Oh My Bash to '${INSTALL_DIR}' (branch: ${BRANCH})..." >&2
 

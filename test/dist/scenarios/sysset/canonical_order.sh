@@ -25,7 +25,9 @@ trap 'rm -rf "$_bundle_dir" "$_logfile"' EXIT
 tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
 
 # Manifest lists install-pixi BEFORE install-os-pkg (reverse canonical order).
-_manifest="$(mktemp --suffix=.json)"
+# Use a tmpdir so we can control the .json extension (BusyBox mktemp lacks --suffix).
+_manifest_dir="$(mktemp -d)"
+_manifest="${_manifest_dir}/manifest.json"
 cat > "$_manifest" << EOF
 {
   "features": [
@@ -34,7 +36,7 @@ cat > "$_manifest" << EOF
   ]
 }
 EOF
-trap 'rm -rf "$_bundle_dir" "$_logfile"; rm -f "$_manifest"' EXIT
+trap 'rm -rf "$_bundle_dir" "$_logfile" "$_manifest_dir"' EXIT
 
 check "sysset.sh completes with canonical-order manifest" \
   bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest" --logfile "$_logfile"

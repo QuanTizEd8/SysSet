@@ -239,7 +239,7 @@ fi
 : "${STARSHIP_BIN_DIR=/usr/local/bin}"
 : "${DEBUG:=false}"
 
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 
 # ---------------------------------------------------------------------------
 # Resolve user's home directory and group

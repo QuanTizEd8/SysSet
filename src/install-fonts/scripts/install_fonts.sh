@@ -115,7 +115,7 @@ fi
 : "${OVERWRITE:=false}"
 : "${DEBUG:=false}"
 
-[[ "$DEBUG" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 
 # ---------------------------------------------------------------------------
 # State: seen PostScript names + lazy install directory
