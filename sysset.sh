@@ -325,12 +325,11 @@ for _feature in "${_sorted_features[@]}"; do
   # Extract options for this feature from the manifest.
   # .value | tostring converts booleans and numbers to strings so they are
   # safely forwarded as shell arguments.
-  # SC2016: $feat is a jq variable bound by --arg, not a bash variable — no expansion intended.
-  # shellcheck disable=SC2016
+  # Feature IDs are [a-z][a-z0-9-]* slugs so direct interpolation is safe;
+  # avoids --arg which yq (mikefarah/yq) does not support.
   mapfile -t _opts < <(
     "$_PARSER" -r \
-      --arg feat "$_feature" \
-      '.features[] | select(.id == $feat) | .options // {} | to_entries[] | "--\(.key)", "\(.value | tostring)"' \
+      ".features[] | select(.id == \"${_feature}\") | .options // {} | to_entries[] | \"--\(.key)\", \"\(.value | tostring)\"" \
       "$_MANIFEST"
   )
 
