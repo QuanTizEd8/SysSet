@@ -1,0 +1,3 @@
+# Third-party bats helper libraries (git submodules).
+# These are not our code; exclude from shfmt formatting and checks.
+test/unit/bats/
