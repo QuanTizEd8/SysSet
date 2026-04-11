@@ -21,6 +21,11 @@ if ((BASH_VERSINFO[0] < 4)); then
   exit 1
 fi
 
+# Ensure 'env bash' resolves to the same bash ≥4 we re-exec'd with.
+# bats forks sub-scripts (bats-exec-test, bats-exec-suite, …) via their
+# #!/usr/bin/env bash shebang; without this, those pick up /bin/bash 3.2.
+export PATH="$(dirname "$BASH"):$PATH"
+
 _REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 _BATS="${_REPO_ROOT}/test/unit/bats/bats-core/bin/bats"
 _UNIT_DIR="${_REPO_ROOT}/test/unit"
