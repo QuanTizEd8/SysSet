@@ -8,6 +8,7 @@
 git
 curl
 file
+gzip
 
 # Build tools — names differ by ecosystem
 build-essential  [pm=apt]
