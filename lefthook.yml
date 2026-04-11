@@ -3,3 +3,9 @@ pre-commit:
     sync-lib:
       glob: "{lib/*,bootstrap.sh}"
       run: bash sync-lib.sh
+    shfmt:
+      glob: "*.{sh,bash,bats}"
+      run: shfmt -d {staged_files}
+    shellcheck:
+      glob: "*.{sh,bash}"
+      run: shellcheck {staged_files}

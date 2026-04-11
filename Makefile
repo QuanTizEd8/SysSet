@@ -1,0 +1,18 @@
+.PHONY: fmt fmt-check lint sync
+
+# Apply shfmt formatting to all tracked shell files.
+fmt:
+	shfmt -w --apply-ignore .
+
+# Check formatting without writing — exit non-zero if any file differs.
+# Used in CI; run 'make fmt' to fix locally.
+fmt-check:
+	shfmt -d --apply-ignore .
+
+# Run shellcheck on all tracked shell files.
+lint:
+	shellcheck $(shell git ls-files -- '*.sh' '*.bash')
+
+# Sync generated _lib/ copies and install.sh stubs from canonical sources.
+sync:
+	bash sync-lib.sh

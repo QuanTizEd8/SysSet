@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        // Shell script support
+        "mads-hartmann.bash-ide-vscode",
+        "timonwong.shellcheck",
+        "foxundermoon.shell-format",
+        // Editor config
+        "EditorConfig.EditorConfig",
+        // JSON schema validation (devcontainer-feature.json)
+        "redhat.vscode-yaml"
+    ]
+}

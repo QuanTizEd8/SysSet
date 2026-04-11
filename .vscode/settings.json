@@ -1,4 +1,18 @@
 {
+    // ── Shell script tooling ──────────────────────────────────────────────────
+    "[shellscript]": {
+        "editor.defaultFormatter": "foxundermoon.shell-format",
+        "editor.formatOnSave": true
+    },
+    "shellformat.effectLanguages": [
+        "shellscript"
+    ],
+    "shellcheck.enable": true,
+    "shellcheck.run": "onSave",
+    "files.associations": {
+        "*.bats": "shellscript"
+    },
+    // ── Copilot ───────────────────────────────────────────────────────────────
     "chat.checkpoints.showFileChanges": true,
     "chat.agent.thinking.collapsedTools": "withThinking",
     "chat.restoreLastPanelSession": true,

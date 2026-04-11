@@ -1,0 +1,36 @@
+root = true
+
+[*]
+end_of_line = lf
+trim_trailing_whitespace = true
+insert_final_newline = true
+charset = utf-8
+
+[*.{sh,bash}]
+indent_style = space
+indent_size = 2
+# shfmt-specific keys
+shell_variant = bash
+binary_next_line = false
+switch_case_indent = true
+space_redirects = true
+function_next_line = false
+
+[*.bats]
+indent_style = space
+indent_size = 2
+# shfmt-specific keys
+shell_variant = bats
+binary_next_line = false
+switch_case_indent = true
+space_redirects = true
+function_next_line = false
+
+[*.{json,yaml,yml}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
