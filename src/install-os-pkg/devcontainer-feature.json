@@ -71,7 +71,9 @@
          "type": "boolean"
       }
    },
-   "installsAfter": ["ghcr.io/quantized8/sysset/install-homebrew"],
+   "installsAfter": [
+      // "ghcr.io/quantized8/sysset/install-homebrew"
+   ],
    "onCreateCommand": "[ -f /usr/local/share/install-os-pkg/on-create.sh ] && sh /usr/local/share/install-os-pkg/on-create.sh || true",
    "updateContentCommand": "[ -f /usr/local/share/install-os-pkg/update-content.sh ] && sh /usr/local/share/install-os-pkg/update-content.sh || true",
    "postCreateCommand": "[ -f /usr/local/share/install-os-pkg/post-create.sh ] && sh /usr/local/share/install-os-pkg/post-create.sh || true"
