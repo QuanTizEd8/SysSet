@@ -22,7 +22,7 @@ start_file_server "${REPO_ROOT}/dist" "$_PORT"
 export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
 
 check "get.sh installs pixi with explicit --version" \
-  bash "${REPO_ROOT}/dist/get.sh" install-pixi \
+  sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi \
   --version "$_PIXI_VERSION" \
   --install_path "$_install_dir"
 

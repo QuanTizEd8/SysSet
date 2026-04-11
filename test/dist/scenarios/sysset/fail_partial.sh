@@ -31,7 +31,7 @@ cat > "$_manifest" << EOF
   "features": [
     { "id": "install-pixi",
       "options": { "version": "0.66.0", "install_path": "${_install_dir}" } },
-    { "id": "does-not-exist", "options": {} }
+    { "id": "does-not-exist",  "options": {} }
   ]
 }
 EOF

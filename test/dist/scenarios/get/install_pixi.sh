@@ -31,7 +31,7 @@ _install_dir="$(mktemp -d)"
 trap 'stop_file_server; rm -rf "$_install_dir"' EXIT
 
 check "get.sh installs install-pixi successfully" \
-  bash "${REPO_ROOT}/dist/get.sh" install-pixi \
+  sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi \
   --install_path "$_install_dir"
 
 check "pixi binary present after install" \

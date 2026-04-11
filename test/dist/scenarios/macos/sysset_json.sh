@@ -24,13 +24,13 @@ tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
 cat > "$_manifest" << EOF
 {
   "features": [
-    { "id": "install-os-pkg", "options": { "manifest": "tree" } }
+    { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt" } }
   ]
 }
 EOF
 
 check "sysset.sh processes JSON manifest on macOS" \
-  sudo -E bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
+  sudo env PATH="$PATH" bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
 
 check "tree available after install-os-pkg (macOS)" \
   command -v tree
