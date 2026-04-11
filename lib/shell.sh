@@ -349,15 +349,17 @@ shell::ensure_bashenv() {
     echo "$BASH_ENV"
     return 0
   fi
+  # Allow tests (and callers) to override the path via _SHELL_ENV_FILE.
+  local _env_file="${_SHELL_ENV_FILE:-/etc/environment}"
   # 2. Existing /etc/environment entry
-  if [ -f /etc/environment ]; then
+  if [ -f "$_env_file" ]; then
     local _env_val
-    _env_val="$(grep -m1 '^BASH_ENV=' /etc/environment 2> /dev/null || true)"
+    _env_val="$(grep -m1 '^BASH_ENV=' "$_env_file" 2> /dev/null || true)"
     if [ -n "$_env_val" ]; then
       _env_val="${_env_val#BASH_ENV=}"
       _env_val="${_env_val#[\"\']}"
       _env_val="${_env_val%[\"\']}"
-      echo "ℹ️ Found BASH_ENV='${_env_val}' in /etc/environment; reusing." >&2
+      echo "ℹ️ Found BASH_ENV='${_env_val}' in '${_env_file}'; reusing." >&2
       echo "$_env_val"
       return 0
     fi
@@ -368,10 +370,10 @@ shell::ensure_bashenv() {
   local _bashenv_dir
   _bashenv_dir="$(dirname "$_bashrc")"
   local _bashenv_path="${_bashenv_dir}/bashenv"
-  echo "ℹ️ No BASH_ENV found; creating '${_bashenv_path}' and registering in /etc/environment." >&2
+  echo "ℹ️ No BASH_ENV found; creating '${_bashenv_path}' and registering in '${_env_file}'." >&2
   mkdir -p "$_bashenv_dir"
   [ -f "$_bashenv_path" ] || touch "$_bashenv_path"
-  printf 'BASH_ENV="%s"\n' "$_bashenv_path" >> /etc/environment
+  printf 'BASH_ENV="%s"\n' "$_bashenv_path" >> "$_env_file"
   echo "$_bashenv_path"
   return 0
 }
