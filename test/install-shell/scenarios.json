@@ -41,7 +41,8 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "set_user_shells": "zsh"
+                "set_user_shells": "zsh",
+                "add_user_config": "root"
             }
         }
     },
@@ -50,7 +51,8 @@
         "features": {
             "install-shell": {
                 "ohmyzsh_theme": "romkatv/powerlevel10k",
-                "starship_shells": ""
+                "starship_shells": "",
+                "add_user_config": "root"
             }
         }
     },

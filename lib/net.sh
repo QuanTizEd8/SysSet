@@ -43,6 +43,7 @@ net::ensure_ca_certs() {
       return 1
     }
     echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
+    ospkg::update
     ospkg::install ca-certificates
   fi
   _NET_CA_CERTS_OK=true

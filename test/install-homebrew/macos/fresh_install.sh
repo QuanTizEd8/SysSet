@@ -32,6 +32,12 @@ curl -fsSL "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
 NONINTERACTIVE=1 bash "$_UNINSTALL_TMP" --force
 rm -f "$_UNINSTALL_TMP"
 echo "=== Uninstall complete ==="
+# Clear the command hash table so that subsequent 'bash' calls search PATH
+# afresh.  The parent shell is /opt/homebrew/bin/bash (installed by the prior
+# scenario); after uninstall that binary is gone, so without this 'hash -r'
+# all subsequent 'bash …' subcommands would fail with "No such file or
+# directory" — the shell would still try the now-deleted path.
+hash -r
 
 # ── Step 2: Pre-condition: brew must be gone ──────────────────────────────────
 check "brew binary absent after uninstall" \
