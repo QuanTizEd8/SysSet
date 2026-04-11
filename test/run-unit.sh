@@ -9,6 +9,18 @@
 
 set -euo pipefail
 
+# macOS ships bash 3.2; re-exec with bash ≥4 if needed.
+if ((BASH_VERSINFO[0] < 4)); then
+  for _try_bash in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    if [[ -x "$_try_bash" ]] && "$_try_bash" -c '(( BASH_VERSINFO[0] >= 4 ))' 2> /dev/null; then
+      exec "$_try_bash" "$0" "$@"
+    fi
+  done
+  printf '⛔ bash ≥4.0 required (found %s). Install via: brew install bash\n' \
+    "$BASH_VERSION" >&2
+  exit 1
+fi
+
 _REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 _BATS="${_REPO_ROOT}/test/unit/bats/bats-core/bin/bats"
 _UNIT_DIR="${_REPO_ROOT}/test/unit"
@@ -60,7 +72,7 @@ if [[ ! -x "$_BATS" ]]; then
 fi
 
 # Ensure generated _lib/ copies are up to date.
-bash "${_REPO_ROOT}/sync-lib.sh"
+"$BASH" "${_REPO_ROOT}/sync-lib.sh"
 
 # ── Build file list ──────────────────────────────────────────────────────────
 declare -a _test_files=()
@@ -88,4 +100,6 @@ declare -a _bats_args=(--print-output-on-failure)
 [[ "$_jobs" -gt 0 ]] && _bats_args+=(--jobs "$_jobs")
 [[ -n "$_filter" ]] && _bats_args+=(--filter "$_filter")
 
-exec "$_BATS" "${_bats_args[@]}" "${_test_files[@]}"
+# Invoke bats via the same bash ≥4 binary we re-exec'd with, so bats and all
+# test files run under bash ≥4 regardless of what `env bash` resolves to.
+exec "$BASH" "$_BATS" "${_bats_args[@]}" "${_test_files[@]}"
