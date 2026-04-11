@@ -19,10 +19,10 @@ _OS_RELEASE_LOADED=""
 _os_load_release() {
   [ -n "${_OS_RELEASE_LOADED-}" ] && return 0
   if [ -f /etc/os-release ]; then
-    _OS_ID="$(grep -m1 '^ID=' /etc/os-release 2>/dev/null \
-              | sed 's/^ID=//;s/^"//;s/"$//')"
-    _OS_ID_LIKE="$(grep -m1 '^ID_LIKE=' /etc/os-release 2>/dev/null \
-                   | sed 's/^ID_LIKE=//;s/^"//;s/"$//')"
+    _OS_ID="$(grep -m1 '^ID=' /etc/os-release 2> /dev/null |
+      sed 's/^ID=//;s/^"//;s/"$//')"
+    _OS_ID_LIKE="$(grep -m1 '^ID_LIKE=' /etc/os-release 2> /dev/null |
+      sed 's/^ID_LIKE=//;s/^"//;s/"$//')"
   fi
   _OS_RELEASE_LOADED=1
   return 0
@@ -66,14 +66,14 @@ os::platform() {
   fi
   _os_load_release
   case "${_OS_ID:-}" in
-    debian|ubuntu)                            _OS_PLATFORM="debian" ;;
-    alpine)                                   _OS_PLATFORM="alpine" ;;
-    rhel|centos|fedora|rocky|almalinux)       _OS_PLATFORM="rhel"   ;;
+    debian | ubuntu) _OS_PLATFORM="debian" ;;
+    alpine) _OS_PLATFORM="alpine" ;;
+    rhel | centos | fedora | rocky | almalinux) _OS_PLATFORM="rhel" ;;
     *)
       case "${_OS_ID_LIKE:-}" in
-        *debian*|*ubuntu*)                    _OS_PLATFORM="debian" ;;
-        *alpine*)                             _OS_PLATFORM="alpine" ;;
-        *rhel*|*fedora*|*centos*|*"Red Hat"*) _OS_PLATFORM="rhel"   ;;
+        *debian* | *ubuntu*) _OS_PLATFORM="debian" ;;
+        *alpine*) _OS_PLATFORM="alpine" ;;
+        *rhel* | *fedora* | *centos* | *"Red Hat"*) _OS_PLATFORM="rhel" ;;
         *)
           [ "$(uname -s)" = "Darwin" ] && _OS_PLATFORM="macos" || _OS_PLATFORM="debian"
           ;;

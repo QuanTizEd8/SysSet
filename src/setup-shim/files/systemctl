@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 if [ -d "/run/systemd/system" ]; then
-    exec /bin/systemctl "$@"
+	exec /bin/systemctl "$@"
 else
-    echo '"systemd" is not running in this container due to its overhead.\nUse the "service" command to start services instead. e.g.:\nservice --status-all'
+	echo '"systemd" is not running in this container due to its overhead.\nUse the "service" command to start services instead. e.g.:\nservice --status-all'
 fi

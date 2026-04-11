@@ -20,16 +20,22 @@ _SHELL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 shell::detect_bashrc() {
   # Ask bash which RC file it was compiled with — most accurate.
   local _compiled
-  _compiled="$(strings "$(command -v bash 2>/dev/null)" 2>/dev/null \
-    | grep -m1 -E '^/etc/(bash\.bashrc|bashrc|bash/bashrc)$' || true)"
+  _compiled="$(strings "$(command -v bash 2> /dev/null)" 2> /dev/null |
+    grep -m1 -E '^/etc/(bash\.bashrc|bashrc|bash/bashrc)$' || true)"
   if [ -n "$_compiled" ]; then
     echo "$_compiled"
     return 0
   fi
   # os::platform fallback.
   case "$(os::platform)" in
-    alpine)      echo "/etc/bash/bashrc"; return 0 ;;
-    rhel|macos)  echo "/etc/bashrc";      return 0 ;;
+    alpine)
+      echo "/etc/bash/bashrc"
+      return 0
+      ;;
+    rhel | macos)
+      echo "/etc/bashrc"
+      return 0
+      ;;
   esac
   echo "/etc/bash.bashrc"
   return 0
@@ -46,17 +52,174 @@ shell::detect_bashrc() {
 shell::detect_zshdir() {
   # Ask zsh which global zshenv path it was compiled with.
   local _compiled
-  _compiled="$(strings "$(command -v zsh 2>/dev/null)" 2>/dev/null \
-    | grep -m1 -E '^/etc/(zsh/)?zshenv$' || true)"
+  _compiled="$(strings "$(command -v zsh 2> /dev/null)" 2> /dev/null |
+    grep -m1 -E '^/etc/(zsh/)?zshenv$' || true)"
   if [ -n "$_compiled" ]; then
     echo "$(dirname "$_compiled")"
     return 0
   fi
   # os::platform fallback.
   case "$(os::platform)" in
-    rhel|macos) echo "/etc"; return 0 ;;
+    rhel | macos)
+      echo "/etc"
+      return 0
+      ;;
   esac
   echo "/etc/zsh"
+  return 0
+}
+
+# shell::write_block --file <file> --marker <id> --content <content>
+# Idempotently writes a shell block wrapped in named idempotency markers:
+#   # >>> <id> >>>
+#   <content>
+#   # <<< <id> <<<
+# Creates parent dirs and the file if needed. Updates the block content
+# in-place if the marker already exists; appends otherwise.
+shell::write_block() {
+  local _file="" _marker="" _content=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --file)
+        shift
+        _file="$1"
+        shift
+        ;;
+      --marker)
+        shift
+        _marker="$1"
+        shift
+        ;;
+      --content)
+        shift
+        _content="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  local _begin="# >>> ${_marker} >>>"
+  local _end="# <<< ${_marker} <<<"
+  mkdir -p "$(dirname "$_file")"
+  [ -f "$_file" ] || touch "$_file"
+  if grep -qF "$_begin" "$_file"; then
+    awk -v begin="$_begin" -v end="$_end" -v content="$_content" '
+      $0 == begin { print; print content; found=1; next }
+      found && $0 == end { print; found=0; next }
+      found { next }
+      { print }
+    ' "$_file" > "${_file}.tmp" && mv "${_file}.tmp" "$_file"
+    echo "♻️ Updated shell block '${_marker}' in '${_file}'." >&2
+  else
+    printf '\n%s\n%s\n%s\n' "$_begin" "$_content" "$_end" >> "$_file"
+    echo "✅ Appended shell block '${_marker}' to '${_file}'." >&2
+  fi
+  return 0
+}
+
+# shell::user_login_file [--home <dir>]
+# Prints the bash login startup file path for the given home directory.
+# Returns the first existing of .bash_profile, .bash_login, .profile;
+# falls back to <home>/.bash_profile if none exist yet.
+# Default home: $HOME
+shell::user_login_file() {
+  local _home="${HOME:-}"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  local _f
+  for _f in "${_home}/.bash_profile" "${_home}/.bash_login" "${_home}/.profile"; do
+    [ -f "$_f" ] && {
+      echo "$_f"
+      return 0
+    }
+  done
+  echo "${_home}/.bash_profile"
+  return 0
+}
+
+# shell::system_path_files [--profile_d <filename>]
+# Prints system-wide shell startup file paths for PATH or env variable
+# injection (intended for root on Linux). One absolute path per line:
+#   1. BASH_ENV file (non-login non-interactive bash — via shell::ensure_bashenv)
+#   2. /etc/profile.d/<filename>  — only if --profile_d is given
+#   3. <global bashrc>            — non-login interactive bash
+#   4. <global zshdir>/zshenv    — all zsh invocations
+shell::system_path_files() {
+  local _profiled=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --profile_d)
+        shift
+        _profiled="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  shell::ensure_bashenv
+  [ -n "$_profiled" ] && echo "/etc/profile.d/${_profiled}"
+  echo "$(shell::detect_bashrc)"
+  echo "$(shell::detect_zshdir)/zshenv"
+  return 0
+}
+
+# shell::user_path_files [--home <dir>]
+# Prints user-scoped shell startup file paths for a PATH export.
+# One absolute path per line:
+#   <login_file>    — bash login (.bash_profile/.bash_login/.profile)
+#   <home>/.bashrc  — bash non-login interactive
+#   <home>/.zshenv  — all zsh invocations (login, interactive, non-interactive)
+# Default home: $HOME
+shell::user_path_files() {
+  local _home="${HOME:-}"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  shell::user_login_file --home "$_home"
+  echo "${_home}/.bashrc"
+  echo "${_home}/.zshenv"
+  return 0
+}
+
+# shell::user_init_files [--home <dir>]
+# Prints user-scoped shell startup file paths for a full shell initializer
+# (e.g. eval "$(brew shellenv)"). One absolute path per line:
+#   <login_file>       — bash login (.bash_profile/.bash_login/.profile)
+#   <home>/.bashrc    — bash non-login interactive
+#   <home>/.zprofile  — zsh login
+#   <home>/.zshrc     — zsh interactive
+# Default home: $HOME
+shell::user_init_files() {
+  local _home="${HOME:-}"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  shell::user_login_file --home "$_home"
+  echo "${_home}/.bashrc"
+  echo "${_home}/.zprofile"
+  echo "${_home}/.zshrc"
   return 0
 }
 
@@ -68,9 +231,17 @@ shell::resolve_omz_theme() {
   local slug="" custom_dir=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --theme_slug) shift; slug="$1"; shift;;
-      --custom_dir) shift; custom_dir="$1"; shift;;
-      *) shift;;
+      --theme_slug)
+        shift
+        slug="$1"
+        shift
+        ;;
+      --custom_dir)
+        shift
+        custom_dir="$1"
+        shift
+        ;;
+      *) shift ;;
     esac
   done
   [ -z "$slug" ] && return 0
@@ -79,7 +250,7 @@ shell::resolve_omz_theme() {
   _repo_name="$(basename "$slug")"
   local _theme_dir="${custom_dir}/themes/${_repo_name}"
   local _theme_file
-  _theme_file="$(find "$_theme_dir" -maxdepth 1 -name '*.zsh-theme' 2>/dev/null | head -1)"
+  _theme_file="$(find "$_theme_dir" -maxdepth 1 -name '*.zsh-theme' 2> /dev/null | head -1)"
 
   if [ -n "$_theme_file" ]; then
     local _stem
@@ -132,7 +303,7 @@ shell::ensure_bashenv() {
   # 2. Existing /etc/environment entry
   if [ -f /etc/environment ]; then
     local _env_val
-    _env_val="$(grep -m1 '^BASH_ENV=' /etc/environment 2>/dev/null || true)"
+    _env_val="$(grep -m1 '^BASH_ENV=' /etc/environment 2> /dev/null || true)"
     if [ -n "$_env_val" ]; then
       _env_val="${_env_val#BASH_ENV=}"
       _env_val="${_env_val#[\"\']}"

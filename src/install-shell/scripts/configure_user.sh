@@ -19,7 +19,7 @@ _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
-  cat >&2 <<'EOF'
+  cat >&2 << 'EOF'
 Usage: configure_user.sh [OPTIONS]
 
 Options:
@@ -100,7 +100,7 @@ _link_custom_items() {
     for _slug in "${_slugs[@]}"; do
       _slug="${_slug// /}"
       [ -z "$_slug" ] && continue
-      [[ "$_slug" != */* ]] && continue  # built-in plugin, no clone
+      [[ "$_slug" != */* ]] && continue # built-in plugin, no clone
       _items+=("plugins/$(basename "$_slug")")
     done
   fi
@@ -109,7 +109,7 @@ _link_custom_items() {
   for _item in "${_items[@]}"; do
     _src_path="${_src}/${_item}"
     _dest_path="${_dest}/${_item}"
-    [ -d "$_src_path" ] || continue  # not cloned, skip
+    [ -d "$_src_path" ] || continue # not cloned, skip
     if [[ "$_mode" == "overwrite" ]]; then
       [ -L "$_dest_path" ] && rm "$_dest_path"
       [ ! -e "$_dest_path" ] && ln -sf "$_src_path" "$_dest_path"
@@ -141,29 +141,97 @@ DEBUG=""
 if [ "$#" -gt 0 ]; then
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --username) shift; USERNAME="$1"; shift;;
-      --skel_dir) shift; SKEL_DIR="$1"; shift;;
-      --user_config_mode) shift; USER_CONFIG_MODE="$1"; shift;;
-      --zdotdir) shift; ZDOTDIR="$1"; shift;;
-      --starship_shells) shift; STARSHIP_SHELLS="$1"; shift;;
-      --starship_bin_dir) shift; STARSHIP_BIN_DIR="$1"; shift;;
-      --ohmyzsh_install_dir) shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
-      --ohmyzsh_custom_dir) shift; OHMYZSH_CUSTOM_DIR="$1"; shift;;
-      --ohmyzsh_theme) shift; OHMYZSH_THEME="$1"; shift;;
-      --ohmyzsh_plugins) shift; OHMYZSH_PLUGINS="$1"; shift;;
-      --ohmybash_install_dir) shift; OHMYBASH_INSTALL_DIR="$1"; shift;;
-      --ohmybash_custom_dir) shift; OHMYBASH_CUSTOM_DIR="$1"; shift;;
-      --ohmybash_theme) shift; OHMYBASH_THEME="$1"; shift;;
-      --ohmybash_plugins) shift; OHMYBASH_PLUGINS="$1"; shift;;
-      --debug) DEBUG=true; shift;;
-      --help|-h) __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --username)
+        shift
+        USERNAME="$1"
+        shift
+        ;;
+      --skel_dir)
+        shift
+        SKEL_DIR="$1"
+        shift
+        ;;
+      --user_config_mode)
+        shift
+        USER_CONFIG_MODE="$1"
+        shift
+        ;;
+      --zdotdir)
+        shift
+        ZDOTDIR="$1"
+        shift
+        ;;
+      --starship_shells)
+        shift
+        STARSHIP_SHELLS="$1"
+        shift
+        ;;
+      --starship_bin_dir)
+        shift
+        STARSHIP_BIN_DIR="$1"
+        shift
+        ;;
+      --ohmyzsh_install_dir)
+        shift
+        OHMYZSH_INSTALL_DIR="$1"
+        shift
+        ;;
+      --ohmyzsh_custom_dir)
+        shift
+        OHMYZSH_CUSTOM_DIR="$1"
+        shift
+        ;;
+      --ohmyzsh_theme)
+        shift
+        OHMYZSH_THEME="$1"
+        shift
+        ;;
+      --ohmyzsh_plugins)
+        shift
+        OHMYZSH_PLUGINS="$1"
+        shift
+        ;;
+      --ohmybash_install_dir)
+        shift
+        OHMYBASH_INSTALL_DIR="$1"
+        shift
+        ;;
+      --ohmybash_custom_dir)
+        shift
+        OHMYBASH_CUSTOM_DIR="$1"
+        shift
+        ;;
+      --ohmybash_theme)
+        shift
+        OHMYBASH_THEME="$1"
+        shift
+        ;;
+      --ohmybash_plugins)
+        shift
+        OHMYBASH_PLUGINS="$1"
+        shift
+        ;;
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 fi
 
-[ -z "${USERNAME}" ] && { echo "⛔ Missing --username" >&2; exit 1; }
+[ -z "${USERNAME}" ] && {
+  echo "⛔ Missing --username" >&2
+  exit 1
+}
 : "${SKEL_DIR:=}"
 : "${USER_CONFIG_MODE:=overwrite}"
 : "${STARSHIP_SHELLS=zsh,bash}"
@@ -176,7 +244,7 @@ fi
 # Resolve user's home directory and group
 # ---------------------------------------------------------------------------
 _HOME="$(shell::resolve_home "$USERNAME")"
-_GROUP="$(id -gn "$USERNAME" 2>/dev/null || echo "$USERNAME")"
+_GROUP="$(id -gn "$USERNAME" 2> /dev/null || echo "$USERNAME")"
 
 if [ ! -d "$_HOME" ]; then
   echo "⚠️  Home directory '${_HOME}' does not exist for user '${USERNAME}' — creating." >&2
@@ -203,7 +271,7 @@ else
 fi
 
 # Apply defaults for custom dirs if not explicitly provided.
-[ -z "${OHMYZSH_CUSTOM_DIR-}" ]  && OHMYZSH_CUSTOM_DIR="${_ZDOTDIR}/custom"
+[ -z "${OHMYZSH_CUSTOM_DIR-}" ] && OHMYZSH_CUSTOM_DIR="${_ZDOTDIR}/custom"
 [ -z "${OHMYBASH_CUSTOM_DIR-}" ] && OHMYBASH_CUSTOM_DIR="${_XDG_CONFIG_HOME}/bash/custom"
 
 # ---------------------------------------------------------------------------
@@ -233,7 +301,7 @@ if [ -n "$SKEL_DIR" ] && [ -d "$SKEL_DIR" ]; then
       .zshenv)
         _dest="${_HOME}/${_rel}"
         ;;
-      .zshrc|.zprofile|.zlogin)
+      .zshrc | .zprofile | .zlogin)
         _dest="${_ZDOTDIR}/${_rel}"
         ;;
       *)
@@ -349,8 +417,8 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
   fi
 
   # Copy p10k config if p10k theme is selected (and not using starship).
-  if [[ "$_IS_P10K" == true ]] && [[ "$_ZSH_USE_STARSHIP" != true ]] \
-      && [ -n "$SKEL_DIR" ] && [ -f "${SKEL_DIR}/p10k.zsh" ]; then
+  if [[ "$_IS_P10K" == true ]] && [[ "$_ZSH_USE_STARSHIP" != true ]] &&
+    [ -n "$SKEL_DIR" ] && [ -f "${SKEL_DIR}/p10k.zsh" ]; then
     case "$USER_CONFIG_MODE" in
       overwrite)
         cp -f "${SKEL_DIR}/p10k.zsh" "${_HOME}/.p10k.zsh"
@@ -364,7 +432,7 @@ fi
 
 # Append Starship integration for zsh.
 if [[ "$STARSHIP_SHELLS" == *zsh* ]]; then
-  if ! command -v starship >/dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
+  if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
     echo "⚠️  starship_shells includes 'zsh' but starship is not on PATH — integration injected anyway." >&2
   fi
   _ZSHTHEME_CONTENT+='command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"'$'\n'
@@ -457,7 +525,7 @@ fi
 
 # Append Starship integration for bash.
 if [[ "$STARSHIP_SHELLS" == *bash* ]]; then
-  if ! command -v starship >/dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
+  if ! command -v starship > /dev/null 2>&1 && [ ! -x "${STARSHIP_BIN_DIR}/starship" ]; then
     echo "⚠️  starship_shells includes 'bash' but starship is not on PATH — integration injected anyway." >&2
   fi
   _BASHTHEME_CONTENT+='command -v starship >/dev/null 2>&1 && eval "$(starship init bash)"'$'\n'

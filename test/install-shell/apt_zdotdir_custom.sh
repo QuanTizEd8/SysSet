@@ -6,7 +6,7 @@ set -e
 source dev-container-features-test-lib
 
 _HOME=/root
-_ZDOTDIR="${_HOME}/.zsh"   # matches zdotdir: "~/.zsh" in scenarios.json
+_ZDOTDIR="${_HOME}/.zsh" # matches zdotdir: "~/.zsh" in scenarios.json
 
 # .zshenv in HOME, not ZDOTDIR
 check ".zshenv exists in HOME" test -f "${_HOME}/.zshenv"

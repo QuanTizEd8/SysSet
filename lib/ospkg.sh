@@ -31,11 +31,11 @@ _ospkg_clean_apt() {
   # while preserving the Release/InRelease files for security.
   # Docs: https://manpages.debian.org/unstable/apt/apt-get.8.en.html#distclean
   # Fall back to rm -rf on older APT (2.x and below) where the command does not exist.
-  apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
+  apt-get dist-clean 2> /dev/null || rm -rf /var/lib/apt/lists/*
   return 0
 }
 _ospkg_clean_dnf() {
-  "${_OSPKG_INSTALL[0]%% *}" clean all 2>/dev/null || "$_OSPKG_PKG_MNGR" clean all
+  "${_OSPKG_INSTALL[0]%% *}" clean all 2> /dev/null || "$_OSPKG_PKG_MNGR" clean all
   rm -rf /var/cache/dnf/* /var/cache/yum/*
   return 0
 }
@@ -55,7 +55,7 @@ _ospkg_ensure_gpg() {
   local _gpg_pkg
   case "$_OSPKG_PREFIX" in
     dnf) _gpg_pkg=gnupg2 ;;
-    *)   _gpg_pkg=gnupg  ;;
+    *) _gpg_pkg=gnupg ;;
   esac
   "${_OSPKG_INSTALL[@]}" "$_gpg_pkg"
   return 0
@@ -102,8 +102,8 @@ _ospkg_install_repo_content() {
   elif [[ "$_OSPKG_PREFIX" = "pacman" ]]; then
     mkdir -p /etc/pacman.d
     printf '%s' "$_content" >> /etc/pacman.d/syspkg-installer.conf
-    grep -qxF 'Include = /etc/pacman.d/syspkg-installer.conf' /etc/pacman.conf \
-      || echo "Include = /etc/pacman.d/syspkg-installer.conf" >> /etc/pacman.conf
+    grep -qxF 'Include = /etc/pacman.d/syspkg-installer.conf' /etc/pacman.conf ||
+      echo "Include = /etc/pacman.d/syspkg-installer.conf" >> /etc/pacman.conf
     echo "📄 Written to /etc/pacman.d/syspkg-installer.conf" >&2
   fi
   return 0
@@ -187,8 +187,10 @@ ospkg::detect() {
     local _key _val
     while IFS='=' read -r _key _val; do
       [[ -z "${_key-}" || "$_key" =~ ^# ]] && continue
-      _val="${_val#\"}" ; _val="${_val%\"}"
-      _val="${_val#\'}" ; _val="${_val%\'}"
+      _val="${_val#\"}"
+      _val="${_val%\"}"
+      _val="${_val#\'}"
+      _val="${_val%\'}"
       _OSPKG_OS_RELEASE["${_key,,}"]="$_val"
     done < /etc/os-release
   fi
@@ -208,10 +210,23 @@ ospkg::update() {
   local _force=false _max_age=300 _repo_added=false
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --force)         shift; _force=true ;;
-      --lists_max_age) shift; _max_age="$1"; shift ;;
-      --repo_added)    shift; _repo_added=true ;;
-      *) echo "⛔ ospkg::update: unknown option: $1" >&2; return 1 ;;
+      --force)
+        shift
+        _force=true
+        ;;
+      --lists_max_age)
+        shift
+        _max_age="$1"
+        shift
+        ;;
+      --repo_added)
+        shift
+        _repo_added=true
+        ;;
+      *)
+        echo "⛔ ospkg::update: unknown option: $1" >&2
+        return 1
+        ;;
     esac
   done
 
@@ -224,10 +239,10 @@ ospkg::update() {
   if [[ "$_force" == true || "$_repo_added" == true ]]; then
     _skip=false
   elif [[ -n "${_OSPKG_LISTS_PATH:-}" && -d "$_OSPKG_LISTS_PATH" ]]; then
-    if [[ -n "$(find "$_OSPKG_LISTS_PATH" -mindepth 1 -maxdepth 2 -name "${_OSPKG_LISTS_PATTERN:-*}" 2>/dev/null | head -1)" ]]; then
+    if [[ -n "$(find "$_OSPKG_LISTS_PATH" -mindepth 1 -maxdepth 2 -name "${_OSPKG_LISTS_PATTERN:-*}" 2> /dev/null | head -1)" ]]; then
       local _mtime _age
-      _mtime=$(stat -c %Y "$_OSPKG_LISTS_PATH" 2>/dev/null || echo 0)
-      _age=$(( $(date +%s) - _mtime ))
+      _mtime=$(stat -c %Y "$_OSPKG_LISTS_PATH" 2> /dev/null || echo 0)
+      _age=$(($(date +%s) - _mtime))
       if [[ $_age -lt $_max_age ]]; then
         _skip=true
         echo "ℹ️  Package lists refreshed ${_age}s ago — skipping update (threshold: ${_max_age}s)." >&2
@@ -260,7 +275,7 @@ ospkg::install() {
   elif [[ "$_OSPKG_PKG_MNGR" = "dnf" || "$_OSPKG_PKG_MNGR" = "yum" ]]; then
     local _num_pkgs=$#
     local _num_installed
-    _num_installed=$("$_OSPKG_PKG_MNGR" -C list installed "$@" 2>/dev/null | sed '1,/^Installed/d' | wc -l) || _num_installed=0
+    _num_installed=$("$_OSPKG_PKG_MNGR" -C list installed "$@" 2> /dev/null | sed '1,/^Installed/d' | wc -l) || _num_installed=0
     if [[ $_num_pkgs -eq $_num_installed ]]; then
       echo "ℹ️  Packages already installed: $*" >&2
       return 0
@@ -367,10 +382,10 @@ ospkg::parse_manifest() {
           [[ -n "$_mpkg" ]] && _M_MODULE+="${_mpkg}"$'\n'
         fi
         ;;
-      key)       _M_KEY+="${_line}"$'\n'       ;;
+      key) _M_KEY+="${_line}"$'\n' ;;
       prescript) _M_PRESCRIPT+="${_line}"$'\n' ;;
-      repo)      _M_REPO+="${_line}"$'\n'      ;;
-      script)    _M_SCRIPT+="${_line}"$'\n'    ;;
+      repo) _M_REPO+="${_line}"$'\n' ;;
+      script) _M_SCRIPT+="${_line}"$'\n' ;;
     esac
   done <<< "$content"
   return 0
@@ -389,15 +404,44 @@ ospkg::run() {
 
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --manifest)       shift; _manifest="$1";       shift ;;
-      --no_update)      shift; _no_update=true              ;;
-      --no_clean)       shift; _no_clean=true               ;;
-      --keep_repos)     shift; _keep_repos=true             ;;
-      --lists_max_age)  shift; _lists_max_age="$1";  shift ;;
-      --dry_run)        shift; _dry_run=true                ;;
-      --check_installed) shift; _check_installed=true       ;;
-      --interactive)    shift; _interactive=true            ;;
-      *) echo "⛔ ospkg::run: unknown option: $1" >&2; return 1 ;;
+      --manifest)
+        shift
+        _manifest="$1"
+        shift
+        ;;
+      --no_update)
+        shift
+        _no_update=true
+        ;;
+      --no_clean)
+        shift
+        _no_clean=true
+        ;;
+      --keep_repos)
+        shift
+        _keep_repos=true
+        ;;
+      --lists_max_age)
+        shift
+        _lists_max_age="$1"
+        shift
+        ;;
+      --dry_run)
+        shift
+        _dry_run=true
+        ;;
+      --check_installed)
+        shift
+        _check_installed=true
+        ;;
+      --interactive)
+        shift
+        _interactive=true
+        ;;
+      *)
+        echo "⛔ ospkg::run: unknown option: $1" >&2
+        return 1
+        ;;
     esac
   done
 
@@ -422,9 +466,10 @@ ospkg::run() {
     if [[ "$_manifest" == *$'\n'* ]]; then
       _manifest_content="$_manifest"
     elif [[ -f "$_manifest" ]]; then
-      _manifest_content="$(<"$_manifest")"
+      _manifest_content="$(< "$_manifest")"
     else
-      echo "⛔ Manifest file not found: '$_manifest'" >&2; return 1
+      echo "⛔ Manifest file not found: '$_manifest'" >&2
+      return 1
     fi
   fi
 

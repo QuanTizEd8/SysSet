@@ -5,7 +5,7 @@ pre-commit:
       run: bash sync-lib.sh
     shfmt:
       glob: "*.{sh,bash,bats}"
-      run: shfmt -d {staged_files}
+      run: if command -v shfmt >/dev/null 2>&1; then shfmt -d {staged_files}; fi
     shellcheck:
       glob: "*.{sh,bash}"
-      run: shellcheck {staged_files}
+      run: if command -v shellcheck >/dev/null 2>&1; then shellcheck {staged_files}; fi

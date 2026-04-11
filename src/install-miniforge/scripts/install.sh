@@ -68,16 +68,22 @@ __usage__() {
 __cleanup__() {
   echo "↪️ Function entry: __cleanup__" >&2
   if [[ "${KEEP_INSTALLER-}" == false ]]; then
-      [ -f "${INSTALLER-}" ] && { echo "🗑 Removing installer script at '$INSTALLER'" >&2; rm -f "$INSTALLER"; }
-      [ -f "${CHECKSUM-}" ] && { echo "🗑 Removing checksum file at '$CHECKSUM'" >&2; rm -f "$CHECKSUM"; }
-      [ -d "${INSTALLER_DIR-}" ] && [ -z "$(ls -A "$INSTALLER_DIR")" ] && {
-          echo "🗑 Removing installation directory at '$INSTALLER_DIR'" >&2
-          rmdir "$INSTALLER_DIR"
-      }
+    [ -f "${INSTALLER-}" ] && {
+      echo "🗑 Removing installer script at '$INSTALLER'" >&2
+      rm -f "$INSTALLER"
+    }
+    [ -f "${CHECKSUM-}" ] && {
+      echo "🗑 Removing checksum file at '$CHECKSUM'" >&2
+      rm -f "$CHECKSUM"
+    }
+    [ -d "${INSTALLER_DIR-}" ] && [ -z "$(ls -A "$INSTALLER_DIR")" ] && {
+      echo "🗑 Removing installation directory at '$INSTALLER_DIR'" >&2
+      rmdir "$INSTALLER_DIR"
+    }
   fi
   if [ -n "${BIN_DIR-}" ] && [ -d "$BIN_DIR" ]; then
-      find "$BIN_DIR" -follow -type f -name '*.a' -delete 2>/dev/null || true
-      find "$BIN_DIR" -follow -type f -name '*.pyc' -delete 2>/dev/null || true
+    find "$BIN_DIR" -follow -type f -name '*.a' -delete 2> /dev/null || true
+    find "$BIN_DIR" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
   fi
   logging::cleanup
   echo "↩️ Function exit: __cleanup__" >&2
@@ -88,24 +94,24 @@ add_activation_to_rcfile() {
   local conda_script="$BIN_DIR/$_CONDA_INIT_SCRIPT_RELPATH"
   local mamba_script="$BIN_DIR/$_MAMBA_INIT_SCRIPT_RELPATH"
   lines=(
-      ". '$conda_script'"
-      ". '$mamba_script'"
+    ". '$conda_script'"
+    ". '$mamba_script'"
   )
   if [[ -n "$ACTIVATE_ENV" ]]; then
-      lines+=("conda activate $ACTIVATE_ENV")
+    lines+=("conda activate $ACTIVATE_ENV")
   fi
   for path in "${RC_FILES[@]}"; do
-      [[ -z "$path" ]] && continue
-      echo "▶️ Sourcing activation script to '$path'"
-      [[ -f "$path" ]] || touch "$path"
-      for line in "${lines[@]}"; do
-          if grep -Fxq "$line" "$path"; then
-              echo "⏭️ Line already exists in '$path': $line"
-          else
-              echo "$line" >> "$path"
-              echo "ℹ️ Appended to '$path': $line"
-          fi
-      done
+    [[ -z "$path" ]] && continue
+    echo "▶️ Sourcing activation script to '$path'"
+    [[ -f "$path" ]] || touch "$path"
+    for line in "${lines[@]}"; do
+      if grep -Fxq "$line" "$path"; then
+        echo "⏭️ Line already exists in '$path': $line"
+      else
+        echo "$line" >> "$path"
+        echo "ℹ️ Appended to '$path': $line"
+      fi
+    done
   done
   echo "↩️ Function exit: add_activation_to_rcfile" >&2
 }
@@ -125,13 +131,13 @@ check_root_requirement() {
   echo "↪️ Function entry: check_root_requirement" >&2
   local _require
   case "$BIN_DIR" in
-    /opt/*|/usr/*|/var/*|/srv/*|/snap/*) _require=true ;;
+    /opt/* | /usr/* | /var/* | /srv/* | /snap/*) _require=true ;;
     *) _require=false ;;
   esac
   if [[ "$_require" == true ]]; then
-      os::require_root
+    os::require_root
   else
-      echo "ℹ️ Root not required for bin_dir '$BIN_DIR'. Skipping root check." >&2
+    echo "ℹ️ Root not required for bin_dir '$BIN_DIR'. Skipping root check." >&2
   fi
   echo "↩️ Function exit: check_root_requirement" >&2
 }
@@ -148,9 +154,9 @@ install_miniforge() {
   echo "↪️ Function entry: install_miniforge" >&2
   echo "📦 Installing Miniforge to $BIN_DIR"
   if [[ "$INTERACTIVE" == true ]]; then
-      /bin/bash "$INSTALLER" -p "$BIN_DIR"
+    /bin/bash "$INSTALLER" -p "$BIN_DIR"
   else
-      /bin/bash "$INSTALLER" -b -p "$BIN_DIR"
+    /bin/bash "$INSTALLER" -b -p "$BIN_DIR"
   fi
   echo "Displaying conda info:"
   "$CONDA_EXEC" info
@@ -176,42 +182,55 @@ set_executable_paths() {
   local verify=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --verify) shift; verify=true; echo "📩 Read argument 'verify': '${verify}'" >&2;;
-      --help|-h) __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --verify)
+        shift
+        verify=true
+        echo "📩 Read argument 'verify': '${verify}'" >&2
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
-  [ -z "${verify-}" ] && { echo "ℹ️ Argument 'verify' set to default value 'false'." >&2; verify=false; }
+  [ -z "${verify-}" ] && {
+    echo "ℹ️ Argument 'verify' set to default value 'false'." >&2
+    verify=false
+  }
   CONDA_EXEC="${BIN_DIR}/bin/conda"
   MAMBA_EXEC="${BIN_DIR}/bin/mamba"
   if [[ "$verify" == false ]]; then
-      return
+    return
   fi
   if [[ ! -f "$CONDA_EXEC" ]]; then
-      if command -v conda >/dev/null 2>&1; then
-          BIN_DIR="$(conda info --base)"
-          CONDA_EXEC="${BIN_DIR}/bin/conda"
-      else
-          echo "⛔ Conda executable not found at '$CONDA_EXEC'." >&2
-          exit 1
-      fi
+    if command -v conda > /dev/null 2>&1; then
+      BIN_DIR="$(conda info --base)"
+      CONDA_EXEC="${BIN_DIR}/bin/conda"
+    else
+      echo "⛔ Conda executable not found at '$CONDA_EXEC'." >&2
+      exit 1
+    fi
   fi
   if [[ ! -f "$MAMBA_EXEC" ]]; then
-      if command -v mamba >/dev/null 2>&1; then
-          MAMBA_EXEC="$(mamba info --base | tail -n 2 | head -n 1)/bin/mamba"
-      else
-          echo "⛔ Mamba executable not found at '$MAMBA_EXEC'." >&2
-          exit 1
-      fi
+    if command -v mamba > /dev/null 2>&1; then
+      MAMBA_EXEC="$(mamba info --base | tail -n 2 | head -n 1)/bin/mamba"
+    else
+      echo "⛔ Mamba executable not found at '$MAMBA_EXEC'." >&2
+      exit 1
+    fi
   fi
   if [[ ! -f "$CONDA_EXEC" ]]; then
-      echo "⛔ Conda executable not found." >&2
-      exit 1
+    echo "⛔ Conda executable not found." >&2
+    exit 1
   fi
   if [[ ! -f "$MAMBA_EXEC" ]]; then
-      echo "⛔ Mamba executable not found." >&2
-      exit 1
+    echo "⛔ Mamba executable not found." >&2
+    exit 1
   fi
   echo "🎛 Conda executable located at '$CONDA_EXEC'."
   echo "🎛 Mamba executable located at '$MAMBA_EXEC'."
@@ -236,28 +255,34 @@ resolve_miniforge_version() {
   if [[ "$VERSION" == "latest" ]]; then
     echo "ℹ️ Resolving latest Miniforge release tag from GitHub API." >&2
     tag="$(net::fetch_with_retry 3 curl --fail --silent --location \
-               --header "Accept: application/vnd.github+json" \
-               "${api_base}/latest" \
-           | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
+      --header "Accept: application/vnd.github+json" \
+      "${api_base}/latest" |
+      grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
       echo "⛔ Failed to reach GitHub API to resolve latest Miniforge version." >&2
       exit 1
     }
-    [[ -z "$tag" ]] && { echo "⛔ Could not parse tag_name from GitHub API response." >&2; exit 1; }
+    [[ -z "$tag" ]] && {
+      echo "⛔ Could not parse tag_name from GitHub API response." >&2
+      exit 1
+    }
   else
     echo "ℹ️ Resolving Miniforge release tag for conda version '${VERSION}' from GitHub API." >&2
     local releases
     releases="$(net::fetch_with_retry 3 curl --fail --silent --location \
-                     --header "Accept: application/vnd.github+json" \
-                     "${api_base}?per_page=100" \
-                 | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
+      --header "Accept: application/vnd.github+json" \
+      "${api_base}?per_page=100" |
+      grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
       echo "⛔ Failed to reach GitHub API to list Miniforge releases." >&2
       exit 1
     }
-    [[ -z "$releases" ]] && { echo "⛔ Received empty release list from GitHub API." >&2; exit 1; }
+    [[ -z "$releases" ]] && {
+      echo "⛔ Received empty release list from GitHub API." >&2
+      exit 1
+    }
     # Find tags matching <version>-<build_number>, pick the highest build number.
-    tag="$(printf '%s\n' "$releases" \
-           | grep -E "^${VERSION}-[0-9]+$" \
-           | sort -t- -k2 -n | tail -1)"
+    tag="$(printf '%s\n' "$releases" |
+      grep -E "^${VERSION}-[0-9]+$" |
+      sort -t- -k2 -n | tail -1)"
     [[ -z "$tag" ]] && {
       echo "⛔ No Miniforge release found for conda version '${VERSION}'. Check available releases at https://github.com/conda-forge/miniforge/releases" >&2
       exit 1
@@ -274,10 +299,10 @@ resolve_miniforge_version() {
 set_permissions() {
   echo "↪️ Function entry: set_permissions" >&2
   echo "🔐 Setting permissions for conda directory."
-  getent group "$GROUP" >/dev/null || groupadd -r "$GROUP"
+  getent group "$GROUP" > /dev/null || groupadd -r "$GROUP"
   for _u in "${_USERS_ARR[@]}"; do
-      [[ -z "$_u" ]] && continue
-      id -nG "$_u" | grep -qw "$GROUP" || usermod -a -G "$GROUP" "$_u"
+    [[ -z "$_u" ]] && continue
+    id -nG "$_u" | grep -qw "$GROUP" || usermod -a -G "$GROUP" "$_u"
   done
   chown -R "${_USERS_ARR[0]}:$GROUP" "$BIN_DIR"
   chmod -R g+r+w "$BIN_DIR"
@@ -294,10 +319,10 @@ export_envs() {
   # absolute paths (starts with '/') to skip the 'envs' key and other JSON tokens,
   # then exclude the base dir (BIN_DIR itself).
   local env_paths
-  env_paths="$("$CONDA_EXEC" env list --json 2>/dev/null \
-             | grep '"' | sed 's/.*"\(.*\)".*/\1/' \
-             | grep '^/' \
-             | grep -v "^${BIN_DIR}/*$")" || true
+  env_paths="$("$CONDA_EXEC" env list --json 2> /dev/null |
+    grep '"' | sed 's/.*"\(.*\)".*/\1/' |
+    grep '^/' |
+    grep -v "^${BIN_DIR}/*$")" || true
   if [[ -z "$env_paths" ]]; then
     echo "ℹ️ No non-base environments found to preserve." >&2
     echo "↩️ Function exit: export_envs" >&2
@@ -309,7 +334,7 @@ export_envs() {
     env_name="$(basename "$env_path")"
     local yaml_path="${tmpdir}/${env_name}.yml"
     echo "📤 Exporting environment '${env_name}' to '${yaml_path}'." >&2
-    if "$CONDA_EXEC" env export --from-history --name "$env_name" > "$yaml_path" 2>/dev/null; then
+    if "$CONDA_EXEC" env export --from-history --name "$env_name" > "$yaml_path" 2> /dev/null; then
       echo "✅ Exported environment '${env_name}'." >&2
     else
       echo "⚠️ Failed to export environment '${env_name}'. Skipping." >&2
@@ -336,7 +361,7 @@ recreate_envs() {
     echo "📥 Recreating environment '${env_name}' from '${yaml_path}'." >&2
     if "$CONDA_EXEC" env create --file "$yaml_path"; then
       echo "✅ Recreated environment '${env_name}'." >&2
-      rm -f "$yaml_path"  # only delete on success; keep on failure for manual recovery
+      rm -f "$yaml_path" # only delete on success; keep on failure for manual recovery
     else
       echo "⚠️ Failed to recreate environment '${env_name}'. YAML preserved at '${yaml_path}' for manual recovery." >&2
     fi
@@ -361,10 +386,10 @@ uninstall_miniforge() {
     rm -f "$HOME/.condarc"
     rm -rf "$HOME/.conda"
     for _u in "${_USERS_ARR[@]}"; do
-        [[ -z "$_u" ]] && continue
-        user_home=$(getent passwd "$_u" | cut -d: -f6)
-        rm -rf "$user_home/.condarc"
-        rm -rf "$user_home/.conda"
+      [[ -z "$_u" ]] && continue
+      user_home=$(getent passwd "$_u" | cut -d: -f6)
+      rm -rf "$user_home/.condarc"
+      rm -rf "$user_home/.conda"
     done
   fi
   echo "↩️ Function exit: uninstall_miniforge" >&2
@@ -379,96 +404,21 @@ verify_miniforge() {
   local expected_hash
   expected_hash="$(awk '{print $1}' "$CHECKSUM")"
   local actual_hash
-  if command -v sha256sum >/dev/null 2>&1; then
-      actual_hash="$(sha256sum "$INSTALLER" | awk '{print $1}')"
-  elif command -v shasum >/dev/null 2>&1; then
-      actual_hash="$(shasum --algorithm 256 "$INSTALLER" | awk '{print $1}')"
+  if command -v sha256sum > /dev/null 2>&1; then
+    actual_hash="$(sha256sum "$INSTALLER" | awk '{print $1}')"
+  elif command -v shasum > /dev/null 2>&1; then
+    actual_hash="$(shasum --algorithm 256 "$INSTALLER" | awk '{print $1}')"
   else
-      echo "⛔ Neither sha256sum nor shasum is available." >&2
-      exit 1
+    echo "⛔ Neither sha256sum nor shasum is available." >&2
+    exit 1
   fi
   if [[ "$expected_hash" == "$actual_hash" ]]; then
-      echo "✅ Checksum verification passed" >&2
+    echo "✅ Checksum verification passed" >&2
   else
-      echo "❌ Checksum verification failed (expected: $expected_hash  actual: $actual_hash)" >&2
-      exit 1
+    echo "❌ Checksum verification failed (expected: $expected_hash  actual: $actual_hash)" >&2
+    exit 1
   fi
   echo "↩️ Function exit: verify_miniforge" >&2
-}
-
-
-build_export_path_list() {
-  echo "↪️ Function entry: build_export_path_list" >&2
-  if [ "$EXPORT_PATH" = "" ]; then
-    echo "↩️ Function exit: build_export_path_list" >&2
-    return
-  fi
-  if [ "$EXPORT_PATH" != "auto" ]; then
-    echo "$EXPORT_PATH"
-    echo "↩️ Function exit: build_export_path_list" >&2
-    return
-  fi
-  # auto mode: determine Case A (public + root) vs Case B (user/non-root)
-  local is_public=true
-  local is_root=false
-  case "$BIN_DIR" in
-    "${HOME}"/*) is_public=false ;;
-  esac
-  [ "$(id -u)" = "0" ] && is_root=true
-  local platform
-  platform="$(os::platform)"
-  echo "📤 Write output 'platform': '${platform}'" >&2
-  if [ "$is_public" = true ] && [ "$is_root" = true ]; then
-    echo "ℹ️ Case A: system-wide PATH export (public install, root)." >&2
-    # 1. BASH_ENV target (non-login non-interactive bash)
-    local bashenv_target
-    bashenv_target="$(shell::ensure_bashenv)"
-    echo "$bashenv_target"
-    # 2. /etc/profile.d/conda_bin_path.sh (login shells)
-    echo "/etc/profile.d/conda_bin_path.sh"
-    # 3. Global bashrc (non-login interactive bash)
-    echo "$(shell::detect_bashrc)"
-    # 4. Global zshenv (all Zsh invocations)
-    echo "$(shell::detect_zshdir)/zshenv"
-  else
-    echo "ℹ️ Case B: user-scoped PATH export." >&2
-    # 1. ~/.bashrc (non-login interactive bash)
-    echo "${HOME}/.bashrc"
-    # 2. Login file
-    local login_file=""
-    for f in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.profile"; do
-      [ -f "$f" ] && { login_file="$f"; break; }
-    done
-    [ -z "$login_file" ] && login_file="${HOME}/.bash_profile"
-    echo "$login_file"
-    # 3. Zsh env file
-    local zdotdir="${ZDOTDIR:-$HOME}"
-    echo "${zdotdir}/.zshenv"
-  fi
-  echo "↩️ Function exit: build_export_path_list" >&2
-}
-
-write_path_block() {
-  echo "↪️ Function entry: write_path_block" >&2
-  local target_file="$1"
-  local begin_marker="# >>> conda PATH (install-miniforge) >>>"
-  local end_marker="# <<< conda PATH (install-miniforge) <<<"
-  local block_content="export PATH=\"${BIN_DIR}/bin:\${PATH}\""
-  mkdir -p "$(dirname "$target_file")"
-  [ -f "$target_file" ] || touch "$target_file"
-  if grep -qF "$begin_marker" "$target_file"; then
-    awk -v begin="$begin_marker" -v end="$end_marker" -v content="$block_content" '
-      $0 == begin { print; print content; found=1; next }
-      found && $0 == end { print; found=0; next }
-      found { next }
-      { print }
-    ' "$target_file" > "${target_file}.tmp" && mv "${target_file}.tmp" "$target_file"
-    echo "♻️ Updated PATH block in '${target_file}'." >&2
-  else
-    printf '\n%s\n%s\n%s\n' "$begin_marker" "$block_content" "$end_marker" >> "$target_file"
-    echo "✅ Appended PATH block to '${target_file}'." >&2
-  fi
-  echo "↩️ Function exit: write_path_block" >&2
 }
 
 export_path_main() {
@@ -478,18 +428,30 @@ export_path_main() {
     echo "↩️ Function exit: export_path_main" >&2
     return
   fi
-  local target_files
-  target_files="$(build_export_path_list)"
-  if [ -z "$target_files" ]; then
-    echo "ℹ️ No target files for PATH export." >&2
-    echo "↩️ Function exit: export_path_main" >&2
-    return
+  local _content="export PATH=\"${BIN_DIR}/bin:\${PATH}\""
+  local _marker="conda PATH (install-miniforge)"
+  local _target_files
+  if [ "$EXPORT_PATH" != "auto" ]; then
+    _target_files="$EXPORT_PATH"
+  else
+    local _is_public=true _is_root=false
+    case "$BIN_DIR" in "${HOME}"/*) _is_public=false ;; esac
+    [ "$(id -u)" = "0" ] && _is_root=true
+    echo "ℹ️ Platform: '$(os::platform)'; is_public=${_is_public}; is_root=${_is_root}." >&2
+    if [ "$_is_public" = true ] && [ "$_is_root" = true ]; then
+      echo "ℹ️ Case A: system-wide PATH export (public install, root)." >&2
+      _target_files="$(shell::system_path_files --profile_d "conda_bin_path.sh")"
+    else
+      echo "ℹ️ Case B: user-scoped PATH export." >&2
+      _target_files="$(shell::user_path_files)"
+    fi
   fi
-  while IFS= read -r f; do
-    [ -z "$f" ] && continue
-    write_path_block "$f"
-  done <<< "$target_files"
+  while IFS= read -r _f; do
+    [ -z "$_f" ] && continue
+    shell::write_block --file "$_f" --marker "$_marker" --content "$_content"
+  done <<< "$_target_files"
   echo "↩️ Function exit: export_path_main" >&2
+  return
 }
 
 create_symlink() {
@@ -527,7 +489,6 @@ trap '__cleanup__' EXIT
 
 ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 
-
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $@" >&2
   RC_FILES=()
@@ -548,28 +509,121 @@ if [ "$#" -gt 0 ]; then
   PRESERVE_CONFIG=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --rc_files) shift; while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do RC_FILES+=("$1"); echo "📩 Read argument 'rc_files': '${1}'" >&2; shift; done;;
-      --activate_env) shift; ACTIVATE_ENV="$1"; echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2; shift;;
-      --bin_dir) shift; BIN_DIR="$1"; echo "📩 Read argument 'bin_dir': '${BIN_DIR}'" >&2; shift;;
-      --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '${DEBUG}'" >&2;;
-      --if_exists) shift; IF_EXISTS="$1"; echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2; shift;;
-      --group) shift; GROUP="$1"; echo "📩 Read argument 'group': '${GROUP}'" >&2; shift;;
-      --install) shift; echo "⚠️ --install is deprecated; use --if_exists. Ignored." >&2;;
-      --installer_dir) shift; INSTALLER_DIR="$1"; echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2; shift;;
-      --interactive) shift; INTERACTIVE=true; echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2;;
-      --keep_installer) shift; KEEP_INSTALLER=true; echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2;;
-      --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2; shift;;
-      --version) shift; VERSION="$1"; echo "📩 Read argument 'version': '${VERSION}'" >&2; shift;;
-      --set_permissions) shift; SET_PERMISSIONS=true; echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2;;
-      --update_base) shift; UPDATE_BASE=true; echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2;;
-      --export_path) shift; EXPORT_PATH="$1"; echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2; shift;;
-      --symlink) shift; SYMLINK=true; echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2;;
-      --users) shift; USERS="$1"; echo "📩 Read argument 'users': '${USERS}'" >&2; shift;;
-      --discard_envs) shift; PRESERVE_ENVS=false; echo "📩 Read argument 'discard_envs': true" >&2;;
-      --discard_config) shift; PRESERVE_CONFIG=false; echo "📩 Read argument 'discard_config': true" >&2;;
-      --help|-h) __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --rc_files)
+        shift
+        while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+          RC_FILES+=("$1")
+          echo "📩 Read argument 'rc_files': '${1}'" >&2
+          shift
+        done
+        ;;
+      --activate_env)
+        shift
+        ACTIVATE_ENV="$1"
+        echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
+        shift
+        ;;
+      --bin_dir)
+        shift
+        BIN_DIR="$1"
+        echo "📩 Read argument 'bin_dir': '${BIN_DIR}'" >&2
+        shift
+        ;;
+      --debug)
+        shift
+        DEBUG=true
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        ;;
+      --if_exists)
+        shift
+        IF_EXISTS="$1"
+        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+        shift
+        ;;
+      --group)
+        shift
+        GROUP="$1"
+        echo "📩 Read argument 'group': '${GROUP}'" >&2
+        shift
+        ;;
+      --install)
+        shift
+        echo "⚠️ --install is deprecated; use --if_exists. Ignored." >&2
+        ;;
+      --installer_dir)
+        shift
+        INSTALLER_DIR="$1"
+        echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
+        shift
+        ;;
+      --interactive)
+        shift
+        INTERACTIVE=true
+        echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
+        ;;
+      --keep_installer)
+        shift
+        KEEP_INSTALLER=true
+        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      --version)
+        shift
+        VERSION="$1"
+        echo "📩 Read argument 'version': '${VERSION}'" >&2
+        shift
+        ;;
+      --set_permissions)
+        shift
+        SET_PERMISSIONS=true
+        echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
+        ;;
+      --update_base)
+        shift
+        UPDATE_BASE=true
+        echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
+        ;;
+      --export_path)
+        shift
+        EXPORT_PATH="$1"
+        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+        shift
+        ;;
+      --symlink)
+        shift
+        SYMLINK=true
+        echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+        ;;
+      --users)
+        shift
+        USERS="$1"
+        echo "📩 Read argument 'users': '${USERS}'" >&2
+        shift
+        ;;
+      --discard_envs)
+        shift
+        PRESERVE_ENVS=false
+        echo "📩 Read argument 'discard_envs': true" >&2
+        ;;
+      --discard_config)
+        shift
+        PRESERVE_CONFIG=false
+        echo "📩 Read argument 'discard_config': true" >&2
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 else
@@ -608,26 +662,79 @@ else
   [ "${PRESERVE_CONFIG+defined}" ] && echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
-{ [ "${RC_FILES+isset}" != "isset" ] || [ ${#RC_FILES[@]} -eq 0 ]; } && { echo "ℹ️ Argument 'RC_FILES' set to default value '()'." >&2; RC_FILES=(); }
-[ -z "${ACTIVATE_ENV-}" ] && { echo "ℹ️ Argument 'ACTIVATE_ENV' set to default value 'base'." >&2; ACTIVATE_ENV="base"; }
-[ -z "${BIN_DIR-}" ] && { echo "ℹ️ Argument 'BIN_DIR' set to default value '/opt/conda'." >&2; BIN_DIR="/opt/conda"; }
-[ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
-[ -z "${IF_EXISTS-}" ] && { echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2; IF_EXISTS="skip"; }
-[ -z "${GROUP-}" ] && { echo "ℹ️ Argument 'GROUP' set to default value 'conda'." >&2; GROUP="conda"; }
-[ -z "${INSTALLER_DIR-}" ] && { echo "ℹ️ Argument 'INSTALLER_DIR' set to default value '/tmp/miniforge-installer'." >&2; INSTALLER_DIR="/tmp/miniforge-installer"; }
-[ -z "${INTERACTIVE-}" ] && { echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2; INTERACTIVE=false; }
-[ -z "${KEEP_INSTALLER-}" ] && { echo "ℹ️ Argument 'KEEP_INSTALLER' set to default value 'false'." >&2; KEEP_INSTALLER=false; }
-[ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
-[ -z "${VERSION-}" ] && { echo "ℹ️ Argument 'VERSION' set to default value 'latest'." >&2; VERSION="latest"; }
-[ -z "${SET_PERMISSIONS-}" ] && { echo "ℹ️ Argument 'SET_PERMISSIONS' set to default value 'false'." >&2; SET_PERMISSIONS=false; }
-[ -z "${UPDATE_BASE-}" ] && { echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2; UPDATE_BASE=false; }
-[ -z "${EXPORT_PATH+x}" ] && { echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2; EXPORT_PATH="auto"; }
-[ -z "${SYMLINK+x}" ] && { echo "ℹ️ Argument 'SYMLINK' set to default value 'false'." >&2; SYMLINK=false; }
-[ -z "${USERS-}" ] && { echo "ℹ️ Argument 'USERS' set to default value '$(id -nu)'." >&2; USERS="$(id -nu)"; }
+{ [ "${RC_FILES+isset}" != "isset" ] || [ ${#RC_FILES[@]} -eq 0 ]; } && {
+  echo "ℹ️ Argument 'RC_FILES' set to default value '()'." >&2
+  RC_FILES=()
+}
+[ -z "${ACTIVATE_ENV-}" ] && {
+  echo "ℹ️ Argument 'ACTIVATE_ENV' set to default value 'base'." >&2
+  ACTIVATE_ENV="base"
+}
+[ -z "${BIN_DIR-}" ] && {
+  echo "ℹ️ Argument 'BIN_DIR' set to default value '/opt/conda'." >&2
+  BIN_DIR="/opt/conda"
+}
+[ -z "${DEBUG-}" ] && {
+  echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
+  DEBUG=false
+}
+[ -z "${IF_EXISTS-}" ] && {
+  echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2
+  IF_EXISTS="skip"
+}
+[ -z "${GROUP-}" ] && {
+  echo "ℹ️ Argument 'GROUP' set to default value 'conda'." >&2
+  GROUP="conda"
+}
+[ -z "${INSTALLER_DIR-}" ] && {
+  echo "ℹ️ Argument 'INSTALLER_DIR' set to default value '/tmp/miniforge-installer'." >&2
+  INSTALLER_DIR="/tmp/miniforge-installer"
+}
+[ -z "${INTERACTIVE-}" ] && {
+  echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2
+  INTERACTIVE=false
+}
+[ -z "${KEEP_INSTALLER-}" ] && {
+  echo "ℹ️ Argument 'KEEP_INSTALLER' set to default value 'false'." >&2
+  KEEP_INSTALLER=false
+}
+[ -z "${LOGFILE-}" ] && {
+  echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
+  LOGFILE=""
+}
+[ -z "${VERSION-}" ] && {
+  echo "ℹ️ Argument 'VERSION' set to default value 'latest'." >&2
+  VERSION="latest"
+}
+[ -z "${SET_PERMISSIONS-}" ] && {
+  echo "ℹ️ Argument 'SET_PERMISSIONS' set to default value 'false'." >&2
+  SET_PERMISSIONS=false
+}
+[ -z "${UPDATE_BASE-}" ] && {
+  echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2
+  UPDATE_BASE=false
+}
+[ -z "${EXPORT_PATH+x}" ] && {
+  echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2
+  EXPORT_PATH="auto"
+}
+[ -z "${SYMLINK+x}" ] && {
+  echo "ℹ️ Argument 'SYMLINK' set to default value 'false'." >&2
+  SYMLINK=false
+}
+[ -z "${USERS-}" ] && {
+  echo "ℹ️ Argument 'USERS' set to default value '$(id -nu)'." >&2
+  USERS="$(id -nu)"
+}
 IFS=',' read -ra _USERS_ARR <<< "$USERS"
-[ -z "${PRESERVE_ENVS-}" ] && { echo "ℹ️ Argument 'PRESERVE_ENVS' set to default value 'true'." >&2; PRESERVE_ENVS="true"; }
-[ -z "${PRESERVE_CONFIG-}" ] && { echo "ℹ️ Argument 'PRESERVE_CONFIG' set to default value 'true'." >&2; PRESERVE_CONFIG="true"; }
-
+[ -z "${PRESERVE_ENVS-}" ] && {
+  echo "ℹ️ Argument 'PRESERVE_ENVS' set to default value 'true'." >&2
+  PRESERVE_ENVS="true"
+}
+[ -z "${PRESERVE_CONFIG-}" ] && {
+  echo "ℹ️ Argument 'PRESERVE_CONFIG' set to default value 'true'." >&2
+  PRESERVE_CONFIG="true"
+}
 
 check_root_requirement
 set_executable_paths
@@ -636,54 +743,54 @@ resolve_miniforge_version
 set_installer_filename
 download_miniforge
 if [[ -f "$CHECKSUM" ]]; then
-    verify_miniforge
+  verify_miniforge
 else
-    echo "⚠️ Checksum file not found. Skipping verification." >&2
+  echo "⚠️ Checksum file not found. Skipping verification." >&2
 fi
 
-if [[ -f "${BIN_DIR}/bin/conda" ]] || command -v conda >/dev/null 2>&1; then
-    echo "⚠️ Conda installation found at '$BIN_DIR'." >&2
-    # Version-match idempotency: if installed conda version already matches the
-    # resolved version, skip silently regardless of if_exists.
-    _installed_ver="$("${BIN_DIR}/bin/conda" --version 2>/dev/null | awk '{print $NF}')" || true
-    if [[ -n "$_installed_ver" && "$_installed_ver" == "$RESOLVED_CONDA_VERSION" ]]; then
-        echo "ℹ️ Installed conda version '${_installed_ver}' matches resolved version '${RESOLVED_CONDA_VERSION}'. Skipping install and continuing to post-install steps." >&2
-    else
-      case "$IF_EXISTS" in
-        skip)
-          echo "⏭️ if_exists=skip: existing conda detected; skipping install and continuing to post-install steps." >&2
-          ;;
-        fail)
-          echo "⛔ if_exists=fail: conda already installed at '$BIN_DIR'. Remove it first or set if_exists=skip/uninstall." >&2
-          exit 1
-          ;;
-        uninstall)
-          echo "ℹ️ if_exists=uninstall: uninstalling existing conda, then installing fresh." >&2
+if [[ -f "${BIN_DIR}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
+  echo "⚠️ Conda installation found at '$BIN_DIR'." >&2
+  # Version-match idempotency: if installed conda version already matches the
+  # resolved version, skip silently regardless of if_exists.
+  _installed_ver="$("${BIN_DIR}/bin/conda" --version 2> /dev/null | awk '{print $NF}')" || true
+  if [[ -n "$_installed_ver" && "$_installed_ver" == "$RESOLVED_CONDA_VERSION" ]]; then
+    echo "ℹ️ Installed conda version '${_installed_ver}' matches resolved version '${RESOLVED_CONDA_VERSION}'. Skipping install and continuing to post-install steps." >&2
+  else
+    case "$IF_EXISTS" in
+      skip)
+        echo "⏭️ if_exists=skip: existing conda detected; skipping install and continuing to post-install steps." >&2
+        ;;
+      fail)
+        echo "⛔ if_exists=fail: conda already installed at '$BIN_DIR'. Remove it first or set if_exists=skip/uninstall." >&2
+        exit 1
+        ;;
+      uninstall)
+        echo "ℹ️ if_exists=uninstall: uninstalling existing conda, then installing fresh." >&2
+        set_executable_paths --verify
+        _env_preserve_dir="/tmp/conda-env-preserve"
+        if [[ "$PRESERVE_ENVS" == "true" ]]; then
+          export_envs "$_env_preserve_dir"
+        fi
+        uninstall_miniforge
+        install_miniforge
+        if [[ "$PRESERVE_ENVS" == "true" ]]; then
           set_executable_paths --verify
-          _env_preserve_dir="/tmp/conda-env-preserve"
-          if [[ "$PRESERVE_ENVS" == "true" ]]; then
-            export_envs "$_env_preserve_dir"
-          fi
-          uninstall_miniforge
-          install_miniforge
-          if [[ "$PRESERVE_ENVS" == "true" ]]; then
-            set_executable_paths --verify
-            recreate_envs "$_env_preserve_dir"
-          fi
-          ;;
-        update)
-          echo "ℹ️ if_exists=update: updating conda base environment to version '${RESOLVED_CONDA_VERSION}'." >&2
-          set_executable_paths --verify
-          "$CONDA_EXEC" install --name base --yes "conda=${RESOLVED_CONDA_VERSION}"
-          ;;
-        *)
-          echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'uninstall', or 'update'." >&2
-          exit 1
-          ;;
-      esac
-    fi
+          recreate_envs "$_env_preserve_dir"
+        fi
+        ;;
+      update)
+        echo "ℹ️ if_exists=update: updating conda base environment to version '${RESOLVED_CONDA_VERSION}'." >&2
+        set_executable_paths --verify
+        "$CONDA_EXEC" install --name base --yes "conda=${RESOLVED_CONDA_VERSION}"
+        ;;
+      *)
+        echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'uninstall', or 'update'." >&2
+        exit 1
+        ;;
+    esac
+  fi
 else
-    install_miniforge
+  install_miniforge
 fi
 
 set_executable_paths --verify
@@ -693,8 +800,8 @@ export_path_main
 
 if [[ ${#RC_FILES[@]} -gt 0 ]]; then add_activation_to_rcfile; fi
 if [[ "$UPDATE_BASE" == true ]]; then
-    echo "⚠️ Updating base conda environment."
-    "$MAMBA_EXEC" update -n base --all -y
+  echo "⚠️ Updating base conda environment."
+  "$MAMBA_EXEC" update -n base --all -y
 fi
 
 if [[ "$SET_PERMISSIONS" == true ]]; then set_permissions; fi

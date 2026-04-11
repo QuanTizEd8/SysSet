@@ -25,7 +25,7 @@ _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
-  cat >&2 <<'EOF'
+  cat >&2 << 'EOF'
 Usage: install_fonts.sh [OPTIONS]
 
 Options:
@@ -54,16 +54,47 @@ if [ "$#" -gt 0 ]; then
   DEBUG=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --nerd_fonts)       shift; NERD_FONTS="$1";       shift;;
-      --font_urls)        shift; FONT_URLS="$1";        shift;;
-      --gh_release_fonts) shift; GH_RELEASE_FONTS="$1"; shift;;
-      --font_dir)         shift; FONT_DIR="$1";         shift;;
-      --p10k_fonts)       P10K_FONTS=true; shift;;
-      --overwrite)        OVERWRITE=true; shift;;
-      --debug)            DEBUG=true; shift;;
-      --help|-h)          __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *)   echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --nerd_fonts)
+        shift
+        NERD_FONTS="$1"
+        shift
+        ;;
+      --font_urls)
+        shift
+        FONT_URLS="$1"
+        shift
+        ;;
+      --gh_release_fonts)
+        shift
+        GH_RELEASE_FONTS="$1"
+        shift
+        ;;
+      --font_dir)
+        shift
+        FONT_DIR="$1"
+        shift
+        ;;
+      --p10k_fonts)
+        P10K_FONTS=true
+        shift
+        ;;
+      --overwrite)
+        OVERWRITE=true
+        shift
+        ;;
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 fi
@@ -89,8 +120,8 @@ _INSTALL_DIR=""
 if [[ -d "$FONT_DIR" ]]; then
   while IFS= read -r _psname; do
     [[ -n "$_psname" ]] && _SEEN_NAMES["$_psname"]=1
-  done < <(find "$FONT_DIR" -type f \( -name '*.ttf' -o -name '*.otf' \) -print0 \
-             | xargs -0 -r fc-query --format='%{postscriptname}\n' 2>/dev/null || true)
+  done < <(find "$FONT_DIR" -type f \( -name '*.ttf' -o -name '*.otf' \) -print0 |
+    xargs -0 -r fc-query --format='%{postscriptname}\n' 2> /dev/null || true)
 fi
 
 # ---------------------------------------------------------------------------
@@ -112,17 +143,19 @@ extract_archive() {
   local _arc="$1" _dest="$2" _name="${3:-$(basename "$_arc")}"
   mkdir -p "$_dest"
   case "$_name" in
-    *.tar.xz)       tar -xJf "$_arc" -C "$_dest";;
-    *.tar.gz|*.tgz) tar -xzf "$_arc" -C "$_dest";;
+    *.tar.xz) tar -xJf "$_arc" -C "$_dest" ;;
+    *.tar.gz | *.tgz) tar -xzf "$_arc" -C "$_dest" ;;
     *.zip)
       if ! command -v unzip > /dev/null 2>&1; then
         echo "⚠️  'unzip' not found — cannot extract '$(basename "$_arc")'. Skipping." >&2
         return 1
       fi
-      unzip -q -o "$_arc" -d "$_dest";;
+      unzip -q -o "$_arc" -d "$_dest"
+      ;;
     *)
       echo "⚠️  Unrecognized archive format: '$(basename "$_arc")'. Skipping." >&2
-      return 1;;
+      return 1
+      ;;
   esac
 }
 
@@ -151,17 +184,19 @@ _do_install_font() {
   local _src="$1" _rel="$2" _psnames_str="$3"
   # Use the destination path (which preserves the original filename) for
   # extension detection — _src may be a mktemp path with no extension.
-  local _basename; _basename="$(basename "$_rel")"
+  local _basename
+  _basename="$(basename "$_rel")"
 
   case "$_basename" in
-    *.woff|*.woff2)
+    *.woff | *.woff2)
       # No PostScript dedup for WOFF — copy unconditionally.
       _ensure_install_dir
       local _dest="${_INSTALL_DIR}/${_rel}"
       mkdir -p "$(dirname "$_dest")"
       cp "$_src" "$_dest"
       chmod 644 "$_dest"
-      return 0;;
+      return 0
+      ;;
   esac
 
   # Empty psnames for a non-WOFF means invalid/unrecognized font — skip silently.
@@ -171,7 +206,7 @@ _do_install_font() {
   local _psnames=()
   IFS=$'\t' read -r -a _psnames <<< "$_psnames_str"
 
-  [[ ${#_psnames[@]} -eq 0 ]] && return 0  # Not a valid font — skip silently.
+  [[ ${#_psnames[@]} -eq 0 ]] && return 0 # Not a valid font — skip silently.
 
   # Check for collision with any face in this file.
   local _collision_name=""
@@ -217,9 +252,10 @@ install_font_file() {
   local _psnames_str="" _pn
   while IFS= read -r _pn; do
     [[ -z "$_pn" ]] && continue
-    if [[ -n "$_psnames_str" ]]; then _psnames_str+=$'\t'"$_pn"
+    if [[ -n "$_psnames_str" ]]; then
+      _psnames_str+=$'\t'"$_pn"
     else _psnames_str="$_pn"; fi
-  done < <(fc-query --format='%{postscriptname}\n' "$_src" 2>/dev/null || true)
+  done < <(fc-query --format='%{postscriptname}\n' "$_src" 2> /dev/null || true)
 
   _do_install_font "$_src" "$_rel" "$_psnames_str"
 }
@@ -237,7 +273,7 @@ install_archive_contents() {
   while IFS= read -r -d '' _f; do
     _font_files+=("$_f")
   done < <(find "$_tmpdir" -type f \( -name '*.ttf' -o -name '*.otf' \
-                                      -o -name '*.woff' -o -name '*.woff2' \) -print0)
+    -o -name '*.woff' -o -name '*.woff2' \) -print0)
 
   if [[ ${#_font_files[@]} -eq 0 ]]; then
     echo "⚠️  No font files found in archive." >&2
@@ -249,7 +285,7 @@ install_archive_contents() {
   declare -A _batch_psnames=()
   local _queryfiles=()
   for _f in "${_font_files[@]}"; do
-    case "$_f" in *.ttf|*.otf) _queryfiles+=("$_f");; esac
+    case "$_f" in *.ttf | *.otf) _queryfiles+=("$_f") ;; esac
   done
   if [[ ${#_queryfiles[@]} -gt 0 ]]; then
     while IFS=$'\t' read -r _fname _pname; do
@@ -260,15 +296,15 @@ install_archive_contents() {
         _batch_psnames["$_fname"]="$_pname"
       fi
     done < <(fc-query --format='%{file}\t%{postscriptname}\n' \
-               "${_queryfiles[@]}" 2>/dev/null || true)
+      "${_queryfiles[@]}" 2> /dev/null || true)
   fi
 
   for _f in "${_font_files[@]}"; do
     local _rel_path="${_f#${_tmpdir}/}"
     local _psnames_str
     case "$_f" in
-      *.woff|*.woff2) _psnames_str="";;
-      *)              _psnames_str="${_batch_psnames[$_f]:-}";;
+      *.woff | *.woff2) _psnames_str="" ;;
+      *) _psnames_str="${_batch_psnames[$_f]:-}" ;;
     esac
     _do_install_font "$_f" "${_ns}/${_rel_path}" "$_psnames_str"
   done
@@ -351,12 +387,13 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
     _GH_AUTH_ARGS=()
     [[ -n "${GITHUB_TOKEN:-}" ]] && _GH_AUTH_ARGS=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
     if ! net::fetch_with_retry 3 curl -fsSL \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2022-11-28" \
-        "${_GH_AUTH_ARGS[@]}" \
-        "$_API_URL" -o "$_API_RESPONSE"; then
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "${_GH_AUTH_ARGS[@]}" \
+      "$_API_URL" -o "$_API_RESPONSE"; then
       echo "⚠️  Could not query GitHub release for '${_slug}' — skipping." >&2
-      rm -f "$_API_RESPONSE"; continue
+      rm -f "$_API_RESPONSE"
+      continue
     fi
 
     # Extract tag_name and release id for namespace.
@@ -366,9 +403,9 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
 
     # Extract all font/archive asset URLs.
     mapfile -t _ALL_ASSET_URLS < <(
-      grep '"browser_download_url"' "$_API_RESPONSE" \
-        | grep -oE 'https://[^"]+' \
-        | grep -iE '\.(ttf|otf|woff2?|tar\.xz|tar\.gz|tgz|zip)$'
+      grep '"browser_download_url"' "$_API_RESPONSE" |
+        grep -oE 'https://[^"]+' |
+        grep -iE '\.(ttf|otf|woff2?|tar\.xz|tar\.gz|tgz|zip)$'
     )
     rm -f "$_API_RESPONSE"
 
@@ -382,8 +419,8 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
     _FONTFILE_URLS=()
     for _asset_url in "${_ALL_ASSET_URLS[@]}"; do
       case "${_asset_url##*/}" in
-        *.tar.xz|*.tar.gz|*.tgz|*.zip) _ARCHIVE_URLS+=("$_asset_url");;
-        *) _FONTFILE_URLS+=("$_asset_url");;
+        *.tar.xz | *.tar.gz | *.tgz | *.zip) _ARCHIVE_URLS+=("$_asset_url") ;;
+        *) _FONTFILE_URLS+=("$_asset_url") ;;
       esac
     done
     if [[ ${#_ARCHIVE_URLS[@]} -gt 0 ]]; then
@@ -398,17 +435,20 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
       _ARCHIVE="$(mktemp)"
       if ! net::fetch_with_retry 3 curl -fsSL "$_asset_url" -o "$_ARCHIVE"; then
         echo "⚠️  Could not download '${_asset_basename}' — skipping." >&2
-        rm -f "$_ARCHIVE"; continue
+        rm -f "$_ARCHIVE"
+        continue
       fi
       case "$_asset_basename" in
-        *.tar.xz|*.tar.gz|*.tgz|*.zip)
+        *.tar.xz | *.tar.gz | *.tgz | *.zip)
           _TMPDIR="$(mktemp -d)"
           if extract_archive "$_ARCHIVE" "$_TMPDIR" "$_asset_basename"; then
             install_archive_contents "$_TMPDIR" "$_NS"
           fi
-          rm -rf "$_TMPDIR";;
+          rm -rf "$_TMPDIR"
+          ;;
         *)
-          install_font_file "$_ARCHIVE" "${_NS}/${_asset_basename}";;
+          install_font_file "$_ARCHIVE" "${_NS}/${_asset_basename}"
+          ;;
       esac
       rm -f "$_ARCHIVE"
     done
@@ -432,7 +472,7 @@ if [[ -n "$FONT_URLS" ]]; then
     _basename="${_basename##*/}"
 
     case "$_basename" in
-      *.tar.xz|*.tar.gz|*.tgz|*.zip)
+      *.tar.xz | *.tar.gz | *.tgz | *.zip)
         echo "ℹ️  Downloading font archive '${_basename}'..." >&2
         _ARCHIVE="$(mktemp)"
         _TMPDIR="$(mktemp -d)"
@@ -445,8 +485,9 @@ if [[ -n "$FONT_URLS" ]]; then
           echo "⚠️  Could not download '${_basename}' — skipping." >&2
         fi
         rm -f "$_ARCHIVE"
-        rm -rf "$_TMPDIR";;
-      *.ttf|*.otf|*.woff|*.woff2)
+        rm -rf "$_TMPDIR"
+        ;;
+      *.ttf | *.otf | *.woff | *.woff2)
         echo "ℹ️  Downloading font file '${_basename}'..." >&2
         _TMPFILE="$(mktemp)"
         if net::fetch_with_retry 3 curl -fsSL "$_url" -o "$_TMPFILE"; then
@@ -455,9 +496,11 @@ if [[ -n "$FONT_URLS" ]]; then
         else
           echo "⚠️  Could not download '${_basename}' — skipping." >&2
         fi
-        rm -f "$_TMPFILE";;
+        rm -f "$_TMPFILE"
+        ;;
       *)
-        echo "⚠️  Unrecognized extension in URL '${_url}' — skipping." >&2;;
+        echo "⚠️  Unrecognized extension in URL '${_url}' — skipping." >&2
+        ;;
     esac
   done
 fi
@@ -474,6 +517,5 @@ fi
 
 if command -v fc-cache > /dev/null 2>&1; then
   echo "ℹ️  Refreshing font cache..." >&2
-  fc-cache -f "$FONT_DIR" 2>/dev/null || true
+  fc-cache -f "$FONT_DIR" 2> /dev/null || true
 fi
-

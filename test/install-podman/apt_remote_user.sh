@@ -8,13 +8,13 @@ set -e
 source dev-container-features-test-lib
 
 # --- vscode configured via _REMOTE_USER ---
-check "vscode in /etc/subuid"               grep -q "^vscode:" /etc/subuid
-check "vscode in /etc/subgid"               grep -q "^vscode:" /etc/subgid
-check "vscode storage.conf exists"          test -f /home/vscode/.config/containers/storage.conf
-check "vscode storage.conf overlay driver"  grep -q 'driver = "overlay"' /home/vscode/.config/containers/storage.conf
+check "vscode in /etc/subuid" grep -q "^vscode:" /etc/subuid
+check "vscode in /etc/subgid" grep -q "^vscode:" /etc/subgid
+check "vscode storage.conf exists" test -f /home/vscode/.config/containers/storage.conf
+check "vscode storage.conf overlay driver" grep -q 'driver = "overlay"' /home/vscode/.config/containers/storage.conf
 
 # --- root should NOT be configured ---
-check "root NOT in /etc/subuid"          bash -c '! grep -q "^root:" /etc/subuid'
-check "root storage.conf NOT written"    bash -c '! test -f /root/.config/containers/storage.conf'
+check "root NOT in /etc/subuid" bash -c '! grep -q "^root:" /etc/subuid'
+check "root storage.conf NOT written" bash -c '! test -f /root/.config/containers/storage.conf'
 
 reportResults

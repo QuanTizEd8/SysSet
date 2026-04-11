@@ -8,13 +8,13 @@ set -e
 source dev-container-features-test-lib
 
 # --- environment still exists ---
-check "simple environment is listed"         bash -c '/opt/conda/bin/conda env list | grep -q simple'
-check "simple directory exists"              test -d /opt/conda/envs/simple
+check "simple environment is listed" bash -c '/opt/conda/bin/conda env list | grep -q simple'
+check "simple directory exists" test -d /opt/conda/envs/simple
 
 # --- original package still present ---
-check "numpy importable after update"        /opt/conda/envs/simple/bin/python -c 'import numpy'
+check "numpy importable after update" /opt/conda/envs/simple/bin/python -c 'import numpy'
 
 # --- newly added package installed by the update ---
-check "pandas importable after update"       /opt/conda/envs/simple/bin/python -c 'import pandas'
+check "pandas importable after update" /opt/conda/envs/simple/bin/python -c 'import pandas'
 
 reportResults

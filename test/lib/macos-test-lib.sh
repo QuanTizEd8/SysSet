@@ -14,33 +14,35 @@ _MACOS_TEST_FAIL=0
 _MACOS_TEST_FAILURES=()
 
 check() {
-  local label="$1"; shift
+  local label="$1"
+  shift
   local out rc=0
   out="$("$@" 2>&1)" || rc=$?
   if [[ $rc -eq 0 ]]; then
     printf '  ✅  PASS — %s\n' "$label"
-    (( _MACOS_TEST_PASS++ )) || true
+    ((_MACOS_TEST_PASS++)) || true
   else
     printf '  ❌  FAIL — %s (exit %d)\n' "$label" "$rc"
     [[ -n "$out" ]] && printf '         %s\n' "$out"
     _MACOS_TEST_FAILURES+=("$label")
-    (( _MACOS_TEST_FAIL++ )) || true
+    ((_MACOS_TEST_FAIL++)) || true
   fi
 }
 
 # Inverse of check: passes when the command exits non-zero.
 fail_check() {
-  local label="$1"; shift
+  local label="$1"
+  shift
   local out rc=0
   out="$("$@" 2>&1)" || rc=$?
   if [[ $rc -ne 0 ]]; then
     printf '  ✅  PASS (expected failure, exit %d) — %s\n' "$rc" "$label"
-    (( _MACOS_TEST_PASS++ )) || true
+    ((_MACOS_TEST_PASS++)) || true
   else
     printf '  ❌  FAIL (expected non-zero exit, got 0) — %s\n' "$label"
     [[ -n "$out" ]] && printf '         %s\n' "$out"
     _MACOS_TEST_FAILURES+=("$label")
-    (( _MACOS_TEST_FAIL++ )) || true
+    ((_MACOS_TEST_FAIL++)) || true
   fi
 }
 

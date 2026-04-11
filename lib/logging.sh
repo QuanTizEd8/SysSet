@@ -36,7 +36,7 @@ logging::setup() {
 logging::cleanup() {
   [[ "${_LIB_LOGGING_SETUP-}" == true ]] || return 0
   exec 1>&3 2>&4
-  wait 2>/dev/null
+  wait 2> /dev/null
   exec 3>&- 4>&-
   if [ -n "${LOGFILE-}" ]; then
     echo "ℹ️ Write logs to file '$LOGFILE'" >&2

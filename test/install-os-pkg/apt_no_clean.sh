@@ -7,6 +7,6 @@ source dev-container-features-test-lib
 
 check "tree is installed" command -v tree
 check "apt package lists are preserved" \
-    bash -c "ls /var/lib/apt/lists/ | grep -q ."
+  bash -c "ls /var/lib/apt/lists/ | grep -q ."
 
 reportResults

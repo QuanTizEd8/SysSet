@@ -23,7 +23,7 @@ trap 'logging::cleanup' EXIT
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
-  cat >&2 <<'EOF'
+  cat >&2 << 'EOF'
 Usage: install.sh [OPTIONS]
 
 Options:
@@ -67,17 +67,53 @@ if [ "$#" -gt 0 ]; then
 
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --nerd_fonts)       shift; NERD_FONTS="$1";       shift;;
-      --font_urls)        shift; FONT_URLS="$1";        shift;;
-      --gh_release_fonts) shift; GH_RELEASE_FONTS="$1"; shift;;
-      --font_dir)         shift; FONT_DIR="$1";         shift;;
-      --p10k_fonts)       shift; P10K_FONTS="$1";       shift;;
-      --overwrite)        OVERWRITE=true; shift;;
-      --debug)            DEBUG=true; shift;;
-      --logfile)          shift; LOGFILE="$1"; shift;;
-      --help|-h)          __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *)   echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --nerd_fonts)
+        shift
+        NERD_FONTS="$1"
+        shift
+        ;;
+      --font_urls)
+        shift
+        FONT_URLS="$1"
+        shift
+        ;;
+      --gh_release_fonts)
+        shift
+        GH_RELEASE_FONTS="$1"
+        shift
+        ;;
+      --font_dir)
+        shift
+        FONT_DIR="$1"
+        shift
+        ;;
+      --p10k_fonts)
+        shift
+        P10K_FONTS="$1"
+        shift
+        ;;
+      --overwrite)
+        OVERWRITE=true
+        shift
+        ;;
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        shift
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 fi
@@ -88,7 +124,7 @@ fi
 : "${NERD_FONTS=Meslo,JetBrainsMono}"
 : "${FONT_URLS=}"
 : "${GH_RELEASE_FONTS=}"
-: "${FONT_DIR=}"   # empty → auto-detect below
+: "${FONT_DIR=}" # empty → auto-detect below
 : "${P10K_FONTS:=false}"
 : "${OVERWRITE:=false}"
 : "${DEBUG:=false}"
@@ -114,11 +150,11 @@ echo "  install-fonts" >&2
 echo "========================================" >&2
 
 _FONT_ARGS=(--font_dir "$FONT_DIR")
-[ -n "$NERD_FONTS" ]        && _FONT_ARGS+=(--nerd_fonts "$NERD_FONTS")
-[ -n "$FONT_URLS" ]         && _FONT_ARGS+=(--font_urls "$FONT_URLS")
-[ -n "$GH_RELEASE_FONTS" ]  && _FONT_ARGS+=(--gh_release_fonts "$GH_RELEASE_FONTS")
+[ -n "$NERD_FONTS" ] && _FONT_ARGS+=(--nerd_fonts "$NERD_FONTS")
+[ -n "$FONT_URLS" ] && _FONT_ARGS+=(--font_urls "$FONT_URLS")
+[ -n "$GH_RELEASE_FONTS" ] && _FONT_ARGS+=(--gh_release_fonts "$GH_RELEASE_FONTS")
 [[ "$P10K_FONTS" == true ]] && _FONT_ARGS+=(--p10k_fonts)
-[[ "$OVERWRITE" == true ]]  && _FONT_ARGS+=(--overwrite)
-[[ "$DEBUG" == true ]]      && _FONT_ARGS+=(--debug)
+[[ "$OVERWRITE" == true ]] && _FONT_ARGS+=(--overwrite)
+[[ "$DEBUG" == true ]] && _FONT_ARGS+=(--debug)
 
 bash "$_SELF_DIR/install_fonts.sh" "${_FONT_ARGS[@]}"

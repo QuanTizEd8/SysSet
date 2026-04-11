@@ -1,20 +1,20 @@
 #!/bin/sh
 set -eu
 if [ -f "/usr/local/etc/vscode-dev-containers/meta.env" ]; then
-    . /usr/local/etc/vscode-dev-containers/meta.env
+	. /usr/local/etc/vscode-dev-containers/meta.env
 fi
 if [ -f "/usr/local/etc/dev-containers/meta.env" ]; then
-    . /usr/local/etc/dev-containers/meta.env
+	. /usr/local/etc/dev-containers/meta.env
 fi
 if [ "$1" = "version" ] || [ "$1" = "image-version" ]; then
-    echo "${VERSION}"
-    exit 0
+	echo "${VERSION}"
+	exit 0
 elif [ "$1" = "release" ]; then
-    echo "${GIT_REPOSITORY_RELEASE}"
-    exit 0
+	echo "${GIT_REPOSITORY_RELEASE}"
+	exit 0
 elif [ "$1" = "content" ] || [ "$1" = "content-url" ] || [ "$1" = "contents" ] || [ "$1" = "contents-url" ]; then
-    echo "${CONTENTS_URL}"
-    exit 0
+	echo "${CONTENTS_URL}"
+	exit 0
 fi
 echo "Development container image information:"
 echo "----------------------------------------"

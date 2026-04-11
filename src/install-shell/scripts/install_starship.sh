@@ -15,7 +15,7 @@ _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
-  cat >&2 <<'EOF'
+  cat >&2 << 'EOF'
 Usage: install_starship.sh [OPTIONS]
 
 Options:
@@ -34,11 +34,24 @@ if [ "$#" -gt 0 ]; then
   DEBUG=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --bin_dir) shift; BIN_DIR="$1"; shift;;
-      --debug) DEBUG=true; shift;;
-      --help|-h) __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --bin_dir)
+        shift
+        BIN_DIR="$1"
+        shift
+        ;;
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 fi

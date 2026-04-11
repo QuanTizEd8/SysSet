@@ -15,7 +15,8 @@ _NET_CA_CERTS_OK=
 # Runs <cmd> up to <max-attempts> times with a 3-second pause between
 # failures.  Does NOT require ospkg.sh.
 net::fetch_with_retry() {
-  local _max="$1"; shift
+  local _max="$1"
+  shift
   local _i=1
   while [ "$_i" -le "$_max" ]; do
     "$@" && return 0
@@ -32,7 +33,10 @@ net::fetch_with_retry() {
 net::ensure_ca_certs() {
   [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
   if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
-    [ -n "${_LIB_OSPKG_LOADED-}" ] || { echo "⛔ net.sh: ospkg.sh must be sourced before net::ensure_ca_certs" >&2; return 1; }
+    [ -n "${_LIB_OSPKG_LOADED-}" ] || {
+      echo "⛔ net.sh: ospkg.sh must be sourced before net::ensure_ca_certs" >&2
+      return 1
+    }
     echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
     ospkg::install ca-certificates
   fi
@@ -46,14 +50,17 @@ net::ensure_ca_certs() {
 net::ensure_fetch_tool() {
   if [ -z "${_NET_FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
-        _NET_FETCH_TOOL=curl
+      _NET_FETCH_TOOL=curl
     elif command -v wget > /dev/null 2>&1; then
-        _NET_FETCH_TOOL=wget
+      _NET_FETCH_TOOL=wget
     else
-        [ -n "${_LIB_OSPKG_LOADED-}" ] || { echo "⛔ net.sh: ospkg.sh must be sourced before net::ensure_fetch_tool" >&2; return 1; }
-        echo "ℹ️  Neither curl nor wget found — installing curl." >&2
-        ospkg::install curl
-        _NET_FETCH_TOOL=curl
+      [ -n "${_LIB_OSPKG_LOADED-}" ] || {
+        echo "⛔ net.sh: ospkg.sh must be sourced before net::ensure_fetch_tool" >&2
+        return 1
+      }
+      echo "ℹ️  Neither curl nor wget found — installing curl." >&2
+      ospkg::install curl
+      _NET_FETCH_TOOL=curl
     fi
   fi
   net::ensure_ca_certs

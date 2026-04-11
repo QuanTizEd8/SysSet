@@ -17,8 +17,15 @@ shift
 FILTER=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --filter) shift; FILTER="${1:?--filter requires a value}"; shift ;;
-    *) echo "⛔ Unknown option: '$1'" >&2; exit 1 ;;
+    --filter)
+      shift
+      FILTER="${1:?--filter requires a value}"
+      shift
+      ;;
+    *)
+      echo "⛔ Unknown option: '$1'" >&2
+      exit 1
+      ;;
   esac
 done
 
@@ -37,7 +44,10 @@ _pass=0
 _fail=0
 _errors=()
 
-_sep() { printf '%.0s━' {1..60}; echo; }
+_sep() {
+  printf '%.0s━' {1..60}
+  echo
+}
 
 for scenario in "${SCENARIOS_DIR}"/*.sh; do
   [[ -f "$scenario" ]] || continue
@@ -50,18 +60,20 @@ for scenario in "${SCENARIOS_DIR}"/*.sh; do
   _sep
   if bash "$scenario" "$REPO_ROOT"; then
     echo "✅ PASS: ${name}"
-    (( _pass++ )) || true
+    ((_pass++)) || true
   else
     echo "❌ FAIL: ${name}"
     _errors+=("$name")
-    (( _fail++ )) || true
+    ((_fail++)) || true
   fi
 done
 
 echo ""
-printf '%.0s═' {1..60}; echo
+printf '%.0s═' {1..60}
+echo
 echo "macOS scenarios for '${FEATURE}': ${_pass} passed, ${_fail} failed."
-printf '%.0s═' {1..60}; echo
+printf '%.0s═' {1..60}
+echo
 
 if [[ ${_fail} -gt 0 ]]; then
   echo "Failing scenarios:"

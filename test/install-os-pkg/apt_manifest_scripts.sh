@@ -6,8 +6,8 @@ set -e
 source dev-container-features-test-lib
 
 check "order log has two entries" bash -c "[ \$(wc -l < /tmp/order.log) -eq 2 ]"
-check "first entry is 'pre'"  bash -c "[ \"\$(sed -n '1p' /tmp/order.log)\" = 'pre' ]"
+check "first entry is 'pre'" bash -c "[ \"\$(sed -n '1p' /tmp/order.log)\" = 'pre' ]"
 check "second entry is 'post'" bash -c "[ \"\$(sed -n '2p' /tmp/order.log)\" = 'post' ]"
-check "tree is installed"  command -v tree
+check "tree is installed" command -v tree
 
 reportResults

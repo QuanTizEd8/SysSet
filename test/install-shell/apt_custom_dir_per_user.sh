@@ -8,7 +8,7 @@ source dev-container-features-test-lib
 
 _HOME=/root
 _ZDOTDIR="${_HOME}/.config/zsh"
-_USER_CUSTOM="${_HOME}/.zsh-custom"   # matches zdotdir: "~/.zsh-custom" in scenarios.json
+_USER_CUSTOM="${_HOME}/.zsh-custom" # matches zdotdir: "~/.zsh-custom" in scenarios.json
 _OMZ=/usr/local/share/oh-my-zsh
 _SYS_CUSTOM="${_OMZ}/custom"
 

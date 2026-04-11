@@ -13,15 +13,15 @@ _GRAPH_ROOT="/var/lib/containers/storage"
 # only root should be configured.
 
 # --- root is configured ---
-check "root in /etc/subuid"                    grep -q "^root:" /etc/subuid
-check "root in /etc/subgid"                    grep -q "^root:" /etc/subgid
-check "root subuid offset is 100000"           bash -c 'grep "^root:" /etc/subuid | cut -d: -f2 | grep -qx 100000'
-check "root subuid count is 65536"             bash -c 'grep "^root:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
-check "root storage.conf exists"               test -f /root/.config/containers/storage.conf
-check "root storage.conf sets overlay driver"  grep -q 'driver = "overlay"' /root/.config/containers/storage.conf
-check "root storage.conf graphRoot correct"    grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" /root/.config/containers/storage.conf
+check "root in /etc/subuid" grep -q "^root:" /etc/subuid
+check "root in /etc/subgid" grep -q "^root:" /etc/subgid
+check "root subuid offset is 100000" bash -c 'grep "^root:" /etc/subuid | cut -d: -f2 | grep -qx 100000'
+check "root subuid count is 65536" bash -c 'grep "^root:" /etc/subuid | cut -d: -f3 | grep -qx 65536'
+check "root storage.conf exists" test -f /root/.config/containers/storage.conf
+check "root storage.conf sets overlay driver" grep -q 'driver = "overlay"' /root/.config/containers/storage.conf
+check "root storage.conf graphRoot correct" grep -qF "graphRoot = \"${_GRAPH_ROOT}\"" /root/.config/containers/storage.conf
 
 # --- no other user should be configured ---
-check "vscode NOT in /etc/subuid"              bash -c '! grep -q "^vscode:" /etc/subuid 2>/dev/null'
+check "vscode NOT in /etc/subuid" bash -c '! grep -q "^vscode:" /etc/subuid 2>/dev/null'
 
 reportResults

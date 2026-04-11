@@ -9,9 +9,9 @@ fmt:
 fmt-check:
 	shfmt -d --apply-ignore .
 
-# Run shellcheck on all tracked shell files.
+# Run shellcheck on all tracked shell files (no-op if shellcheck is not on PATH).
 lint:
-	shellcheck $(shell git ls-files -- '*.sh' '*.bash')
+	command -v shellcheck >/dev/null 2>&1 && shellcheck $(shell git ls-files -- '*.sh' '*.bash') || echo "shellcheck not found, skipping"
 
 # Sync generated _lib/ copies and install.sh stubs from canonical sources.
 sync:

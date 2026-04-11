@@ -21,7 +21,7 @@ _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
-  cat >&2 <<'EOF'
+  cat >&2 << 'EOF'
 Usage: install_ohmyzsh.sh [OPTIONS]
 
 Options:
@@ -50,16 +50,49 @@ if [ "$#" -gt 0 ]; then
   ZSH_CUSTOM_DIR=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --branch) shift; BRANCH="$1"; shift;;
-      --debug) DEBUG=true; shift;;
-      --install_dir) shift; INSTALL_DIR="$1"; shift;;
-      --logfile) shift; LOGFILE="$1"; shift;;
-      --plugins) shift; PLUGINS="$1"; shift;;
-      --theme) shift; THEME="$1"; shift;;
-      --zsh_custom_dir) shift; ZSH_CUSTOM_DIR="$1"; shift;;
-      --help|-h) __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --branch)
+        shift
+        BRANCH="$1"
+        shift
+        ;;
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --install_dir)
+        shift
+        INSTALL_DIR="$1"
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        shift
+        ;;
+      --plugins)
+        shift
+        PLUGINS="$1"
+        shift
+        ;;
+      --theme)
+        shift
+        THEME="$1"
+        shift
+        ;;
+      --zsh_custom_dir)
+        shift
+        ZSH_CUSTOM_DIR="$1"
+        shift
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 fi

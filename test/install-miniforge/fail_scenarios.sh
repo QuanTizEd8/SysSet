@@ -3,7 +3,7 @@
 # See .devcontainer/test/run-fail-scenarios.sh for the DSL reference.
 
 fail_scenario "invalid version 0.0.0" \
-    VERSION=0.0.0
+  VERSION=0.0.0
 
 fail_scenario "GitHub API unreachable (network isolated)" \
-    --network none
+  --network none

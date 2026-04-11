@@ -7,9 +7,9 @@ set -e
 source dev-container-features-test-lib
 
 # --- environment created despite forced conda solver ---
-check "solverenv environment is listed"      bash -c '/opt/conda/bin/conda env list | grep -q solverenv'
-check "solverenv directory exists"           test -d /opt/conda/envs/solverenv
-check "python binary in solverenv"           test -f /opt/conda/envs/solverenv/bin/python
-check "numpy importable in solverenv"        /opt/conda/envs/solverenv/bin/python -c 'import numpy'
+check "solverenv environment is listed" bash -c '/opt/conda/bin/conda env list | grep -q solverenv'
+check "solverenv directory exists" test -d /opt/conda/envs/solverenv
+check "python binary in solverenv" test -f /opt/conda/envs/solverenv/bin/python
+check "numpy importable in solverenv" /opt/conda/envs/solverenv/bin/python -c 'import numpy'
 
 reportResults

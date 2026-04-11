@@ -14,12 +14,37 @@ if [ "$#" -gt 0 ]; then
   VERSION=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --debug) shift; DEBUG=true; echo "📩 Read argument 'debug': '${DEBUG}'" >&2;;
-      --install_path) shift; INSTALL_PATH="$1"; echo "📩 Read argument 'install_path': '${INSTALL_PATH}'" >&2; shift;;
-      --logfile) shift; LOGFILE="$1"; echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2; shift;;
-      --version) shift; VERSION="$1"; echo "📩 Read argument 'version': '${VERSION}'" >&2; shift;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *) echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --debug)
+        shift
+        DEBUG=true
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        ;;
+      --install_path)
+        shift
+        INSTALL_PATH="$1"
+        echo "📩 Read argument 'install_path': '${INSTALL_PATH}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      --version)
+        shift
+        VERSION="$1"
+        echo "📩 Read argument 'version': '${VERSION}'" >&2
+        shift
+        ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 else
@@ -30,10 +55,22 @@ else
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
 fi
 [[ "$DEBUG" == true ]] && set -x
-[ -z "${DEBUG-}" ] && { echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2; DEBUG=false; }
-[ -z "${INSTALL_PATH-}" ] && { echo "ℹ️ Argument 'INSTALL_PATH' set to default value '/usr/local/bin'." >&2; INSTALL_PATH="/usr/local/bin"; }
-[ -z "${LOGFILE-}" ] && { echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2; LOGFILE=""; }
-[ -z "${VERSION-}" ] && { echo "ℹ️ Argument 'VERSION' set to default value '0.66.0'." >&2; VERSION="0.66.0"; }
+[ -z "${DEBUG-}" ] && {
+  echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
+  DEBUG=false
+}
+[ -z "${INSTALL_PATH-}" ] && {
+  echo "ℹ️ Argument 'INSTALL_PATH' set to default value '/usr/local/bin'." >&2
+  INSTALL_PATH="/usr/local/bin"
+}
+[ -z "${LOGFILE-}" ] && {
+  echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
+  LOGFILE=""
+}
+[ -z "${VERSION-}" ] && {
+  echo "ℹ️ Argument 'VERSION' set to default value '0.66.0'." >&2
+  VERSION="0.66.0"
+}
 
 ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
 

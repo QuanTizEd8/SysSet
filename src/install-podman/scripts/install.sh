@@ -22,7 +22,7 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 # Debug / logging
 # ---------------------------------------------------------------------------
 if [ "${DEBUG:-false}" = "true" ]; then
-    set -x
+  set -x
 fi
 
 # shellcheck source=_lib/ospkg.sh
@@ -38,13 +38,13 @@ trap 'logging::cleanup' EXIT
 _RESOLVED_USERS=""
 
 add_user() {
-    local _name="$1"
-    [ -z "$_name" ] && return 0
-    case " ${_RESOLVED_USERS} " in
-        *" ${_name} "*) return 0 ;;  # already in list
-    esac
-    _RESOLVED_USERS="${_RESOLVED_USERS} ${_name}"
-    return 0
+  local _name="$1"
+  [ -z "$_name" ] && return 0
+  case " ${_RESOLVED_USERS} " in
+    *" ${_name} "*) return 0 ;; # already in list
+  esac
+  _RESOLVED_USERS="${_RESOLVED_USERS} ${_name}"
+  return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -59,40 +59,40 @@ ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt"
 # the bit is set — it is essential for rootless user-namespace creation.
 # At runtime, privileged mode ensures nosuid is not applied.
 # ---------------------------------------------------------------------------
-chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2>/dev/null || true
+chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2> /dev/null || true
 
 # ---------------------------------------------------------------------------
 # 3. Resolve user list
 # ---------------------------------------------------------------------------
 if [ "${ADD_CURRENT_USER_CONFIG:-true}" = "true" ]; then
-    _current="${SUDO_USER:-$(whoami)}"
-    if [ -n "$_current" ] && [ "$_current" != "root" ]; then
-        add_user "$_current"
-    fi
+  _current="${SUDO_USER:-$(whoami)}"
+  if [ -n "$_current" ] && [ "$_current" != "root" ]; then
+    add_user "$_current"
+  fi
 fi
 
 if [ "${ADD_REMOTE_USER_CONFIG:-true}" = "true" ]; then
-    if [ -n "${_REMOTE_USER:-}" ] && [ "$_REMOTE_USER" != "root" ]; then
-        add_user "$_REMOTE_USER"
-    fi
+  if [ -n "${_REMOTE_USER:-}" ] && [ "$_REMOTE_USER" != "root" ]; then
+    add_user "$_REMOTE_USER"
+  fi
 fi
 
 if [ "${ADD_CONTAINER_USER_CONFIG:-true}" = "true" ]; then
-    if [ -n "${_CONTAINER_USER:-}" ] && [ "$_CONTAINER_USER" != "root" ]; then
-        add_user "$_CONTAINER_USER"
-    fi
+  if [ -n "${_CONTAINER_USER:-}" ] && [ "$_CONTAINER_USER" != "root" ]; then
+    add_user "$_CONTAINER_USER"
+  fi
 fi
 
 if [ -n "${ADD_USER_CONFIG:-}" ]; then
-    IFS=',' read -ra _extra_users <<< "$ADD_USER_CONFIG"
-    for _u in "${_extra_users[@]}"; do
-        _u="${_u// /}"  # trim spaces
-        [ -n "$_u" ] && add_user "$_u"
-    done
+  IFS=',' read -ra _extra_users <<< "$ADD_USER_CONFIG"
+  for _u in "${_extra_users[@]}"; do
+    _u="${_u// /}" # trim spaces
+    [ -n "$_u" ] && add_user "$_u"
+  done
 fi
 
 if [ -z "$_RESOLVED_USERS" ]; then
-    echo "install-podman: No users to configure." >&2
+  echo "install-podman: No users to configure." >&2
 fi
 
 # ---------------------------------------------------------------------------
@@ -113,39 +113,39 @@ fi
 # - events_logger=file: journald is not available inside the container.
 mkdir -p /etc/containers
 printf '[engine]\ncgroup_manager = "cgroupfs"\nevents_logger = "file"\n' \
-    > /etc/containers/containers.conf
+  > /etc/containers/containers.conf
 
 GRAPH_ROOT="/var/lib/containers/storage"
 mkdir -p "${GRAPH_ROOT}"
 
 SUBUID_OFFSET=100000
 for _username in $_RESOLVED_USERS; do
-    if ! id "$_username" > /dev/null 2>&1; then
-        echo "install-podman: User '${_username}' does not exist — skipping." >&2
-        continue
-    fi
+  if ! id "$_username" > /dev/null 2>&1; then
+    echo "install-podman: User '${_username}' does not exist — skipping." >&2
+    continue
+  fi
 
-    # Register subuid/subgid ranges (non-overlapping)
-    if ! grep -q "^${_username}:" /etc/subuid 2>/dev/null; then
-        echo "${_username}:${SUBUID_OFFSET}:65536" >> /etc/subuid
-    fi
-    if ! grep -q "^${_username}:" /etc/subgid 2>/dev/null; then
-        echo "${_username}:${SUBUID_OFFSET}:65536" >> /etc/subgid
-    fi
-    SUBUID_OFFSET=$((SUBUID_OFFSET + 65536))
+  # Register subuid/subgid ranges (non-overlapping)
+  if ! grep -q "^${_username}:" /etc/subuid 2> /dev/null; then
+    echo "${_username}:${SUBUID_OFFSET}:65536" >> /etc/subuid
+  fi
+  if ! grep -q "^${_username}:" /etc/subgid 2> /dev/null; then
+    echo "${_username}:${SUBUID_OFFSET}:65536" >> /etc/subgid
+  fi
+  SUBUID_OFFSET=$((SUBUID_OFFSET + 65536))
 
-    # Write per-user storage.conf
-    _home=$(eval echo "~${_username}")
-    _config_dir="${_home}/.config/containers"
-    mkdir -p "${_config_dir}"
-    cat > "${_config_dir}/storage.conf" <<EOF
+  # Write per-user storage.conf
+  _home=$(eval echo "~${_username}")
+  _config_dir="${_home}/.config/containers"
+  mkdir -p "${_config_dir}"
+  cat > "${_config_dir}/storage.conf" << EOF
 [storage]
 driver = "overlay"
 graphRoot = "${GRAPH_ROOT}"
 EOF
 
-    # Fix ownership so Podman can write to config dirs at runtime
-    chown -R "${_username}:$(id -gn "$_username")" "${_home}/.config"
+  # Fix ownership so Podman can write to config dirs at runtime
+  chown -R "${_username}:$(id -gn "$_username")" "${_home}/.config"
 done
 
 # Ensure the graphRoot is accessible to all configured users.

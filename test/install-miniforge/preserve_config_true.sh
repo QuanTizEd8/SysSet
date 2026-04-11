@@ -8,22 +8,24 @@ set -e
 source dev-container-features-test-lib
 
 # --- conda reinstalled ---
-check "conda directory exists"              test -d /opt/conda
-check "conda binary installed"              test -f /opt/conda/bin/conda
-check "conda binary is executable"          test -x /opt/conda/bin/conda
-check "conda --version succeeds"            /opt/conda/bin/conda --version
+check "conda directory exists" test -d /opt/conda
+check "conda binary installed" test -f /opt/conda/bin/conda
+check "conda binary is executable" test -x /opt/conda/bin/conda
+check "conda --version succeeds" /opt/conda/bin/conda --version
 
 # --- .condarc was preserved ---
-echo "=== /root/.condarc ==="; cat /root/.condarc 2>/dev/null || echo "(not present)"
-echo "=== /root/.bashrc (conda initialize block) ==="; grep -A3 'conda initialize' /root/.bashrc 2>/dev/null || echo "(no conda initialize block)"
-check ".condarc still exists"               test -f /root/.condarc
-check ".condarc has expected content"       grep -q 'auto_activate_base' /root/.condarc
+echo "=== /root/.condarc ==="
+cat /root/.condarc 2> /dev/null || echo "(not present)"
+echo "=== /root/.bashrc (conda initialize block) ==="
+grep -A3 'conda initialize' /root/.bashrc 2> /dev/null || echo "(no conda initialize block)"
+check ".condarc still exists" test -f /root/.condarc
+check ".condarc has expected content" grep -q 'auto_activate_base' /root/.condarc
 
 # --- conda initialize block still in .bashrc ---
-check ".bashrc has conda initialize block"  grep -q 'conda initialize' /root/.bashrc
+check ".bashrc has conda initialize block" grep -q 'conda initialize' /root/.bashrc
 
 # --- PATH export written ---
-check "profile.d script written"            test -f /etc/profile.d/conda_bin_path.sh
-check "profile.d script has marked block"   grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
+check "profile.d script written" test -f /etc/profile.d/conda_bin_path.sh
+check "profile.d script has marked block" grep -q 'conda PATH (install-miniforge)' /etc/profile.d/conda_bin_path.sh
 
 reportResults

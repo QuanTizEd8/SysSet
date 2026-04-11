@@ -13,15 +13,39 @@ git::clone() {
   local branch="" dir="" url=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --branch) shift; branch="$1"; shift;;
-      --dir)    shift; dir="$1";    shift;;
-      --url)    shift; url="$1";    shift;;
-      --*) echo "⛔ git::clone: unknown option '${1}'" >&2; return 1;;
-      *)   echo "⛔ git::clone: unexpected argument '${1}'" >&2; return 1;;
+      --branch)
+        shift
+        branch="$1"
+        shift
+        ;;
+      --dir)
+        shift
+        dir="$1"
+        shift
+        ;;
+      --url)
+        shift
+        url="$1"
+        shift
+        ;;
+      --*)
+        echo "⛔ git::clone: unknown option '${1}'" >&2
+        return 1
+        ;;
+      *)
+        echo "⛔ git::clone: unexpected argument '${1}'" >&2
+        return 1
+        ;;
     esac
   done
-  [ -z "${dir}" ] && { echo "⛔ git::clone: missing --dir" >&2; return 1; }
-  [ -z "${url}" ] && { echo "⛔ git::clone: missing --url" >&2; return 1; }
+  [ -z "${dir}" ] && {
+    echo "⛔ git::clone: missing --dir" >&2
+    return 1
+  }
+  [ -z "${url}" ] && {
+    echo "⛔ git::clone: missing --url" >&2
+    return 1
+  }
 
   if [ -d "${dir}/.git" ]; then
     echo "ℹ️  '${dir}' already exists — skipping clone." >&2
@@ -38,7 +62,7 @@ git::clone() {
   [ -n "${branch}" ] && _clone_args+=(--branch "$branch")
 
   if ! git clone "${_clone_args[@]}" "$url" "$dir" 2>&1; then
-    rm -rf "$dir" 2>/dev/null || true
+    rm -rf "$dir" 2> /dev/null || true
     echo "⛔ git clone of '${url}' failed." >&2
     return 1
   fi

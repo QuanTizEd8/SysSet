@@ -35,7 +35,7 @@ trap 'logging::cleanup' EXIT
 # Usage
 # ---------------------------------------------------------------------------
 __usage__() {
-  cat >&2 <<'EOF'
+  cat >&2 << 'EOF'
 Usage: install.sh [OPTIONS]
 
 Shells:
@@ -109,34 +109,135 @@ if [ "$#" -gt 0 ]; then
 
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --install_zsh)                shift; INSTALL_ZSH="$1"; shift;;
-      --install_ohmyzsh)            shift; INSTALL_OHMYZSH="$1"; shift;;
-      --install_ohmybash)           shift; INSTALL_OHMYBASH="$1"; shift;;
-      --install_starship)           shift; INSTALL_STARSHIP="$1"; shift;;
-      --starship_shells)            shift; STARSHIP_SHELLS="$1"; shift;;
+      --install_zsh)
+        shift
+        INSTALL_ZSH="$1"
+        shift
+        ;;
+      --install_ohmyzsh)
+        shift
+        INSTALL_OHMYZSH="$1"
+        shift
+        ;;
+      --install_ohmybash)
+        shift
+        INSTALL_OHMYBASH="$1"
+        shift
+        ;;
+      --install_starship)
+        shift
+        INSTALL_STARSHIP="$1"
+        shift
+        ;;
+      --starship_shells)
+        shift
+        STARSHIP_SHELLS="$1"
+        shift
+        ;;
 
-      --ohmyzsh_install_dir)        shift; OHMYZSH_INSTALL_DIR="$1"; shift;;
-      --zdotdir)                    shift; ZDOTDIR="$1"; shift;;
-      --ohmyzsh_custom_dir)         shift; OHMYZSH_CUSTOM_DIR="$1"; shift;;
-      --ohmyzsh_branch)             shift; OHMYZSH_BRANCH="$1"; shift;;
-      --ohmyzsh_theme)              shift; OHMYZSH_THEME="$1"; shift;;
-      --ohmyzsh_plugins)            shift; OHMYZSH_PLUGINS="$1"; shift;;
-      --ohmybash_install_dir)       shift; OHMYBASH_INSTALL_DIR="$1"; shift;;
-      --ohmybash_custom_dir)        shift; OHMYBASH_CUSTOM_DIR="$1"; shift;;
-      --ohmybash_branch)            shift; OHMYBASH_BRANCH="$1"; shift;;
-      --ohmybash_theme)             shift; OHMYBASH_THEME="$1"; shift;;
-      --ohmybash_plugins)           shift; OHMYBASH_PLUGINS="$1"; shift;;
-      --add_current_user_config)    shift; ADD_CURRENT_USER_CONFIG="$1"; shift;;
-      --add_container_user_config)  shift; ADD_CONTAINER_USER_CONFIG="$1"; shift;;
-      --add_remote_user_config)     shift; ADD_REMOTE_USER_CONFIG="$1"; shift;;
-      --add_user_config)            shift; ADD_USER_CONFIG="$1"; shift;;
-      --user_config_mode)           shift; USER_CONFIG_MODE="$1"; shift;;
-      --set_user_shells)            shift; SET_USER_SHELLS="$1"; shift;;
-      --debug)                      DEBUG=true; shift;;
-      --logfile)                    shift; LOGFILE="$1"; shift;;
-      --help|-h)                    __usage__;;
-      --*) echo "⛔ Unknown option: '${1}'" >&2; exit 1;;
-      *)   echo "⛔ Unexpected argument: '${1}'" >&2; exit 1;;
+      --ohmyzsh_install_dir)
+        shift
+        OHMYZSH_INSTALL_DIR="$1"
+        shift
+        ;;
+      --zdotdir)
+        shift
+        ZDOTDIR="$1"
+        shift
+        ;;
+      --ohmyzsh_custom_dir)
+        shift
+        OHMYZSH_CUSTOM_DIR="$1"
+        shift
+        ;;
+      --ohmyzsh_branch)
+        shift
+        OHMYZSH_BRANCH="$1"
+        shift
+        ;;
+      --ohmyzsh_theme)
+        shift
+        OHMYZSH_THEME="$1"
+        shift
+        ;;
+      --ohmyzsh_plugins)
+        shift
+        OHMYZSH_PLUGINS="$1"
+        shift
+        ;;
+      --ohmybash_install_dir)
+        shift
+        OHMYBASH_INSTALL_DIR="$1"
+        shift
+        ;;
+      --ohmybash_custom_dir)
+        shift
+        OHMYBASH_CUSTOM_DIR="$1"
+        shift
+        ;;
+      --ohmybash_branch)
+        shift
+        OHMYBASH_BRANCH="$1"
+        shift
+        ;;
+      --ohmybash_theme)
+        shift
+        OHMYBASH_THEME="$1"
+        shift
+        ;;
+      --ohmybash_plugins)
+        shift
+        OHMYBASH_PLUGINS="$1"
+        shift
+        ;;
+      --add_current_user_config)
+        shift
+        ADD_CURRENT_USER_CONFIG="$1"
+        shift
+        ;;
+      --add_container_user_config)
+        shift
+        ADD_CONTAINER_USER_CONFIG="$1"
+        shift
+        ;;
+      --add_remote_user_config)
+        shift
+        ADD_REMOTE_USER_CONFIG="$1"
+        shift
+        ;;
+      --add_user_config)
+        shift
+        ADD_USER_CONFIG="$1"
+        shift
+        ;;
+      --user_config_mode)
+        shift
+        USER_CONFIG_MODE="$1"
+        shift
+        ;;
+      --set_user_shells)
+        shift
+        SET_USER_SHELLS="$1"
+        shift
+        ;;
+      --debug)
+        DEBUG=true
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        shift
+        ;;
+      --help | -h) __usage__ ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
     esac
   done
 fi
@@ -220,9 +321,9 @@ if [[ "$INSTALL_OHMYZSH" == true ]]; then
     # Pass an explicit system-path custom dir to the install script so themes
     # and plugins are cloned there.  Per-user paths (~/$HOME-prefixed) and
     # the empty default are handled at configure-user time via symlinks.
-    if [ -n "$OHMYZSH_CUSTOM_DIR" ] && \
-       [[ "$OHMYZSH_CUSTOM_DIR" != '~'* ]] && \
-       [[ "$OHMYZSH_CUSTOM_DIR" != '$HOME'* ]]; then
+    if [ -n "$OHMYZSH_CUSTOM_DIR" ] &&
+      [[ "$OHMYZSH_CUSTOM_DIR" != '~'* ]] &&
+      [[ "$OHMYZSH_CUSTOM_DIR" != '$HOME'* ]]; then
       _OMZ_INSTALL_ARGS+=(--zsh_custom_dir "$OHMYZSH_CUSTOM_DIR")
     fi
     [[ "$DEBUG" == true ]] && _OMZ_INSTALL_ARGS+=(--debug)
@@ -242,9 +343,9 @@ if [[ "$INSTALL_OHMYBASH" == true ]]; then
     --theme "$OHMYBASH_THEME"
     --plugins "$OHMYBASH_PLUGINS"
   )
-  if [ -n "$OHMYBASH_CUSTOM_DIR" ] && \
-     [[ "$OHMYBASH_CUSTOM_DIR" != '~'* ]] && \
-     [[ "$OHMYBASH_CUSTOM_DIR" != '$HOME'* ]]; then
+  if [ -n "$OHMYBASH_CUSTOM_DIR" ] &&
+    [[ "$OHMYBASH_CUSTOM_DIR" != '~'* ]] &&
+    [[ "$OHMYBASH_CUSTOM_DIR" != '$HOME'* ]]; then
     _OMB_INSTALL_ARGS+=(--osh_custom_dir "$OHMYBASH_CUSTOM_DIR")
   fi
   [[ "$DEBUG" == true ]] && _OMB_INSTALL_ARGS+=(--debug)
@@ -257,7 +358,7 @@ fi
 # ===================================================================
 if [[ "$INSTALL_STARSHIP" == true ]]; then
   bash "$_SELF_DIR/install_starship.sh" \
-    $( [[ "$DEBUG" == true ]] && echo "--debug" )
+    $([[ "$DEBUG" == true ]] && echo "--debug")
 fi
 
 # ===================================================================
@@ -301,16 +402,16 @@ if [ -f "$_src" ]; then
   _bashenv_dest="$(dirname "$_SYS_BASHRC")/bashenv"
   # If bashrc is at /etc/bashrc or /etc/bash.bashrc, put bashenv at /etc/bashenv.
   [[ "$_SYS_BASHRC" == "/etc/bash.bashrc" ]] && _bashenv_dest="/etc/bashenv"
-  [[ "$_SYS_BASHRC" == "/etc/bashrc" ]]      && _bashenv_dest="/etc/bashenv"
+  [[ "$_SYS_BASHRC" == "/etc/bashrc" ]] && _bashenv_dest="/etc/bashenv"
   cp -f "$_src" "$_bashenv_dest"
   chmod 644 "$_bashenv_dest"
   echo "  ✅ ${_bashenv_dest}" >&2
 
   # Ensure BASH_ENV is set system-wide so non-interactive non-login bash
   # sessions (VS Code tasks, devcontainer exec, CI runners) source it.
-  if ! grep -qxF "BASH_ENV=${_bashenv_dest}" /etc/environment 2>/dev/null; then
+  if ! grep -qxF "BASH_ENV=${_bashenv_dest}" /etc/environment 2> /dev/null; then
     # Remove any stale BASH_ENV line first, then append the correct one.
-    sed -i '/^BASH_ENV=/d' /etc/environment 2>/dev/null || true
+    sed -i '/^BASH_ENV=/d' /etc/environment 2> /dev/null || true
     echo "BASH_ENV=${_bashenv_dest}" >> /etc/environment
     echo "  ✅ BASH_ENV=${_bashenv_dest} → /etc/environment" >&2
   fi
@@ -335,7 +436,7 @@ fi
 # ===================================================================
 # Step 6: Resolve user list
 # ===================================================================
-declare -A _USERS_MAP  # associative array for deduplication
+declare -A _USERS_MAP # associative array for deduplication
 
 if [[ "$ADD_CURRENT_USER_CONFIG" == true ]]; then
   _CURRENT_USER="${SUDO_USER:-$(whoami)}"
@@ -420,14 +521,14 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
   _TARGET_SHELL=""
   case "$SET_USER_SHELLS" in
     zsh)
-      _TARGET_SHELL="$(command -v zsh 2>/dev/null || true)"
+      _TARGET_SHELL="$(command -v zsh 2> /dev/null || true)"
       if [ -z "$_TARGET_SHELL" ]; then
         echo "⛔ set_user_shells=zsh but zsh is not installed." >&2
         exit 1
       fi
       ;;
     bash)
-      _TARGET_SHELL="$(command -v bash 2>/dev/null || true)"
+      _TARGET_SHELL="$(command -v bash 2> /dev/null || true)"
       if [ -z "$_TARGET_SHELL" ]; then
         echo "⛔ set_user_shells=bash but bash is not installed." >&2
         exit 1
@@ -445,15 +546,15 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
     # Ensure the target shell is in /etc/shells.
     _SHELLS_FILE=/etc/shells
     [ -f /usr/share/defaults/etc/shells ] && _SHELLS_FILE=/usr/share/defaults/etc/shells
-    if [ -f "$_SHELLS_FILE" ] && ! grep -qx "$_TARGET_SHELL" "$_SHELLS_FILE" 2>/dev/null; then
+    if [ -f "$_SHELLS_FILE" ] && ! grep -qx "$_TARGET_SHELL" "$_SHELLS_FILE" 2> /dev/null; then
       echo "$_TARGET_SHELL" >> "$_SHELLS_FILE"
       echo "ℹ️  Added '${_TARGET_SHELL}' to '${_SHELLS_FILE}'." >&2
     fi
 
     # On Alpine, PAM may require a password for chsh even when run as root.
     if [ -f /etc/pam.d/chsh ]; then
-      if ! grep -Eq '^auth[[:blank:]]+sufficient[[:blank:]]+pam_rootok\.so' /etc/pam.d/chsh 2>/dev/null; then
-        if grep -Eq '^auth(.*)pam_rootok\.so' /etc/pam.d/chsh 2>/dev/null; then
+      if ! grep -Eq '^auth[[:blank:]]+sufficient[[:blank:]]+pam_rootok\.so' /etc/pam.d/chsh 2> /dev/null; then
+        if grep -Eq '^auth(.*)pam_rootok\.so' /etc/pam.d/chsh 2> /dev/null; then
           awk '/^auth(.*)pam_rootok\.so$/ { $2 = "sufficient" } { print }' \
             /etc/pam.d/chsh > /tmp/_chsh.tmp && mv /tmp/_chsh.tmp /etc/pam.d/chsh
         else
@@ -464,12 +565,12 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
     fi
 
     for _username in "${_RESOLVED_USERS[@]}"; do
-      _current_shell="$(getent passwd "$_username" 2>/dev/null | cut -d: -f7 || true)"
+      _current_shell="$(getent passwd "$_username" 2> /dev/null | cut -d: -f7 || true)"
       if [ "$_current_shell" = "$_TARGET_SHELL" ]; then
         echo "ℹ️  Shell for '${_username}' already set to '${_TARGET_SHELL}'." >&2
         continue
       fi
-      if chsh -s "$_TARGET_SHELL" "$_username" 2>/dev/null; then
+      if chsh -s "$_TARGET_SHELL" "$_username" 2> /dev/null; then
         echo "✅ Shell for '${_username}' set to '${_TARGET_SHELL}'." >&2
       else
         echo "⚠️  chsh failed for '${_username}'." >&2
