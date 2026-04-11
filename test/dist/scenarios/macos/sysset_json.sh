@@ -2,7 +2,8 @@
 # macos/sysset_json.sh — Verify that sysset.sh processes a JSON manifest and
 # installs features on macOS from co-located tarballs in the all-bundle.
 #
-# Features: install-os-pkg (brew-compatible, macOS-native).
+# install-pixi is used because it is macOS-compatible and does not depend on
+# brew (which cannot run as root).  install-os-pkg is Linux-only.
 # Requires: root for sysset.sh (os::require_root).
 set -euo pipefail
 
@@ -24,10 +25,10 @@ trap 'rm -rf "$_bundle_dir" "$_manifest_dir"' EXIT
 
 tar -xzf "${DIST}/sysset-all.tar.gz" -C "$_bundle_dir"
 
-cat > "$_manifest" << EOF
+cat > "$_manifest" << 'EOF'
 {
   "features": [
-    { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt" } }
+    { "id": "install-pixi" }
   ]
 }
 EOF
@@ -35,7 +36,7 @@ EOF
 check "sysset.sh processes JSON manifest on macOS" \
   sudo env PATH="$PATH" bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
 
-check "tree available after install-os-pkg (macOS)" \
-  command -v tree
+check "pixi installed by install-pixi (macOS)" \
+  command -v pixi
 
 reportResults

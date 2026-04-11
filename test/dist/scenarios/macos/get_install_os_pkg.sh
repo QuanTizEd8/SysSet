@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# macos/get_install_os_pkg.sh — Verify get.sh downloads and installs
-# install-os-pkg on macOS using a local HTTP file server.
+# macos/get_install_os_pkg.sh — Verify get.sh downloads and installs a feature
+# on macOS using a local HTTP file server.
 #
-# install-os-pkg is chosen because it is macOS-compatible (uses brew).
-# The macOS runner has brew pre-installed; 'tree' will be installed via brew.
+# install-pixi is used because it is macOS-compatible and does not depend on
+# brew (which cannot run as root).  install-os-pkg is Linux-only.
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
@@ -18,12 +18,10 @@ trap 'stop_file_server' EXIT
 start_file_server "${REPO_ROOT}/dist" "$_PORT"
 export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
 
-# install-os-pkg requires root (ospkg::install calls package manager as root).
-check "get.sh installs install-os-pkg on macOS (brew installs tree)" \
-  sudo env PATH="$PATH" SYSSET_BASE_URL="$SYSSET_BASE_URL" bash "${REPO_ROOT}/dist/get.sh" install-os-pkg \
-  --manifest "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt"
+check "get.sh installs install-pixi on macOS" \
+  sudo env PATH="$PATH" SYSSET_BASE_URL="$SYSSET_BASE_URL" bash "${REPO_ROOT}/dist/get.sh" install-pixi
 
-check "tree binary installed by install-os-pkg" \
-  command -v tree
+check "pixi binary installed by install-pixi" \
+  command -v pixi
 
 reportResults

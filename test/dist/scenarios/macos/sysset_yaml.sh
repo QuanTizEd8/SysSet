@@ -5,7 +5,8 @@
 # yq (mikefarah/yq) is fetched by sysset.sh from GitHub Releases when absent.
 # This test verifies the auto-install path on macOS (darwin/arm64 or amd64).
 #
-# Feature: install-os-pkg (brew-compatible, macOS-native).
+# install-pixi is used because it is macOS-compatible and does not depend on
+# brew (which cannot run as root).  install-os-pkg is Linux-only.
 # Requires: root for sysset.sh (os::require_root).
 set -euo pipefail
 
@@ -33,17 +34,15 @@ if command -v yq > /dev/null 2>&1; then
   echo "ℹ️  yq already present — YAML auto-install path not tested." >&2
 fi
 
-cat > "$_manifest" << EOF
+cat > "$_manifest" << 'EOF'
 features:
-  - id: install-os-pkg
-    options:
-      manifest: "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt"
+  - id: install-pixi
 EOF
 
 check "sysset.sh processes YAML manifest on macOS" \
   sudo env PATH="$PATH" bash "${_bundle_dir}/scripts/sysset.sh" "$_manifest"
 
-check "tree available after YAML-driven install (macOS)" \
-  command -v tree
+check "pixi installed by YAML-driven install (macOS)" \
+  command -v pixi
 
 reportResults
