@@ -216,7 +216,7 @@
         "image": "debian:latest",
         "features": {
             "install-os-pkg": {
-                "manifest": "tree",
+                "manifest": "tree\n",
                 "install_self": false
             }
         }
