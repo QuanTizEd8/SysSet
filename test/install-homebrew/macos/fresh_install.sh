@@ -39,7 +39,7 @@ check "brew binary absent after uninstall" \
 
 # ── Step 3: Run the feature (fresh install) ───────────────────────────────────
 echo "=== Running install-homebrew feature (fresh install) ==="
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh"
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
 echo "=== Feature completed ==="
 
 # Resolve the prefix the feature would have chosen (same logic as detect_brew_prefix).

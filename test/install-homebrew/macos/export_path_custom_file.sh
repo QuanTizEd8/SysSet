@@ -20,7 +20,7 @@ _cleanup() {
 trap _cleanup EXIT
 
 # --- run the feature ---
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh" \
+bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
   --export_path "$_CUSTOM_FILE"
 
 # --- brew is intact ---

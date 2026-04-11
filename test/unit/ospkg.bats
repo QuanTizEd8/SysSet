@@ -25,8 +25,7 @@ setup() {
 @test "ospkg::detect identifies apk ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "apk"
-  prepend_fake_bin_path
-  ospkg::detect
+  PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "apk" ]]
   [[ "$_OSPKG_PKG_MNGR" == "apk" ]]
   [[ "$_OSPKG_DETECTED" == true ]]
@@ -35,8 +34,7 @@ setup() {
 @test "ospkg::detect identifies dnf ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "dnf"
-  prepend_fake_bin_path
-  ospkg::detect
+  PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "dnf" ]]
   [[ "$_OSPKG_PKG_MNGR" == "dnf" ]]
   [[ "$_OSPKG_DETECTED" == true ]]
@@ -61,8 +59,7 @@ setup() {
 @test "ospkg::detect identifies zypper ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "zypper"
-  prepend_fake_bin_path
-  ospkg::detect
+  PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "zypper" ]]
   [[ "$_OSPKG_PKG_MNGR" == "zypper" ]]
   [[ "$_OSPKG_DETECTED" == true ]]
@@ -71,8 +68,7 @@ setup() {
 @test "ospkg::detect identifies microdnf ecosystem" {
   reload_lib ospkg.sh
   create_fake_bin "microdnf"
-  prepend_fake_bin_path
-  ospkg::detect
+  PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "dnf" ]]
   [[ "$_OSPKG_PKG_MNGR" == "microdnf" ]]
   [[ "${#_OSPKG_UPDATE[@]}" -eq 0 ]]
@@ -85,8 +81,7 @@ setup() {
 _seed_apt_context() {
   reload_lib ospkg.sh
   create_fake_bin "apt-get"
-  prepend_fake_bin_path
-  ospkg::detect
+  PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   _OSPKG_OS_RELEASE[pm]="apt"
   _OSPKG_OS_RELEASE[arch]="x86_64"
   _OSPKG_OS_RELEASE[id]="ubuntu"
@@ -230,8 +225,7 @@ _seed_apt_context() {
   reload_lib ospkg.sh
   # Seed a microdnf-like context: detected, but no update command.
   create_fake_bin "microdnf"
-  prepend_fake_bin_path
-  ospkg::detect
+  PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   run ospkg::update
   assert_success
   assert_output --partial "not supported"

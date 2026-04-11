@@ -15,7 +15,7 @@ check "brew is present (pre-condition)" test -f "$_BREW"
 
 # --- feature must exit non-zero ---
 fail_check "if_exists=fail exits non-zero when brew is already installed" \
-  bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh" --if_exists fail
+  bash "${REPO_ROOT}/src/install-homebrew/install.sh" --if_exists fail
 
 # --- brew is still intact (uninstall was NOT triggered) ---
 check "brew binary still present after fail" test -f "$_BREW"

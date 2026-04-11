@@ -25,7 +25,7 @@ trap _cleanup EXIT
 
 # ── First run: no_install_from_api=true ──────────────────────────────────────
 echo "=== First run: no_install_from_api=true ==="
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh" \
+bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
   --no_install_from_api true
 
 # --- brew is intact ---
@@ -55,7 +55,7 @@ check "a user dotfile exports HOMEBREW_NO_INSTALL_FROM_API=1" \
 
 # ── Second run: no_install_from_api=false (default) — block must be removed ──
 echo "=== Second run: no_install_from_api=false (default) ==="
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh"
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
 
 echo "=== ~/.zprofile (after second run) ==="
 cat "${_HOME}/.zprofile" 2> /dev/null || echo "(missing)"

@@ -38,3 +38,7 @@ indent_size = 2
 # Bats vendor libraries (git submodules) — never reformat third-party code.
 [test/unit/bats/**]
 ignore = true
+
+# p10k config uses zsh-only syntax not parseable by shfmt.
+[src/install-shell/files/skel/p10k.zsh]
+ignore = true

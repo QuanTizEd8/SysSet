@@ -40,7 +40,7 @@ trap _cleanup EXIT
 
 # ── First run: brew_git_remote set ───────────────────────────────────────────
 echo "=== First run: brew_git_remote='${_REMOTE_URL}' ==="
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh" \
+bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
   --brew_git_remote "$_REMOTE_URL"
 
 # --- brew is intact ---
@@ -74,7 +74,7 @@ check "a user dotfile exports HOMEBREW_BREW_GIT_REMOTE" \
 
 # ── Second run: brew_git_remote unset (default) — block must be removed ───────
 echo "=== Second run: brew_git_remote unset ==="
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh"
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
 
 echo "=== ~/.zprofile (after second run) ==="
 cat "${_HOME}/.zprofile" 2> /dev/null || echo "(missing)"

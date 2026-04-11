@@ -248,8 +248,10 @@ zsh-syntax-highlighting"
 
 @test "shell::resolve_home returns home for current user" {
   reload_lib shell.sh
+  local _expected
+  _expected="$(eval echo "~$(whoami)")"
   run shell::resolve_home "$(whoami)"
-  assert_output "$HOME"
+  assert_output "$_expected"
   assert_success
 }
 

@@ -27,7 +27,7 @@ _cleanup() {
 trap _cleanup EXIT
 
 # --- run the feature ---
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh"
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
 
 # --- brew is intact (if_exists=skip) ---
 echo "=== brew --version ==="

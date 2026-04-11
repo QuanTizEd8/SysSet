@@ -23,9 +23,9 @@ _cleanup() {
 trap _cleanup EXIT
 
 # First run
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh"
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
 # Second run (idempotency check)
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh"
+bash "${REPO_ROOT}/src/install-homebrew/install.sh"
 
 # --- brew is intact ---
 check "brew binary present" test -f "$_BREW"

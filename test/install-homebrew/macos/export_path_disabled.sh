@@ -13,7 +13,7 @@ _BREW="${_BREW_PREFIX}/bin/brew"
 # No cleanup needed: this scenario must not write to any file.
 
 # --- run the feature ---
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh" --export_path ""
+bash "${REPO_ROOT}/src/install-homebrew/install.sh" --export_path ""
 
 # --- brew is intact ---
 echo "=== brew --version ==="

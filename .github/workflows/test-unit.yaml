@@ -50,7 +50,7 @@ jobs:
         include:
           - distro: debian
             image: debian:bookworm
-            install: apt-get update -qq && apt-get install -y --no-install-recommends bash git
+            install: apt-get update -qq && apt-get install -y --no-install-recommends bash git ca-certificates
           - distro: fedora
             image: fedora:latest
             install: dnf install -y bash git

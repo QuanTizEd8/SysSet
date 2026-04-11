@@ -26,7 +26,7 @@ check "brew present before reinstall (pre-condition)" test -f "$_BREW"
 
 # ── Run the feature with if_exists=reinstall ──────────────────────────────────
 echo "=== Running install-homebrew with if_exists=reinstall ==="
-bash "${REPO_ROOT}/src/install-homebrew/scripts/install.sh" \
+bash "${REPO_ROOT}/src/install-homebrew/install.sh" \
   --if_exists reinstall
 echo "=== Feature completed ==="
 
