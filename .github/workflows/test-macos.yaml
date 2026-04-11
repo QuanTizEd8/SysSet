@@ -15,7 +15,7 @@ jobs:
     outputs:
       features: ${{ steps.list.outputs.features }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
@@ -57,7 +57,7 @@ jobs:
       matrix:
         feature: ${{ fromJson(needs.discover-macos.outputs.features) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: "Sync _lib/ copies from lib/"
         run: bash sync-lib.sh
