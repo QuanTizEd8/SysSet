@@ -34,3 +34,7 @@ indent_size = 2
 trim_trailing_whitespace = false
 indent_style = space
 indent_size = 2
+
+# Bats vendor libraries (git submodules) — never reformat third-party code.
+[test/unit/bats/**]
+ignore = true
