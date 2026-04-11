@@ -43,8 +43,6 @@ for _feature_dir in "${_feature_dirs[@]}"; do
   _name="$(basename "$_feature_dir")"
   _dest="${_feature_dir}/scripts/_lib"
   _bootstrap_dest="${_feature_dir}/install.sh"
-  _custom_bootstrap=false
-  [[ -f "${_feature_dir}/.no-bootstrap-sync" ]] && _custom_bootstrap=true
 
   if [[ "$_check_mode" == true ]]; then
     if [[ ! -d "$_dest" ]]; then
@@ -59,29 +57,16 @@ for _feature_dir in "${_feature_dirs[@]}"; do
       diff -r "$_LIB_DIR" "$_dest" >&2 || true
       _any_stale=true
     fi
-    if [[ "$_custom_bootstrap" == true ]]; then
-      if [[ ! -f "$_bootstrap_dest" ]]; then
-        echo "⛔ ${_name}: install.sh is missing (custom bootstrap)" >&2
-        _any_stale=true
-      else
-        echo "ℹ️  ${_name}: custom bootstrap — install.sh not checked against bootstrap.sh" >&2
-      fi
-    else
-      if [[ ! -f "$_bootstrap_dest" ]] || ! diff -q "$_BOOTSTRAP" "$_bootstrap_dest" > /dev/null 2>&1; then
-        echo "⛔ ${_name}: install.sh is missing or stale" >&2
-        _any_stale=true
-      fi
+    if [[ ! -f "$_bootstrap_dest" ]] || ! diff -q "$_BOOTSTRAP" "$_bootstrap_dest" > /dev/null 2>&1; then
+      echo "⛔ ${_name}: install.sh is missing or stale" >&2
+      _any_stale=true
     fi
   else
     rm -rf "$_dest"
     mkdir -p "$_dest"
     cp -r "${_LIB_DIR}/." "${_dest}/"
-    if [[ "$_custom_bootstrap" == true ]]; then
-      echo "✅ ${_name}: synced (_lib/ only; install.sh is a custom bootstrap)" >&2
-    else
-      cp "$_BOOTSTRAP" "$_bootstrap_dest"
-      echo "✅ ${_name}: synced" >&2
-    fi
+    cp "$_BOOTSTRAP" "$_bootstrap_dest"
+    echo "✅ ${_name}: synced" >&2
   fi
 done
 
