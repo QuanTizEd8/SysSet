@@ -101,20 +101,26 @@ Additional files in `<scenario>/` land flat in the temp `.devcontainer/` directo
 
 ## Fail Scenarios
 
-For scenarios that must **fail** during install, add `"expectedExitCode": 1` in `scenarios.json`:
+The devcontainer CLI has no mechanism to assert that a feature install fails. Expected-failure scenarios are handled entirely outside the CLI, via a separate `test/<feature>/fail_scenarios.sh` file and the `test/run-fail-scenarios.sh` runner.
 
-```json
-{
-  "scenarios": {
-    "invalid_option": {
-      "features": { "../../src/setup-user": { "user_id": "notanumber" } },
-      "expectedExitCode": 1
-    }
-  }
-}
+Create `test/<feature>/fail_scenarios.sh` with one `fail_scenario` call per case:
+
+```bash
+# Fail scenarios for <feature>.
+# Each call expects scripts/install.sh to exit non-zero.
+
+fail_scenario "invalid version string" \
+    VERSION=bad_value
+
+fail_scenario "network unreachable" \
+    --network none
 ```
 
-`test/run-fail-scenarios.sh` handles running these and verifying the expected exit code.
+DSL for `fail_scenario "<label>" [--network none] [KEY=VALUE ...]`:
+- `KEY=VALUE` — environment variables passed to the install script
+- `--network none` — isolates the container from the network; the runner pre-builds a base image with the feature's dependencies so no network is needed at test time
+
+`test/run-fail-scenarios.sh <feature>` sources the file and runs each scenario in a plain Docker container (not via the devcontainer CLI), asserting a non-zero exit. These are run as a separate CI step.
 
 ## Running Tests Locally
 
