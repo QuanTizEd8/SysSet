@@ -1,0 +1,112 @@
+name: "CI - Test Dist Installers"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "get.sh"
+      - "sysset.sh"
+      - "build-artifacts.sh"
+      - "src/**"
+      - "lib/**"
+      - "test/dist/**"
+      - ".github/workflows/test-dist.yaml"
+  pull_request:
+    paths:
+      - "get.sh"
+      - "sysset.sh"
+      - "build-artifacts.sh"
+      - "src/**"
+      - "lib/**"
+      - "test/dist/**"
+      - ".github/workflows/test-dist.yaml"
+  workflow_dispatch:
+
+jobs:
+  # ── build scenario: verify dist/ layout and tag stamping ─────────────────────
+  dist-build:
+    name: "Dist: build artifacts"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run build scenario"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash test/dist/scenarios/build/default.sh "$GITHUB_WORKSPACE"
+
+  # ── get/ scenarios: download via SYSSET_BASE_URL override (no root needed) ──
+  dist-get:
+    name: "Dist: get/ scenarios"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run get/ scenarios"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash test/dist/run.sh --suite get
+
+  # ── sysset/ scenarios: run as root inside Linux containers ───────────────────
+  # Each sysset scenario builds dist/, extracts sysset-all.tar.gz, and runs
+  # sysset.sh as root. Volume-mounted docker run keeps the runner tooling
+  # (python3, bash>=4) available while the feature installer runs inside the
+  # container environment.
+  dist-sysset:
+    name: "Dist: sysset/ scenarios (${{ matrix.distro }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian
+            image: debian:bookworm
+            pre: "apt-get update -qq && apt-get install -y --no-install-recommends bash jq curl ca-certificates"
+          - distro: ubuntu
+            image: ubuntu:24.04
+            pre: "apt-get update -qq && apt-get install -y --no-install-recommends bash jq curl ca-certificates"
+          - distro: alpine
+            image: alpine:3.20
+            pre: "apk add --no-cache bash jq curl ca-certificates"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run sysset/ scenarios inside ${{ matrix.distro }} container"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            -e GITHUB_TOKEN \
+            "${{ matrix.image }}" \
+            sh -c "${{ matrix.pre }} && bash test/dist/run.sh --suite sysset"
+
+  # ── macOS: build + get + sysset scenarios on macOS-hosted runner ─────────────
+  dist-macos:
+    name: "Dist: macOS scenarios"
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Install bash ≥4 (macOS)"
+        run: brew install bash
+
+      - name: "Run macOS dist scenarios"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash test/dist/run.sh --suite macos

@@ -91,7 +91,7 @@ fi
 _tmpdir="$(mktemp -d)"
 trap 'rm -rf "$_tmpdir"' EXIT
 
-_url="https://github.com/${SYSSET_REPO}/releases/download/${_tag}/sysset-${_feature}.tar.gz"
+_url="${SYSSET_BASE_URL:-https://github.com/${SYSSET_REPO}/releases/download/${_tag}}/sysset-${_feature}.tar.gz"
 echo "↪️  Downloading sysset-${_feature} @ ${_tag} ..." >&2
 
 if [ "$_fetch_tool" = "curl" ]; then
