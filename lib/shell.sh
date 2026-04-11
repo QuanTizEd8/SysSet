@@ -117,6 +117,55 @@ shell::write_block() {
   return 0
 }
 
+# shell::sync_block --files <files> --marker <id> [--content <text>]
+# For each file in the newline-separated <files> list:
+#   - If --content is present: write or update the named idempotency block.
+#   - If --content is absent: remove the named idempotency block if it exists.
+# Skips blank lines in the file list.
+shell::sync_block() {
+  local _files="" _marker="" _content="" _has_content=false
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --files)
+        shift
+        _files="$1"
+        shift
+        ;;
+      --marker)
+        shift
+        _marker="$1"
+        shift
+        ;;
+      --content)
+        shift
+        _content="$1"
+        _has_content=true
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  local _begin="# >>> ${_marker} >>>"
+  local _end="# <<< ${_marker} <<<"
+  while IFS= read -r _f; do
+    [ -z "$_f" ] && continue
+    if [ "$_has_content" = true ]; then
+      shell::write_block --file "$_f" --marker "$_marker" --content "$_content"
+    else
+      [ -f "$_f" ] || continue
+      grep -qF "$_begin" "$_f" || continue
+      awk -v begin="$_begin" -v end="$_end" '
+        $0 == begin { found=1; next }
+        found && $0 == end { found=0; next }
+        found { next }
+        { print }
+      ' "$_f" > "${_f}.tmp" && mv "${_f}.tmp" "$_f"
+      echo "🗑 Removed shell block '${_marker}' from '${_f}'." >&2
+    fi
+  done <<< "$_files"
+  return 0
+}
+
 # shell::user_login_file [--home <dir>]
 # Prints the bash login startup file path for the given home directory.
 # Returns the first existing of .bash_profile, .bash_login, .profile;

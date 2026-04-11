@@ -414,10 +414,7 @@ export_path_main() {
       _target_files="$(shell::user_path_files)"
     fi
   fi
-  while IFS= read -r _f; do
-    [ -z "$_f" ] && continue
-    shell::write_block --file "$_f" --marker "$_marker" --content "$_content"
-  done <<< "$_target_files"
+  shell::sync_block --files "$_target_files" --marker "$_marker" --content "$_content"
   echo "↩️ Function exit: export_path_main" >&2
   return
 }

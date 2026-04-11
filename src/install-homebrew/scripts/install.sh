@@ -72,17 +72,11 @@ uninstall_brew() {
 export_shellenv_for_user() {
   echo "↪️ Function entry: export_shellenv_for_user" >&2
   local _user="$1"
-  local _home
-  local _brew_content='eval "$('"${RESOLVED_PREFIX}/bin/brew"' shellenv)"'
-  _home="$(getent passwd "$_user" 2> /dev/null | cut -d: -f6)" ||
-    _home="$(eval echo "~${_user}" 2> /dev/null)" ||
-    {
-      echo "⚠️ Could not determine home directory for user '${_user}'. Skipping." >&2
-      return 0
-    }
-  while IFS= read -r _f; do
-    shell::write_block --file "$_f" --marker "brew shellenv (install-homebrew)" --content "$_brew_content"
-  done <<< "$(shell::user_init_files --home "$_home")"
+  local _brew_content='eval "$('''${RESOLVED_PREFIX}/bin/brew''' shellenv)"'
+  shell::sync_block \
+    --files "$(shell::user_init_files --home "$(shell::resolve_home "$_user")")" \
+    --marker "brew shellenv (install-homebrew)" \
+    --content "$_brew_content"
   echo "↩️ Function exit: export_shellenv_for_user" >&2
   return 0
 }
@@ -98,10 +92,7 @@ export_shellenv_main() {
   local _marker="brew shellenv (install-homebrew)"
   if [ "$EXPORT_PATH" != "auto" ]; then
     # Explicit newline-separated path list
-    while IFS= read -r _f; do
-      [ -z "$_f" ] && continue
-      shell::write_block --file "$_f" --marker "$_marker" --content "$_brew_content"
-    done <<< "$EXPORT_PATH"
+    shell::sync_block --files "$EXPORT_PATH" --marker "$_marker" --content "$_brew_content"
     echo "↩️ Function exit: export_shellenv_main" >&2
     return 0
   fi
@@ -110,9 +101,10 @@ export_shellenv_main() {
   [ "$(id -u)" = "0" ] && _is_root=true
   if [ "$_is_root" = true ] && [ "$(os::kernel)" != "Darwin" ]; then
     echo "ℹ️ Case A: system-wide shellenv export (root + Linux)." >&2
-    while IFS= read -r _f; do
-      shell::write_block --file "$_f" --marker "$_marker" --content "$_brew_content"
-    done <<< "$(shell::system_path_files --profile_d "brew.sh")"
+    shell::sync_block \
+      --files "$(shell::system_path_files --profile_d "brew.sh")" \
+      --marker "$_marker" \
+      --content "$_brew_content"
   else
     echo "ℹ️ Case B: user-scoped shellenv export." >&2
     export_shellenv_for_user "$RESOLVED_INSTALL_USER"
@@ -144,6 +136,107 @@ detect_brew_prefix() {
     echo "/home/linuxbrew/.linuxbrew"
   fi
   echo "↩️ Function exit: detect_brew_prefix" >&2
+  return 0
+}
+
+# Returns the path to the Homebrew/brew git repository — distinct from the
+# prefix on Intel macOS and Linux, where brew lives in ${prefix}/Homebrew.
+detect_brew_repository() {
+  echo "↪️ Function entry: detect_brew_repository" >&2
+  if [ "$(os::kernel)" = "Darwin" ] && [ "$(os::arch)" = "arm64" ]; then
+    echo "${RESOLVED_PREFIX}"
+  else
+    echo "${RESOLVED_PREFIX}/Homebrew"
+  fi
+  echo "↩️ Function exit: detect_brew_repository" >&2
+  return 0
+}
+
+# enforce_options — applies post-install options unconditionally:
+#   • BREW_GIT_REMOTE / CORE_GIT_REMOTE: sets git remote.origin.url on the
+#     brew and homebrew-core repositories, and writes env-var export blocks to
+#     shell init files (so future `brew update` calls use the same remote).
+#   • NO_INSTALL_FROM_API: writes / removes HOMEBREW_NO_INSTALL_FROM_API=1
+#     export block in shell init files.
+enforce_options() {
+  echo "↪️ Function entry: enforce_options" >&2
+  local _brew_repo _core_repo _marker_brew _marker_core _marker_api
+  _brew_repo="$(detect_brew_repository)"
+  _core_repo="${_brew_repo}/Library/Taps/homebrew/homebrew-core"
+  _marker_brew="HOMEBREW_BREW_GIT_REMOTE (install-homebrew)"
+  _marker_core="HOMEBREW_CORE_GIT_REMOTE (install-homebrew)"
+  _marker_api="HOMEBREW_NO_INSTALL_FROM_API (install-homebrew)"
+
+  # --- brew git remote ---
+  if [ -n "${BREW_GIT_REMOTE-}" ]; then
+    echo "🔧 Setting brew git remote to '${BREW_GIT_REMOTE}'." >&2
+    if [ -d "${_brew_repo}/.git" ]; then
+      git -C "$_brew_repo" remote set-url origin "$BREW_GIT_REMOTE"
+    else
+      echo "⚠️ brew repository not found at '${_brew_repo}'; skipping git remote set." >&2
+    fi
+  fi
+  _sync_init_files "$_marker_brew" ${BREW_GIT_REMOTE:+"export HOMEBREW_BREW_GIT_REMOTE=\"${BREW_GIT_REMOTE}\""}
+
+  # --- core git remote ---
+  if [ -n "${CORE_GIT_REMOTE-}" ]; then
+    echo "🔧 Setting homebrew-core git remote to '${CORE_GIT_REMOTE}'." >&2
+    if [ -d "${_core_repo}/.git" ]; then
+      git -C "$_core_repo" remote set-url origin "$CORE_GIT_REMOTE"
+    else
+      echo "ℹ️ homebrew-core tap not present at '${_core_repo}'; skipping git remote set." >&2
+    fi
+  fi
+  _sync_init_files "$_marker_core" ${CORE_GIT_REMOTE:+"export HOMEBREW_CORE_GIT_REMOTE=\"${CORE_GIT_REMOTE}\""}
+
+  # --- HOMEBREW_NO_INSTALL_FROM_API ---
+  if [[ "${NO_INSTALL_FROM_API}" == true ]]; then
+    echo "🔧 Persisting HOMEBREW_NO_INSTALL_FROM_API=1." >&2
+    _sync_init_files "$_marker_api" "export HOMEBREW_NO_INSTALL_FROM_API=1"
+  else
+    _sync_init_files "$_marker_api"
+  fi
+
+  echo "↩️ Function exit: enforce_options" >&2
+  return 0
+}
+
+# _sync_init_files <marker> [content]
+# Calls shell::sync_block for the relevant init files for RESOLVED_INSTALL_USER
+# (and any extra USERS) plus system-wide files when running as root on Linux.
+# If content is given, writes/updates the block; if absent, removes it.
+_sync_init_files() {
+  local _marker="$1"
+  local _content="${2-}"
+  local _has_content=false
+  [ $# -ge 2 ] && _has_content=true
+  local _files _slug _is_root=false
+  [ "$(id -u)" = "0" ] && _is_root=true
+
+  if [ "$_is_root" = true ] && [ "$(os::kernel)" != "Darwin" ]; then
+    _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
+    _files="$(shell::system_path_files --profile_d "${_slug}.sh")"
+  else
+    _files="$(shell::user_init_files --home "$(shell::resolve_home "$RESOLVED_INSTALL_USER")")" 
+  fi
+  if [ "$_has_content" = true ]; then
+    shell::sync_block --files "$_files" --marker "$_marker" --content "$_content"
+  else
+    shell::sync_block --files "$_files" --marker "$_marker"
+  fi
+
+  if [ -n "${USERS-}" ]; then
+    IFS=',' read -ra _EXTRA_USERS <<< "$USERS"
+    for _u in "${_EXTRA_USERS[@]}"; do
+      [[ -z "$_u" ]] && continue
+      _files="$(shell::user_init_files --home "$(shell::resolve_home "$_u")")" 
+      if [ "$_has_content" = true ]; then
+        shell::sync_block --files "$_files" --marker "$_marker" --content "$_content"
+      else
+        shell::sync_block --files "$_files" --marker "$_marker"
+      fi
+    done
+  fi
   return 0
 }
 
@@ -405,6 +498,10 @@ if [ ! -f "$_BREW_EXEC" ]; then
   exit 1
 fi
 echo "✅ Homebrew $("$_BREW_EXEC" --version | head -1) is available at '${_BREW_EXEC}'." >&2
+
+# ── Step 3.5: Enforce options (git remotes, NO_INSTALL_FROM_API) ──────────────
+# Runs unconditionally so options are applied even when if_exists=skip.
+enforce_options
 
 # ── Step 4: brew update ───────────────────────────────────────────────────────
 if [[ "$UPDATE" == true ]]; then
