@@ -35,24 +35,6 @@
             "install-homebrew": {}
         }
     },
-    "fedora": {
-        "image": "fedora:latest",
-        "features": {
-            "install-homebrew": {}
-        }
-    },
-    "opensuse": {
-        "image": "opensuse/leap:latest",
-        "features": {
-            "install-homebrew": {}
-        }
-    },
-    "arch": {
-        "image": "archlinux:latest",
-        "features": {
-            "install-homebrew": {}
-        }
-    },
     "update_false": {
         "image": "ubuntu:latest",
         "features": {
