@@ -1,7 +1,7 @@
 ---
 description: "Use when developing, auditing, improving, or maintaining devcontainer features and standalone installers. Expert Linux/macOS system administrator specializing in shell scripting, system software setup, containerization, and DevOps. Handles the full lifecycle: research, API design, implementation, adversarial review, testing, and CI verification. Invoke for tasks involving src/*/scripts/, lib/, devcontainer-feature.json, docs/ref/, test/, or anything related to feature development and distribution."
 tools: [execute, read, edit, search, web, agent, todo, vscode, github/*, microsoft/markitdown/*, oraios/serena/*]
-model: ["Claude Opus 4.6 (copilot)"]
+model: ["Claude Sonnet 4.5 (copilot)"]
 agents: [adversarial-auditor, ci-verifier, final-reviewer]
 argument-hint: "Describe the feature work: e.g. 'create install-terraform feature' or 'audit install-pixi checksums'"
 ---
