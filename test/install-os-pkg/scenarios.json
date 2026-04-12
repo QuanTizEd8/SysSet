@@ -208,7 +208,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.txt"
+                "manifest": "/tmp/manifest.txt",
+                "install_self": true
             }
         }
     },

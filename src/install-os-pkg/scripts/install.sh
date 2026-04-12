@@ -194,17 +194,20 @@ fi
 : "${SKIP_INSTALLED:=false}"
 : "${PREFER_LINUXBREW:=false}"
 
-# Install the system command so other features/scripts can call 'install-os-pkg'
-# directly.  Done unconditionally (before lifecycle_hook early exit) so the
-# library files exist when hook scripts reference the installed copy at runtime.
+# Always install the backing library so lifecycle hook scripts can reference it.
+# The user-visible wrapper script (/usr/local/bin/install-os-pkg) is optional
+# and only written when install_self=true.
+_LIB_DIR="/usr/local/lib/install-os-pkg"
+if [ ! -d "$_LIB_DIR" ]; then
+  mkdir -p "$_LIB_DIR"
+  cp "$0" "$_LIB_DIR/install.sh"
+  chmod +x "$_LIB_DIR/install.sh"
+  cp -r "$_SELF_DIR/_lib" "$_LIB_DIR/"
+fi
+
 if [[ "$INSTALL_SELF" == true ]]; then
-  _LIB_DIR="/usr/local/lib/install-os-pkg"
   _BIN="/usr/local/bin/install-os-pkg"
   if [ ! -x "$_BIN" ]; then
-    mkdir -p "$_LIB_DIR"
-    cp "$0" "$_LIB_DIR/install.sh"
-    chmod +x "$_LIB_DIR/install.sh"
-    cp -r "$_SELF_DIR/_lib" "$_LIB_DIR/"
     printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" > "$_BIN"
     chmod +x "$_BIN"
     echo "✅ Installed system command: $_BIN" >&2
