@@ -23,5 +23,6 @@
         "cursor-global": true,
         "windsurf": true
     },
-    "chat.mcp.gallery.enabled": true
+    "chat.mcp.gallery.enabled": true,
+    "makefile.configureOnOpen": false
 }
