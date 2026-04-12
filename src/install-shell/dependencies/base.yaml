@@ -1,0 +1,28 @@
+# Runtime dependencies for the install-shell devcontainer feature.
+# install-os-pkg installs these before the main script runs.
+packages:
+  - git
+  - curl
+  - ca-certificates
+  - fontconfig
+
+apt:
+  packages:
+    - xz-utils
+    # Locale: generate en_US.UTF-8 so LANG/LC_ALL set in /etc/shellenv resolve correctly.
+    - locales
+apk:
+  packages:
+    - xz
+    - musl-locales
+    - musl-locales-lang
+dnf:
+  packages:
+    - xz
+    - glibc-langpack-en
+
+scripts: |
+  if command -v dpkg > /dev/null 2>&1; then
+    sed -i 's/^# \(en_US\.UTF-8\)/\1/' /etc/locale.gen
+    locale-gen
+  fi

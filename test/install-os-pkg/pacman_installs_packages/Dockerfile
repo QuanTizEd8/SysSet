@@ -1,2 +1,2 @@
 FROM archlinux:latest
-RUN printf '%s\n' '--- pkg [pm=pacman]' 'tree' > /tmp/manifest.txt
+RUN printf '%s\n' 'pacman:' '  packages:' '    - tree' > /tmp/manifest.yaml

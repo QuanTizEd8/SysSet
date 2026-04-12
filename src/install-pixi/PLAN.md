@@ -2,7 +2,7 @@
 
 ## Context
 - Feature: `.devcontainer/src/install-pixi/`
-- Key files: `devcontainer-feature.json`, `scripts/install.sh`, `install.sh` (bootstrap), `dependencies/base.txt`
+- Key files: `devcontainer-feature.json`, `scripts/install.sh`, `install.sh` (bootstrap), `dependencies/base.yaml`
 - Pattern reference: `install-miniforge` (sister feature)
 - Bootstrap `install.sh` delegates to `scripts/install.sh`
 - Each iteration is independently shippable and testable before the next begins
@@ -126,7 +126,7 @@ Replace the unconditional `install-os-pkg` call with a guarded variant:
 ```sh
 if command -v install-os-pkg >/dev/null 2>&1; then
     # Devcontainer mode: install dependencies via the feature toolchain.
-    install-os-pkg --manifest "$_SELF_DIR/dependencies/base.txt" --check_installed
+    install-os-pkg --manifest "$_SELF_DIR/dependencies/base.yaml" --check_installed
 else
     # Standalone mode: verify required tools exist and print a friendly error if not.
     _missing=""

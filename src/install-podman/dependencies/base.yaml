@@ -1,0 +1,18 @@
+# Base dependencies for the install-podman devcontainer feature.
+packages:
+  - podman
+  - ca-certificates
+  # rootless networking — passt is the new default on Fedora; slirp4netns still required on Debian/Ubuntu
+  - passt
+  - slirp4netns
+
+# UID/GID mapping tools — package name varies by distro
+apt:
+  packages:
+    - uidmap
+dnf:
+  packages:
+    - shadow-utils
+apk:
+  packages:
+    - shadow-uidmap

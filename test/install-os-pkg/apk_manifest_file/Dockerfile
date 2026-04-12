@@ -1,5 +1,11 @@
 FROM alpine:latest
 RUN apk add --no-cache bash \
  && mkdir -p /tmp \
- && printf '--- pkg [pm=apt]\nnot-a-real-package\n--- pkg [pm=apk]\ntree\n' \
-      > /tmp/manifest.txt
+ && printf '%s\n' \
+      'apt:' \
+      '  packages:' \
+      '    - not-a-real-package' \
+      'apk:' \
+      '  packages:' \
+      '    - tree' \
+      > /tmp/manifest.yaml

@@ -86,7 +86,7 @@ fi
 ## OS Package Dependencies
 
 ```bash
-ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt" --check_installed
+ospkg::run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
 ```
 
 `--check_installed` skips packages already present (idempotent). Omit `--check_installed` when upgrading is desired.

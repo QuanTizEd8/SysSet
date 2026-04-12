@@ -1,0 +1,25 @@
+# section_selectors — section-header pm= selectors gate entire sections.
+# The final headerless --- pkg section is always active.
+apt:
+  packages:
+    - apt-only
+    - extra-apt-pkg
+
+apk:
+  packages:
+    - apk-only
+
+dnf:
+  packages:
+    - dnf-only
+
+zypper:
+  packages:
+    - zypper-only
+
+pacman:
+  packages:
+    - pacman-only
+
+packages:
+  - always-installed

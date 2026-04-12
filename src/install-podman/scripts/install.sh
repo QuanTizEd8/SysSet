@@ -37,7 +37,7 @@ trap 'logging::cleanup' EXIT
 # ---------------------------------------------------------------------------
 # 1. Install packages
 # ---------------------------------------------------------------------------
-ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt"
+ospkg::run --manifest "${_BASE_DIR}/dependencies/base.yaml"
 
 # ---------------------------------------------------------------------------
 # 2. Ensure newuidmap / newgidmap have setuid bit

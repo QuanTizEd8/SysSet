@@ -71,7 +71,7 @@ For every feature task, execute these phases in order. Do not skip phases.
    - Dual-mode argument parsing (env vars for devcontainer CLI, `--flags` for standalone).
    - `ospkg::run --manifest` for OS dependencies.
    - Explicit `return` on every function.
-6. Write the `dependencies/base.txt` manifest if needed.
+6. Write the `dependencies/base.yaml` manifest if needed.
 7. Run formatting and linting:
    ```bash
    make fmt

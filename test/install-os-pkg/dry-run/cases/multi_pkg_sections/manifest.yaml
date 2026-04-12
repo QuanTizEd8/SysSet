@@ -1,0 +1,16 @@
+# multi_pkg_sections — multiple pkg sections with the same selector are
+# accumulated: packages from all matching sections are merged into one list.
+apt:
+  packages:
+    - pkg-apt-a
+    - pkg-apt-b
+
+apk:
+  packages:
+    - pkg-apk-a
+    - pkg-apk-b
+
+pacman:
+  packages:
+    - pkg-pacman-a
+    - pkg-pacman-b

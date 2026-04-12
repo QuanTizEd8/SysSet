@@ -29,7 +29,7 @@ Read fresh from disk. Do not trust any summary you were given. Read:
 - `src/<feature>/scripts/install.sh` — the main installer
 - `src/<feature>/scripts/*.sh` — any helper scripts
 - `src/<feature>/devcontainer-feature.json` — the API definition
-- `src/<feature>/dependencies/base.txt` — OS package manifest (if it exists)
+- `src/<feature>/dependencies/base.yaml` — OS package manifest (if it exists)
 - `docs/ref/<feature>.md` — the reference document
 - Any `lib/` modules that the script sources
 

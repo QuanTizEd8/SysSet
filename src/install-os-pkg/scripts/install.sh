@@ -215,8 +215,8 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   mkdir -p "$_HOOK_DIR"
   _MANIFEST_ARG="$MANIFEST"
   if [[ "$MANIFEST" == *$'\n'* ]]; then
-    printf '%s' "$MANIFEST" > "$_HOOK_DIR/manifest.txt"
-    _MANIFEST_ARG="$_HOOK_DIR/manifest.txt"
+    printf '%s' "$MANIFEST" > "$_HOOK_DIR/manifest.yaml"
+    _MANIFEST_ARG="$_HOOK_DIR/manifest.yaml"
     echo "ℹ️  Saved inline manifest to '$_MANIFEST_ARG'." >&2
   fi
   _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"

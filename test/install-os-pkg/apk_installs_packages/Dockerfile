@@ -1,2 +1,2 @@
 FROM alpine:latest
-RUN printf '%s\n' '--- pkg [pm=apk]' 'tree' > /tmp/manifest.txt
+RUN printf '%s\n' 'apk:' '  packages:' '    - tree' > /tmp/manifest.yaml

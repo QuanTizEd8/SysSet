@@ -117,7 +117,7 @@ src/<feature>/
 │   │   └── git.sh
 │   └── <helper>.sh             ← Optional helper scripts sourced by install.sh
 ├── dependencies/
-│   └── base.txt                ← OS packages required before install.sh runs
+│   └── base.yaml                ← OS packages required before install.sh runs
 └── files/                      ← Optional static files deployed by the feature
 ```
 

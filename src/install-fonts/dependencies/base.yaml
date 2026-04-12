@@ -1,0 +1,16 @@
+# Base dependencies for the install-fonts devcontainer feature.
+packages:
+  - bash
+  - ca-certificates
+  - curl
+  - fontconfig
+  - unzip
+apt:
+  packages:
+    - xz-utils
+apk:
+  packages:
+    - xz
+dnf:
+  packages:
+    - xz

@@ -65,7 +65,7 @@ Report ANY discrepancy, no matter how minor (typo in description, different defa
 
 ### Check 5 — Manifest Consistency
 
-If `src/<feature>/dependencies/base.txt` exists:
+If `src/<feature>/dependencies/base.yaml` exists:
 - Verify it is referenced by the script (`ospkg::run --manifest`).
 - Verify the packages listed are actually needed by the script.
 

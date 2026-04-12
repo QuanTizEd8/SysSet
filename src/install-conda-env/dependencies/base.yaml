@@ -1,3 +1,4 @@
 # Base dependencies for the install-conda-env devcontainer feature.
 # Installed unconditionally before creating or updating conda environments.
-bash
+packages:
+  - bash

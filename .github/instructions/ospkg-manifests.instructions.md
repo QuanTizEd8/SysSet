@@ -1,17 +1,16 @@
 ---
-description: "Use when writing or editing ospkg manifest files (YAML/JSON or legacy text DSL). Covers YAML schema, when clauses, PM-specific blocks, inline setup, package objects, groups, casks, and the legacy text-DSL syntax."
-applyTo: "src/**/dependencies/*.txt, **/*.pkgmanifest.yaml, **/*.pkgmanifest.json"
+description: "Use when writing or editing ospkg manifest files (YAML/JSON). Covers YAML schema, when clauses, PM-specific blocks, inline setup, package objects, groups, casks."
+applyTo: "src/**/dependencies/*.yaml, **/*.pkgmanifest.yaml, **/*.pkgmanifest.json"
 ---
 
 # ospkg Manifest Format
 
 Manifests are consumed by `ospkg::run --manifest <file-or-inline>`.
-Two formats are supported: **YAML/JSON** (recommended) and **text DSL** (legacy, for
-`dependencies/base.txt` files).
+Manifests are written in **YAML** (or **JSON**) format.
 
 ---
 
-## YAML / JSON Manifest (recommended)
+## YAML / JSON Manifest
 
 ### Top-level structure
 
@@ -155,53 +154,6 @@ packages:
 ### JSON manifest
 
 JSON is also accepted (and produced by `yq -o=json`). The same schema applies.
-
----
-
-## Text DSL (legacy — `dependencies/base.txt`)
-
-Used for `src/*/dependencies/base.txt` files. Still fully supported.
-
-**Basic syntax:**
-
-```
-# comment
-pkg1                           # unconditional
-pkg2    [pm=apt]               # only on apt
-pkg3    [pm=apk,dnf]           # apk or dnf (OR within selector)
-pkg4    [pm=apt] [id=ubuntu]   # apt AND ubuntu (AND across selectors)
-```
-
-**Section headers:**
-
-```
---- key
-https://keys.openpgp.org/vks/v1/by-fingerprint/... /usr/share/keyrings/k.gpg
-
---- pkg [pm=apt]
-curl
-wget
-
---- repo [pm=apt]
-deb https://repo.example.com stable main
-
---- prescript
-apt-get install -y lsb-release
-
---- script [pm=apt]
-locale-gen en_US.UTF-8
----
-```
-
-| Section | Behaviour |
-|---------|-----------|
-| `key` | Fetches signing keys: `url dest` pairs, one per line |
-| `pkg` | Packages to install |
-| `repo` | Repo lines added before installation (removed after unless `--keep_repos`) |
-| `prescript` | Shell commands run before package installation |
-| `script` | Shell commands run after package installation |
-| `module` | DNF module streams to enable |
-| `group` | Package groups (`dnf group install`, `zypper pattern`, etc.) |
 
 ---
 

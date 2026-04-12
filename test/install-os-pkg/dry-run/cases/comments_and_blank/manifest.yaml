@@ -3,7 +3,7 @@
 
 # this is a comment
 
-real-pkg
-# another comment
-
-another-real-pkg
+packages:
+  - real-pkg
+  # another comment
+  - another-real-pkg

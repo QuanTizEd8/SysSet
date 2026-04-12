@@ -1,3 +1,3 @@
 FROM debian:latest
 RUN apt-get update \
- && printf 'tree\n' > /tmp/manifest.txt
+ && printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml

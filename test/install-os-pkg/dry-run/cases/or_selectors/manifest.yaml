@@ -1,0 +1,11 @@
+# or_selectors — OR logic across multiple selector blocks on the same line.
+# A line with [pm=apt][pm=apk] matches on both apt and apk systems.
+packages:
+  - name: apt-or-apk
+    when: "pm=apt or pm=apk"
+  - name: apt-only
+    when: "pm=apt"
+  - name: apk-only
+    when: "pm=apk"
+  - name: never
+    when: "pm=fake"

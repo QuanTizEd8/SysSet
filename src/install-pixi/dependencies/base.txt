@@ -1,3 +1,0 @@
-# bash is guaranteed by bootstrap.sh before this script runs.
-ca-certificates
-curl

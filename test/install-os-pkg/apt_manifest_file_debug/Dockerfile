@@ -1,4 +1,8 @@
 FROM debian:latest
 RUN mkdir -p /tmp \
- && printf '# packages from implicit leading pkg block\ntree\ncurl\n' \
-      > /tmp/manifest.txt
+ && printf '%s\n' \
+      '# packages from implicit leading pkg block' \
+      'packages:' \
+      '  - tree' \
+      '  - curl' \
+      > /tmp/manifest.yaml

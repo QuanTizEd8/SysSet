@@ -48,7 +48,7 @@ test/
         ├── run.sh
         └── cases/
             └── <case>/
-                ├── manifest.txt
+                ├── manifest.yaml
                 └── <platform-id>.expected
 ```
 

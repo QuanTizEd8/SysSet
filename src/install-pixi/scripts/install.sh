@@ -80,7 +80,7 @@ fi
   VERSION="0.66.0"
 }
 
-ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.txt" --check_installed
+ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
 
 pixi_bin="${INSTALL_PATH}/pixi"
 

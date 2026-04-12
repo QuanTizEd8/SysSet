@@ -1,2 +1,2 @@
 FROM fedora:latest
-RUN printf '%s\n' '--- pkg [pm=dnf]' 'tree' > /tmp/manifest.txt
+RUN printf '%s\n' 'dnf:' '  packages:' '    - tree' > /tmp/manifest.yaml

@@ -1,7 +1,0 @@
-bash
-ca-certificates
-curl
-fontconfig
-xz-utils [pm=apt]
-xz [pm=apk] [pm=dnf]
-unzip

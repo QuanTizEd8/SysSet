@@ -21,7 +21,7 @@ Every feature ships as both a **[Dev Container feature](https://containers.dev/f
 |---|---|
 | [`setup-user`](#setup-user) | Create / configure a user account with sudo |
 | [`install-homebrew`](#install-homebrew) | Homebrew on macOS and Linux |
-| [`install-os-pkg`](#install-os-pkg) | OS package manager with a manifest DSL |
+| [`install-os-pkg`](#install-os-pkg) | OS package manager with a YAML manifest |
 | [`install-shell`](#install-shell) | Zsh/Bash · Oh My Zsh · Oh My Bash · Starship |
 | [`install-miniforge`](#install-miniforge) | Miniforge (conda/mamba) |
 | [`install-conda-env`](#install-conda-env) | Conda environments from YAML or inline specs |
@@ -146,11 +146,11 @@ Install [Homebrew](https://brew.sh/) on macOS and Linux. Handles Xcode CLT on ma
 
 ### `install-os-pkg`
 
-Cross-distro package installer (`apt`, `dnf`, `zypper`, `pacman`, `apk`) driven by a powerful manifest DSL with per-distro selectors, repo configuration, key import, and pre/post scripts.
+Cross-distro package installer (`apt`, `dnf`, `zypper`, `pacman`, `apk`, `brew`) driven by a YAML manifest format with per-distro selectors, repo configuration, key import, and pre/post scripts.
 
 ```jsonc
 "ghcr.io/quantized8/sysset/install-os-pkg:0": {
-  "manifest": "dependencies/base.txt",  // file path or inline content
+  "manifest": "dependencies/base.yaml", // file path or inline content
   "lifecycle_hook": "",                  // "" | "onCreate" | "updateContent" | "postCreate"
   "check_installed": false,             // skip packages already in PATH
   "no_update": false,                   // skip apt-get update / dnf check-update
@@ -162,34 +162,35 @@ Cross-distro package installer (`apt`, `dnf`, `zypper`, `pacman`, `apk`) driven 
 }
 ```
 
-**Manifest format** (`dependencies/base.txt`):
+**Manifest format** (`dependencies/base.yaml`):
 
+```yaml
+packages:
+  - git
+  - curl
+  - wget
+
+apt:
+  packages:
+    - build-essential
+    - libssl-dev
+  repos:
+    - "deb [signed-by=/etc/apt/keyrings/my.gpg] https://example.com/repo stable main"
+  keys:
+    - url: https://example.com/key.asc
+      dest: /etc/apt/keyrings/my.gpg
+
+dnf:
+  packages:
+    - gcc
+    - openssl-devel
+  when: "id=fedora id=rhel"
+
+scripts:
+  - echo "Post-install script"
 ```
-# Implicit first block is a 'pkg' section — packages for all distros
-git
-curl
-wget
 
---- pkg [pm=apt]
-build-essential
-libssl-dev
-
---- pkg [id=fedora, id=rhel]
-gcc
-openssl-devel
-
---- repo [pm=apt]
-deb [signed-by=/etc/apt/keyrings/my.gpg] https://example.com/repo stable main
-
---- key
-https://example.com/key.asc /etc/apt/keyrings/my.gpg
-
---- script
-echo "Post-install script"
-```
-
-Selector syntax: `[key=val, key=val]` (AND within a block, OR across blocks).
-Keys match `/etc/os-release` fields plus synthetic `pm` (`apt`, `dnf`, …) and `arch` (`x86_64`, `aarch64`).
+PM-specific blocks (`apt`, `dnf`, `apk`, `brew`, `pacman`, `zypper`) scope packages, repos, keys, and scripts to a single package manager. `when` clauses filter on `/etc/os-release` fields plus synthetic `pm` and `arch`.
 
 ---
 
@@ -496,7 +497,7 @@ src/<feature>/
   devcontainer-feature.json   Feature metadata and options
   scripts/install.sh          Main installer (bash ≥4.0)
   scripts/_lib/               ← auto-generated; never edit directly
-  dependencies/base.txt       OS package manifest
+  dependencies/base.yaml      OS package manifest
   files/                      Static files copied into the container
   install.sh                  ← auto-generated bootstrap; never edit
 

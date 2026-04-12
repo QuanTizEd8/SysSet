@@ -25,7 +25,7 @@ src/<feature>/
   devcontainer-feature.json     Metadata, options, lifecycle commands
   scripts/install.sh            Main installer (bash ≥4.0)
   scripts/_lib/                 ← generated; never edit
-  dependencies/base.txt         ospkg manifest: OS packages pre-installed
+  dependencies/base.yaml         ospkg manifest: OS packages pre-installed
   files/                        Static files copied into the container (optional)
   install.sh                    ← generated; never edit
 
@@ -56,7 +56,7 @@ Makefile                        Developer targets: fmt, fmt-check, lint, sync
 .shellcheckrc                   shellcheck defaults (shell=bash, external-sources=true)
 ```
 
-Features without a `dependencies/base.txt`: `install-os-pkg` (it IS the package installer), `setup-shim`.
+Features without a `dependencies/base.yaml`: `install-os-pkg` (it IS the package installer), `setup-shim`.
 
 ## Key Commands
 

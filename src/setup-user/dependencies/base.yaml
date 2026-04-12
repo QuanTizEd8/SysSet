@@ -4,4 +4,6 @@
 
 # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,
 # but requires the shadow package on Alpine.
-shadow [pm=apk]
+apk:
+  packages:
+    - shadow

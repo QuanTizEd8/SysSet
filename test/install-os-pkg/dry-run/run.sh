@@ -60,11 +60,11 @@ skip=0
 
 for case_dir in "$CASES_DIR"/*/; do
   test_name="$(basename "$case_dir")"
-  manifest="$case_dir/manifest.txt"
+  manifest="$case_dir/manifest.yaml"
   expected_file="$case_dir/${PLATFORM_ID}.expected"
 
   if [[ ! -f "$manifest" ]]; then
-    echo "WARN  $test_name: manifest.txt missing — skipping"
+    echo "WARN  $test_name: manifest.yaml missing — skipping"
     ((skip++)) || true
     continue
   fi

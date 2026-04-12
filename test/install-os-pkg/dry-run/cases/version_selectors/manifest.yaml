@@ -1,0 +1,11 @@
+# version_selectors — version_id= selector filtering.
+# "always" has no selector and is always installed.
+# version_id matches: 13 (debian trixie), 24.04 (ubuntu noble)
+packages:
+  - always
+  - name: debian13-pkg
+    when: "version_id=13"
+  - name: ubuntu2404-pkg
+    when: "version_id=24.04"
+  - name: never-pkg
+    when: "version_id=000"

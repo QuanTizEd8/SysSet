@@ -1,0 +1,15 @@
+# pm_selectors — per-line pm= selector filtering.
+# Every line without a selector is always installed.
+# Lines with [pm=X] are installed only on that package manager family.
+packages:
+  - always-installed
+  - name: apt-only
+    when: "pm=apt"
+  - name: apk-only
+    when: "pm=apk"
+  - name: dnf-only
+    when: "pm=dnf"
+  - name: zypper-only
+    when: "pm=zypper"
+  - name: pacman-only
+    when: "pm=pacman"

@@ -135,7 +135,7 @@ test/install-os-pkg/dry-run/
   run.sh                        test runner (executed inside Docker)
   cases/
     <case-name>/
-      manifest.txt              manifest content to parse
+      manifest.yaml              manifest content to parse
       debian.expected           expected resolved packages for platform=debian
       alpine.expected           expected resolved packages for platform=alpine
       rhel.expected             expected resolved packages for platform=rhel
@@ -174,14 +174,14 @@ docker run --rm -e PLATFORM_ID=debian -v "$(pwd):/repo" debian:latest \
 ### Adding a dry-run test case
 
 1. Create `test/install-os-pkg/dry-run/cases/<case-name>/`.
-2. Add `manifest.txt` with the manifest content to test.
+2. Add `manifest.yaml` with the manifest content to test.
 3. Add one `<platform-id>.expected` file per distro you want to cover. Sort the package names (`sort` the list before writing).
 4. Run the dry-run suite against the relevant distro image(s) to verify.
 
 Example — a manifest with a selector block:
 
 ```
-# manifest.txt
+# manifest.yaml
 curl
 [pm=apt]
   apt-specific-pkg

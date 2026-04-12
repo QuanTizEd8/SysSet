@@ -1,2 +1,2 @@
 FROM debian:latest
-RUN printf 'tree\n' > /tmp/manifest.txt
+RUN printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml

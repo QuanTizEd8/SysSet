@@ -27,7 +27,7 @@ library available to every script.
     - [Main logic](#main-logic)
     - [Cleanup](#cleanup)
   - [OS package dependencies](#os-package-dependencies)
-    - [`dependencies/base.txt`](#dependenciesbasetxt)
+    - [`dependencies/base.yaml`](#dependenciesbaseyaml)
     - [`ospkg::run` versus `ospkg::install`](#ospkgrun-versus-ospkginstall)
   - [Shared library reference](#shared-library-reference)
     - [`os.sh`](#ossh)
@@ -61,7 +61,7 @@ library available to every script.
 4. Create `test/<feature-id>/scenarios.json` and at least one `<scenario>.sh`.
 5. Add `test/<feature-id>/test.sh` (stub — see [Testing](testing.md)).
 6. If the feature requires OS packages before `scripts/install.sh` runs,
-   add `src/<feature-id>/dependencies/base.txt`.
+   add `src/<feature-id>/dependencies/base.yaml`.
 
 ---
 
@@ -76,7 +76,7 @@ src/<feature-id>/
 │   ├── _lib/                   ← Synced library copy (DO NOT EDIT)
 │   └── <helper>.sh             ← Optional helpers sourced by install.sh
 ├── dependencies/
-│   └── base.txt                ← OS packages needed before install.sh
+│   └── base.yaml                ← OS packages needed before install.sh
 └── files/                      ← Optional static files
 ```
 
@@ -403,11 +403,11 @@ echo "✅ my-feature setup complete." >&2
 
 ## OS package dependencies
 
-### `dependencies/base.txt`
+### `dependencies/base.yaml`
 
-Create `src/<feature>/dependencies/base.txt` when the installer needs tools
+Create `src/<feature>/dependencies/base.yaml` when the installer needs tools
 (e.g. `curl`, `ca-certificates`) to be present before any other work begins.
-The file is a plain-text ospkg manifest (see
+The file is a YAML ospkg manifest (see
 [`install-os-pkg` reference](../ref/install-os-pkg.md) for the full format).
 
 Example — the minimum set needed before downloading a binary:
@@ -421,7 +421,7 @@ curl
 Call it at the start of the script with `ospkg::run`:
 
 ```bash
-ospkg::run --manifest "${_BASE_DIR}/dependencies/base.txt" --check_installed
+ospkg::run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
 ospkg::clean
 ```
 
@@ -522,9 +522,7 @@ net::fetch_with_retry 3 curl \
 | `ospkg::install` | `ospkg::install <pkg>...` | Installs packages with an idempotency check on APT and DNF. |
 | `ospkg::clean` | `ospkg::clean` | Removes the package manager cache to reduce image layer size. |
 | `ospkg::run` | `ospkg::run [options]` | Full pipeline: detect → root check → parse manifest → prescript → keys → repos → update → install → script → remove repos → clean. See options below. |
-| `ospkg::eval_selector_block` | `ospkg::eval_selector_block <block>` | Returns 0 if all `key=val` conditions in a selector block match the current environment. |
-| `ospkg::pkg_matches_selectors` | `ospkg::pkg_matches_selectors <line>` | Returns 0 if a package line has no selectors, or if any selector block matches. |
-| `ospkg::parse_manifest` | `ospkg::parse_manifest <content>` | Parses manifest content into `_M_KEY`, `_M_PRESCRIPT`, `_M_REPO`, `_M_PKG`, `_M_SCRIPT` in the caller's scope. |
+| `ospkg::parse_manifest_yaml` | `ospkg::parse_manifest_yaml <json-file>` | Parses a YAML/JSON manifest (pre-converted to JSON by `yq`) and emits normalized records for the pipeline. |
 
 `ospkg::run` options:
 

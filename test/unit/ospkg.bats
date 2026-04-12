@@ -80,7 +80,7 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# ospkg::eval_selector_block  (direct calls after seeding OS context)
+# Helpers
 # ---------------------------------------------------------------------------
 
 _seed_apt_context() {
@@ -95,126 +95,6 @@ _seed_apt_context() {
   _OSPKG_OS_RELEASE[id_like]="debian"
   _OSPKG_OS_RELEASE[version_id]="22.04"
   _OSPKG_OS_RELEASE[version_codename]="jammy"
-}
-
-@test "ospkg::eval_selector_block matches pm=apt" {
-  _seed_apt_context
-  ospkg::eval_selector_block "pm=apt"
-}
-
-@test "ospkg::eval_selector_block matches id=ubuntu" {
-  _seed_apt_context
-  ospkg::eval_selector_block "id=ubuntu"
-}
-
-@test "ospkg::eval_selector_block matches multiple conditions" {
-  _seed_apt_context
-  ospkg::eval_selector_block "pm=apt,arch=x86_64"
-}
-
-@test "ospkg::eval_selector_block fails when pm mismatches" {
-  _seed_apt_context
-  run ospkg::eval_selector_block "pm=apk"
-  assert_failure
-}
-
-@test "ospkg::eval_selector_block is case-insensitive" {
-  _seed_apt_context
-  ospkg::eval_selector_block "id=Ubuntu"
-}
-
-# ---------------------------------------------------------------------------
-# ospkg::pkg_matches_selectors  (direct calls)
-# ---------------------------------------------------------------------------
-
-@test "ospkg::pkg_matches_selectors returns true for a line with no selectors" {
-  _seed_apt_context
-  ospkg::pkg_matches_selectors "curl"
-}
-
-@test "ospkg::pkg_matches_selectors returns true when selector matches" {
-  _seed_apt_context
-  ospkg::pkg_matches_selectors "curl [pm=apt]"
-}
-
-@test "ospkg::pkg_matches_selectors returns false when selector mismatches" {
-  _seed_apt_context
-  run ospkg::pkg_matches_selectors "some-pkg [pm=apk]"
-  assert_failure
-}
-
-@test "ospkg::pkg_matches_selectors passes when any of multiple blocks match" {
-  _seed_apt_context
-  ospkg::pkg_matches_selectors "curl [pm=apk] [pm=apt]"
-}
-
-# ---------------------------------------------------------------------------
-# ospkg::parse_manifest  (direct calls — checks _M_* output variables)
-# ---------------------------------------------------------------------------
-
-@test "ospkg::parse_manifest populates _M_PKG for simple pkg list" {
-  _seed_apt_context
-  local _manifest
-  _manifest="$(
-    printf -- "--- pkg\ncurl\nwget\ngit\n"
-  )"
-  ospkg::parse_manifest "$_manifest"
-  [[ "$_M_PKG" == *"curl"* ]]
-  [[ "$_M_PKG" == *"wget"* ]]
-  [[ "$_M_PKG" == *"git"* ]]
-}
-
-@test "ospkg::parse_manifest respects selector blocks on section header" {
-  _seed_apt_context
-  # pkg section with [pm=apk] selector should be inactive for apt context.
-  local _manifest
-  _manifest="$(
-    printf -- "--- pkg\ncurl\n--- pkg [pm=apk]\napk-only-pkg\n"
-  )"
-  ospkg::parse_manifest "$_manifest"
-  [[ "$_M_PKG" == *"curl"* ]]
-  [[ "$_M_PKG" != *"apk-only-pkg"* ]]
-}
-
-@test "ospkg::parse_manifest populates _M_SCRIPT" {
-  _seed_apt_context
-  local _manifest
-  _manifest="$(
-    printf -- "--- pkg\ncurl\n--- script\necho hello\n"
-  )"
-  ospkg::parse_manifest "$_manifest"
-  [[ "$_M_SCRIPT" == *"echo hello"* ]]
-}
-
-@test "ospkg::parse_manifest skips comment lines" {
-  _seed_apt_context
-  local _manifest
-  _manifest="$(
-    printf -- "--- pkg\n# a comment\ncurl\n"
-  )"
-  ospkg::parse_manifest "$_manifest"
-  [[ "$_M_PKG" != *"# a comment"* ]]
-  [[ "$_M_PKG" == *"curl"* ]]
-}
-
-@test "ospkg::parse_manifest populates _M_GROUP" {
-  _seed_apt_context
-  local _manifest
-  _manifest="$(
-    printf -- "--- group\ndevelopment-tools\n"
-  )"
-  ospkg::parse_manifest "$_manifest"
-  [[ "$_M_GROUP" == *"development-tools"* ]]
-}
-
-@test "ospkg::parse_manifest populates _M_MODULE" {
-  _seed_apt_context
-  local _manifest
-  _manifest="$(
-    printf -- "--- module\nnodejs:18\n"
-  )"
-  ospkg::parse_manifest "$_manifest"
-  [[ "$_M_MODULE" == *"nodejs:18"* ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -316,55 +196,6 @@ _seed_apt_context() {
   PATH="${BATS_TEST_TMPDIR}/bin" ospkg::detect
   [[ "$_OSPKG_PREFIX" == "apt" ]]
   [[ "$_OSPKG_PKG_MNGR" == "apt-get" ]]
-}
-
-# ---------------------------------------------------------------------------
-# _ospkg_is_yaml_manifest  (format detection)
-# ---------------------------------------------------------------------------
-
-@test "_ospkg_is_yaml_manifest returns true for YAML with packages: key" {
-  _seed_apt_context
-  local _yaml
-  _yaml="$(printf 'packages:\n  - curl\n  - wget\n')"
-  _ospkg_is_yaml_manifest "$_yaml"
-}
-
-@test "_ospkg_is_yaml_manifest returns true for YAML with apt: key" {
-  _seed_apt_context
-  local _yaml
-  _yaml="$(printf 'apt:\n  packages:\n    - curl\n')"
-  _ospkg_is_yaml_manifest "$_yaml"
-}
-
-@test "_ospkg_is_yaml_manifest returns true for JSON object" {
-  _seed_apt_context
-  local _json
-  _json='{"packages":["curl","wget"]}'
-  _ospkg_is_yaml_manifest "$_json"
-}
-
-@test "_ospkg_is_yaml_manifest returns false for text-DSL with --- header" {
-  _seed_apt_context
-  local _dsl
-  _dsl="$(printf -- '--- pkg\ncurl\nwget\n')"
-  run _ospkg_is_yaml_manifest "$_dsl"
-  assert_failure
-}
-
-@test "_ospkg_is_yaml_manifest returns false for bare package list" {
-  _seed_apt_context
-  local _dsl
-  _dsl="$(printf 'curl\nwget\ngit\n')"
-  run _ospkg_is_yaml_manifest "$_dsl"
-  assert_failure
-}
-
-@test "_ospkg_is_yaml_manifest returns false for text-DSL with inline selectors" {
-  _seed_apt_context
-  local _dsl
-  _dsl="$(printf 'curl [pm=apt]\nwget [pm=apt]\n')"
-  run _ospkg_is_yaml_manifest "$_dsl"
-  assert_failure
 }
 
 # ---------------------------------------------------------------------------

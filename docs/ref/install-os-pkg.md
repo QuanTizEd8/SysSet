@@ -743,7 +743,7 @@ When `lifecycle_hook` is set:
   `/usr/local/share/install-os-pkg/<hook-name>.sh` (e.g. `post-create.sh`).
 - No packages are installed during the build step.
 - If the manifest value is inline content it is saved to
-  `/usr/local/share/install-os-pkg/manifest.txt` so it is accessible at
+  `/usr/local/share/install-os-pkg/manifest.yaml` so it is accessible at
   hook runtime.
 - All other options (`debug`, `keep_repos`, `logfile`, etc.) are forwarded
   into the hook script automatically.
@@ -1328,27 +1328,26 @@ This means:
 
 ### Backward compatibility
 
-The text DSL parser is removed entirely — this is a **clean break**. There is
-no transition period, backward-compatibility layer, or automatic format
+The text DSL parser was removed entirely — a **clean break** with no
+transition period, backward-compatibility layer, or automatic format
 detection/migration.
 
 Rationale:
 
-- **The text DSL has no external users.** The feature has not had a stable
+- **The text DSL had no external users.** The feature had not had a stable
   release. The text DSL was never documented outside this repository and was
   never published to a package registry.
-- **All in-repo manifests will be migrated.** The feature-level
-  `dependencies/base.txt` files used by other features (which also consume
-  `ospkg::run()`) will be converted to YAML as part of the implementation.
-- **A backward-compatible approach would be costly.** Supporting two formats
+- **All in-repo manifests were migrated.** The feature-level
+  `dependencies/base.yaml` files used by other features (which also consume
+  `ospkg::run()`) were converted to YAML as part of the implementation.
+- **A backward-compatible approach would have been costly.** Supporting two formats
   means maintaining two parsers, producing confusing error messages when the
   wrong format is used (or worse, silently misinterpreting one format as the
   other), and carrying documentation burden for a deprecated syntax
   indefinitely.
 - **Clean breaks are cheaper at this stage.** Before a stable release, the
-  cost of breaking changes is near zero. After the YAML format ships, the
-  JSON Schema provides a versioned contract that protects against future
-  breakage.
+  cost of breaking changes is near zero. The JSON Schema provides a versioned
+  contract that protects against future breakage.
 
 ### Cross-PM feature mapping
 

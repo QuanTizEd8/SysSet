@@ -1,7 +1,9 @@
 # key_section — verify the script handles a key section in dry-run mode.
 # The fetch is skipped; the dest file must not be created.
 # Package resolution is unaffected by the key section.
---- key
-https://example.com/signing.key /tmp/test-signing.key
---- pkg
-tree
+keys:
+  - url: https://example.com/signing.key
+    dest: /tmp/test-signing.key
+
+packages:
+  - tree

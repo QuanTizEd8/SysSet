@@ -18,7 +18,7 @@ FEATURE="${1:?Usage: run-fail-scenarios.sh <feature>}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCENARIOS_FILE="${REPO_ROOT}/test/${FEATURE}/fail_scenarios.sh"
 INSTALL_SCRIPT="src/${FEATURE}/scripts/install.sh"
-DEPS_FILE="${REPO_ROOT}/src/${FEATURE}/dependencies/base.txt"
+DEPS_FILE="${REPO_ROOT}/src/${FEATURE}/dependencies/base.yaml"
 
 if [[ ! -f "$SCENARIOS_FILE" ]]; then
   echo "ℹ️ No fail_scenarios.sh found for '${FEATURE}' — skipping."

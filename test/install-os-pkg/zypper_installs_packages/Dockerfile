@@ -1,2 +1,2 @@
 FROM opensuse/leap:latest
-RUN printf '%s\n' '--- pkg [pm=zypper]' 'tree' > /tmp/manifest.txt
+RUN printf '%s\n' 'zypper:' '  packages:' '    - tree' > /tmp/manifest.yaml
