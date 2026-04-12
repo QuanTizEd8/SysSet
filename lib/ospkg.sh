@@ -714,9 +714,19 @@ else empty end),
     $doc.dnf.modules[] | {kind: "module", module: .} else empty end)
 else empty end),
 (if $doc | has("groups") then
-  $doc.groups[] | {kind: "group", group: .} else empty end),
+  $doc.groups[] |
+  if type == "string" then {kind: "group", group: .}
+  elif when_matches then {kind: "group", group: .name}
+  else empty
+  end
+else empty end),
 (if ($doc | has($pm)) and ($doc[$pm] | has("groups")) then
-  $doc[$pm].groups[] | {kind: "group", group: .} else empty end),
+  $doc[$pm].groups[] |
+  if type == "string" then {kind: "group", group: .}
+  elif when_matches then {kind: "group", group: .name}
+  else empty
+  end
+else empty end),
 
 # Phase: PACKAGES — inline packages array, then PM-specific packages block
 (if $doc | has("packages") then

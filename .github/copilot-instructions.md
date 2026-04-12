@@ -1,15 +1,15 @@
 # SysSet — System Setup
 
 A collection of system setup scripts that declaratively install tools and configure environments.
-Designed for use as both [devcontainer features](https://containers.dev/implementors/features/) published to GHCR at `ghcr.io/quantized8/sysset`,
-and as standalone scripts for general Linux and macOS system setup.
+Designed for use as both [devcontainer features](https://containers.dev/implementors/features/) published to GHCR,
+and as scripts for general Linux and macOS system setup.
 
 ## Critical: Generated Files — Never Edit Directly
 
 These files are **auto-generated** and **git-ignored**.
 Any edits made to them are overwritten on the next sync run:
 
-| Generated path | Source |
+| Generated path | Actual source |
 |---|---|
 | `src/*/install.sh` | `bootstrap.sh` (repo root) |
 | `src/**/scripts/_lib/` | `lib/` (repo root) |
