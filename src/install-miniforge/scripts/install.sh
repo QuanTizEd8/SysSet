@@ -68,18 +68,18 @@ __usage__() {
 __cleanup__() {
   echo "↪️ Function entry: __cleanup__" >&2
   if [[ "${KEEP_INSTALLER}" != "true" ]]; then
-    if [ -n "${INSTALLER:-}" ]; then
+    [ -f "${INSTALLER-}" ] && {
       echo "🗑 Removing installer script at '$INSTALLER'" >&2
       rm -f "$INSTALLER"
-    fi
-    if [ -n "${CHECKSUM:-}" ]; then
+    }
+    [ -f "${CHECKSUM-}" ] && {
       echo "🗑 Removing checksum file at '$CHECKSUM'" >&2
       rm -f "$CHECKSUM"
-    fi
-    if [ -n "${INSTALLER_DIR:-}" ] && [  -d "$INSTALLER_DIR" ] && [ -z "$(ls -A "$INSTALLER_DIR" 2>/dev/null)" ]; then
+    }
+    [ -d "${INSTALLER_DIR-}" ] && [ -z "$(ls -A "$INSTALLER_DIR")" ] && {
       echo "🗑 Removing installation directory at '$INSTALLER_DIR'" >&2
       rmdir "$INSTALLER_DIR"
-    fi
+    }
   fi
   if [ -n "${BIN_DIR-}" ] && [ -d "$BIN_DIR" ]; then
     find "$BIN_DIR" -follow -type f -name '*.a' -delete 2> /dev/null || true
