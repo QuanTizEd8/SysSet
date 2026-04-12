@@ -11,8 +11,10 @@ fmt-check:
 	shfmt -d --apply-ignore .
 
 # Run shellcheck on all tracked shell files (no-op if shellcheck is not on PATH).
+# Parallelised with xargs -P to offset the cost of external-sources=true
+# re-analysing the lib/ source chain for every file.
 lint:
-	command -v shellcheck >/dev/null 2>&1 && shellcheck $(shell git ls-files -- '*.sh' '*.bash') || echo "shellcheck not found, skipping"
+	command -v shellcheck >/dev/null 2>&1 && git ls-files -- '*.sh' '*.bash' | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck || echo "shellcheck not found, skipping"
 
 # Sync generated _lib/ copies and install.sh stubs from canonical sources.
 sync:
