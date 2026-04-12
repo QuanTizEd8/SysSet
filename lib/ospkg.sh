@@ -153,10 +153,11 @@ _ospkg_brew_run() {
 # ── Private: yq auto-installer ────────────────────────────────────────────────
 # _ospkg_ensure_yq
 # Ensures mikefarah/yq is available.  Sets _OSPKG_YQ_BIN.
-# If a compatible yq is already in PATH it is reused; otherwise the binary is
-# downloaded from GitHub Releases for the current platform/arch into a process-
-# unique temporary directory. The download is verified against the release
-# checksums file before the binary is marked executable.
+# If a compatible yq is already in PATH it is reused; otherwise attempts to
+# install from the package manager, then falls back to downloading from GitHub
+# Releases if the package manager provides an incompatible or no yq.
+# The download is verified against the release checksums file before the binary
+# is marked executable.
 _ospkg_ensure_yq() {
   [[ -n "${_OSPKG_YQ_BIN:-}" ]] && return 0
   # Accept any yq in PATH that understands the -o=json flag (mikefarah/yq).
@@ -165,7 +166,22 @@ _ospkg_ensure_yq() {
     echo "ℹ️  yq already available: $(command -v yq)" >&2
     return 0
   fi
-  # The distro-packaged yq (go-yq / kislyuk/yq) is incompatible; fetch mikefarah/yq.
+  # If yq is not in PATH at all, try installing from the package manager.
+  # Modern distros (Ubuntu ≥22.04, Debian ≥12, Alpine ≥3.16) package mikefarah/yq.
+  # Older distros package kislyuk/yq (incompatible) or nothing at all.
+  if ! command -v yq > /dev/null 2>&1; then
+    echo "ℹ️  yq not found — attempting package manager install." >&2
+    ospkg::update >&2 || true
+    ospkg::install yq >&2 || true
+    # Re-test after potential install.
+    if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
+      _OSPKG_YQ_BIN="yq"
+      echo "ℹ️  yq installed from package manager: $(command -v yq)" >&2
+      return 0
+    fi
+  fi
+  # Package manager provided no yq or an incompatible one; fetch mikefarah/yq
+  # from GitHub Releases.
   # shellcheck source=lib/github.sh
   . "$_OSPKG_LIB_DIR/github.sh"
   # shellcheck source=lib/checksum.sh
@@ -463,9 +479,9 @@ ospkg::update() {
   if [[ "$_skip" == false ]]; then
     echo "🔄 Updating package lists." >&2
     if [[ "$_OSPKG_PKG_MNGR" = "dnf" || "$_OSPKG_PKG_MNGR" = "yum" ]]; then
-      "${_OSPKG_UPDATE[@]}" || [[ $? -eq 100 ]]
+      "${_OSPKG_UPDATE[@]}" >&2 || [[ $? -eq 100 ]]
     else
-      "${_OSPKG_UPDATE[@]}"
+      "${_OSPKG_UPDATE[@]}" >&2
     fi
     echo "✅ Package lists updated." >&2
   fi
@@ -480,7 +496,7 @@ ospkg::install() {
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     echo "📲 Installing packages:" >&2
     printf '  - %s\n' "$@" >&2
-    _ospkg_brew_run install "$@"
+    _ospkg_brew_run install "$@" >&2
     return 0
   fi
   if [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
@@ -499,7 +515,7 @@ ospkg::install() {
   fi
   echo "📲 Installing packages:" >&2
   printf '  - %s\n' "$@" >&2
-  "${_OSPKG_INSTALL[@]}" "$@"
+  "${_OSPKG_INSTALL[@]}" "$@" >&2
   return 0
 }
 
@@ -531,25 +547,26 @@ ospkg::clean() {
 #   script      {kind,content}
 ospkg::parse_manifest_yaml() {
   local _json_file="$1"
+
+  # Build a full JSON context object from _OSPKG_OS_RELEASE so that every
+  # /etc/os-release key (including version_codename, pretty_name, etc.) plus
+  # the synthetic keys (pm, arch, kernel) is available in `when` clauses.
+  local _ctx_json _k
+  _ctx_json="$(
+    for _k in "${!_OSPKG_OS_RELEASE[@]}"; do
+      printf '%s\n' "$_k" "${_OSPKG_OS_RELEASE[$_k]}"
+    done | jq -Rn '[inputs] | [range(0; length; 2) as $i | {key: .[$i], value: .[$i + 1]}] | from_entries'
+  )"
+
   local _pm="${_OSPKG_OS_RELEASE[pm]:-${_OSPKG_PREFIX}}"
-  local _arch="${_OSPKG_OS_RELEASE[arch]:-$(uname -m)}"
-  local _id="${_OSPKG_OS_RELEASE[id]:-}"
-  local _id_like="${_OSPKG_OS_RELEASE[id_like]:-}"
-  local _version_id="${_OSPKG_OS_RELEASE[version_id]:-}"
-  local _kernel="${_OSPKG_OS_RELEASE[kernel]:-linux}"
 
   jq -c \
+    --argjson ctx "$_ctx_json" \
     --arg pm "$_pm" \
-    --arg arch "$_arch" \
-    --arg id "$_id" \
-    --arg id_like "$_id_like" \
-    --arg version_id "$_version_id" \
-    --arg kernel "$_kernel" \
     '
 # ── Helper definitions ────────────────────────────────────────────────────────
 def ic: ascii_downcase;
-def ctx: {pm: $pm, arch: $arch, id: $id, id_like: $id_like,
-          version_id: $version_id, kernel: $kernel};
+def ctx: $ctx;
 
 def cond_matches(c):
   to_entries | all(
@@ -850,8 +867,8 @@ ospkg::run() {
     # not a user-requested package, so this runs even in dry-run mode).
     if ! command -v jq > /dev/null 2>&1; then
       echo "ℹ️  jq not found — installing." >&2
-      ospkg::update --force >&2
-      ospkg::install jq >&2
+      ospkg::update --force
+      ospkg::install jq
     fi
 
     # yq is required to convert YAML to JSON.
@@ -1153,9 +1170,10 @@ ospkg::run() {
       # Apply version constraint (PM-native syntax).
       if [[ -n "${_pkgversion:-}" ]]; then
         case "$_OSPKG_PREFIX" in
-          apt) _pkginstall="${_pkgname}=${_pkgversion}" ;;
+          apt | apk | pacman | zypper) _pkginstall="${_pkgname}=${_pkgversion}" ;;
           dnf | yum) _pkginstall="${_pkgname}-${_pkgversion}" ;;
-          *) _pkginstall="${_pkgname}" ;; # brew/others: install by name only
+          brew) _pkginstall="${_pkgname}@${_pkgversion}" ;;
+          *) _pkginstall="${_pkgname}" ;;
         esac
       else
         _pkginstall="${_pkgname}"

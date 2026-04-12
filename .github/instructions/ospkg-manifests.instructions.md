@@ -62,7 +62,7 @@ packages:
   - name: curl
     when: "pm=apt"
   - name: htop
-    version: "3.2.1"          # becomes htop=3.2.1 on apt, htop-3.2.1 on dnf
+    version: "3.2.1"          # becomes htop=3.2.1 on apt/apk/pacman/zypper, htop-3.2.1 on dnf/yum, htop@3.2.1 on brew
   - name: some-pkg
     flags: "--allow-unauthenticated"   # appended to the install command
 
@@ -113,23 +113,28 @@ A `when` expression is supported at:
 - Individual package objects
 - Group objects
 
-Syntax: `field=value` or `field!=value`, joined by ` and ` / ` or `.
+`when` accepts a **mapping** (AND of all keys) or a **list of mappings** (OR of ANDs):
+```yaml
+when: { pm: apt }                   # pm == apt
+when: { pm: [apt, apk] }            # pm == apt OR pm == apk
+when: [{ pm: apt }, { pm: apk }]    # same — OR across objects
+when: { pm: apt, id: debian }       # pm == apt AND id == debian
+```
+
+`when` values are matched case-insensitively. A key absent from the context evaluates as empty string.
+
+Available condition keys — all `/etc/os-release` fields plus three synthetics:
 
 | Field | Source |
 |-------|--------|
 | `pm` | Detected package manager: `apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman` |
-| `kernel` | `linux` or `darwin` |
-| `arch` | CPU architecture: `x86_64`, `aarch64`, `arm64`, etc. |
-| `id` | `/etc/os-release` ID: `ubuntu`, `debian`, `alpine`, `fedora`, `macos`, … |
-| `id_like` | `/etc/os-release` ID_LIKE family |
-| `version_id` | `/etc/os-release` VERSION_ID |
-
-Examples:
-```yaml
-when: "pm=apt"
-when: "id=ubuntu and version_id=22.04"
-when: "pm=brew or pm=apt"
-```
+| `kernel` | `linux` or `darwin` (synthetic) |
+| `arch` | CPU architecture: `x86_64`, `aarch64`, `arm64`, etc. (synthetic) |
+| `id` | `/etc/os-release` `ID` (or `macos` on macOS) |
+| `id_like` | `/etc/os-release` `ID_LIKE` |
+| `version_id` | `/etc/os-release` `VERSION_ID` |
+| `version_codename` | `/etc/os-release` `VERSION_CODENAME` (e.g. `jammy`, `bookworm`) |
+| _(any other key)_ | Any other field present in `/etc/os-release` on the target system |
 
 ### Package objects
 
@@ -139,7 +144,7 @@ Packages may be plain strings or objects:
 packages:
   - git                          # plain string
   - name: curl                   # object — supports all fields below
-    when: "pm=apt or pm=brew"
+    when: { pm: [apt, brew] }
     version: "8.0.1"
     flags: "--no-install-recommends"
 ```
@@ -148,7 +153,7 @@ packages:
 |-------|-------------|
 | `name` | Package name (required) |
 | `when` | Condition (same syntax as top-level `when`) |
-| `version` | Version constraint (PM-native: `=ver` on apt, `-ver` on dnf) |
+| `version` | Plain version number (e.g. `1.2.3`). The installer builds PM-native syntax automatically (`pkg=ver` apt/apk/pacman/zypper, `pkg-ver` dnf/yum, `pkg@ver` brew). |
 | `flags` | Extra flags appended to the install command |
 
 ### JSON manifest

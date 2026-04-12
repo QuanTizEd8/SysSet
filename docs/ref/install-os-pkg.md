@@ -206,7 +206,7 @@ Package object properties:
 | `name` | string | **Required.** Default package name or label. |
 | `when` | condition | Condition filter. Package is skipped when the condition does not match. See [`when` clause](#when-clause). |
 | `flags` | string \| string[] | Extra flags passed verbatim to the PM's install command (e.g. `--no-install-recommends`). |
-| `version` | string | Version constraint in the active PM's native syntax (e.g. `=1.2.3-1` for apt, `>=1.2` for brew). |
+| `version` | string | Plain version number (e.g. `1.2.3`). The installer builds the PM-native syntax automatically: `pkg=ver` on apt/apk/pacman/zypper, `pkg-ver` on dnf/yum, `pkg@ver` on brew. |
 | `prescript` | script | Shell commands collected and run in the prescript phase. |
 | `script` | script | Shell commands collected and run in the script phase. |
 | `keys` | keyEntry[] | Signing keys collected and fetched in the key phase. See [Signing keys](#signing-keys). |
@@ -292,14 +292,28 @@ when:
 
 #### Condition keys
 
+The full set of keys from `/etc/os-release` is available, including any
+distro-specific fields. Three additional synthetic keys are added:
+
 | Key | Source | Example values |
 |---|---|---|
-| `pm` | Detected package manager | `apt`, `apk`, `brew`, `dnf`, `yum`, `pacman`, `zypper` |
-| `arch` | `uname -m` | `x86_64`, `aarch64`, `armv7l`, `i686`, `arm64` |
-| `kernel` | `uname -s` (lowercased) | `linux`, `darwin` |
-| `id` | `ID` from `/etc/os-release` (or `macos` on macOS) | `ubuntu`, `debian`, `alpine`, `fedora`, `arch`, `rhel`, `macos` |
-| `id_like` | `ID_LIKE` from `/etc/os-release` (or `macos`) | `debian`, `rhel`, `arch`, `suse`, `macos` |
-| `version_id` | `VERSION_ID` from `/etc/os-release` (or `sw_vers` on macOS) | `22.04`, `39`, `3.19`, `15.6`, `15.2` |
+| `pm` | Detected package manager (synthetic) | `apt`, `apk`, `brew`, `dnf`, `yum`, `pacman`, `zypper` |
+| `arch` | `uname -m` (synthetic) | `x86_64`, `aarch64`, `armv7l`, `i686`, `arm64` |
+| `kernel` | `uname -s` lowercased (synthetic) | `linux`, `darwin` |
+
+Common `/etc/os-release` keys available on every Linux distro:
+
+| Key | `/etc/os-release` variable | Example values |
+|---|---|---|
+| `id` | `ID` (or `macos` on macOS) | `ubuntu`, `debian`, `alpine`, `fedora`, `arch`, `rhel` |
+| `id_like` | `ID_LIKE` (or `macos`) | `debian`, `rhel`, `arch`, `suse` |
+| `version_id` | `VERSION_ID` (or `sw_vers` on macOS) | `22.04`, `39`, `3.19`, `15.6` |
+| `version_codename` | `VERSION_CODENAME` | `jammy`, `bookworm`, `noble` |
+| `name` | `NAME` | `Ubuntu`, `Debian GNU/Linux`, `Alpine Linux` |
+| `pretty_name` | `PRETTY_NAME` | `Ubuntu 22.04.3 LTS` |
+
+Any other key present in `/etc/os-release` on the target system is also
+available. A key absent from `/etc/os-release` evaluates as empty string.
 
 All condition values are matched case-insensitively.
 

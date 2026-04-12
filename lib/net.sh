@@ -43,8 +43,8 @@ net::ensure_ca_certs() {
       return 1
     }
     echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
-    ospkg::update >&2
-    ospkg::install ca-certificates >&2
+    ospkg::update
+    ospkg::install ca-certificates
   fi
   _NET_CA_CERTS_OK=true
   return 0
@@ -65,7 +65,7 @@ net::ensure_fetch_tool() {
         return 1
       }
       echo "ℹ️  Neither curl nor wget found — installing curl." >&2
-      ospkg::install curl >&2
+      ospkg::install curl
       _NET_FETCH_TOOL=curl
     fi
   fi
