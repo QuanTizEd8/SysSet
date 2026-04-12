@@ -577,28 +577,9 @@ def cond_matches(c):
     end
   );
 
-def parse_when_str:
-  # Parse "pm=apt and id=ubuntu" or "pm=brew or pm=apt" style strings.
-  # " or " has lower precedence than " and ".
-  split(" or ") | map(
-    split(" and ") | map(
-      if test("!=") then
-        split("!=") | {op: "!=", k: .[0], v: .[1]}
-      else
-        split("=") | {op: "=", k: .[0], v: .[1]}
-      end |
-      .k as $k | .v as $v | .op as $op |
-      (ctx[$k] // "") | ic as $actual |
-      if $op == "!=" then $actual != ($v | ic)
-      else $actual == ($v | ic)
-      end
-    ) | all
-  ) | any;
-
 def when_matches:
   if has("when") | not then true
   elif .when == null then true
-  elif (.when | type) == "string" then .when | parse_when_str
   elif (.when | type) == "array" then [.when[] | cond_matches(ctx)] | any
   elif (.when | type) == "object" then .when | cond_matches(ctx)
   else false

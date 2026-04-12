@@ -2,8 +2,8 @@
 # Tests that Debian and Ubuntu are distinguished even though both use apt.
 packages:
   - name: common-apt-pkg
-    when: "pm=apt"
+    when: {pm: apt}
   - name: debian-only
-    when: "pm=apt and id=debian"
+    when: {pm: apt, id: debian}
   - name: ubuntu-only
-    when: "pm=apt and id=ubuntu"
+    when: {pm: apt, id: ubuntu}

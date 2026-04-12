@@ -234,7 +234,7 @@ _seed_apt_context() {
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
   # brew-only package should NOT appear for apt context.
-  printf '{"packages":[{"name":"brew-pkg","when":"pm=brew"},{"name":"apt-pkg","when":"pm=apt"}]}' \
+  printf '{"packages":[{"name":"brew-pkg","when":{"pm":"brew"}},{"name":"apt-pkg","when":{"pm":"apt"}}]}' \
     > "$_json_file"
   local _output
   _output="$(ospkg::parse_manifest_yaml "$_json_file")"

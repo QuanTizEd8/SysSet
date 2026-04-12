@@ -2,10 +2,10 @@
 # A line with [pm=apt][pm=apk] matches on both apt and apk systems.
 packages:
   - name: apt-or-apk
-    when: "pm=apt or pm=apk"
+    when: [{pm: apt}, {pm: apk}]
   - name: apt-only
-    when: "pm=apt"
+    when: {pm: apt}
   - name: apk-only
-    when: "pm=apk"
+    when: {pm: apk}
   - name: never
     when: "pm=fake"
