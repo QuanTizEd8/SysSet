@@ -846,10 +846,12 @@ ospkg::run() {
   # ── YAML / JSON manifest path ──────────────────────────────────────────────
   if [[ -n "$_manifest_content" ]]; then
 
-    # jq is required for YAML parsing.
+    # jq is required for YAML parsing — install unconditionally (parser tool,
+    # not a user-requested package, so this runs even in dry-run mode).
     if ! command -v jq > /dev/null 2>&1; then
       echo "ℹ️  jq not found — installing." >&2
-      [[ "$_dry_run" == false ]] && ospkg::install jq
+      ospkg::update --force >&2
+      ospkg::install jq >&2
     fi
 
     # yq is required to convert YAML to JSON.

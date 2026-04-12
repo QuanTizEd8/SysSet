@@ -37,6 +37,40 @@ echo "▶  Install script: $INSTALL_SH"
 echo ""
 
 # ---------------------------------------------------------------------------
+# Pre-install tools required by the YAML manifest parser (jq, yq).
+# Installing once here avoids repeated downloads across test cases and
+# prevents GitHub API rate-limit errors during local development.
+# ---------------------------------------------------------------------------
+LIB_DIR="$SCRIPT_DIR/../../../lib"
+# shellcheck source=lib/os.sh
+. "$LIB_DIR/os.sh"
+# shellcheck source=lib/ospkg.sh
+. "$LIB_DIR/ospkg.sh"
+# shellcheck source=lib/net.sh
+. "$LIB_DIR/net.sh"
+ospkg::detect
+if ! command -v jq > /dev/null 2>&1; then
+  echo "▶  Installing jq (required by YAML parser)."
+  ospkg::update --force >&2
+  ospkg::install jq >&2
+fi
+if ! command -v yq > /dev/null 2>&1 || ! yq -o=json '.' /dev/null > /dev/null 2>&1; then
+  echo "▶  Installing yq (required by YAML parser)."
+  # shellcheck source=lib/github.sh
+  . "$LIB_DIR/github.sh"
+  # shellcheck source=lib/checksum.sh
+  . "$LIB_DIR/checksum.sh"
+  _ospkg_ensure_yq
+  # Make yq available system-wide for subsequent test invocations.
+  if [[ -n "${_OSPKG_YQ_BIN:-}" && "$_OSPKG_YQ_BIN" != "yq" ]]; then
+    cp "$_OSPKG_YQ_BIN" /usr/local/bin/yq 2> /dev/null ||
+      cp "$_OSPKG_YQ_BIN" /usr/bin/yq 2> /dev/null ||
+      true
+  fi
+fi
+echo ""
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 _extract_packages() {
@@ -46,7 +80,7 @@ _extract_packages() {
   local line
   line=$(printf '%s\n' "$output" | grep '\[dry-run\] packages' || true)
   if [[ -n "$line" ]]; then
-    printf '%s\n' "$line" | sed 's/.*): //' | tr ' ' '\n' | sort
+    printf '%s\n' "$line" | sed 's/.*packages: //' | tr ' ' '\n' | sort
   fi
   # If no packages line exists, prints nothing (empty → 0 packages expected).
 }

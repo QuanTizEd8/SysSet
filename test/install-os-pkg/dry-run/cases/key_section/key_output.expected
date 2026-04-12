@@ -1,2 +1,1 @@
-[dry-run] key: 1 entry/entries — would fetch:
-https://example.com/signing.key → /tmp/test-signing.key
+[dry-run] key: https://example.com/signing.key

@@ -32,7 +32,7 @@ cat > "$_manifest" << EOF
 {
   "features": [
     { "id": "install-pixi", "options": { "version": "0.66.0" } },
-    { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.txt" } }
+    { "id": "install-os-pkg", "options": { "manifest": "${REPO_ROOT}/test/dist/fixtures/ospkg-tree.yaml" } }
   ]
 }
 EOF

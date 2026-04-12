@@ -48,34 +48,28 @@ github::fetch_release_json() {
   net::ensure_fetch_tool
   net::ensure_ca_certs
 
-  # Build auth header arg list.  curl requires separate strings for
-  # -H and the header value, so we use a positional trick: eval is not
-  # used; instead we test GITHUB_TOKEN and pass args conditionally.
-  if [ -n "${GITHUB_TOKEN:-}" ]; then
+  # Build header arguments for the detected fetch tool (curl or wget).
+  if [ "$_NET_FETCH_TOOL" = "curl" ]; then
+    local -a _hdr_args=(
+      -H "Accept: application/vnd.github+json"
+      -H "X-GitHub-Api-Version: 2022-11-28"
+    )
+    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
     if [ -n "$_dest" ]; then
-      net::fetch_with_retry 3 curl --fail --silent --location \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2022-11-28" \
-        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-        "$_url" -o "$_dest"
+      net::fetch_with_retry 3 curl --fail --silent --location "${_hdr_args[@]}" "$_url" -o "$_dest"
     else
-      net::fetch_with_retry 3 curl --fail --silent --location \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2022-11-28" \
-        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-        "$_url"
+      net::fetch_with_retry 3 curl --fail --silent --location "${_hdr_args[@]}" "$_url"
     fi
   else
+    local -a _hdr_args=(
+      --header="Accept: application/vnd.github+json"
+      --header="X-GitHub-Api-Version: 2022-11-28"
+    )
+    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(--header="Authorization: Bearer ${GITHUB_TOKEN}")
     if [ -n "$_dest" ]; then
-      net::fetch_with_retry 3 curl --fail --silent --location \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2022-11-28" \
-        "$_url" -o "$_dest"
+      net::fetch_with_retry 3 wget -qO "$_dest" "${_hdr_args[@]}" "$_url"
     else
-      net::fetch_with_retry 3 curl --fail --silent --location \
-        -H "Accept: application/vnd.github+json" \
-        -H "X-GitHub-Api-Version: 2022-11-28" \
-        "$_url"
+      net::fetch_with_retry 3 wget -qO- "${_hdr_args[@]}" "$_url"
     fi
   fi
   return 0
@@ -130,20 +124,18 @@ github::release_tags() {
   net::ensure_ca_certs
 
   local _json
-  if [ -n "${GITHUB_TOKEN:-}" ]; then
-    _json="$(net::fetch_with_retry 3 curl --fail --silent --location \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-      "$_url")" || {
+  local -a _hdr_args=()
+  if [ "$_NET_FETCH_TOOL" = "curl" ]; then
+    _hdr_args+=(-H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+    _json="$(net::fetch_with_retry 3 curl --fail --silent --location "${_hdr_args[@]}" "$_url")" || {
       echo "⛔ github::release_tags: failed to reach GitHub API for '${_repo}'." >&2
       return 1
     }
   else
-    _json="$(net::fetch_with_retry 3 curl --fail --silent --location \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: 2022-11-28" \
-      "$_url")" || {
+    _hdr_args+=(--header="Accept: application/vnd.github+json" --header="X-GitHub-Api-Version: 2022-11-28")
+    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(--header="Authorization: Bearer ${GITHUB_TOKEN}")
+    _json="$(net::fetch_with_retry 3 wget -qO- "${_hdr_args[@]}" "$_url")" || {
       echo "⛔ github::release_tags: failed to reach GitHub API for '${_repo}'." >&2
       return 1
     }

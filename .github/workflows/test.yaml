@@ -88,8 +88,11 @@ jobs:
         run: bash sync-lib.sh
 
       - name: "Run manifest resolution tests"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/repo" \
+            -e GITHUB_TOKEN \
             "${{ matrix.image }}" \
             sh -c 'command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null 2>&1; bash /repo/test/install-os-pkg/dry-run/run.sh'
