@@ -13,7 +13,6 @@ trap 'logging::cleanup' EXIT
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
   DEBUG=""
-  DIR=""
   INTERACTIVE=""
   KEEP_REPOS=""
   LIFECYCLE_HOOK=""
@@ -31,12 +30,6 @@ if [ "$#" -gt 0 ]; then
         shift
         DEBUG=true
         echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-        ;;
-      --dir)
-        shift
-        DIR="$1"
-        echo "📩 Read argument 'dir': '${DIR}'" >&2
-        shift
         ;;
       --install_self)
         shift

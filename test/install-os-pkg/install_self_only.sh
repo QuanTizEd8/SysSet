@@ -1,6 +1,6 @@
 #!/bin/bash
-# Verifies that when no manifest is given but install_self=true (the default),
-# the feature exits cleanly and installs the system command without error.
+# Verifies that when no manifest is given but install_self=true is explicitly
+# set, the feature exits cleanly and installs the system command without error.
 set -e
 
 source dev-container-features-test-lib

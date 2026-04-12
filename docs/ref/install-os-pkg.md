@@ -347,13 +347,13 @@ dnf:
 
 | PM | Available keys |
 |---|---|
-| `apt` | `ppas`, `keys`, `repos`, `scripts` |
-| `apk` | `repos`, `scripts` |
-| `brew` | `taps`, `casks`, `scripts` |
-| `dnf` | `copr`, `repos`, `modules`, `groups`, `keys`, `scripts` |
-| `yum` | `repos`, `groups`, `keys`, `scripts` |
-| `pacman` | `repos`, `keys`, `scripts` |
-| `zypper` | `repos`, `keys`, `scripts` |
+| `apt` | `packages`, `ppas`, `keys`, `repos`, `scripts` |
+| `apk` | `packages`, `repos`, `scripts` |
+| `brew` | `packages`, `taps`, `casks`, `scripts` |
+| `dnf` | `packages`, `copr`, `repos`, `modules`, `groups`, `keys`, `scripts` |
+| `yum` | `packages`, `repos`, `groups`, `keys`, `scripts` |
+| `pacman` | `packages`, `repos`, `keys`, `scripts` |
+| `zypper` | `packages`, `repos`, `keys`, `scripts` |
 
 #### `ppas` (APT only)
 
@@ -743,7 +743,7 @@ When `lifecycle_hook` is set:
   `/usr/local/share/install-os-pkg/<hook-name>.sh` (e.g. `post-create.sh`).
 - No packages are installed during the build step.
 - If the manifest value is inline content it is saved to
-  `/usr/local/share/install-os-pkg/manifest.yaml` so it is accessible at
+  `/usr/local/share/install-os-pkg/manifest.txt` so it is accessible at
   hook runtime.
 - All other options (`debug`, `keep_repos`, `logfile`, etc.) are forwarded
   into the hook script automatically.

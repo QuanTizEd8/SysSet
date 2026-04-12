@@ -90,7 +90,7 @@ scripts: |
 ### Per-PM blocks
 
 Any of the following top-level keys are evaluated only when the active PM matches:
-`apt`, `brew`, `dnf`, `apk`, `zypper`, `pacman`.
+`apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman`.
 
 Each accepts a `packages` list. `brew` also accepts `casks` and `taps`.
 
@@ -118,7 +118,7 @@ Syntax: `field=value` or `field!=value`, joined by ` and ` / ` or `.
 
 | Field | Source |
 |-------|--------|
-| `pm` | Detected package manager: `apt`, `brew`, `dnf`, `apk`, `zypper`, `pacman` |
+| `pm` | Detected package manager: `apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman` |
 | `kernel` | `linux` or `darwin` |
 | `arch` | CPU architecture: `x86_64`, `aarch64`, `arm64`, etc. |
 | `id` | `/etc/os-release` ID: `ubuntu`, `debian`, `alpine`, `fedora`, `macos`, … |
