@@ -180,11 +180,13 @@ docker run --rm -e PLATFORM_ID=debian -v "$(pwd):/repo" debian:latest \
 
 Example — a manifest with a selector block:
 
-```
+```yaml
 # manifest.yaml
-curl
-[pm=apt]
-  apt-specific-pkg
+packages:
+  - curl
+apt:
+  packages:
+    - apt-specific-pkg
 ```
 
 ```

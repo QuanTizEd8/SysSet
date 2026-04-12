@@ -1,7 +1,7 @@
 #!/bin/bash
 # Verifies that manifest file works on Alpine (apk):
-# - "--- pkg [pm=apt]" section is filtered out
-# - "--- pkg [pm=apk]" section → tree installed
+# - apt: block is filtered out
+# - apk: block → tree installed
 set -e
 
 source dev-container-features-test-lib

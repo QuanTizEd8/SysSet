@@ -248,7 +248,7 @@ _seed_apt_context() {
   command -v jq > /dev/null 2>&1 || skip "jq not available"
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
-  printf '{"when":"pm=brew","packages":["should-not-appear"]}' > "$_json_file"
+  printf '{"when":{"pm":"brew"},"packages":["should-not-appear"]}' > "$_json_file"
   local _output
   _output="$(ospkg::parse_manifest_yaml "$_json_file")"
   rm -f "$_json_file"

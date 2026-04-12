@@ -4,8 +4,8 @@
 packages:
   - always
   - name: debian13-pkg
-    when: "version_id=13"
+    when: {version_id: "13"}
   - name: ubuntu2404-pkg
-    when: "version_id=24.04"
+    when: {version_id: "24.04"}
   - name: never-pkg
-    when: "version_id=000"
+    when: {version_id: "000"}

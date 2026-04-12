@@ -1,4 +1,4 @@
-# id_selectors — AND logic within a block: pm= AND id= must both match.
+# id_selectors — AND logic within a condition object: {pm: apt, id: debian} requires both to match.
 # Tests that Debian and Ubuntu are distinguished even though both use apt.
 packages:
   - name: common-apt-pkg

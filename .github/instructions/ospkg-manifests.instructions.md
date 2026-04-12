@@ -16,7 +16,7 @@ Manifests are written in **YAML** (or **JSON**) format.
 
 ```yaml
 # Optional global condition — skips the entire manifest if false.
-when: "pm=apt"
+when: {pm: apt}
 
 # Signing keys fetched before repos/packages.
 keys:
@@ -60,7 +60,7 @@ prescripts: |
 packages:
   - git
   - name: curl
-    when: "pm=apt"
+    when: {pm: apt}
   - name: htop
     version: "3.2.1"          # becomes htop=3.2.1 on apt/apk/pacman/zypper, htop-3.2.1 on dnf/yum, htop@3.2.1 on brew
   - name: some-pkg

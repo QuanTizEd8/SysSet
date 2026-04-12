@@ -1,15 +1,15 @@
-# pm_selectors — per-line pm= selector filtering.
-# Every line without a selector is always installed.
-# Lines with [pm=X] are installed only on that package manager family.
+# pm_selectors — per-package PM filtering via when clause.
+# Packages without a when clause are always installed.
+# Packages with when: {pm: X} are installed only on that package manager family.
 packages:
   - always-installed
   - name: apt-only
-    when: "pm=apt"
+    when: {pm: apt}
   - name: apk-only
-    when: "pm=apk"
+    when: {pm: apk}
   - name: dnf-only
-    when: "pm=dnf"
+    when: {pm: dnf}
   - name: zypper-only
-    when: "pm=zypper"
+    when: {pm: zypper}
   - name: pacman-only
-    when: "pm=pacman"
+    when: {pm: pacman}

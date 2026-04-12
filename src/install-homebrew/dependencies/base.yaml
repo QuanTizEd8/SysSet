@@ -29,8 +29,8 @@ pacman:
 # Package groups for build toolchains
 groups:
   - name: development-tools
-    when: "pm=dnf"
+    when: {pm: dnf}
   - name: base-devel
-    when: "pm=pacman"
+    when: {pm: pacman}
   - name: devel_basis
-    when: "pm=zypper"
+    when: {pm: zypper}

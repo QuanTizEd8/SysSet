@@ -184,7 +184,7 @@ dnf:
   packages:
     - gcc
     - openssl-devel
-  when: "id=fedora id=rhel"
+  when: {id: [fedora, rhel]}
 
 scripts:
   - echo "Post-install script"

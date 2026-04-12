@@ -344,8 +344,8 @@ distributions:
 | Fedora/RHEL (dnf) | `shadow-utils` |
 | Alpine (apk) | `shadow-uidmap` |
 
-The `install-os-pkg` manifest selector syntax (`[pm=apt]`, `[pm=dnf]`,
-`[pm=apk]`) handles this without shell conditionals in `install.sh`.
+The `install-os-pkg` manifest uses PM-specific blocks (`apt:`, `dnf:`,
+`apk:`) to handle this without shell conditionals in `install.sh`.
 
 ### Multi-user configuration model
 

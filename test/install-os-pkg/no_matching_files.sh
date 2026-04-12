@@ -1,6 +1,6 @@
 #!/bin/bash
 # Verifies that when the manifest contains only sections for a non-matching
-# ecosystem ([pm=apk] on a Debian/APT host) the feature exits cleanly without
+# ecosystem (apk-specific packages on a Debian/APT host) the feature exits cleanly without
 # installing anything.
 set -e
 

@@ -1,5 +1,5 @@
-# section_selectors — section-header pm= selectors gate entire sections.
-# The final headerless --- pkg section is always active.
+# section_selectors — PM-specific blocks (apt:, apk:, dnf:) restrict packages.
+# The top-level packages: list is always active on all PMs.
 apt:
   packages:
     - apt-only

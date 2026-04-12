@@ -1,7 +1,7 @@
 #!/bin/bash
-# Verifies that manifest section selectors work:
-# - "--- pkg [pm=apt]" section → tree and curl installed
-# - "--- pkg [pm=apk]" section → not-a-real-package filtered out (build would fail if attempted)
+# Verifies that PM-specific blocks work on Debian (apt):
+# - apt: block → tree and curl installed
+# - apk: block → not-a-real-package filtered out (build would fail if attempted)
 set -e
 
 source dev-container-features-test-lib

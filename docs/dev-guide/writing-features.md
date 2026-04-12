@@ -549,10 +549,9 @@ A manifest is a plain-text file with sections separated by `--- <type> [selector
 | `prescript` | Shell script to run **before** repos and packages. |
 | `script` | Shell script to run **after** packages. |
 
-Selectors filter sections or individual package lines:
-`[pm=apt]`, `[arch=x86_64]`, `[id=ubuntu]`, `[version_codename=bookworm]`.
-Multiple selector blocks on the same header are OR-ed; multiple key-value
-pairs within a block are AND-ed.
+**Note:** The manifest format has moved to YAML. The above table describes a legacy
+text DSL that has been removed. See the install-os-pkg reference doc for the current
+YAML manifest schema, `when` clause syntax, and PM-specific blocks.
 
 See [install-os-pkg reference](../ref/install-os-pkg.md) for the complete
 manifest format, all selector keys, and examples.

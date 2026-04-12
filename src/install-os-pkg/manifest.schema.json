@@ -181,13 +181,8 @@
       }
     },
     "whenClause": {
-      "description": "Condition filter. Supports three forms:\n1. String expression: 'field=value' or 'field!=value', joined with ' and ' / ' or '. Example: 'pm=apt and id=ubuntu', 'pm=brew or pm=apt'.\n2. Condition object (AND of its keys). Example: { pm: apt, arch: x86_64 }\n3. Array of condition objects (OR of compounds). Example: [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n\nFields: pm, arch, kernel, id, id_like, version_id.",
+      "description": "Condition filter. Supports two forms:\n1. Condition object (AND of its keys). Example: { pm: apt, arch: x86_64 }\n2. Array of condition objects (OR of compounds). Example: [{ pm: apt, id: ubuntu }, { pm: dnf, id: fedora }]\n\nAvailable fields: pm, arch, kernel, id, id_like, version_id, version_codename, and any other key from /etc/os-release.",
       "oneOf": [
-        {
-          "type": "string",
-          "minLength": 1,
-          "description": "Expression string: 'field=value' or 'field!=value' terms joined with ' and ' (AND) or ' or ' (OR). ' or ' has lower precedence than ' and '."
-        },
         {
           "$ref": "#/$defs/conditionObject"
         },
