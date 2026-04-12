@@ -1,7 +1,8 @@
 {
     "apt_installs_packages": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -11,7 +12,8 @@
     },
     "apt_no_update": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -22,7 +24,8 @@
     },
     "apt_no_clean": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -33,7 +36,8 @@
     },
     "apt_scripts": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -43,7 +47,8 @@
     },
     "apt_logfile": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -54,7 +59,8 @@
     },
     "apt_empty_dir": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -64,7 +70,8 @@
     },
     "no_matching_files": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -74,7 +81,8 @@
     },
     "apk_installs_packages": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -84,7 +92,8 @@
     },
     "apk_no_update": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -95,7 +104,8 @@
     },
     "dnf_installs_packages": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -105,7 +115,8 @@
     },
     "zypper_installs_packages": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -115,7 +126,8 @@
     },
     "pacman_installs_packages": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -125,7 +137,8 @@
     },
     "apt_pkg_selectors": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -143,7 +156,8 @@
     },
     "apt_manifest_file": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -153,7 +167,8 @@
     },
     "apt_manifest_file_debug": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -164,7 +179,8 @@
     },
     "apt_manifest_section_selector": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -174,7 +190,8 @@
     },
     "apk_manifest_file": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -184,7 +201,8 @@
     },
     "apt_manifest_all_sections": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -194,7 +212,8 @@
     },
     "apt_manifest_scripts": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -204,7 +223,8 @@
     },
     "apt_system_command": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -232,7 +252,8 @@
     },
     "apt_lifecycle_hook_postcreate": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -243,7 +264,8 @@
     },
     "apt_lifecycle_hook_postcreate_debug": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -255,7 +277,8 @@
     },
     "apt_lifecycle_hook_oncreate": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -266,7 +289,8 @@
     },
     "apt_lifecycle_hook_updatecontent": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -277,7 +301,8 @@
     },
     "apt_keep_repos": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -289,7 +314,8 @@
     },
     "apt_repo_cleanup": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -300,7 +326,8 @@
     },
     "apt_key_raw": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -310,7 +337,8 @@
     },
     "apt_key_dearmor": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -320,7 +348,8 @@
     },
     "apt_version_selector": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -330,7 +359,8 @@
     },
     "apt_dry_run": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -341,7 +371,8 @@
     },
     "apt_lists_max_age_zero": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {
@@ -352,7 +383,8 @@
     },
     "apt_check_installed": {
         "build": {
-            "dockerfile": "Dockerfile"
+            "dockerfile": "Dockerfile",
+            "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
         },
         "features": {
             "install-os-pkg": {

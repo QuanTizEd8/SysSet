@@ -268,6 +268,22 @@ _seed_apt_context() {
   [[ "$_output" != *'"name":"openssl"'* ]]
 }
 
+@test "ospkg::parse_manifest_yaml when clause supports version_codename" {
+  _seed_apt_context
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  # jammy-only package should appear; bookworm-only should not.
+  printf '{"packages":[{"name":"jammy-pkg","when":{"version_codename":"jammy"}},{"name":"bookworm-pkg","when":{"version_codename":"bookworm"}}]}' \
+    > "$_json_file"
+  local _output
+  _output="$(ospkg::parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  # _seed_apt_context sets version_codename=jammy
+  [[ "$_output" == *'"name":"jammy-pkg"'* ]]
+  [[ "$_output" != *'"name":"bookworm-pkg"'* ]]
+}
+
 @test "ospkg::run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   command -v jq > /dev/null 2>&1 || skip "jq not available"
