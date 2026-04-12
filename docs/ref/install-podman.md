@@ -321,7 +321,7 @@ It was removed because:
 
 The Podman 5.x release notes and Fedora packaging mark `slirp4netns` as
 deprecated in favour of `passt`. The `passt` package was added to
-`packages.txt` accordingly. However, the Debian/Ubuntu `podman` package still
+`base.yaml` accordingly. However, the Debian/Ubuntu `podman` package still
 configures `slirp4netns` as the default rootless network backend — removing
 it caused a runtime error:
 

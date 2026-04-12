@@ -611,7 +611,7 @@ provide `PATH`, `XDG_*`, locale, and other environment variables.
 This feature declares a dependency on
 [`install-os-pkg`](../install-os-pkg/README.md), which provides cross-distro
 package installation. The following packages are installed automatically via
-`packages.txt`:
+`base.yaml`:
 
 | Package | Purpose |
 |---|---|
@@ -628,7 +628,7 @@ package installation. The following packages are installed automatically via
 src/install-shell/
 ├── install.sh                     # POSIX sh bootstrap (ensures bash)
 ├── devcontainer-feature.json      # Feature metadata and options
-├── packages.txt                   # OS package dependencies
+├── base.yaml                      # OS package dependencies
 │
 ├── scripts/
 │   └── install.sh                 # Main orchestrator (bash, 8-step flow)

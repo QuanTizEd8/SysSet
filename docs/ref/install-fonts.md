@@ -226,7 +226,7 @@ hands off to `scripts/install.sh` via `exec bash`.
 
 ### Step 1 — Install packages
 
-`install-os-pkg` reads `packages.txt` and installs the required tools
+`install-os-pkg` reads `base.yaml` and installs the required tools
 (`curl`, `fontconfig`, `xz-utils`, `unzip`, etc.) via the detected package
 manager. This step is skipped automatically for any package that is already
 present.
@@ -532,7 +532,7 @@ Options:
 src/install-fonts/
 ├── devcontainer-feature.json   # Feature metadata and options
 ├── install.sh                  # Bootstrap: installs packages, then execs scripts/install.sh
-├── packages.txt                # Dependencies for install-os-pkg
+├── base.yaml                   # Dependencies for install-os-pkg
 └── scripts/
     ├── helpers.sh              # fetch_with_retry helper
     ├── install.sh              # Orchestrator: arg parsing, font_dir detection, calls install_fonts.sh
@@ -549,7 +549,7 @@ src/install-fonts/
 - **Direct URL download fails** — skipped with a warning after 3 retry
   attempts. Other URLs in `font_urls` are unaffected.
 - **`.zip` extraction without `unzip`** — `unzip` is installed via
-  `packages.txt`, but if it is unavailable for any reason, the specific
+  `base.yaml`, but if it is unavailable for any reason, the specific
   `.zip` item is skipped with a warning.
 - **Unknown URL extension** — any URL whose basename does not match a
   recognized font or archive extension is skipped with a warning.
