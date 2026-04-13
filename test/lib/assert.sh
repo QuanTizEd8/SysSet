@@ -68,7 +68,7 @@ checkMultiple() {
     [[ -z "$expr" ]] && continue
     rc=0
     out="$(eval "$expr" 2>&1)" || rc=$?
-    [[ $rc -eq 0 ]] && ((passed++)) || true
+    if [[ $rc -eq 0 ]]; then ((passed++)) || true; fi
   done
   if ((passed >= min_passed)); then
     printf '  ✅  PASS — %s (%d/%d)\n' "$label" "$passed" "$min_passed"
