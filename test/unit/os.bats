@@ -29,9 +29,9 @@ setup() {
   assert_output "Darwin"
 }
 
-@test "os__kernel uses cached _OS_KERNEL value" {
+@test "os__kernel uses cached _OS__KERNEL value" {
   reload_lib os.sh
-  _OS_KERNEL="CachedOS"
+  _OS__KERNEL="CachedOS"
   run os__kernel
   assert_output "CachedOS"
 }
@@ -56,9 +56,9 @@ setup() {
   assert_output "aarch64"
 }
 
-@test "os__arch uses cached _OS_ARCH value" {
+@test "os__arch uses cached _OS__ARCH value" {
   reload_lib os.sh
-  _OS_ARCH="arm64"
+  _OS__ARCH="arm64"
   run os__arch
   assert_output "arm64"
 }
@@ -69,32 +69,32 @@ setup() {
 
 @test "os__id returns ID injected via cached globals" {
   reload_lib os.sh
-  _OS_ID="ubuntu"
-  _OS_RELEASE_LOADED=1
+  _OS__ID="ubuntu"
+  _OS__RELEASE_LOADED=1
   run os__id
   assert_output "ubuntu"
 }
 
 @test "os__id returns alpine" {
   reload_lib os.sh
-  _OS_ID="alpine"
-  _OS_RELEASE_LOADED=1
+  _OS__ID="alpine"
+  _OS__RELEASE_LOADED=1
   run os__id
   assert_output "alpine"
 }
 
 @test "os__id_like returns injected ID_LIKE" {
   reload_lib os.sh
-  _OS_ID_LIKE="debian ubuntu"
-  _OS_RELEASE_LOADED=1
+  _OS__ID_LIKE="debian ubuntu"
+  _OS__RELEASE_LOADED=1
   run os__id_like
   assert_output "debian ubuntu"
 }
 
 @test "os__id_like returns empty string when unset" {
   reload_lib os.sh
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__id_like
   assert_output ""
 }
@@ -105,54 +105,54 @@ setup() {
 
 @test "os__platform returns debian for ID=ubuntu" {
   reload_lib os.sh
-  _OS_ID="ubuntu"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="ubuntu"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "debian"
 }
 
 @test "os__platform returns debian for ID=debian" {
   reload_lib os.sh
-  _OS_ID="debian"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="debian"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "debian"
 }
 
 @test "os__platform returns alpine for ID=alpine" {
   reload_lib os.sh
-  _OS_ID="alpine"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="alpine"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "alpine"
 }
 
 @test "os__platform returns rhel for ID=fedora" {
   reload_lib os.sh
-  _OS_ID="fedora"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="fedora"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=centos" {
   reload_lib os.sh
-  _OS_ID="centos"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="centos"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns macos for Darwin uname fallback" {
   reload_lib os.sh
-  _OS_ID=""
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID=""
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   uname() { echo "Darwin"; }
   export -f uname
   run os__platform
@@ -161,9 +161,9 @@ setup() {
 
 @test "os__platform returns debian as fallback for unknown Linux" {
   reload_lib os.sh
-  _OS_ID=""
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID=""
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   uname() { echo "Linux"; }
   export -f uname
   run os__platform
@@ -172,43 +172,43 @@ setup() {
 
 @test "os__platform returns debian when ID_LIKE contains debian" {
   reload_lib os.sh
-  _OS_ID="linuxmint"
-  _OS_ID_LIKE="ubuntu debian"
-  _OS_RELEASE_LOADED=1
+  _OS__ID="linuxmint"
+  _OS__ID_LIKE="ubuntu debian"
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "debian"
 }
 
-@test "os__platform uses cached _OS_PLATFORM" {
+@test "os__platform uses cached _OS__PLATFORM" {
   reload_lib os.sh
-  _OS_PLATFORM="rhel"
+  _OS__PLATFORM="rhel"
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=rhel" {
   reload_lib os.sh
-  _OS_ID="rhel"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="rhel"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel for ID=rocky" {
   reload_lib os.sh
-  _OS_ID="rocky"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="rocky"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "rhel"
 }
 
 @test "os__platform returns rhel when ID_LIKE contains fedora" {
   reload_lib os.sh
-  _OS_ID="custom"
-  _OS_ID_LIKE="fedora"
-  _OS_RELEASE_LOADED=1
+  _OS__ID="custom"
+  _OS__ID_LIKE="fedora"
+  _OS__RELEASE_LOADED=1
   run os__platform
   assert_output "rhel"
 }

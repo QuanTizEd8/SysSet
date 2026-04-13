@@ -26,9 +26,9 @@ setup() {
   # No strings output → fall through to os__platform.
   strings() { :; }
   export -f strings
-  _OS_ID="fedora"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="fedora"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run shell__detect_bashrc
   assert_output "/etc/bashrc"
 }
@@ -37,9 +37,9 @@ setup() {
   reload_lib shell.sh
   strings() { :; }
   export -f strings
-  _OS_ID="alpine"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="alpine"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run shell__detect_bashrc
   assert_output "/etc/bash/bashrc"
 }
@@ -48,9 +48,9 @@ setup() {
   reload_lib shell.sh
   strings() { :; }
   export -f strings
-  _OS_ID="ubuntu"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="ubuntu"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run shell__detect_bashrc
   assert_output "/etc/bash.bashrc"
 }
@@ -79,9 +79,9 @@ setup() {
   reload_lib shell.sh
   strings() { :; }
   export -f strings
-  _OS_ID="fedora"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="fedora"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run shell__detect_zshdir
   assert_output "/etc"
 }
@@ -90,9 +90,9 @@ setup() {
   reload_lib shell.sh
   strings() { :; }
   export -f strings
-  _OS_ID="ubuntu"
-  _OS_ID_LIKE=""
-  _OS_RELEASE_LOADED=1
+  _OS__ID="ubuntu"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
   run shell__detect_zshdir
   assert_output "/etc/zsh"
 }

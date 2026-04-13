@@ -6,8 +6,9 @@
 # users__set_login_shell uses awk and shell utilities available on all
 # supported platforms (Debian, Alpine, macOS).
 
-[ -n "${_LIB_USERS_LOADED-}" ] && return 0
-_LIB_USERS_LOADED=1
+[ -n "${_USERS__LIB_LOADED-}" ] && return 0
+_USERS__LIB_LOADED=1
+
 
 # users__resolve_list
 #
@@ -99,6 +100,7 @@ users__resolve_list() {
   done
   return 0
 }
+
 
 # users__set_login_shell <shell_path> <username>...
 #

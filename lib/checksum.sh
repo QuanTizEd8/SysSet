@@ -3,8 +3,9 @@
 # POSIX sh compatible — safe to source from sh and bash scripts alike.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-[ -n "${_LIB_CHECKSUM_LOADED-}" ] && return 0
-_LIB_CHECKSUM_LOADED=1
+[ -n "${_CHECKSUM__LIB_LOADED-}" ] && return 0
+_CHECKSUM__LIB_LOADED=1
+
 
 # checksum__verify_sha256 <file> <expected_hash>
 #
@@ -35,6 +36,7 @@ checksum__verify_sha256() {
   fi
   return 0
 }
+
 
 # checksum__verify_sha256_sidecar <file> <sha256_file>
 #

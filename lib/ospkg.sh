@@ -2,8 +2,8 @@
 # This file must be sourced from bash (>=4.0), not sh.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-[[ -n "${_LIB_OSPKG_LOADED-}" ]] && return 0
-_LIB_OSPKG_LOADED=1
+[[ -n "${_OSPKG__LIB_LOADED-}" ]] && return 0
+_OSPKG__LIB_LOADED=1
 
 _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/os.sh

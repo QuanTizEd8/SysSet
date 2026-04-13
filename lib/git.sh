@@ -2,8 +2,9 @@
 # This file must be sourced from bash (>=4.0), not sh.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 
-[[ -n "${_LIB_GIT_LOADED-}" ]] && return 0
-_LIB_GIT_LOADED=1
+[[ -n "${_GIT__LIB_LOADED-}" ]] && return 0
+_GIT__LIB_LOADED=1
+
 
 # git__clone --url <url> --dir <dir> [--branch <branch>]
 # Clones <url> into <dir> with depth=1.  If <dir>/.git already exists the

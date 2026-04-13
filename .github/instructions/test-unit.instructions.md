@@ -57,7 +57,7 @@ setup() {
 **`reload_lib <module.sh>`** — defined in `helpers/common.bash`. Call it in `setup()` to give every test a clean module state. It:
 
 1. Clears all `_LIB_*_LOADED` guard variables so the module re-sources.
-2. Unsets all cached globals (`_OS_KERNEL`, `_NET_FETCH_TOOL`, `_OSPKG_DETECTED`, etc.).
+2. Unsets all cached globals (`_OS__KERNEL`, `_NET_FETCH_TOOL`, `_OSPKG_DETECTED`, etc.).
 3. For `ospkg.sh` specifically: pre-declares `_OSPKG_OS_RELEASE` as a **global** associative array with `declare -gA` **before** sourcing — see [ospkg.sh scoping workaround](#ospkgsh-scoping-workaround).
 4. Sources `${LIB_ROOT}/<module.sh>`.
 

@@ -3,15 +3,16 @@
 # POSIX sh compatible — safe to source from sh and bash scripts alike.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
-# _net_ensure_fetch_tool and _net_ensure_ca_certs are internal helpers.
+# _net__ensure_fetch_tool and _net__ensure_ca_certs are internal helpers.
 # They require ospkg.sh to be sourced first (they call ospkg__install if
 # curl/wget/ca-certs are missing).
 
-[ -n "${_LIB_NET_LOADED-}" ] && return 0
-_LIB_NET_LOADED=1
+[ -n "${_NET__LIB_LOADED-}" ] && return 0
+_NET__LIB_LOADED=1
 
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
+
 
 # net__fetch_with_retry <max-attempts> <delay> <cmd...>
 # Runs <cmd> up to <max-attempts> times with a <delay>-second pause between
@@ -33,51 +34,6 @@ net__fetch_with_retry() {
   return 1
 }
 
-# _net_ensure_ca_certs (internal)
-# Ensures /etc/ssl/certs/ca-certificates.crt exists; installs ca-certificates
-# via ospkg__install if not.  Requires ospkg.sh to have been sourced first.
-_net_ensure_ca_certs() {
-  [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
-  # macOS uses its own keychain; curl/wget use it natively without a .crt file.
-  [ "$(uname -s)" = "Darwin" ] && {
-    _NET_CA_CERTS_OK=true
-    return 0
-  }
-  if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
-    [ -n "${_LIB_OSPKG_LOADED-}" ] || {
-      echo "⛔ net.sh: ospkg.sh must be sourced before _net_ensure_ca_certs" >&2
-      return 1
-    }
-    echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
-    ospkg__update
-    ospkg__install ca-certificates
-  fi
-  _NET_CA_CERTS_OK=true
-  return 0
-}
-
-# _net_ensure_fetch_tool (internal)
-# Sets _NET_FETCH_TOOL to "curl" or "wget"; installs curl via ospkg__install
-# if neither is found.  Requires ospkg.sh to have been sourced first.
-_net_ensure_fetch_tool() {
-  if [ -z "${_NET_FETCH_TOOL:-}" ]; then
-    if command -v curl > /dev/null 2>&1; then
-      _NET_FETCH_TOOL=curl
-    elif command -v wget > /dev/null 2>&1; then
-      _NET_FETCH_TOOL=wget
-    else
-      [ -n "${_LIB_OSPKG_LOADED-}" ] || {
-        echo "⛔ net.sh: ospkg.sh must be sourced before _net_ensure_fetch_tool" >&2
-        return 1
-      }
-      echo "ℹ️  Neither curl nor wget found — installing curl." >&2
-      ospkg__install curl
-      _NET_FETCH_TOOL=curl
-    fi
-  fi
-  _net_ensure_ca_certs
-  return 0
-}
 
 # net__fetch_url_stdout <url> [--retries N] [--delay N] [--header "Name: Value"]...
 # Writes URL response body to stdout using _NET_FETCH_TOOL, with retries.
@@ -85,7 +41,7 @@ _net_ensure_fetch_tool() {
 #   connection failures).  wget: falls back to net__fetch_with_retry.
 # --retries defaults to 60 (≈5 min at 5s intervals); --delay defaults to 5s.
 # Multiple --header flags may be supplied; each value is passed verbatim.
-# Calls _net_ensure_fetch_tool automatically if not already initialised.
+# Calls _net__ensure_fetch_tool automatically if not already initialised.
 net__fetch_url_stdout() {
   local _url="$1"
   shift
@@ -111,7 +67,7 @@ net__fetch_url_stdout() {
         ;;
     esac
   done
-  _net_ensure_fetch_tool
+  _net__ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
     while IFS= read -r _h; do
@@ -134,13 +90,14 @@ _NET_HDR_EOF_
   return 0
 }
 
+
 # net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header "Name: Value"]...
 # Writes URL response body to file using _NET_FETCH_TOOL, with retries.
 # curl: uses --retry which retries only on transient errors (5xx, 408, 429,
 #   connection failures).  wget: falls back to net__fetch_with_retry.
 # --retries defaults to 60 (≈5 min at 5s intervals); --delay defaults to 5s.
 # Multiple --header flags may be supplied; each value is passed verbatim.
-# Calls _net_ensure_fetch_tool automatically if not already initialised.
+# Calls _net__ensure_fetch_tool automatically if not already initialised.
 net__fetch_url_file() {
   local _url="$1"
   local _dest="$2"
@@ -167,7 +124,7 @@ net__fetch_url_file() {
         ;;
     esac
   done
-  _net_ensure_fetch_tool
+  _net__ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
     while IFS= read -r _h; do
@@ -187,5 +144,53 @@ $_hdrs
 _NET_HDR_EOF_
     net__fetch_with_retry "$_max" "$_delay" wget "$@" "$_url"
   fi
+  return 0
+}
+
+
+# _net__ensure_fetch_tool (internal)
+# Sets _NET_FETCH_TOOL to "curl" or "wget"; installs curl via ospkg__install
+# if neither is found.  Requires ospkg.sh to have been sourced first.
+_net__ensure_fetch_tool() {
+  if [ -z "${_NET_FETCH_TOOL:-}" ]; then
+    if command -v curl > /dev/null 2>&1; then
+      _NET_FETCH_TOOL=curl
+    elif command -v wget > /dev/null 2>&1; then
+      _NET_FETCH_TOOL=wget
+    else
+      [ -n "${_OSPKG__LIB_LOADED-}" ] || {
+        echo "⛔ net.sh: ospkg.sh must be sourced before _net__ensure_fetch_tool" >&2
+        return 1
+      }
+      echo "ℹ️  Neither curl nor wget found — installing curl." >&2
+      ospkg__install curl
+      _NET_FETCH_TOOL=curl
+    fi
+  fi
+  _net__ensure_ca_certs
+  return 0
+}
+
+
+# _net__ensure_ca_certs (internal)
+# Ensures /etc/ssl/certs/ca-certificates.crt exists; installs ca-certificates
+# via ospkg__install if not.  Requires ospkg.sh to have been sourced first.
+_net__ensure_ca_certs() {
+  [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
+  # macOS uses its own keychain; curl/wget use it natively without a .crt file.
+  [ "$(uname -s)" = "Darwin" ] && {
+    _NET_CA_CERTS_OK=true
+    return 0
+  }
+  if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
+    [ -n "${_OSPKG__LIB_LOADED-}" ] || {
+      echo "⛔ net.sh: ospkg.sh must be sourced before _net__ensure_ca_certs" >&2
+      return 1
+    }
+    echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
+    ospkg__update
+    ospkg__install ca-certificates
+  fi
+  _NET_CA_CERTS_OK=true
   return 0
 }

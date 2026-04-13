@@ -5,37 +5,9 @@
 #
 # Requires net.sh (and ospkg.sh) to have been sourced first.
 
-[ -n "${_LIB_GITHUB_LOADED-}" ] && return 0
-_LIB_GITHUB_LOADED=1
+[ -n "${_GITHUB__LIB_LOADED-}" ] && return 0
+_GITHUB__LIB_LOADED=1
 
-# _github__api_get <url> [<dest_file>]  (internal)
-#
-# Performs a GitHub API GET with standard Accept/version headers and an
-# optional Authorization header from GITHUB_TOKEN.
-# Suppresses xtrace around the authenticated call to prevent token leaking in
-# CI logs.  Passes output to stdout or to <dest_file> when provided.
-_github__api_get() {
-  local _url="$1"
-  local _dest="${2:-}"
-  local _xt=false
-  case "$-" in *x*) _xt=true ;; esac
-  { set +x; } 2>/dev/null
-
-  # Use set -- to accumulate --header args (POSIX alternative to arrays).
-  set -- \
-    --header "Accept: application/vnd.github+json" \
-    --header "X-GitHub-Api-Version: 2022-11-28"
-  [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" --header "Authorization: Bearer ${GITHUB_TOKEN}"
-
-  local _ec=0
-  if [ -n "$_dest" ]; then
-    net__fetch_url_file "$_url" "$_dest" "$@" || _ec=$?
-  else
-    net__fetch_url_stdout "$_url" "$@" || _ec=$?
-  fi
-  [ "$_xt" = "true" ] && { set -x; } 2>/dev/null
-  return "$_ec"
-}
 
 # github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]
 #
@@ -79,6 +51,7 @@ github__fetch_release_json() {
   return $?
 }
 
+
 # github__latest_tag <owner/repo>
 #
 # Prints the latest release tag name for the given repository.
@@ -99,6 +72,7 @@ github__latest_tag() {
   echo "$_tag"
   return 0
 }
+
 
 # github__release_tags <owner/repo> [--per_page <n>]
 #
@@ -140,6 +114,7 @@ github__release_tags() {
     sed 's/.*"tag_name": *"\([^"]*\)".*/\1/'
   return 0
 }
+
 
 # github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere_pattern>]
 #
@@ -194,4 +169,34 @@ github__release_asset_urls() {
     printf '%s\n' "$_urls"
   fi
   return 0
+}
+
+
+# _github__api_get <url> [<dest_file>]  (internal)
+#
+# Performs a GitHub API GET with standard Accept/version headers and an
+# optional Authorization header from GITHUB_TOKEN.
+# Suppresses xtrace around the authenticated call to prevent token leaking in
+# CI logs.  Passes output to stdout or to <dest_file> when provided.
+_github__api_get() {
+  local _url="$1"
+  local _dest="${2:-}"
+  local _xt=false
+  case "$-" in *x*) _xt=true ;; esac
+  { set +x; } 2>/dev/null
+
+  # Use set -- to accumulate --header args (POSIX alternative to arrays).
+  set -- \
+    --header "Accept: application/vnd.github+json" \
+    --header "X-GitHub-Api-Version: 2022-11-28"
+  [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" --header "Authorization: Bearer ${GITHUB_TOKEN}"
+
+  local _ec=0
+  if [ -n "$_dest" ]; then
+    net__fetch_url_file "$_url" "$_dest" "$@" || _ec=$?
+  else
+    net__fetch_url_stdout "$_url" "$@" || _ec=$?
+  fi
+  [ "$_xt" = "true" ] && { set -x; } 2>/dev/null
+  return "$_ec"
 }

@@ -67,25 +67,25 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# _net_ensure_fetch_tool  (tool detection and caching)
+# _net__ensure_fetch_tool  (tool detection and caching)
 # ---------------------------------------------------------------------------
 
-@test "_net_ensure_fetch_tool detects curl and sets _NET_FETCH_TOOL" {
+@test "_net__ensure_fetch_tool detects curl and sets _NET_FETCH_TOOL" {
   reload_lib net.sh
-  # Provide a fake curl; _net_ensure_ca_certs needs to be stubbed as well.
+  # Provide a fake curl; _net__ensure_ca_certs needs to be stubbed as well.
   create_fake_bin "curl" ""
   prepend_fake_bin_path
-  # Stub _net_ensure_ca_certs to avoid ospkg dependency.
-  _net_ensure_ca_certs() {
+  # Stub _net__ensure_ca_certs to avoid ospkg dependency.
+  _net__ensure_ca_certs() {
     _NET_CA_CERTS_OK=true
     return 0
   }
-  export -f _net_ensure_ca_certs
-  _net_ensure_fetch_tool
+  export -f _net__ensure_ca_certs
+  _net__ensure_fetch_tool
   [[ "$_NET_FETCH_TOOL" == "curl" ]]
 }
 
-@test "_net_ensure_fetch_tool detects wget when curl is absent" {
+@test "_net__ensure_fetch_tool detects wget when curl is absent" {
   reload_lib net.sh
   create_fake_bin "wget" ""
   # Temporarily restrict PATH to only the fake bin dir so the real curl
@@ -93,45 +93,45 @@ EOF
   # returning so bats cleanup commands (rm, etc.) can still find their tools.
   local _saved_path="$PATH"
   export PATH="${BATS_TEST_TMPDIR}/bin"
-  _net_ensure_ca_certs() {
+  _net__ensure_ca_certs() {
     _NET_CA_CERTS_OK=true
     return 0
   }
-  export -f _net_ensure_ca_certs
-  _net_ensure_fetch_tool
+  export -f _net__ensure_ca_certs
+  _net__ensure_fetch_tool
   local _result="$_NET_FETCH_TOOL"
   export PATH="$_saved_path"
   [[ "$_result" == "wget" ]]
 }
 
-@test "_net_ensure_fetch_tool is idempotent when _NET_FETCH_TOOL is set" {
+@test "_net__ensure_fetch_tool is idempotent when _NET_FETCH_TOOL is set" {
   reload_lib net.sh
   _NET_FETCH_TOOL="curl"
   _NET_CA_CERTS_OK=true
-  _net_ensure_ca_certs() { return 0; }
-  export -f _net_ensure_ca_certs
-  _net_ensure_fetch_tool
+  _net__ensure_ca_certs() { return 0; }
+  export -f _net__ensure_ca_certs
+  _net__ensure_fetch_tool
   [[ "$_NET_FETCH_TOOL" == "curl" ]]
 }
 
 # ---------------------------------------------------------------------------
-# _net_ensure_ca_certs  (caching and Darwin short-circuit)
+# _net__ensure_ca_certs  (caching and Darwin short-circuit)
 # ---------------------------------------------------------------------------
 
-@test "_net_ensure_ca_certs is a no-op when already cached" {
+@test "_net__ensure_ca_certs is a no-op when already cached" {
   reload_lib net.sh
   _NET_CA_CERTS_OK=true
   # If idempotency guard works, the function must return 0 immediately
   # without touching any file paths or calling ospkg.
-  run _net_ensure_ca_certs
+  run _net__ensure_ca_certs
   assert_success
 }
 
-@test "_net_ensure_ca_certs is a no-op on Darwin" {
+@test "_net__ensure_ca_certs is a no-op on Darwin" {
   reload_lib net.sh
   uname() { echo "Darwin"; }
   export -f uname
-  run _net_ensure_ca_certs
+  run _net__ensure_ca_certs
   assert_success
   # Verify that _NET_CA_CERTS_OK was set inside the call by re-running in a
   # subshell that checks the flag after the call returns.
@@ -139,7 +139,7 @@ EOF
     source '${BATS_TEST_DIRNAME}/../../lib/net.sh'
     uname() { echo 'Darwin'; }
     export -f uname
-    _net_ensure_ca_certs
+    _net__ensure_ca_certs
     [[ \"\${_NET_CA_CERTS_OK}\" == 'true' ]] && echo 'CACHED'
   "
   assert_output --partial "CACHED"
