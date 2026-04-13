@@ -36,8 +36,9 @@ reload_lib() {
   # Reset ospkg.sh detection flag (sourcing ospkg.sh re-declares it as false).
   _OSPKG_DETECTED=false
 
-  # Reset logging state flag.
+  # Reset logging state flags.
   _LIB_LOGGING_SETUP=false
+  _SYSSET_TMPDIR=
 
   # Pre-declare global associative arrays BEFORE sourcing to work around a bash
   # scoping rule: 'declare -A' without -g in a file sourced from within a

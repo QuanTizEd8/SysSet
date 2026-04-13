@@ -87,3 +87,74 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_success
   assert_output --partial "NOOP_OK"
 }
+
+@test "logging::setup creates _SYSSET_TMPDIR" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    [[ -d \"\${_SYSSET_TMPDIR}\" ]] && echo DIR_EXISTS
+    logging::cleanup
+  "
+  assert_success
+  assert_output --partial "DIR_EXISTS"
+}
+
+@test "logging::cleanup removes _SYSSET_TMPDIR" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    _dir=\"\${_SYSSET_TMPDIR}\"
+    logging::cleanup
+    [[ ! -d \"\${_dir}\" ]] && echo DIR_GONE
+  "
+  assert_success
+  assert_output --partial "DIR_GONE"
+}
+
+@test "logging::cleanup resets _SYSSET_TMPDIR to empty" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    logging::cleanup
+    [[ -z \"\${_SYSSET_TMPDIR}\" ]] && echo CLEARED
+  "
+  assert_success
+  assert_output --partial "CLEARED"
+}
+
+@test "logging::tmpdir creates a subdirectory inside _SYSSET_TMPDIR" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    _sub=\"\$(logging::tmpdir 'mymod')\"
+    [[ -d \"\${_sub}\" ]] && echo SUBDIR_EXISTS
+    [[ \"\${_sub}\" == \"\${_SYSSET_TMPDIR}/mymod\" ]] && echo PATH_CORRECT
+    logging::cleanup
+  "
+  assert_success
+  assert_output --partial "SUBDIR_EXISTS"
+  assert_output --partial "PATH_CORRECT"
+}
+
+@test "logging::tmpdir is idempotent" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    _p1=\"\$(logging::tmpdir 'x')\"
+    _p2=\"\$(logging::tmpdir 'x')\"
+    [[ \"\${_p1}\" == \"\${_p2}\" ]] && echo SAME_PATH
+    logging::cleanup
+  "
+  assert_success
+  assert_output --partial "SAME_PATH"
+}
+
+@test "logging::tmpdir lazy-inits _SYSSET_TMPDIR without logging::setup" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    _sub=\"\$(logging::tmpdir 'lazy')\"
+    [[ -d \"\${_sub}\" ]] && echo LAZY_OK
+  "
+  assert_success
+  assert_output --partial "LAZY_OK"
+}

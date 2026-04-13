@@ -10,6 +10,8 @@ _OSPKG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_OSPKG_LIB_DIR/os.sh"
 # shellcheck source=lib/net.sh
 . "$_OSPKG_LIB_DIR/net.sh"
+# shellcheck source=lib/logging.sh
+. "$_OSPKG_LIB_DIR/logging.sh"
 
 # ── Internal state ────────────────────────────────────────────────────────────
 _OSPKG_DETECTED=false
@@ -22,7 +24,6 @@ _OSPKG_LISTS_PATH=
 _OSPKG_LISTS_PATTERN=
 _OSPKG_PREFER_LINUXBREW=false
 _OSPKG_YQ_BIN=
-_OSPKG_YQ_TMPDIR=
 declare -A _OSPKG_OS_RELEASE=()
 
 # ── Private: clean functions ──────────────────────────────────────────────────
@@ -186,7 +187,7 @@ _ospkg_ensure_yq() {
   . "$_OSPKG_LIB_DIR/github.sh"
   # shellcheck source=lib/checksum.sh
   . "$_OSPKG_LIB_DIR/checksum.sh"
-  local _os _arch _url _chk_url _tmpdir _dest _chk_file _expected_hash
+  local _os _arch _url _chk_url _yq_dir _dest _chk_file _expected_hash
   _os="$(os::kernel | tr '[:upper:]' '[:lower:]')" # linux | darwin
   _arch="$(os::arch)"
   case "$_arch" in
@@ -203,29 +204,26 @@ _ospkg_ensure_yq() {
     return 1
   fi
   _chk_url="$(github::release_asset_urls mikefarah/yq --filter "^checksums$" | head -1)"
-  _tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/ospkg_yq_XXXXXX")"
-  _dest="${_tmpdir}/yq"
+  _yq_dir="$(logging::tmpdir "ospkg/yq")"
+  _dest="${_yq_dir}/yq"
   echo "ℹ️  Downloading yq (${_os}/${_arch}) from GitHub Releases." >&2
   net::fetch_url_file "$_url" "$_dest"
   if [[ -n "${_chk_url:-}" ]]; then
-    _chk_file="${_tmpdir}/checksums"
+    _chk_file="${_yq_dir}/checksums"
     net::fetch_url_file "$_chk_url" "$_chk_file"
     _expected_hash="$(grep "[[:space:]]yq_${_os}_${_arch}$" "$_chk_file" | awk '{print $1}')"
     if [[ -n "${_expected_hash:-}" ]]; then
       if ! checksum::verify_sha256 "$_dest" "$_expected_hash"; then
         echo "⛔ yq: checksum verification failed — aborting." >&2
-        rm -rf "$_tmpdir"
         return 1
       fi
     else
       echo "⛔ yq: checksum entry not found in checksums file — aborting." >&2
-      rm -rf "$_tmpdir"
       return 1
     fi
   fi
   chmod +x "$_dest"
   _OSPKG_YQ_BIN="$_dest"
-  _OSPKG_YQ_TMPDIR="$_tmpdir"
   echo "✅ yq downloaded to ${_dest}." >&2
   return 0
 }
@@ -869,65 +867,48 @@ ospkg::run() {
     fi
 
     # Convert YAML (or JSON) to JSON via yq, then parse into phase arrays.
-    # NOTE: we intentionally do NOT set an EXIT trap here.  The old code
-    # installed a trap to clean the temp file, but that clobbered whatever
-    # EXIT handler the calling script had registered (e.g. __cleanup__),
-    # preventing caller cleanup from running at all.  Instead we wrap the
-    # entire yq + parse sequence in `if !` (which disables set -e) and
-    # clean up inline.
-    local _json_tmp
-    _json_tmp="$(mktemp "${TMPDIR:-/tmp}/ospkg_yaml_XXXXXX")"
+    # Temp files live inside _SYSSET_TMPDIR so logging::cleanup removes them
+    # automatically on exit, even on unexpected failure.
+    local _ospkg_dir _json_tmp
+    _ospkg_dir="$(logging::tmpdir "ospkg")"
+    _json_tmp="$(mktemp "${_ospkg_dir}/yaml_XXXXXX")"
 
     local -a _Y_PRESCRIPTS=() _Y_KEYS=() _Y_REPOS=() _Y_PPAS=() _Y_TAPS=() _Y_COPR=()
     local -a _Y_MODULES=() _Y_GROUPS=() _Y_PACKAGES=() _Y_CASKS=() _Y_SCRIPTS=()
 
-    local _parse_ok=true
-    if ! {
-      echo "ℹ️  Converting manifest to JSON via yq." >&2
-      if [[ "$_manifest_content" == *$'\n'* ]]; then
-        printf '%s' "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
-      else
-        "$_OSPKG_YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
-          echo "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
-      fi
+    echo "ℹ️  Converting manifest to JSON via yq." >&2
+    if [[ "$_manifest_content" == *$'\n'* ]]; then
+      printf '%s' "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
+    else
+      "$_OSPKG_YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
+        echo "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
+    fi
 
-      local _item _kind
-      while IFS= read -r _item; do
-        _kind="$(printf '%s' "$_item" | jq -r '.kind' 2> /dev/null)" || continue
-        case "$_kind" in
-          prescript) _Y_PRESCRIPTS+=("$_item") ;;
-          key) _Y_KEYS+=("$_item") ;;
-          repo) _Y_REPOS+=("$_item") ;;
-          ppa) _Y_PPAS+=("$_item") ;;
-          tap) _Y_TAPS+=("$_item") ;;
-          copr) _Y_COPR+=("$_item") ;;
-          module) _Y_MODULES+=("$_item") ;;
-          group) _Y_GROUPS+=("$_item") ;;
-          package) _Y_PACKAGES+=("$_item") ;;
-          cask) _Y_CASKS+=("$_item") ;;
-          script) _Y_SCRIPTS+=("$_item") ;;
-        esac
-      done < <(ospkg::parse_manifest_yaml "$_json_tmp")
-    }; then
-      _parse_ok=false
-    fi
+    local _item _kind
+    while IFS= read -r _item; do
+      _kind="$(printf '%s' "$_item" | jq -r '.kind' 2> /dev/null)" || continue
+      case "$_kind" in
+        prescript) _Y_PRESCRIPTS+=("$_item") ;;
+        key) _Y_KEYS+=("$_item") ;;
+        repo) _Y_REPOS+=("$_item") ;;
+        ppa) _Y_PPAS+=("$_item") ;;
+        tap) _Y_TAPS+=("$_item") ;;
+        copr) _Y_COPR+=("$_item") ;;
+        module) _Y_MODULES+=("$_item") ;;
+        group) _Y_GROUPS+=("$_item") ;;
+        package) _Y_PACKAGES+=("$_item") ;;
+        cask) _Y_CASKS+=("$_item") ;;
+        script) _Y_SCRIPTS+=("$_item") ;;
+      esac
+    done < <(ospkg::parse_manifest_yaml "$_json_tmp")
     rm -f "$_json_tmp"
-    if [[ -n "${_OSPKG_YQ_TMPDIR-}" ]]; then
-      rm -rf "$_OSPKG_YQ_TMPDIR"
-      _OSPKG_YQ_TMPDIR=
-      _OSPKG_YQ_BIN=
-    fi
-    if [[ "$_parse_ok" == false ]]; then
-      echo "⛔ YAML manifest conversion/parsing failed." >&2
-      return 1
-    fi
     echo "ℹ️  YAML manifest parsed: ${#_Y_PRESCRIPTS[@]} prescript(s), ${#_Y_KEYS[@]} key(s), ${#_Y_REPOS[@]} repo(s), ${#_Y_PPAS[@]} ppa(s), ${#_Y_TAPS[@]} tap(s), ${#_Y_COPR[@]} copr(s), ${#_Y_MODULES[@]} module(s), ${#_Y_GROUPS[@]} group(s), ${#_Y_PACKAGES[@]} package(s), ${#_Y_CASKS[@]} cask(s), ${#_Y_SCRIPTS[@]} script(s)." >&2
 
     # Helper: run a shell script with dry-run support.
     _run_script() {
       local _label="$1" _content="$2"
       local _stmp
-      _stmp="$(mktemp)"
+      _stmp="$(mktemp "${_ospkg_dir}/script_XXXXXX")"
       printf '%s\n' "$_content" > "$_stmp"
       chmod +x "$_stmp"
       echo "🚀 Running ${_label}." >&2
@@ -958,7 +939,7 @@ ospkg::run() {
     if [[ ${#_Y_KEYS[@]} -gt 0 ]]; then
       echo "🔑 Installing ${#_Y_KEYS[@]} signing key(s)." >&2
       local _key_gnupghome
-      _key_gnupghome="$(mktemp -d)"
+      _key_gnupghome="$(mktemp -d "${_SYSSET_TMPDIR:-${TMPDIR:-/tmp}}/ospkg_gnupg_XXXXXX")"
       chmod 700 "$_key_gnupghome"
       if [[ "$_dry_run" == false ]]; then
         export GNUPGHOME="$_key_gnupghome"
