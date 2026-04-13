@@ -5,10 +5,11 @@
 # Pass FILES="f1 f2 ..." to format specific files only.
 # No-op if shfmt is not on PATH.
 format:
-	command -v shfmt >/dev/null 2>&1 || { echo "shfmt not found, skipping"; exit 0; }
 ifdef FILES
+	command -v shfmt >/dev/null 2>&1 || { echo "shfmt not found, skipping"; exit 0; }; \
 	shfmt -w $(FILES)
 else
+	command -v shfmt >/dev/null 2>&1 || { echo "shfmt not found, skipping"; exit 0; }; \
 	shfmt -w --apply-ignore .
 endif
 
@@ -17,10 +18,11 @@ endif
 # Pass FILES="f1 f2 ..." to check specific files only (used by lefthook).
 # No-op if shfmt is not on PATH.
 format-check:
-	command -v shfmt >/dev/null 2>&1 || { echo "shfmt not found, skipping"; exit 0; }
 ifdef FILES
+	command -v shfmt >/dev/null 2>&1 || { echo "shfmt not found, skipping"; exit 0; }; \
 	shfmt -d $(FILES)
 else
+	command -v shfmt >/dev/null 2>&1 || { echo "shfmt not found, skipping"; exit 0; }; \
 	shfmt -d --apply-ignore .
 endif
 
@@ -29,10 +31,11 @@ endif
 # re-analysing the lib/ source chain for every file.
 # Pass FILES="f1 f2 ..." to check specific files only (used by lefthook).
 lint:
-	command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not found, skipping"; exit 0; }
 ifdef FILES
+	command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not found, skipping"; exit 0; }; \
 	echo $(FILES) | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
 else
+	command -v shellcheck >/dev/null 2>&1 || { echo "shellcheck not found, skipping"; exit 0; }; \
 	git ls-files -- '*.sh' '*.bash' | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
 endif
 
