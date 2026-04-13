@@ -34,7 +34,12 @@ _require_base_image() {
   [[ -n "$_BASE_IMAGE" ]] && return
   local pkgs="bash curl ca-certificates"
   if [[ -f "$DEPS_FILE" ]]; then
-    pkgs="$(grep -v '^\s*#' "$DEPS_FILE" | grep -v '^\s*$' | tr '\n' ' ')"
+    # Extract package names from the top-level 'packages:' YAML list only.
+    # Other keys (e.g. 'apk:') are skipped — they're distro-specific and not
+    # needed for the Ubuntu base image used by fail scenarios.
+    local _yaml_pkgs
+    _yaml_pkgs="$(awk '/^packages:/{found=1;next} found && /^  - /{sub(/^  - /,""); print; next} found && /^[^[:space:]]/{found=0}' "$DEPS_FILE" | tr '\n' ' ' | xargs)"
+    [[ -n "$_yaml_pkgs" ]] && pkgs="$_yaml_pkgs"
   fi
   _BASE_IMAGE="fail-test-base-${FEATURE}"
   echo "ℹ️ Building base image '${_BASE_IMAGE}' (packages: ${pkgs})..."
