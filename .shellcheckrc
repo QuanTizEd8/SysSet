@@ -3,9 +3,6 @@
 # These apply to all files unless overridden with inline directives.
 # Override per-file/per-line with: # shellcheck disable=SCxxxx
 
-# Default shell dialect for files without a shebang.
-shell=bash
-
 # Follow sourced files (equivalent to -x / --external-sources).
 # Allows shellcheck to lint through `source` / `.` directives.
 external-sources=true

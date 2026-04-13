@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC3043  # 'local' is not POSIX but is supported by all targeted shells (dash, ash, macOS sh)
 # POSIX sh compatible — safe to source from sh and bash scripts alike.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
@@ -6,6 +7,35 @@
 
 [ -n "${_LIB_GITHUB_LOADED-}" ] && return 0
 _LIB_GITHUB_LOADED=1
+
+# _github__api_get <url> [<dest_file>]  (internal)
+#
+# Performs a GitHub API GET with standard Accept/version headers and an
+# optional Authorization header from GITHUB_TOKEN.
+# Suppresses xtrace around the authenticated call to prevent token leaking in
+# CI logs.  Passes output to stdout or to <dest_file> when provided.
+_github__api_get() {
+  local _url="$1"
+  local _dest="${2:-}"
+  local _xt=false
+  case "$-" in *x*) _xt=true ;; esac
+  { set +x; } 2>/dev/null
+
+  # Use set -- to accumulate --header args (POSIX alternative to arrays).
+  set -- \
+    --header "Accept: application/vnd.github+json" \
+    --header "X-GitHub-Api-Version: 2022-11-28"
+  [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" --header "Authorization: Bearer ${GITHUB_TOKEN}"
+
+  local _ec=0
+  if [ -n "$_dest" ]; then
+    net__fetch_url_file "$_url" "$_dest" "$@" || _ec=$?
+  else
+    net__fetch_url_stdout "$_url" "$@" || _ec=$?
+  fi
+  [ "$_xt" = "true" ] && { set -x; } 2>/dev/null
+  return "$_ec"
+}
 
 # github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]
 #
@@ -45,27 +75,8 @@ github__fetch_release_json() {
     _url="https://api.github.com/repos/${_repo}/releases/latest"
   fi
 
-  # Suppress xtrace for the authenticated fetch to prevent GITHUB_TOKEN
-  # appearing in logs or set -x traces.
-  local _xt=false
-  [[ "$-" == *x* ]] && _xt=true
-  { set +x; } 2> /dev/null
-
-  # Build header arguments; conditionally include Authorization.
-  local -a _hdrs=(
-    --header "Accept: application/vnd.github+json"
-    --header "X-GitHub-Api-Version: 2022-11-28"
-  )
-  [ -n "${GITHUB_TOKEN:-}" ] && _hdrs+=(--header "Authorization: Bearer ${GITHUB_TOKEN}")
-
-  local _ec=0
-  if [ -n "$_dest" ]; then
-    net__fetch_url_file "$_url" "$_dest" "${_hdrs[@]}" || _ec=$?
-  else
-    net__fetch_url_stdout "$_url" "${_hdrs[@]}" || _ec=$?
-  fi
-  [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
-  return "$_ec"
+  _github__api_get "$_url" "$_dest"
+  return $?
 }
 
 # github__latest_tag <owner/repo>
@@ -114,25 +125,11 @@ github__release_tags() {
 
   local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
 
-  # Suppress xtrace for the authenticated fetch to prevent GITHUB_TOKEN
-  # appearing in logs or set -x traces.
-  local _xt=false
-  [[ "$-" == *x* ]] && _xt=true
-  { set +x; } 2> /dev/null
-
-  local -a _hdrs=(
-    --header "Accept: application/vnd.github+json"
-    --header "X-GitHub-Api-Version: 2022-11-28"
-  )
-  [ -n "${GITHUB_TOKEN:-}" ] && _hdrs+=(--header "Authorization: Bearer ${GITHUB_TOKEN}")
-
   local _json
-  _json="$(net__fetch_url_stdout "$_url" "${_hdrs[@]}")" || {
-    [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
+  _json="$(_github__api_get "$_url")" || {
     echo "⛔ github__release_tags: failed to reach GitHub API for '${_repo}'." >&2
     return 1
   }
-  [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
 
   [ -z "$_json" ] && {
     echo "⛔ github__release_tags: received empty response for '${_repo}'." >&2
