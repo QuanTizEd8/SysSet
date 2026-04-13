@@ -868,42 +868,55 @@ ospkg::run() {
       return 1
     fi
 
-    # Convert YAML (or JSON) to JSON via yq.
+    # Convert YAML (or JSON) to JSON via yq, then parse into phase arrays.
+    # NOTE: we intentionally do NOT set an EXIT trap here.  The old code
+    # installed a trap to clean the temp file, but that clobbered whatever
+    # EXIT handler the calling script had registered (e.g. __cleanup__),
+    # preventing caller cleanup from running at all.  Instead we wrap the
+    # entire yq + parse sequence in `if !` (which disables set -e) and
+    # clean up inline.
     local _json_tmp
     _json_tmp="$(mktemp "${TMPDIR:-/tmp}/ospkg_yaml_XXXXXX")"
-    # shellcheck disable=SC2064
-    trap "rm -f '${_json_tmp}' ${_OSPKG_YQ_TMPDIR:+; rm -rf '${_OSPKG_YQ_TMPDIR}'}; logging::cleanup" EXIT
-    echo "ℹ️  Converting manifest to JSON via yq." >&2
-    if [[ "$_manifest_content" == *$'\n'* ]]; then
-      printf '%s' "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
-    else
-      "$_OSPKG_YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
-        echo "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
-    fi
 
-    # Parse JSON manifest into phase arrays.
     local -a _Y_PRESCRIPTS=() _Y_KEYS=() _Y_REPOS=() _Y_PPAS=() _Y_TAPS=() _Y_COPR=()
     local -a _Y_MODULES=() _Y_GROUPS=() _Y_PACKAGES=() _Y_CASKS=() _Y_SCRIPTS=()
 
-    local _item _kind
-    while IFS= read -r _item; do
-      _kind="$(printf '%s' "$_item" | jq -r '.kind' 2> /dev/null)" || continue
-      case "$_kind" in
-        prescript) _Y_PRESCRIPTS+=("$_item") ;;
-        key) _Y_KEYS+=("$_item") ;;
-        repo) _Y_REPOS+=("$_item") ;;
-        ppa) _Y_PPAS+=("$_item") ;;
-        tap) _Y_TAPS+=("$_item") ;;
-        copr) _Y_COPR+=("$_item") ;;
-        module) _Y_MODULES+=("$_item") ;;
-        group) _Y_GROUPS+=("$_item") ;;
-        package) _Y_PACKAGES+=("$_item") ;;
-        cask) _Y_CASKS+=("$_item") ;;
-        script) _Y_SCRIPTS+=("$_item") ;;
-      esac
-    done < <(ospkg::parse_manifest_yaml "$_json_tmp")
+    local _parse_ok=true
+    if ! {
+      echo "ℹ️  Converting manifest to JSON via yq." >&2
+      if [[ "$_manifest_content" == *$'\n'* ]]; then
+        printf '%s' "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
+      else
+        "$_OSPKG_YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
+          echo "$_manifest_content" | "$_OSPKG_YQ_BIN" -o=json '.' - > "$_json_tmp"
+      fi
 
+      local _item _kind
+      while IFS= read -r _item; do
+        _kind="$(printf '%s' "$_item" | jq -r '.kind' 2> /dev/null)" || continue
+        case "$_kind" in
+          prescript) _Y_PRESCRIPTS+=("$_item") ;;
+          key) _Y_KEYS+=("$_item") ;;
+          repo) _Y_REPOS+=("$_item") ;;
+          ppa) _Y_PPAS+=("$_item") ;;
+          tap) _Y_TAPS+=("$_item") ;;
+          copr) _Y_COPR+=("$_item") ;;
+          module) _Y_MODULES+=("$_item") ;;
+          group) _Y_GROUPS+=("$_item") ;;
+          package) _Y_PACKAGES+=("$_item") ;;
+          cask) _Y_CASKS+=("$_item") ;;
+          script) _Y_SCRIPTS+=("$_item") ;;
+        esac
+      done < <(ospkg::parse_manifest_yaml "$_json_tmp")
+    }; then
+      _parse_ok=false
+    fi
     rm -f "$_json_tmp"
+    [[ -n "${_OSPKG_YQ_TMPDIR-}" ]] && rm -rf "$_OSPKG_YQ_TMPDIR" && _OSPKG_YQ_TMPDIR=
+    if [[ "$_parse_ok" == false ]]; then
+      echo "⛔ YAML manifest conversion/parsing failed." >&2
+      return 1
+    fi
     echo "ℹ️  YAML manifest parsed: ${#_Y_PRESCRIPTS[@]} prescript(s), ${#_Y_KEYS[@]} key(s), ${#_Y_REPOS[@]} repo(s), ${#_Y_PPAS[@]} ppa(s), ${#_Y_TAPS[@]} tap(s), ${#_Y_COPR[@]} copr(s), ${#_Y_MODULES[@]} module(s), ${#_Y_GROUPS[@]} group(s), ${#_Y_PACKAGES[@]} package(s), ${#_Y_CASKS[@]} cask(s), ${#_Y_SCRIPTS[@]} script(s)." >&2
 
     # Helper: run a shell script with dry-run support.
