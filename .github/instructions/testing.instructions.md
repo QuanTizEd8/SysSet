@@ -42,7 +42,7 @@ test/
 │   └── macos/                    ← macOS native scenario scripts (no Docker)
 │       └── <scenario>.sh
 ├── lib/
-│   └── macos-test-lib.sh         check() / fail_check() / reportResults() for macOS scripts
+│   └── assert.sh                 check() / fail_check() / reportResults() / block helpers for macOS and dist scripts
 └── install-os-pkg/
     └── dry-run/                  manifest resolution tests (plain Docker)
         ├── run.sh

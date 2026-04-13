@@ -76,18 +76,18 @@ gh run watch
 test/<feature>/macos/
   <scenario>.sh         native bash scenario script
 test/lib/
-  macos-test-lib.sh     check() / fail_check() / reportResults() / shellenv_block_cleanup()
+  assert.sh             check() / fail_check() / reportResults() / shellenv_block_cleanup()
 ```
 
 ### Script anatomy
 
-Scenario scripts source `test/lib/macos-test-lib.sh` (not `dev-container-features-test-lib`). The repo root is passed as positional argument `$1`. The `check` / `reportResults` API is identical to devcontainer CLI scenarios:
+Scenario scripts source `test/lib/assert.sh` (not `dev-container-features-test-lib`). The repo root is passed as positional argument `$1`. The `check` / `reportResults` API is identical to devcontainer CLI scenarios:
 
 ```bash
 #!/usr/bin/env bash
 set -e
 REPO_ROOT="$1"
-source "${REPO_ROOT}/test/lib/macos-test-lib.sh"
+source "${REPO_ROOT}/test/lib/assert.sh"
 
 # Run the installer directly
 bash "${REPO_ROOT}/src/install-homebrew/install.sh"
@@ -101,7 +101,7 @@ fail_check "brew not writable by root" test -w "$(brew --prefix)/bin/brew"
 reportResults
 ```
 
-`test/lib/macos-test-lib.sh` additional API:
+`test/lib/assert.sh` additional API:
 - `fail_check "label" <cmd>` — passes when `<cmd>` exits **non-zero** (inverse of `check`)
 - `shellenv_block_cleanup <file>` — removes `install-homebrew` shellenv blocks from a dotfile in-place; useful in `trap ... EXIT` cleanup
 

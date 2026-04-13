@@ -418,18 +418,18 @@ Some features (e.g. `install-homebrew`) need to run on real macOS and cannot use
 test/<feature>/macos/
   <scenario>.sh         native bash scenario script
 test/lib/
-  macos-test-lib.sh     check() / fail_check() / reportResults() / shellenv_block_cleanup()
+  assert.sh             check() / fail_check() / reportResults() / shellenv_block_cleanup()
 ```
 
 ### Script anatomy
 
-macOS scenario scripts source `test/lib/macos-test-lib.sh` instead of `dev-container-features-test-lib`. The repo root is passed as `$1`. The `check` / `reportResults` API is identical to devcontainer CLI scenarios:
+macOS scenario scripts source `test/lib/assert.sh` instead of `dev-container-features-test-lib`. The repo root is passed as `$1`. The `check` / `reportResults` API is identical to devcontainer CLI scenarios:
 
 ```bash
 #!/usr/bin/env bash
 set -e
 REPO_ROOT="$1"
-source "${REPO_ROOT}/test/lib/macos-test-lib.sh"
+source "${REPO_ROOT}/test/lib/assert.sh"
 
 _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
 
@@ -449,7 +449,7 @@ check "brew --version succeeds" "${_BREW_PREFIX}/bin/brew" --version
 reportResults
 ```
 
-The library also provides `fail_check "label" <cmd>` (passes when the command exits non-zero) and `shellenv_block_cleanup <file>` (removes `install-homebrew` shellenv markers from dotfiles).
+The library also provides `fail_check "label" <cmd>` (passes when the command exits non-zero), `checkMultiple "label" <min> "cmd1" ["cmd2"...]` (passes if at least `<min>` commands succeed), and `shellenv_block_cleanup <file>` (removes `install-homebrew` shellenv markers from dotfiles).
 
 ### Running macOS scenarios locally
 

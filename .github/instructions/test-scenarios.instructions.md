@@ -211,18 +211,18 @@ For features that install on macOS (e.g. `install-homebrew`), use native bash sc
 test/<feature>/macos/
   <scenario>.sh         native bash scenario script
 test/lib/
-  macos-test-lib.sh     shared test library for macOS scripts
+  assert.sh             shared assertion library for macOS and dist scripts
 ```
 
 ### Script anatomy
 
-macOS scenarios source `test/lib/macos-test-lib.sh` instead of `dev-container-features-test-lib`. The `check` / `reportResults` API is identical. The repo root is passed as positional argument `$1`:
+macOS scenarios source `test/lib/assert.sh` instead of `dev-container-features-test-lib`. The `check` / `reportResults` API is identical. The repo root is passed as positional argument `$1`:
 
 ```bash
 #!/usr/bin/env bash
 set -e
 REPO_ROOT="$1"
-source "${REPO_ROOT}/test/lib/macos-test-lib.sh"
+source "${REPO_ROOT}/test/lib/assert.sh"
 
 _BREW_PREFIX="$(brew --prefix 2>/dev/null)"
 
@@ -235,7 +235,7 @@ check "brew --version succeeds" "${_BREW_PREFIX}/bin/brew" --version
 reportResults
 ```
 
-`test/lib/macos-test-lib.sh` provides the full API:
+`test/lib/assert.sh` provides the full API:
 - `check "label" <cmd>` — passes if `<cmd>` exits 0
 - `fail_check "label" <cmd>` — passes if `<cmd>` exits **non-zero** (for asserting expected failures)
 - `reportResults` — prints summary and exits 1 if any check failed
