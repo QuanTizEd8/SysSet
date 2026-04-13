@@ -252,7 +252,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        feature: ${{ fromJson(needs.setup.outputs.features) }}
+        feature: ${{ fromJSON(needs.setup.outputs.features) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -274,7 +274,7 @@ jobs:
   test-os-pkg:
     name: "Test install-os-pkg manifest resolution (${{ matrix.image }})"
     needs: setup
-    if: needs.setup.outputs.run_features == 'true' && contains(fromJson(needs.setup.outputs.features), 'install-os-pkg')
+    if: needs.setup.outputs.run_features == 'true' && contains(fromJSON(needs.setup.outputs.features), 'install-os-pkg')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -311,7 +311,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        feature: ${{ fromJson(needs.setup.outputs.macos_features) }}
+        feature: ${{ fromJSON(needs.setup.outputs.macos_features) }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
