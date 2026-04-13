@@ -187,7 +187,7 @@ _ospkg_ensure_yq() {
   # in Docker builds that run without a GITHUB_TOKEN.
   # shellcheck source=lib/checksum.sh
   . "$_OSPKG_LIB_DIR/checksum.sh"
-  local _os _arch _yq_base _url _chk_url _yq_dir _dest _chk_file _expected_hash
+  local _os _arch _yq_base _url _yq_dir _dest _expected_hash
   _os="$(os::kernel | tr '[:upper:]' '[:lower:]')" # linux | darwin
   _arch="$(os::arch)"
   case "$_arch" in
@@ -200,14 +200,14 @@ _ospkg_ensure_yq() {
   esac
   _yq_base="https://github.com/mikefarah/yq/releases/latest/download"
   _url="${_yq_base}/yq_${_os}_${_arch}"
-  _chk_url="${_yq_base}/checksums"
   _yq_dir="$(logging::tmpdir "ospkg/yq")"
   _dest="${_yq_dir}/yq"
-  _chk_file="${_yq_dir}/checksums"
   echo "ℹ️  Downloading yq (${_os}/${_arch}) from GitHub Releases." >&2
   net::fetch_url_file "$_url" "$_dest"
-  net::fetch_url_file "$_chk_url" "$_chk_file"
-  _expected_hash="$(grep "[[:space:]]yq_${_os}_${_arch}$" "$_chk_file" | awk '{print $1}')"
+  net::fetch_url_file "${_yq_base}/checksums" "${_yq_dir}/checksums"
+  net::fetch_url_file "${_yq_base}/checksums_hashes_order" "${_yq_dir}/checksums_hashes_order"
+  net::fetch_url_file "${_yq_base}/extract-checksum.sh" "${_yq_dir}/extract-checksum.sh"
+  _expected_hash="$(cd "${_yq_dir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
   if [[ -n "${_expected_hash:-}" ]]; then
     if ! checksum::verify_sha256 "$_dest" "$_expected_hash"; then
       echo "⛔ yq: checksum verification failed — aborting." >&2
