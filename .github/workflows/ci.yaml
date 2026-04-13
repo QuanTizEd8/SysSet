@@ -92,7 +92,7 @@ jobs:
           INPUT_MACOS_FEATURES: ${{ inputs.macos_features }}
           INPUT_RUN_DIST: ${{ inputs.run_dist }}
         run: |
-          if [[ "$EVENT_NAME" == "workflow_call" ]]; then
+          if [[ "$EVENT_NAME" != "workflow_dispatch" ]]; then
             {
               echo "run_lint=$INPUT_RUN_LINT"
               echo "run_validate=$INPUT_RUN_VALIDATE"
