@@ -912,7 +912,11 @@ ospkg::run() {
       _parse_ok=false
     fi
     rm -f "$_json_tmp"
-    [[ -n "${_OSPKG_YQ_TMPDIR-}" ]] && rm -rf "$_OSPKG_YQ_TMPDIR" && _OSPKG_YQ_TMPDIR=
+    if [[ -n "${_OSPKG_YQ_TMPDIR-}" ]]; then
+      rm -rf "$_OSPKG_YQ_TMPDIR"
+      _OSPKG_YQ_TMPDIR=
+      _OSPKG_YQ_BIN=
+    fi
     if [[ "$_parse_ok" == false ]]; then
       echo "⛔ YAML manifest conversion/parsing failed." >&2
       return 1
