@@ -1,5 +1,5 @@
 env:
-  PATH: "/opt/homebrew/bin:/usr/local/bin:{env.PATH}"
+  PATH: "/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 pre-commit:
   commands:
