@@ -38,8 +38,8 @@ checksum__verify_sha256() {
 
 # checksum__verify_sha256_sidecar <file> <sha256_file>
 #
-# Reads the first whitespace-separated field of <sha256_file> as the expected
-# hash, then delegates to checksum__verify_sha256.
+# Reads the first whitespace-separated field of <sha256_file>
+# as the expected hash, then delegates to checksum__verify_sha256.
 # Suitable for the common pattern of <name>.sha256 sidecar files.
 checksum__verify_sha256_sidecar() {
   local _file="$1"
