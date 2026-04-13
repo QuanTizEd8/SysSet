@@ -5,7 +5,7 @@
 set -e
 
 REPO_ROOT="$1"
-source "${REPO_ROOT}/test/lib/macos-test-lib.sh"
+source "${REPO_ROOT}/test/lib/assert.sh"
 
 _BREW_PREFIX="$(brew --prefix 2> /dev/null)"
 _BREW="${_BREW_PREFIX}/bin/brew"

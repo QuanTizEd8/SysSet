@@ -13,8 +13,8 @@ set -euo pipefail
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 DIST="${REPO_ROOT}/dist"
 
-# shellcheck source=test/dist/lib/assert.sh
-. "${REPO_ROOT}/test/dist/lib/assert.sh"
+# shellcheck source=test/lib/assert.sh
+. "${REPO_ROOT}/test/lib/assert.sh"
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 echo "ℹ️  Running build-artifacts.sh dev ..." >&2

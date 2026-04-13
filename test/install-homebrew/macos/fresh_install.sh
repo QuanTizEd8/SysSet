@@ -14,8 +14,8 @@
 set -e
 
 REPO_ROOT="$1"
-# shellcheck source=test/lib/macos-test-lib.sh
-source "${REPO_ROOT}/test/lib/macos-test-lib.sh"
+# shellcheck source=test/lib/assert.sh
+source "${REPO_ROOT}/test/lib/assert.sh"
 
 _HOME="$HOME"
 

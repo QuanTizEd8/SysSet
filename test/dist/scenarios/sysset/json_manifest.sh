@@ -14,8 +14,8 @@ set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
-# shellcheck source=test/dist/lib/assert.sh
-. "${REPO_ROOT}/test/dist/lib/assert.sh"
+# shellcheck source=test/lib/assert.sh
+. "${REPO_ROOT}/test/lib/assert.sh"
 
 DIST="${REPO_ROOT}/dist"
 
