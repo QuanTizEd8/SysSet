@@ -67,7 +67,7 @@ __usage__() {
 
 __cleanup__() {
   echo "↪️ Function entry: __cleanup__" >&2
-  if [[ "${KEEP_INSTALLER}" != "true" ]]; then
+  if [[ "${KEEP_INSTALLER-}" != "true" ]]; then
     [ -f "${INSTALLER-}" ] && {
       echo "🗑 Removing installer script at '$INSTALLER'" >&2
       rm -f "$INSTALLER"
