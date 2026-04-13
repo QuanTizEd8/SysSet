@@ -2,73 +2,87 @@
     "apt_default": {
         "image": "ubuntu:latest",
         "features": {
-            "install-homebrew": {}
+            "install-homebrew": {
+                "debug": true
+            }
         }
     },
     "debian": {
         "image": "debian:latest",
         "features": {
-            "install-homebrew": {}
+            "install-homebrew": {
+                "debug": true
+            }
         }
     },
     "export_path_disabled": {
         "image": "ubuntu:latest",
         "features": {
-            "install-homebrew": { "export_path": "" }
+            "install-homebrew": { "export_path": "", "debug": true }
         }
     },
     "export_path_custom_file": {
         "image": "ubuntu:latest",
         "features": {
-            "install-homebrew": { "export_path": "/tmp/custom-brew.sh" }
+            "install-homebrew": { "export_path": "/tmp/custom-brew.sh", "debug": true }
         }
     },
     "export_path_idempotent": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-homebrew": {}
+            "install-homebrew": {
+                "debug": true
+            }
         }
     },
     "if_exists_skip": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-homebrew": {}
+            "install-homebrew": {
+                "debug": true
+            }
         }
     },
     "arch": {
         "image": "archlinux:latest",
         "features": {
-            "install-homebrew": {}
+            "install-homebrew": {
+                "debug": true
+            }
         }
     },
     "fedora": {
         "image": "fedora:latest",
         "features": {
-            "install-homebrew": {}
+            "install-homebrew": {
+                "debug": true
+            }
         }
     },
     "opensuse": {
         "image": "opensuse/leap:latest",
         "features": {
-            "install-homebrew": {}
+            "install-homebrew": {
+                "debug": true
+            }
         }
     },
     "if_exists_reinstall": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-homebrew": { "if_exists": "reinstall" }
+            "install-homebrew": { "if_exists": "reinstall", "debug": true }
         }
     },
     "update_false": {
         "image": "ubuntu:latest",
         "features": {
-            "install-homebrew": { "update": false }
+            "install-homebrew": { "update": false, "debug": true }
         }
     },
     "logfile": {
         "image": "ubuntu:latest",
         "features": {
-            "install-homebrew": { "logfile": "/tmp/brew.log" }
+            "install-homebrew": { "logfile": "/tmp/brew.log", "debug": true }
         }
     }
 }

@@ -2,7 +2,9 @@
     "apt_default": {
         "image": "debian:latest",
         "features": {
-            "install-shell": {}
+            "install-shell": {
+                "debug": true
+            }
         }
     },
     "apt_zsh_only": {
@@ -11,7 +13,8 @@
             "install-shell": {
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
-                "install_starship": false
+                "install_starship": false,
+                "debug": true
             }
         }
     },
@@ -21,7 +24,8 @@
             "install-shell": {
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
-                "install_starship": false
+                "install_starship": false,
+                "debug": true
             }
         }
     },
@@ -33,7 +37,8 @@
         "features": {
             "install-shell": {
                 "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting",
-                "add_current_user_config": true
+                "add_current_user_config": true,
+                "debug": true
             }
         }
     },
@@ -42,7 +47,8 @@
         "features": {
             "install-shell": {
                 "set_user_shells": "zsh",
-                "add_user_config": "root"
+                "add_user_config": "root",
+                "debug": true
             }
         }
     },
@@ -52,7 +58,8 @@
             "install-shell": {
                 "ohmyzsh_theme": "romkatv/powerlevel10k",
                 "starship_shells": "",
-                "add_user_config": "root"
+                "add_user_config": "root",
+                "debug": true
             }
         }
     },
@@ -62,7 +69,8 @@
             "install-shell": {
                 "install_ohmyzsh": false,
                 "install_ohmybash": false,
-                "install_starship": true
+                "install_starship": true,
+                "debug": true
             }
         }
     },
@@ -71,41 +79,50 @@
         "features": {
             "install-shell": {
                 "ohmyzsh_install_dir": "/opt/oh-my-zsh",
-                "ohmybash_install_dir": "/opt/oh-my-bash"
+                "ohmybash_install_dir": "/opt/oh-my-bash",
+                "debug": true
             }
         }
     },
     "apt_no_git": {
         "image": "debian:latest",
         "features": {
-            "install-shell": {}
+            "install-shell": {
+                "debug": true
+            }
         }
     },
     "apt_user_config": {
         "image": "debian:latest",
         "features": {
-            "install-shell": {}
+            "install-shell": {
+                "debug": true
+            }
         }
     },
     "apt_user_config_skip": {
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "user_config_mode": "skip"
+                "user_config_mode": "skip",
+                "debug": true
             }
         }
     },
     "apt_zdotdir_default": {
         "image": "debian:latest",
         "features": {
-            "install-shell": {}
+            "install-shell": {
+                "debug": true
+            }
         }
     },
     "apt_zdotdir_custom": {
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "zdotdir": "~/.zsh"
+                "zdotdir": "~/.zsh",
+                "debug": true
             }
         }
     },
@@ -113,7 +130,8 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "ohmyzsh_custom_dir": "/opt/zsh-custom"
+                "ohmyzsh_custom_dir": "/opt/zsh-custom",
+                "debug": true
             }
         }
     },
@@ -121,7 +139,8 @@
         "image": "debian:latest",
         "features": {
             "install-shell": {
-                "ohmyzsh_custom_dir": "~/.zsh-custom"
+                "ohmyzsh_custom_dir": "~/.zsh-custom",
+                "debug": true
             }
         }
     },
@@ -131,20 +150,25 @@
         },
         "features": {
             "install-shell": {
-                "user_config_mode": "augment"
+                "user_config_mode": "augment",
+                "debug": true
             }
         }
     },
     "apt_skel_placement": {
         "image": "debian:latest",
         "features": {
-            "install-shell": {}
+            "install-shell": {
+                "debug": true
+            }
         }
     },
     "apt_omb_user_config": {
         "image": "debian:latest",
         "features": {
-            "install-shell": {}
+            "install-shell": {
+                "debug": true
+            }
         }
     },
     "apt_remote_user_config": {
@@ -152,7 +176,8 @@
         "remoteUser": "vscode",
         "features": {
             "install-shell": {
-                "add_remote_user_config": true
+                "add_remote_user_config": true,
+                "debug": true
             }
         }
     },
@@ -161,7 +186,8 @@
         "containerUser": "vscode",
         "features": {
             "install-shell": {
-                "add_container_user_config": true
+                "add_container_user_config": true,
+                "debug": true
             }
         }
     },
@@ -173,7 +199,8 @@
             "install-shell": {
                 "add_user_config": "devuser",
                 "add_container_user_config": false,
-                "add_remote_user_config": false
+                "add_remote_user_config": false,
+                "debug": true
             }
         }
     }

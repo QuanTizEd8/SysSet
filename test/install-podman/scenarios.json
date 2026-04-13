@@ -3,14 +3,17 @@
         "remoteUser": "vscode",
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-podman": {}
+            "install-podman": {
+                "debug": true
+            }
         }
     },
     "apt_root_user_config": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_user_config": "root"
+                "add_user_config": "root",
+                "debug": true
             }
         }
     },
@@ -21,7 +24,8 @@
             "install-podman": {
                 "add_remote_user_config": true,
                 "add_container_user_config": false,
-                "add_current_user_config": false
+                "add_current_user_config": false,
+                "debug": true
             }
         }
     },
@@ -32,7 +36,8 @@
             "install-podman": {
                 "add_container_user_config": true,
                 "add_remote_user_config": false,
-                "add_current_user_config": false
+                "add_current_user_config": false,
+                "debug": true
             }
         }
     },
@@ -43,7 +48,8 @@
                 "add_user_config": "devuser",
                 "add_remote_user_config": false,
                 "add_container_user_config": false,
-                "add_current_user_config": false
+                "add_current_user_config": false,
+                "debug": true
             }
         }
     },
@@ -54,7 +60,8 @@
                 "add_user_config": "alice,bob",
                 "add_remote_user_config": false,
                 "add_container_user_config": false,
-                "add_current_user_config": false
+                "add_current_user_config": false,
+                "debug": true
             }
         }
     },
@@ -64,7 +71,8 @@
             "install-podman": {
                 "add_remote_user_config": false,
                 "add_container_user_config": false,
-                "add_current_user_config": false
+                "add_current_user_config": false,
+                "debug": true
             }
         }
     },
@@ -75,7 +83,8 @@
                 "add_user_config": "ghost",
                 "add_remote_user_config": false,
                 "add_container_user_config": false,
-                "add_current_user_config": false
+                "add_current_user_config": false,
+                "debug": true
             }
         }
     }

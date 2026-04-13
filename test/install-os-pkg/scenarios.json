@@ -6,7 +6,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -18,7 +19,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "update": false
+                "update": false,
+                "debug": true
             }
         }
     },
@@ -30,7 +32,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "keep_cache": true
+                "keep_cache": true,
+                "debug": true
             }
         }
     },
@@ -41,7 +44,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -53,7 +57,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "logfile": "/tmp/install-os-pkg.log"
+                "logfile": "/tmp/install-os-pkg.log",
+                "debug": true
             }
         }
     },
@@ -64,7 +69,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -75,7 +81,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -86,7 +93,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -98,7 +106,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "update": false
+                "update": false,
+                "debug": true
             }
         }
     },
@@ -109,7 +118,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -120,7 +130,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -131,7 +142,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -142,7 +154,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -150,7 +163,8 @@
         "image": "debian:latest",
         "features": {
             "install-os-pkg": {
-                "manifest": "# inline manifest\npackages:\n  - tree\n  - curl\n"
+                "manifest": "# inline manifest\npackages:\n  - tree\n  - curl\n",
+                "debug": true
             }
         }
     },
@@ -161,7 +175,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -184,7 +199,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -195,7 +211,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -206,7 +223,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -217,7 +235,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -229,7 +248,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "install_self": true
+                "install_self": true,
+                "debug": true
             }
         }
     },
@@ -238,7 +258,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "packages:\n  - tree\n",
-                "install_self": false
+                "install_self": false,
+                "debug": true
             }
         }
     },
@@ -246,7 +267,8 @@
         "image": "debian:latest",
         "features": {
             "install-os-pkg": {
-                "install_self": true
+                "install_self": true,
+                "debug": true
             }
         }
     },
@@ -258,7 +280,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "lifecycle_hook": "postCreate"
+                "lifecycle_hook": "postCreate",
+                "debug": true
             }
         }
     },
@@ -283,7 +306,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "lifecycle_hook": "onCreate"
+                "lifecycle_hook": "onCreate",
+                "debug": true
             }
         }
     },
@@ -295,7 +319,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "lifecycle_hook": "updateContent"
+                "lifecycle_hook": "updateContent",
+                "debug": true
             }
         }
     },
@@ -308,7 +333,8 @@
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
                 "keep_repos": true,
-                "update": false
+                "update": false,
+                "debug": true
             }
         }
     },
@@ -320,7 +346,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "update": false
+                "update": false,
+                "debug": true
             }
         }
     },
@@ -331,7 +358,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -342,7 +370,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -353,7 +382,8 @@
         },
         "features": {
             "install-os-pkg": {
-                "manifest": "/tmp/manifest.yaml"
+                "manifest": "/tmp/manifest.yaml",
+                "debug": true
             }
         }
     },
@@ -365,7 +395,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "dry_run": true
+                "dry_run": true,
+                "debug": true
             }
         }
     },
@@ -377,7 +408,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "lists_max_age": "0"
+                "lists_max_age": "0",
+                "debug": true
             }
         }
     },
@@ -389,7 +421,8 @@
         "features": {
             "install-os-pkg": {
                 "manifest": "/tmp/manifest.yaml",
-                "skip_installed": true
+                "skip_installed": true,
+                "debug": true
             }
         }
     }

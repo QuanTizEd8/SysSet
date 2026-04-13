@@ -2,14 +2,17 @@
     "apt_default": {
         "image": "debian:latest",
         "features": {
-            "install-fonts": {}
+            "install-fonts": {
+                "debug": true
+            }
         }
     },
     "apt_p10k_fonts": {
         "image": "debian:latest",
         "features": {
             "install-fonts": {
-                "p10k_fonts": true
+                "p10k_fonts": true,
+                "debug": true
             }
         }
     },
@@ -17,7 +20,8 @@
         "image": "debian:latest",
         "features": {
             "install-fonts": {
-                "font_dir": "/opt/fonts"
+                "font_dir": "/opt/fonts",
+                "debug": true
             }
         }
     },
@@ -25,7 +29,8 @@
         "image": "debian:latest",
         "features": {
             "install-fonts": {
-                "nerd_fonts": ""
+                "nerd_fonts": "",
+                "debug": true
             }
         }
     },
@@ -34,7 +39,8 @@
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
-                "font_urls": "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz"
+                "font_urls": "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz",
+                "debug": true
             }
         }
     },
@@ -43,7 +49,8 @@
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
-                "font_urls": "https://github.com/JetBrains/JetBrainsMono/raw/v2.304/fonts/ttf/JetBrainsMono-Regular.ttf"
+                "font_urls": "https://github.com/JetBrains/JetBrainsMono/raw/v2.304/fonts/ttf/JetBrainsMono-Regular.ttf",
+                "debug": true
             }
         }
     },
@@ -55,7 +62,8 @@
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
-                "gh_release_fonts": "JetBrains/JetBrainsMono"
+                "gh_release_fonts": "JetBrains/JetBrainsMono",
+                "debug": true
             }
         }
     },
@@ -67,7 +75,8 @@
         "features": {
             "install-fonts": {
                 "nerd_fonts": "",
-                "gh_release_fonts": "JetBrains/JetBrainsMono@v2.304"
+                "gh_release_fonts": "JetBrains/JetBrainsMono@v2.304",
+                "debug": true
             }
         }
     }

@@ -2,7 +2,9 @@
     "default": {
         "image": "ubuntu:latest",
         "features": {
-            "setup-shim": {}
+            "setup-shim": {
+                "debug": true
+            }
         }
     },
     "code_only": {
@@ -11,7 +13,8 @@
             "setup-shim": {
                 "code": true,
                 "devcontainer-info": false,
-                "systemctl": false
+                "systemctl": false,
+                "debug": true
             }
         }
     },
@@ -21,7 +24,8 @@
             "setup-shim": {
                 "code": false,
                 "devcontainer-info": false,
-                "systemctl": false
+                "systemctl": false,
+                "debug": true
             }
         }
     }

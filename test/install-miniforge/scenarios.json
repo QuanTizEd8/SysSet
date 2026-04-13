@@ -2,37 +2,39 @@
     "download_and_install": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": {}
+            "install-miniforge": {
+                "debug": true
+            }
         }
     },
     "custom_bin_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false }
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false, "debug": true }
         }
     },
     "specific_version": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "version": "24.7.1" }
+            "install-miniforge": { "version": "24.7.1", "debug": true }
         }
     },
     "set_permission": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "set_permissions": true }
+            "install-miniforge": { "set_permissions": true, "debug": true }
         }
     },
     "activate_bashrc": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "rc_files": "/etc/bash.bashrc" }
+            "install-miniforge": { "rc_files": "/etc/bash.bashrc", "debug": true }
         }
     },
     "activate_multi": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "rc_files": "/root/.bashrc :: /etc/bash.bashrc" }
+            "install-miniforge": { "rc_files": "/root/.bashrc :: /etc/bash.bashrc", "debug": true }
         }
     },
     "custom_active_env": {
@@ -40,134 +42,141 @@
         "features": {
             "install-miniforge": {
                 "rc_files": "/etc/bash.bashrc",
-                "activate_env": "myenv"
+                "activate_env": "myenv",
+                "debug": true
             }
         }
     },
     "logfile": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "logfile": "/tmp/miniforge.log" }
+            "install-miniforge": { "logfile": "/tmp/miniforge.log", "debug": true }
         }
     },
     "no_clean": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "keep_installer": true }
+            "install-miniforge": { "keep_installer": true, "debug": true }
         }
     },
     "if_exists_uninstall": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall" }
+            "install-miniforge": { "if_exists": "uninstall", "debug": true }
         }
     },
     "if_exists_skip": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "skip" }
+            "install-miniforge": { "if_exists": "skip", "debug": true }
         }
     },
     "if_exists_fail": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "if_exists": "fail" }
+            "install-miniforge": { "if_exists": "fail", "debug": true }
         }
     },
     "if_exists_update": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "if_exists": "update" }
+            "install-miniforge": { "if_exists": "update", "debug": true }
         }
     },
     "debian": {
         "image": "debian:latest",
         "features": {
-            "install-miniforge": {}
+            "install-miniforge": {
+                "debug": true
+            }
         }
     },
     "multi_user_permissions": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "set_permissions": true, "users": "testuser1,testuser2" }
+            "install-miniforge": { "set_permissions": true, "users": "testuser1,testuser2", "debug": true }
         }
     },
     "export_path_default": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": {}
+            "install-miniforge": {
+                "debug": true
+            }
         }
     },
     "export_path_custom_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false }
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false, "debug": true }
         }
     },
     "export_path_symlink": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": true }
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": true, "debug": true }
         }
     },
     "export_path_disabled": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "export_path": "" }
+            "install-miniforge": { "export_path": "", "debug": true }
         }
     },
     "export_path_custom_list": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "export_path": "/tmp/test_bashrc" }
+            "install-miniforge": { "export_path": "/tmp/test_bashrc", "debug": true }
         }
     },
     "export_path_idempotency": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false }
+            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false, "debug": true }
         }
     },
     "latest_version": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": {}
+            "install-miniforge": {
+                "debug": true
+            }
         }
     },
     "version_match_idempotency": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "version": "24.7.1", "if_exists": "uninstall" }
+            "install-miniforge": { "version": "24.7.1", "if_exists": "uninstall", "debug": true }
         }
     },
     "preserve_envs_true": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": true }
+            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": true, "debug": true }
         }
     },
     "preserve_envs_false": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": false }
+            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": false, "debug": true }
         }
     },
     "preserve_config_true": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_config": true }
+            "install-miniforge": { "if_exists": "uninstall", "preserve_config": true, "debug": true }
         }
     },
     "preserve_config_false": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_config": false }
+            "install-miniforge": { "if_exists": "uninstall", "preserve_config": false, "debug": true }
         }
     },
     "if_exists_update_preinstall": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "update" }
+            "install-miniforge": { "if_exists": "update", "debug": true }
         }
     }
 }

@@ -4,7 +4,8 @@
         "features": {
             "install-conda-env": {
                 "env_name": "myenv",
-                "packages": "numpy pandas"
+                "packages": "numpy pandas",
+                "debug": true
             }
         }
     },
@@ -13,7 +14,8 @@
         "features": {
             "install-conda-env": {
                 "env_name": "py311",
-                "python_version": "3.11"
+                "python_version": "3.11",
+                "debug": true
             }
         }
     },
@@ -21,7 +23,8 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
-                "env_files": "/tmp/test-envs/simple.yml"
+                "env_files": "/tmp/test-envs/simple.yml",
+                "debug": true
             }
         }
     },
@@ -29,7 +32,8 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
-                "env_dirs": "/tmp/test-envs"
+                "env_dirs": "/tmp/test-envs",
+                "debug": true
             }
         }
     },
@@ -37,7 +41,8 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
-                "env_files": "/tmp/test-envs/envA.yml :: /tmp/test-envs/envB.yml"
+                "env_files": "/tmp/test-envs/envA.yml :: /tmp/test-envs/envB.yml",
+                "debug": true
             }
         }
     },
@@ -45,7 +50,8 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
-                "env_files": "/tmp/test-envs/simple.yml"
+                "env_files": "/tmp/test-envs/simple.yml",
+                "debug": true
             }
         }
     },
@@ -55,7 +61,8 @@
             "install-conda-env": {
                 "env_name": "chanenv",
                 "packages": "numpy",
-                "channels": "conda-forge :: defaults"
+                "channels": "conda-forge :: defaults",
+                "debug": true
             }
         }
     },
@@ -66,7 +73,8 @@
                 "env_name": "strictenv",
                 "packages": "numpy",
                 "channels": "conda-forge",
-                "strict_channel_priority": true
+                "strict_channel_priority": true,
+                "debug": true
             }
         }
     },
@@ -76,7 +84,8 @@
             "install-conda-env": {
                 "env_name": "solverenv",
                 "packages": "numpy",
-                "solver": "conda"
+                "solver": "conda",
+                "debug": true
             }
         }
     },
@@ -86,7 +95,8 @@
             "install-conda-env": {
                 "env_name": "pipenv",
                 "packages": "pip",
-                "pip_requirements_files": "/tmp/requirements.txt"
+                "pip_requirements_files": "/tmp/requirements.txt",
+                "debug": true
             }
         }
     },
@@ -97,7 +107,8 @@
                 "env_name": "pipenv",
                 "packages": "pip",
                 "pip_requirements_files": "/tmp/requirements.txt",
-                "pip_env": "pipenv"
+                "pip_env": "pipenv",
+                "debug": true
             }
         }
     },
@@ -107,7 +118,8 @@
             "install-conda-env": {
                 "env_name": "scriptenv",
                 "packages": "numpy",
-                "post_env_script": "/tmp/post-env.sh"
+                "post_env_script": "/tmp/post-env.sh",
+                "debug": true
             }
         }
     },
@@ -117,7 +129,8 @@
             "install-conda-env": {
                 "env_name": "logenv",
                 "packages": "numpy",
-                "logfile": "/tmp/conda-env.log"
+                "logfile": "/tmp/conda-env.log",
+                "debug": true
             }
         }
     },
@@ -127,7 +140,8 @@
             "install-conda-env": {
                 "env_name": "cleanenv",
                 "packages": "numpy",
-                "no_cache_clean": true
+                "no_cache_clean": true,
+                "debug": true
             }
         }
     }

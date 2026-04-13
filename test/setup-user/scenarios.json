@@ -2,14 +2,17 @@
     "default": {
         "image": "ubuntu:latest",
         "features": {
-            "setup-user": {}
+            "setup-user": {
+                "debug": true
+            }
         }
     },
     "no_sudo": {
         "image": "ubuntu:latest",
         "features": {
             "setup-user": {
-                "sudo_access": false
+                "sudo_access": false,
+                "debug": true
             }
         }
     },
@@ -20,7 +23,8 @@
                 "username": "devuser",
                 "user_id": "2000",
                 "group_id": "2000",
-                "group_name": "devgroup"
+                "group_name": "devgroup",
+                "debug": true
             }
         }
     },
@@ -28,7 +32,8 @@
         "image": "ubuntu:latest",
         "features": {
             "setup-user": {
-                "home_dir": "/workspaces/myapp"
+                "home_dir": "/workspaces/myapp",
+                "debug": true
             }
         }
     },
@@ -36,7 +41,8 @@
         "image": "ubuntu:latest",
         "features": {
             "setup-user": {
-                "user_shell": "/bin/sh"
+                "user_shell": "/bin/sh",
+                "debug": true
             }
         }
     },
@@ -46,7 +52,8 @@
         },
         "features": {
             "setup-user": {
-                "extra_groups": "builders,testers"
+                "extra_groups": "builders,testers",
+                "debug": true
             }
         }
     },
@@ -55,7 +62,9 @@
             "dockerfile": "Dockerfile"
         },
         "features": {
-            "setup-user": {}
+            "setup-user": {
+                "debug": true
+            }
         }
     },
     "already_configured": {
@@ -65,21 +74,25 @@
         "features": {
             "setup-user": {
                 "replace_existing": false,
-                "sudo_access": false
+                "sudo_access": false,
+                "debug": true
             }
         }
     },
     "alpine": {
         "image": "alpine:latest",
         "features": {
-            "setup-user": {}
+            "setup-user": {
+                "debug": true
+            }
         }
     },
     "logfile": {
         "image": "ubuntu:latest",
         "features": {
             "setup-user": {
-                "logfile": "/tmp/setup-user.log"
+                "logfile": "/tmp/setup-user.log",
+                "debug": true
             }
         }
     }
