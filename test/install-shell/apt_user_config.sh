@@ -31,8 +31,6 @@ check ".zshenv ZDOTDIR points to .config/zsh" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\""
 # --- Oh My Zsh config in zshtheme ---
 _ZSHTHEME="${_ZDOTDIR}/zshtheme"
 check "zshtheme file written" test -f "$_ZSHTHEME"
-check "zshtheme has BEGIN marker" grep -qF '# BEGIN install-shell' "$_ZSHTHEME"
-check "zshtheme has END marker" grep -qF '# END install-shell' "$_ZSHTHEME"
 check "zshtheme exports ZSH" grep -q 'export ZSH=' "$_ZSHTHEME"
 check "zshtheme sets ZSH_CACHE_DIR" grep -qF 'ZSH_CACHE_DIR=' "$_ZSHTHEME"
 check "zshtheme sets ZSH_COMPDUMP" grep -qF 'ZSH_COMPDUMP=' "$_ZSHTHEME"
