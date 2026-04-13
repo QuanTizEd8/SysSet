@@ -208,13 +208,15 @@ _ospkg_ensure_yq() {
   net::fetch_url_file "${_yq_base}/checksums_hashes_order" "${_yq_dir}/checksums_hashes_order"
   net::fetch_url_file "${_yq_base}/extract-checksum.sh" "${_yq_dir}/extract-checksum.sh"
   _expected_hash="$(cd "${_yq_dir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
-  if [[ -n "${_expected_hash:-}" ]]; then
-    if ! checksum::verify_sha256 "$_dest" "$_expected_hash"; then
-      echo "⛔ yq: checksum verification failed — aborting." >&2
-      return 1
-    fi
-  else
-    echo "⛔ yq: checksum entry not found in checksums file — aborting." >&2
+  # Guard against CDN soft errors: a lying CDN may return HTTP 200 with an
+  # error-page body, making curl exit 0 but producing garbage content.
+  # A valid SHA-256 hash is exactly 64 lowercase hex characters.
+  if [[ ! "${_expected_hash:-}" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "⛔ yq: extracted checksum is not a valid SHA-256 hash (got: '${_expected_hash:-<empty>}') — a download may have been corrupted by a CDN error page." >&2
+    return 1
+  fi
+  if ! checksum::verify_sha256 "$_dest" "$_expected_hash"; then
+    echo "⛔ yq: checksum verification failed — aborting." >&2
     return 1
   fi
   chmod +x "$_dest"
