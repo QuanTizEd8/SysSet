@@ -1,0 +1,75 @@
+name: "CD"
+
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: "Release tag to publish"
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish"
+        required: true
+
+jobs:
+  publish:
+    name: "Publish: GHCR Features + GitHub Release"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || inputs.tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-tags: true
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Build distribution artifacts"
+        run: bash build-artifacts.sh "${RELEASE_TAG}"
+
+      - name: "Publish Features to GHCR"
+        uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
+        with:
+          publish-features: "true"
+          base-path-to-features: "./src"
+          generate-docs: "true"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Create or update GitHub Release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            echo "ℹ️  Release ${RELEASE_TAG} already exists — uploading/replacing assets." >&2
+            gh release upload "${RELEASE_TAG}" dist/* --clobber
+          else
+            gh release create "${RELEASE_TAG}" dist/* \
+              --title "${RELEASE_TAG}" \
+              --generate-notes
+          fi
+
+      - name: "Create PR for Documentation"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global user.email github-actions[bot]@users.noreply.github.com
+          git config --global user.name github-actions[bot]
+          git config pull.rebase false
+          branch=automated-documentation-update-$GITHUB_RUN_ID
+          git checkout -b $branch
+          message='Automated documentation update'
+          git add '*/**/README.md'
+          git commit -m 'Automated documentation update [skip ci]' || export NO_UPDATES=true
+          if [ "$NO_UPDATES" != "true" ]; then
+            git push origin "$branch"
+            gh pr create --title "$message" --body "$message"
+          fi

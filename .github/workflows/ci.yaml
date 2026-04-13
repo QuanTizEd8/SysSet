@@ -1,0 +1,374 @@
+name: "CI"
+
+on:
+  workflow_call:
+    inputs:
+      run_lint:
+        type: string
+        default: "false"
+      run_validate:
+        type: string
+        default: "false"
+      run_unit:
+        type: string
+        default: "false"
+      run_features:
+        type: string
+        default: "false"
+      features:
+        type: string
+        default: "[]"
+      run_macos:
+        type: string
+        default: "false"
+      macos_features:
+        type: string
+        default: "[]"
+      run_dist:
+        type: string
+        default: "false"
+  workflow_dispatch:
+
+jobs:
+  # ── Pass through caller inputs, or auto-discover on workflow_dispatch ─────
+  setup:
+    name: "Setup"
+    runs-on: ubuntu-latest
+    outputs:
+      run_lint: ${{ steps.setup.outputs.run_lint }}
+      run_validate: ${{ steps.setup.outputs.run_validate }}
+      run_unit: ${{ steps.setup.outputs.run_unit }}
+      run_features: ${{ steps.setup.outputs.run_features }}
+      features: ${{ steps.setup.outputs.features }}
+      run_macos: ${{ steps.setup.outputs.run_macos }}
+      macos_features: ${{ steps.setup.outputs.macos_features }}
+      run_dist: ${{ steps.setup.outputs.run_dist }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Pass through inputs (workflow_call) or auto-discover (workflow_dispatch)"
+        id: setup
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_RUN_LINT: ${{ inputs.run_lint }}
+          INPUT_RUN_VALIDATE: ${{ inputs.run_validate }}
+          INPUT_RUN_UNIT: ${{ inputs.run_unit }}
+          INPUT_RUN_FEATURES: ${{ inputs.run_features }}
+          INPUT_FEATURES: ${{ inputs.features }}
+          INPUT_RUN_MACOS: ${{ inputs.run_macos }}
+          INPUT_MACOS_FEATURES: ${{ inputs.macos_features }}
+          INPUT_RUN_DIST: ${{ inputs.run_dist }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_call" ]]; then
+            {
+              echo "run_lint=$INPUT_RUN_LINT"
+              echo "run_validate=$INPUT_RUN_VALIDATE"
+              echo "run_unit=$INPUT_RUN_UNIT"
+              echo "run_features=$INPUT_RUN_FEATURES"
+              echo "features=$INPUT_FEATURES"
+              echo "run_macos=$INPUT_RUN_MACOS"
+              echo "macos_features=$INPUT_MACOS_FEATURES"
+              echo "run_dist=$INPUT_RUN_DIST"
+            } >> "$GITHUB_OUTPUT"
+          else
+            # workflow_dispatch → run everything
+            all_features=$(ls -1 src | jq -R . | jq -sc .)
+            macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
+              | sed 's|test/||; s|/macos/.*||' | sort -u)
+            macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
+            if [[ "$macos_features" != "[]" ]]; then run_macos=true; else run_macos=false; fi
+            {
+              echo "run_lint=true"
+              echo "run_validate=true"
+              echo "run_unit=true"
+              echo "run_features=true"
+              echo "features=$all_features"
+              echo "run_macos=$run_macos"
+              echo "macos_features=$macos_features"
+              echo "run_dist=true"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Lint (shfmt + shellcheck) ─────────────────────────────────────────────
+  lint:
+    name: "Format & lint"
+    needs: setup
+    if: needs.setup.outputs.run_lint == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Install shfmt"
+        env:
+          SHFMT_VERSION: "v3.10.0"
+        run: |
+          curl -fsSL \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64" \
+            -o /usr/local/bin/shfmt
+          chmod +x /usr/local/bin/shfmt
+          shfmt --version
+
+      - name: "Install shellcheck"
+        run: |
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck --version
+
+      - name: "Check formatting (shfmt)"
+        run: shfmt -d --apply-ignore .
+
+      - name: "Lint (shellcheck)"
+        run: shellcheck $(git ls-files -- '*.sh' '*.bash')
+
+  # ── Validate devcontainer-feature.json files ──────────────────────────────
+  validate:
+    name: "Validate feature metadata"
+    needs: setup
+    if: needs.setup.outputs.run_validate == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Validate devcontainer-feature.json files"
+        uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
+        with:
+          validate-only: "true"
+          base-path-to-features: "./src"
+
+  # ── Unit tests (native: ubuntu + macOS) ───────────────────────────────────
+  unit-native:
+    name: "Unit tests (${{ matrix.os }})"
+    needs: setup
+    if: needs.setup.outputs.run_unit == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - name: "Checkout (with submodules)"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Install bash ≥4 (macOS)"
+        if: runner.os == 'macOS'
+        run: brew install bash
+
+      - name: "Run unit tests"
+        run: bash test/run-unit.sh
+
+  # ── Unit tests (Linux distribution containers) ────────────────────────────
+  unit-linux:
+    name: "Unit tests (container / ${{ matrix.distro }})"
+    needs: setup
+    if: needs.setup.outputs.run_unit == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian
+            image: debian:bookworm
+            install: apt-get update -qq && apt-get install -y --no-install-recommends bash ca-certificates git
+          - distro: fedora
+            image: fedora:latest
+            install: dnf install -y bash git
+          - distro: rockylinux
+            image: rockylinux:9
+            install: dnf install -y bash git
+          - distro: alpine
+            image: alpine:3.20
+            install: apk add --no-cache bash git
+    steps:
+      - name: "Checkout (with submodules)"
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run unit tests in container"
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" \
+            -w /repo \
+            ${{ matrix.image }} \
+            sh -c "${{ matrix.install }} && bash test/run-unit.sh"
+
+  # ── Feature scenario tests (Linux / devcontainer) ─────────────────────────
+  test-features:
+    name: "Test ${{ matrix.feature }}"
+    needs: setup
+    if: needs.setup.outputs.run_features == 'true' && needs.setup.outputs.features != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ${{ fromJson(needs.setup.outputs.features) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Install latest devcontainer CLI"
+        run: npm install -g @devcontainers/cli
+
+      - name: "Test ${{ matrix.feature }} scenarios"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: devcontainer features test -f ${{ matrix.feature }} --skip-autogenerated --project-folder .
+
+      - name: "Run fail scenarios for ${{ matrix.feature }}"
+        run: bash test/run-fail-scenarios.sh "${{ matrix.feature }}"
+
+  # ── install-os-pkg manifest resolution (6 distros) ────────────────────────
+  test-os-pkg:
+    name: "Test install-os-pkg manifest resolution (${{ matrix.image }})"
+    needs: setup
+    if: needs.setup.outputs.run_features == 'true' && contains(fromJson(needs.setup.outputs.features), 'install-os-pkg')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: debian:latest
+          - image: ubuntu:latest
+          - image: alpine:latest
+          - image: fedora:latest
+          - image: opensuse/leap:latest
+          - image: archlinux:latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run manifest resolution tests"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -e GITHUB_TOKEN \
+            "${{ matrix.image }}" \
+            sh -c 'command -v bash >/dev/null 2>&1 || apk add --no-cache bash >/dev/null 2>&1; bash /repo/test/install-os-pkg/dry-run/run.sh'
+
+  # ── Feature scenario tests (macOS native) ─────────────────────────────────
+  test-macos:
+    name: "Test ${{ matrix.feature }} (macOS)"
+    needs: setup
+    if: needs.setup.outputs.run_macos == 'true' && needs.setup.outputs.macos_features != '[]'
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: ${{ fromJson(needs.setup.outputs.macos_features) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Test ${{ matrix.feature }} macOS scenarios"
+        run: bash test/run-macos.sh "${{ matrix.feature }}"
+
+  # ── Dist: build artifacts ─────────────────────────────────────────────────
+  test-dist-build:
+    name: "Dist: build artifacts"
+    needs: setup
+    if: needs.setup.outputs.run_dist == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run build scenario"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash test/dist/scenarios/build/default.sh "$GITHUB_WORKSPACE"
+
+  # ── Dist: get/ scenarios ──────────────────────────────────────────────────
+  test-dist-get:
+    name: "Dist: get/ scenarios"
+    needs: setup
+    if: needs.setup.outputs.run_dist == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run get/ scenarios"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash test/dist/run.sh --suite get
+
+  # ── Dist: sysset/ scenarios (Linux containers) ────────────────────────────
+  test-dist-sysset:
+    name: "Dist: sysset/ scenarios (${{ matrix.distro }})"
+    needs: setup
+    if: needs.setup.outputs.run_dist == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian
+            image: debian:bookworm
+            pre: "apt-get update -qq && apt-get install -y --no-install-recommends bash jq curl ca-certificates"
+          - distro: ubuntu
+            image: ubuntu:24.04
+            pre: "apt-get update -qq && apt-get install -y --no-install-recommends bash jq curl ca-certificates"
+          - distro: alpine
+            image: alpine:3.20
+            pre: "apk add --no-cache bash jq curl ca-certificates"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Run sysset/ scenarios inside ${{ matrix.distro }} container"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm \
+            --network host \
+            -v "$GITHUB_WORKSPACE:/repo" \
+            -w /repo \
+            -e GITHUB_TOKEN \
+            "${{ matrix.image }}" \
+            sh -c "${{ matrix.pre }} && bash test/dist/run.sh --suite sysset"
+
+  # ── Dist: macOS scenarios ─────────────────────────────────────────────────
+  test-dist-macos:
+    name: "Dist: macOS scenarios"
+    needs: setup
+    if: needs.setup.outputs.run_dist == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: "Sync _lib/ copies from lib/"
+        run: bash sync-lib.sh
+
+      - name: "Install bash ≥4 (macOS)"
+        run: brew install bash
+
+      - name: "Run macOS dist scenarios"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash test/dist/run.sh --suite macos
