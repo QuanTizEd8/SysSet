@@ -7,6 +7,7 @@ _LIB_LOGGING_LOADED=1
 
 _LIB_LOGGING_SETUP=false
 _SYSSET_TMPDIR=
+_SYSSET_MASKED_VALUES=()
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -20,6 +21,7 @@ _SYSSET_TMPDIR=
 # Does NOT install an EXIT trap — caller is responsible.
 # logging::cleanup (called from the EXIT trap) deletes _SYSSET_TMPDIR and
 # everything inside it, including all logging::tmpdir subdirectories.
+# Auto-registers GITHUB_TOKEN (if set) as a masked secret.
 #
 # Usage:
 #   logging::setup
@@ -30,6 +32,15 @@ logging::setup() {
   exec 3>&1 4>&2
   exec > >(tee -a "$_LOGFILE_TMP" >&3) 2>&1
   _LIB_LOGGING_SETUP=true
+  # Auto-mask well-known secrets present at setup time.
+  [[ -n "${GITHUB_TOKEN:-}" ]] && logging::mask_secret "$GITHUB_TOKEN"
+  return 0
+}
+
+# logging::mask_secret <value> — register a secret value to be redacted when
+# logging::cleanup writes to $LOGFILE.  Call once per secret after logging::setup.
+logging::mask_secret() {
+  [[ -n "${1:-}" ]] && _SYSSET_MASKED_VALUES+=("$1")
   return 0
 }
 
@@ -60,10 +71,20 @@ logging::cleanup() {
   if [ -n "${LOGFILE-}" ]; then
     echo "ℹ️ Write logs to file '$LOGFILE'" >&2
     mkdir -p "$(dirname "$LOGFILE")"
-    cat "$_LOGFILE_TMP" >> "$LOGFILE"
+    if [[ ${#_SYSSET_MASKED_VALUES[@]} -gt 0 ]]; then
+      local _log _v
+      _log="$(cat "$_LOGFILE_TMP")"
+      for _v in "${_SYSSET_MASKED_VALUES[@]}"; do
+        [[ -n "$_v" ]] && _log="${_log//"$_v"/***}"
+      done
+      printf '%s' "$_log" >> "$LOGFILE"
+    else
+      cat "$_LOGFILE_TMP" >> "$LOGFILE"
+    fi
   fi
   rm -rf "${_SYSSET_TMPDIR-}"
   _SYSSET_TMPDIR=
+  _SYSSET_MASKED_VALUES=()
   _LIB_LOGGING_SETUP=false
   return 0
 }

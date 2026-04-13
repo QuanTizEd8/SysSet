@@ -39,6 +39,10 @@ reload_lib() {
   # Reset logging state flags.
   _LIB_LOGGING_SETUP=false
   _SYSSET_TMPDIR=
+  # Pre-declare _SYSSET_MASKED_VALUES as a global indexed array BEFORE sourcing;
+  # 'declare' without -g inside a function creates a local, which would
+  # disappear when reload_lib returns and leave the global unset.
+  declare -ga _SYSSET_MASKED_VALUES=()
 
   # Pre-declare global associative arrays BEFORE sourcing to work around a bash
   # scoping rule: 'declare -A' without -g in a file sourced from within a

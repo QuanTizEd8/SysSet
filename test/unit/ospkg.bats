@@ -284,6 +284,125 @@ _seed_apt_context() {
   [[ "$_output" != *'"name":"bookworm-pkg"'* ]]
 }
 
+# ---------------------------------------------------------------------------
+# ospkg::run — regression: stale yq binary path and silent parse failure
+#
+# Root cause: ospkg::run previously deleted the yq tmpdir inline at the end of
+# every call (rm -rf $_OSPKG_YQ_TMPDIR; _OSPKG_YQ_TMPDIR=; _OSPKG_YQ_BIN=).
+# A second call that reused _OSPKG_YQ_BIN via the early-return guard in
+# _ospkg_ensure_yq would try to execute a non-existent binary.  The failure
+# was silent because the yq+parse block was wrapped in `if ! {}`, which
+# disables set -e.
+# ---------------------------------------------------------------------------
+
+# _seed_apt_context_with_yq — sets up apt context and creates a fake yq binary.
+# Exports a mock _ospkg_ensure_yq that mirrors the real early-return guard.
+_seed_apt_context_with_yq() {
+  _seed_apt_context
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\necho '"'"'{"packages":["regrpkg"]}'"'"'\n' \
+    > "${BATS_TEST_TMPDIR}/bin/yq"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
+  # Mock mirrors _ospkg_ensure_yq's real early-return guard so the second call
+  # exercises the early-return code path with the already-set _OSPKG_YQ_BIN.
+  # Note: _OSPKG_YQ_BIN is assigned to a stable path (not inside _SYSSET_TMPDIR)
+  # to avoid command-substitution subshell scoping issues with _SYSSET_TMPDIR.
+  _ospkg_ensure_yq() {
+    [[ -n "${_OSPKG_YQ_BIN:-}" ]] && return 0
+    _OSPKG_YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
+    return 0
+  }
+  export -f _ospkg_ensure_yq
+}
+
+@test "ospkg::run regression: yq binary not deleted after call returns" {
+  # Old code: rm -rf "$_OSPKG_YQ_TMPDIR"; _OSPKG_YQ_BIN= inside ospkg::run.
+  # Fix: yq dir lives in _SYSSET_TMPDIR for the process lifetime; ospkg::run
+  # never deletes it.
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _seed_apt_context_with_yq
+
+  ospkg::run --manifest $'packages:\n  - regrpkg\n' --dry_run > /dev/null 2>&1
+
+  # After the call, _OSPKG_YQ_BIN must still be set and the file must exist.
+  [[ -n "${_OSPKG_YQ_BIN:-}" ]] ||
+    {
+      echo "_OSPKG_YQ_BIN was cleared after ospkg::run"
+      return 1
+    }
+  [[ -f "$_OSPKG_YQ_BIN" ]] ||
+    {
+      echo "_OSPKG_YQ_BIN no longer points to a file: ${_OSPKG_YQ_BIN}"
+      return 1
+    }
+}
+
+@test "ospkg::run regression: second call succeeds via _OSPKG_YQ_BIN early-return path" {
+  # Old code: after first call _OSPKG_YQ_BIN was cleared (or set to a deleted
+  # path) so a second call silently processed no packages.
+  # Fix: _OSPKG_YQ_BIN persists; _ospkg_ensure_yq early-returns and the binary
+  # at that path is still valid.
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  _seed_apt_context_with_yq
+
+  local _log="${BATS_TEST_TMPDIR}/run.log"
+
+  # First call — sets _OSPKG_YQ_BIN via mock.
+  ospkg::run --manifest $'packages:\n  - regrpkg\n' --dry_run > "$_log" 2>&1
+  grep -q "\[dry-run\] packages: regrpkg" "$_log" ||
+    {
+      echo "First call: expected dry-run output absent"
+      cat "$_log" >&2
+      return 1
+    }
+
+  # Second call — _ospkg_ensure_yq early-returns; the binary at _OSPKG_YQ_BIN
+  # must still be accessible.  Old code would have deleted it above.
+  : > "$_log"
+  ospkg::run --manifest $'packages:\n  - regrpkg\n' --dry_run > "$_log" 2>&1
+  grep -q "\[dry-run\] packages: regrpkg" "$_log" ||
+    {
+      echo "Second call (regression): dry-run output absent — yq path was stale or deleted"
+      cat "$_log" >&2
+      return 1
+    }
+}
+
+@test "ospkg::run regression: YAML conversion failure propagates under set -e" {
+  # Old code: yq+parse block wrapped in `if ! {}`, which disables set -e so a
+  # failing yq was swallowed — ospkg::run returned 0 with nothing installed.
+  # Fix: block is plain sequential code; a failing yq exits the function under
+  # set -e.
+  command -v jq > /dev/null 2>&1 || skip "jq not available"
+  local _ospkg_lib="${BATS_TEST_DIRNAME}/../../lib/ospkg.sh"
+
+  run bash -c "
+    set -euo pipefail
+    source '${_ospkg_lib}'
+
+    # Seed a minimal apt context without calling the real package manager.
+    _OSPKG_DETECTED=true
+    _OSPKG_PKG_MNGR='apt-get'
+    _OSPKG_PREFIX='apt'
+    _OSPKG_OS_RELEASE[pm]='apt'
+    _OSPKG_OS_RELEASE[arch]='x86_64'
+    _OSPKG_OS_RELEASE[id]='ubuntu'
+    _OSPKG_OS_RELEASE[id_like]='debian'
+    _OSPKG_OS_RELEASE[version_id]='22.04'
+    _OSPKG_OS_RELEASE[version_codename]='jammy'
+
+    # A yq stub that always exits non-zero (simulates corrupt binary / bad manifest).
+    _OSPKG_YQ_BIN='${BATS_TEST_TMPDIR}/bin/yq'
+    mkdir -p '${BATS_TEST_TMPDIR}/bin'
+    printf '#!/bin/bash\nexit 1\n' > \"\$_OSPKG_YQ_BIN\"
+    chmod +x \"\$_OSPKG_YQ_BIN\"
+    _ospkg_ensure_yq() { return 0; }
+
+    ospkg::run --manifest \$'packages:\n  - curl\n' --dry_run
+  "
+  assert_failure
+}
+
 @test "ospkg::run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   command -v jq > /dev/null 2>&1 || skip "jq not available"

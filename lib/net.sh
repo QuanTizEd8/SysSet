@@ -81,7 +81,7 @@ net::fetch_url_stdout() {
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     net::fetch_with_retry 3 curl -fsSL "$1"
   else
-    net::fetch_with_retry 3 wget -qO- "$1"
+    net::fetch_with_retry 3 wget -O- "$1"
   fi
   return 0
 }
@@ -94,7 +94,7 @@ net::fetch_url_file() {
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     net::fetch_with_retry 3 curl -fsSL "$1" -o "$2"
   else
-    net::fetch_with_retry 3 wget -qO "$2" "$1"
+    net::fetch_with_retry 3 wget -O "$2" "$1"
   fi
   return 0
 }

@@ -158,3 +158,83 @@ _LOGGING_LIB="${BATS_TEST_DIRNAME}/../../lib/logging.sh"
   assert_success
   assert_output --partial "LAZY_OK"
 }
+
+# ---------------------------------------------------------------------------
+# logging::mask_secret / GITHUB_TOKEN masking
+# ---------------------------------------------------------------------------
+
+@test "logging::mask_secret redacts registered value in LOGFILE" {
+  local _dest="${BATS_TEST_TMPDIR}/masked.log"
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    logging::mask_secret 'supersecret'
+    echo 'value is supersecret here'
+    LOGFILE='${_dest}' logging::cleanup
+  "
+  assert_success
+  assert_file_exists "$_dest"
+  run grep "supersecret" "$_dest"
+  assert_failure # must NOT appear literally
+  run grep '\*\*\*' "$_dest"
+  assert_success # placeholder must appear
+}
+
+@test "logging::mask_secret does not redact unregistered values" {
+  local _dest="${BATS_TEST_TMPDIR}/plain.log"
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    echo 'value is notasecret here'
+    LOGFILE='${_dest}' logging::cleanup
+  "
+  assert_success
+  assert_file_exists "$_dest"
+  run grep "notasecret" "$_dest"
+  assert_success # must appear unchanged
+}
+
+@test "logging::mask_secret redacts multiple values in LOGFILE" {
+  local _dest="${BATS_TEST_TMPDIR}/multi.log"
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    logging::mask_secret 'token-aaa'
+    logging::mask_secret 'token-bbb'
+    echo 'first token-aaa second token-bbb done'
+    LOGFILE='${_dest}' logging::cleanup
+  "
+  assert_success
+  assert_file_exists "$_dest"
+  run grep "token-aaa" "$_dest"
+  assert_failure
+  run grep "token-bbb" "$_dest"
+  assert_failure
+}
+
+@test "logging::setup auto-masks GITHUB_TOKEN in LOGFILE" {
+  local _dest="${BATS_TEST_TMPDIR}/ghtoken.log"
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    export GITHUB_TOKEN='ghp_testtoken123'
+    logging::setup
+    echo \"token value is \${GITHUB_TOKEN}\"
+    LOGFILE='${_dest}' logging::cleanup
+  "
+  assert_success
+  assert_file_exists "$_dest"
+  run grep "ghp_testtoken123" "$_dest"
+  assert_failure # must NOT appear literally
+}
+
+@test "logging::cleanup resets _SYSSET_MASKED_VALUES to empty" {
+  run bash -c "
+    source '${_LOGGING_LIB}'
+    logging::setup
+    logging::mask_secret 'some-secret'
+    logging::cleanup
+    [[ \${#_SYSSET_MASKED_VALUES[@]} -eq 0 ]] && echo EMPTY
+  "
+  assert_success
+  assert_output --partial "EMPTY"
+}
