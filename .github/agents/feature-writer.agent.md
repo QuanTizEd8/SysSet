@@ -80,7 +80,7 @@ For every feature task, execute these phases in order. DO NOT SKIP PHASES.
 6. Write the `dependencies/base.yaml` manifest if needed.
 7. Run formatting and linting:
    ```bash
-   make fmt
+   make format
    make lint
    ```
 
@@ -95,7 +95,7 @@ The auditor will read all code from disk, find flaws, write tests, run them, and
 
 When fixing issues found by the auditor:
 1. Fix the root cause in the implementation — not in the tests, unless the issue is genuinely only in the tests.
-2. Run `make fmt && make lint` after each fix.
+2. Run `make format && make lint` after each fix.
 3. If the fix was substantial, re-invoke the auditor on the changed files to verify the fix didn't introduce new issues.
 
 Make sure fixes are robust and directly address the root cause.
@@ -164,8 +164,8 @@ If the verdict is **NOT APPROVED**:
 |------|---------|
 | Sync generated files | `bash sync-lib.sh` |
 | Verify sync is up to date | `bash sync-lib.sh --check` |
-| Format shell files | `make fmt` |
-| Check formatting (no writes) | `make fmt-check` |
+| Format shell files | `make format` |
+| Check formatting (no writes) | `make format-check` |
 | Lint shell files | `make lint` |
 | Run all unit tests | `make test-unit` |
 | Run unit tests for one module | `bash test/run-unit.sh --module <name>` |

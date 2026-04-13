@@ -1,17 +1,8 @@
 pre-commit:
   commands:
-    sync-lib:
+    sync:
       glob: "{lib/*,bootstrap.sh}"
-      run: bash sync-lib.sh
-    shfmt:
+      run: make sync
+    format:
       glob: "*.{sh,bash,bats}"
-      run: if command -v shfmt >/dev/null 2>&1; then shfmt -d {staged_files}; fi
-    shellcheck:
-      glob: "*.{sh,bash}"
-      run: if command -v shellcheck >/dev/null 2>&1; then shellcheck {staged_files}; fi
-
-# pre-push:
-#   commands:
-#     unit-tests:
-#       glob: "{lib/**,test/unit/**}"
-#       run: bash test/run-unit.sh
+      run: make format FILES="{staged_files}"

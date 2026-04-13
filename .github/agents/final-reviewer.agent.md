@@ -33,7 +33,7 @@ If this fails, report it immediately — it means generated files are stale.
 ### Check 2 — Formatting
 
 ```bash
-make fmt-check
+make format-check
 ```
 
 Report any files that fail the format check.

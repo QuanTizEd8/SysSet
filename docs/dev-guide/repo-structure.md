@@ -65,7 +65,7 @@ sysset/
 ├── bootstrap.sh                ← Shared bootstrap template (canonical source)
 ├── sync-lib.sh                 ← Build tool: distributes lib/ and bootstrap.sh
 ├── lefthook.yml                ← Pre-commit hook configuration
-├── Makefile                    ← Developer convenience targets (fmt, lint, sync)
+├── Makefile                    ← Developer convenience targets (format, lint, sync)
 ├── .editorconfig               ← Editor / shfmt style config
 ├── .shellcheckrc               ← shellcheck defaults
 ├── .devcontainer/              ← Dev environment configuration ONLY
@@ -280,8 +280,8 @@ Per-file or per-line overrides use inline directives:
 The [Makefile](../../Makefile) provides convenience targets:
 
 ```bash
-make fmt          # auto-format all shell files in place (shfmt -w)
-make fmt-check    # check formatting without writing (used in CI)
+make format          # auto-format all shell files in place (shfmt -w)
+make format-check    # check formatting without writing (used in CI)
 make lint         # run shellcheck on all tracked .sh/.bash files
 make sync         # regenerate _lib/ copies and install.sh stubs
 ```
