@@ -11,19 +11,20 @@ _LIB_NET_LOADED=1
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
 
-# net::fetch_with_retry <max-attempts> <cmd...>
-# Runs <cmd> up to <max-attempts> times with a 3-second pause between
+# net::fetch_with_retry <max-attempts> <delay> <cmd...>
+# Runs <cmd> up to <max-attempts> times with a <delay>-second pause between
 # failures.  Does NOT require ospkg.sh.
-# Note: used as the wget retry wrapper (5s delay, up to 60 attempts ≈ 5 min).
-# curl uses its own --retry flag which handles transient errors natively
-# (see fetch_url_stdout/file).
+# Prefer net::fetch_url_stdout / net::fetch_url_file for curl/wget downloads;
+# those handle tool detection, --compressed, and smart transient-only retries
+# automatically.  Use this function only for commands that are not curl/wget.
 net::fetch_with_retry() {
   local _max="$1"
-  shift
+  local _delay="$2"
+  shift 2
   local _i=1
   while [ "$_i" -le "$_max" ]; do
     "$@" && return 0
-    [ "$_i" -lt "$_max" ] && echo "⚠️  Attempt $_i/$_max failed — retrying in 5s..." >&2 && sleep 5
+    [ "$_i" -lt "$_max" ] && echo "⚠️  Attempt $_i/$_max failed — retrying in ${_delay}s..." >&2 && sleep "$_delay"
     _i=$((_i + 1))
   done
   echo "⛔ Failed after $_max attempt(s)." >&2
@@ -76,32 +77,38 @@ net::ensure_fetch_tool() {
   return 0
 }
 
-# net::fetch_url_stdout <url>
+# net::fetch_url_stdout <url> [max_retries=60] [delay=5]
 # Writes URL response body to stdout using _NET_FETCH_TOOL, with retries.
 # curl: uses --retry which retries only on transient errors (5xx, 408, 429,
 #   connection failures).  wget: falls back to the shell retry wrapper.
+# max_retries defaults to 60 (≈5 min at 5s intervals); delay defaults to 5s.
 # Calls net::ensure_fetch_tool automatically if not already initialised.
 net::fetch_url_stdout() {
+  local _max="${2:-60}"
+  local _delay="${3:-5}"
   net::ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    curl -fsSL --retry 60 --retry-delay 5 --retry-connrefused "$1"
+    curl -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused "$1"
   else
-    net::fetch_with_retry 60 wget -O- "$1"
+    net::fetch_with_retry "$_max" "$_delay" wget -O- "$1"
   fi
   return 0
 }
 
-# net::fetch_url_file <url> <dest>
+# net::fetch_url_file <url> <dest> [max_retries=60] [delay=5]
 # Writes URL response body to file using _NET_FETCH_TOOL, with retries.
 # curl: uses --retry which retries only on transient errors (5xx, 408, 429,
 #   connection failures).  wget: falls back to the shell retry wrapper.
+# max_retries defaults to 60 (≈5 min at 5s intervals); delay defaults to 5s.
 # Calls net::ensure_fetch_tool automatically if not already initialised.
 net::fetch_url_file() {
+  local _max="${3:-60}"
+  local _delay="${4:-5}"
   net::ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    curl -fsSL --retry 60 --retry-delay 5 --retry-connrefused "$1" -o "$2"
+    curl -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused "$1" -o "$2"
   else
-    net::fetch_with_retry 60 wget -O "$2" "$1"
+    net::fetch_with_retry "$_max" "$_delay" wget -O "$2" "$1"
   fi
   return 0
 }

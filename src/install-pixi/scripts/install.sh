@@ -95,11 +95,9 @@ if [[ "$VERSION" == "latest" ]]; then
   echo "ℹ️ Resolved Pixi version: '${VERSION}'." >&2
 fi
 
-net::ensure_fetch_tool
-net::fetch_with_retry 3 curl \
-  --compressed \
-  -fsSLo "$pixi_bin" \
-  "${_PIXI_RELEASES_BASE_URL}/v${VERSION}/pixi-$(os::arch)-unknown-linux-musl"
+net::fetch_url_file \
+  "${_PIXI_RELEASES_BASE_URL}/v${VERSION}/pixi-$(os::arch)-unknown-linux-musl" \
+  "$pixi_bin"
 
 chmod +rx "$pixi_bin"
 

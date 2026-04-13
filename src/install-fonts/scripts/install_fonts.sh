@@ -333,7 +333,7 @@ if [[ "$P10K_FONTS" == true ]]; then
   for _FONT in "${_P10K_FONT_FILES[@]}"; do
     _LOCAL_NAME="$(printf '%b' "${_FONT//%/\\x}")"
     _TMPFILE="$(mktemp)"
-    if net::fetch_with_retry 3 curl -fsSL "${_P10K_BASE_URL}/${_FONT}" -o "$_TMPFILE"; then
+    if net::fetch_url_file "${_P10K_BASE_URL}/${_FONT}" "$_TMPFILE" 3; then
       install_font_file "$_TMPFILE" "p10k/MesloLGS-NF/${_LOCAL_NAME}"
     else
       echo "⚠️  Could not download '${_LOCAL_NAME}' — skipping." >&2
@@ -355,7 +355,7 @@ if [[ -n "$NERD_FONTS" ]]; then
     echo "ℹ️  Downloading Nerd Font '${_font_name}'..." >&2
     _ARCHIVE="$(mktemp)"
     _TMPDIR="$(mktemp -d)"
-    if net::fetch_with_retry 3 curl -fsSL "${_NF_BASE_URL}/${_font_name}.tar.xz" -o "$_ARCHIVE"; then
+    if net::fetch_url_file "${_NF_BASE_URL}/${_font_name}.tar.xz" "$_ARCHIVE" 3; then
       if extract_archive "$_ARCHIVE" "$_TMPDIR" "${_font_name}.tar.xz"; then
         install_archive_contents "$_TMPDIR" "nerd/${_font_name}"
         echo "✅ Nerd Font '${_font_name}' processed." >&2
@@ -430,7 +430,7 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
       _asset_basename="${_asset_url##*/}"
       echo "ℹ️  Downloading '${_asset_basename}' from '${_slug}' release..." >&2
       _ARCHIVE="$(mktemp)"
-      if ! net::fetch_with_retry 3 curl -fsSL "$_asset_url" -o "$_ARCHIVE"; then
+      if ! net::fetch_url_file "$_asset_url" "$_ARCHIVE" 3; then
         echo "⚠️  Could not download '${_asset_basename}' — skipping." >&2
         rm -f "$_ARCHIVE"
         continue
@@ -473,7 +473,7 @@ if [[ -n "$FONT_URLS" ]]; then
         echo "ℹ️  Downloading font archive '${_basename}'..." >&2
         _ARCHIVE="$(mktemp)"
         _TMPDIR="$(mktemp -d)"
-        if net::fetch_with_retry 3 curl -fsSL "$_url" -o "$_ARCHIVE"; then
+        if net::fetch_url_file "$_url" "$_ARCHIVE" 3; then
           if extract_archive "$_ARCHIVE" "$_TMPDIR" "$_basename"; then
             install_archive_contents "$_TMPDIR" "$_NS"
             echo "✅ Font archive '${_basename}' processed." >&2
@@ -487,7 +487,7 @@ if [[ -n "$FONT_URLS" ]]; then
       *.ttf | *.otf | *.woff | *.woff2)
         echo "ℹ️  Downloading font file '${_basename}'..." >&2
         _TMPFILE="$(mktemp)"
-        if net::fetch_with_retry 3 curl -fsSL "$_url" -o "$_TMPFILE"; then
+        if net::fetch_url_file "$_url" "$_TMPFILE" 3; then
           install_font_file "$_TMPFILE" "${_NS}/${_basename}"
           echo "✅ Font file '${_basename}' processed." >&2
         else

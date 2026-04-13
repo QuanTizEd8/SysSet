@@ -24,7 +24,7 @@ setup() {
     return 0
   }
   export -f _passing_cmd
-  run net::fetch_with_retry 3 _passing_cmd
+  run net::fetch_with_retry 3 0 _passing_cmd
   assert_success
 }
 
@@ -45,7 +45,7 @@ printf '%s' "$n" > "$counter_file"
 EOF
   chmod +x "${BATS_TEST_TMPDIR}/bin/_retry_cmd"
   prepend_fake_bin_path
-  run net::fetch_with_retry 3 _retry_cmd
+  run net::fetch_with_retry 3 0 _retry_cmd
   assert_success
 }
 
@@ -61,7 +61,7 @@ EOF
   # Override sleep to a no-op so the test is fast.
   sleep() { :; }
   export -f sleep
-  run net::fetch_with_retry 2 _always_fail
+  run net::fetch_with_retry 2 0 _always_fail
   assert_failure
   assert_output --partial "Failed after 2"
 }
@@ -153,41 +153,165 @@ EOF
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
-  # Override fetch_with_retry to record which tool is called.
-  net::fetch_with_retry() {
-    shift          # strip max-attempts
-    echo "tool=$1" # print the command name
+  # Stub curl to record the invocation without making a real network call.
+  curl() {
+    echo "curl $*"
     return 0
   }
-  export -f net::fetch_with_retry
+  export -f curl
   run net::fetch_url_stdout "https://example.com"
-  assert_output --partial "tool=curl"
+  assert_output --partial "curl"
+  assert_output --partial "--retry 60"
+  assert_output --partial "--compressed"
 }
 
 @test "net::fetch_url_stdout routes to wget when _NET_FETCH_TOOL=wget" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
+  # wget still uses net::fetch_with_retry; stub that to record the call.
   net::fetch_with_retry() {
-    shift
-    echo "tool=$1"
+    echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
   export -f net::fetch_with_retry
   run net::fetch_url_stdout "https://example.com"
   assert_output --partial "tool=wget"
+  assert_output --partial "retry=60"
+  assert_output --partial "delay=5"
 }
 
 @test "net::fetch_url_file routes to curl when _NET_FETCH_TOOL=curl" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
+  # Stub curl to record the invocation without making a real network call.
+  curl() {
+    echo "curl $*"
+    return 0
+  }
+  export -f curl
+  run net::fetch_url_file "https://example.com" "/tmp/out"
+  assert_output --partial "curl"
+  assert_output --partial "--retry 60"
+  assert_output --partial "--compressed"
+}
+
+@test "net::fetch_url_file routes to wget when _NET_FETCH_TOOL=wget" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
   net::fetch_with_retry() {
-    shift
-    echo "tool=$1"
+    echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
   export -f net::fetch_with_retry
   run net::fetch_url_file "https://example.com" "/tmp/out"
-  assert_output --partial "tool=curl"
+  assert_output --partial "tool=wget"
+  assert_output --partial "retry=60"
+  assert_output --partial "delay=5"
+}
+
+@test "net::fetch_url_stdout passes custom max_retries to curl" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  curl() {
+    echo "curl $*"
+    return 0
+  }
+  export -f curl
+  run net::fetch_url_stdout "https://example.com" 3
+  assert_output --partial "--retry 3"
+}
+
+@test "net::fetch_url_stdout passes custom max_retries to wget" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
+  net::fetch_with_retry() {
+    echo "retry=$1 delay=$2 tool=$3"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run net::fetch_url_stdout "https://example.com" 3
+  assert_output --partial "retry=3"
+}
+
+@test "net::fetch_url_file passes custom max_retries to curl" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  curl() {
+    echo "curl $*"
+    return 0
+  }
+  export -f curl
+  run net::fetch_url_file "https://example.com" "/tmp/out" 3
+  assert_output --partial "--retry 3"
+}
+
+@test "net::fetch_url_file passes custom max_retries to wget" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
+  net::fetch_with_retry() {
+    echo "retry=$1 delay=$2 tool=$3"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run net::fetch_url_file "https://example.com" "/tmp/out" 3
+  assert_output --partial "retry=3"
+}
+
+@test "net::fetch_url_stdout passes custom delay to curl" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  curl() {
+    echo "curl $*"
+    return 0
+  }
+  export -f curl
+  run net::fetch_url_stdout "https://example.com" 60 10
+  assert_output --partial "--retry-delay 10"
+}
+
+@test "net::fetch_url_stdout passes custom delay to wget" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
+  net::fetch_with_retry() {
+    echo "retry=$1 delay=$2 tool=$3"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run net::fetch_url_stdout "https://example.com" 60 10
+  assert_output --partial "delay=10"
+}
+
+@test "net::fetch_url_file passes custom delay to curl" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  curl() {
+    echo "curl $*"
+    return 0
+  }
+  export -f curl
+  run net::fetch_url_file "https://example.com" "/tmp/out" 60 10
+  assert_output --partial "--retry-delay 10"
+}
+
+@test "net::fetch_url_file passes custom delay to wget" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=wget
+  _NET_CA_CERTS_OK=true
+  net::fetch_with_retry() {
+    echo "retry=$1 delay=$2 tool=$3"
+    return 0
+  }
+  export -f net::fetch_with_retry
+  run net::fetch_url_file "https://example.com" "/tmp/out" 60 10
+  assert_output --partial "delay=10"
 }
