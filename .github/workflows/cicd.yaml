@@ -97,20 +97,28 @@ jobs:
             # run_unit: lib/ or test/unit/ changed
             if echo "$changed" | grep -qE '^(lib/|test/unit/)'; then run_unit=true; else run_unit=false; fi
 
-            # features: collect changed feature names
-            features=$(ls -1 src | while IFS= read -r f; do
-              if echo "$changed" | grep -qE "^(src|test)/$f/"; then echo "$f"; fi
-            done | jq -R . | jq -sc .)
+            # features: if bootstrap.sh or lib/ changed, all features are affected
+            if echo "$changed" | grep -qE '^(bootstrap\.sh|lib/)'; then
+              features="$all_features"
+            else
+              features=$(ls -1 src | while IFS= read -r f; do
+                if echo "$changed" | grep -qE "^(src|test)/$f/"; then echo "$f"; fi
+              done | jq -R . | jq -sc .)
+            fi
             if [[ "$features" != "[]" ]]; then run_features=true; else run_features=false; fi
 
-            # macos_features: intersect changed features with macos-capable features
-            macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | while IFS= read -r f; do
-              if echo "$changed" | grep -qE "^(src|test)/$f/"; then echo "$f"; fi
-            done | jq -R . | jq -sc .)
+            # macos_features: if bootstrap.sh or lib/ changed, all macos-capable features are affected
+            if echo "$changed" | grep -qE '^(bootstrap\.sh|lib/)'; then
+              macos_features="$macos_all"
+            else
+              macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | while IFS= read -r f; do
+                if echo "$changed" | grep -qE "^(src|test)/$f/"; then echo "$f"; fi
+              done | jq -R . | jq -sc .)
+            fi
             if [[ "$macos_features" != "[]" ]]; then run_macos=true; else run_macos=false; fi
 
             # run_dist: dist-related files changed
-            if echo "$changed" | grep -qE '^(get\.sh|sysset\.sh|build-artifacts\.sh|src/|lib/|test/dist/)'; then
+            if echo "$changed" | grep -qE '^(bootstrap\.sh|get\.sh|sysset\.sh|build-artifacts\.sh|src/|lib/|test/dist/)'; then
               run_dist=true
             else
               run_dist=false

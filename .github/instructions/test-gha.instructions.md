@@ -1,22 +1,19 @@
 ---
-description: "Use when working with CI test workflows (.github/workflows/test*.yaml), the install-os-pkg manifest dry-run tests (test/install-os-pkg/dry-run/), or fail scenario scripts (test/**/fail_scenarios.sh, test/run-fail-scenarios.sh). Covers macOS GHA runner behaviour, macOS native feature scenarios, dry-run test structure, adding dry-run cases, fail-scenario conventions, and CI trigger logic."
-applyTo: "test/install-os-pkg/dry-run/**, test/**/fail_scenarios.sh, test/run-fail-scenarios.sh, .github/workflows/test*.yaml"
+description: "Use when working with CI/CD workflows (.github/workflows/cicd.yaml, ci.yaml, cd.yaml), the install-os-pkg manifest dry-run tests (test/install-os-pkg/dry-run/), or fail scenario scripts (test/**/fail_scenarios.sh, test/run-fail-scenarios.sh). Covers macOS GHA runner behaviour, macOS native feature scenarios, dry-run test structure, adding dry-run cases, fail-scenario conventions, CI trigger logic, and how to inspect workflow run results and logs."
+applyTo: "test/install-os-pkg/dry-run/**, test/**/fail_scenarios.sh, test/run-fail-scenarios.sh, .github/workflows/*.yaml"
 ---
 
 # CI, macOS GHA Runner, and Supplementary Tests
 
 ## CI Workflow Overview
 
-| Workflow | File | Trigger | Runs on |
+| Workflow | File | Trigger | Purpose |
 |---|---|---|---|
-| Feature scenario tests (Linux) | `test.yaml` | push/PR (changed features), manual | ubuntu-latest |
-| Feature scenario tests (macOS) | `test-macos.yaml` | push/PR (changed features with macOS scenarios), manual | macos-latest |
-| Lib unit tests | `test-unit.yaml` | push/PR touching `lib/**` or `test/unit/**`, manual | ubuntu-latest + macos-latest + linux containers |
-| Schema validation | `validate.yml` | PR, manual | ubuntu-latest |
-| Lint | `lint.yaml` | push, PR | ubuntu-latest |
-| Release | `release.yaml` | manual only | ubuntu-latest |
+| CI/CD Orchestrator | `cicd.yaml` | push/PR, `v*` tag push, `workflow_dispatch` | Runs `detect` → calls `ci.yaml`, then `cd.yaml` on release |
+| Continuous Integration | `ci.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | All lint/validate/unit/feature/dist tests |
+| Continuous Deployment | `cd.yaml` | `workflow_call` from `cicd.yaml`, standalone `workflow_dispatch` | Publish to GHCR + GitHub Release |
 
-All workflows run `bash sync-lib.sh` as their first step.
+All jobs run `bash sync-lib.sh` as an early step.
 
 ## macOS GHA Runner
 
@@ -33,7 +30,7 @@ macOS ships bash 3.2 (GNU GPL licence prevents Apple bundling bash 4+). All lib/
 3. Re-execs itself under the first bash ≥4 found.
 4. Prepends that executable's directory to `PATH` so `#!/usr/bin/env bash` sub-scripts (bats-exec-test, bats-exec-suite) also resolve to bash ≥4.
 
-The GHA `macos-latest` runner does **not** have bash ≥4 pre-installed. `test-unit.yaml` adds an explicit step:
+The GHA `macos-latest` runner does **not** have bash ≥4 pre-installed. The `unit-native` job in `ci.yaml` adds an explicit step:
 
 ```yaml
 - name: Install bash ≥4 (macOS)
@@ -120,9 +117,9 @@ bash test/run-macos.sh <feature> --filter <scenario_name>
 
 ### CI discovery
 
-`test-macos.yaml` automatically discovers features that have at least one file under `test/<feature>/macos/*.sh`. On push/PR, only features with both macOS scenarios AND changed files under `src/<feature>/` or `test/<feature>/` are tested. On `workflow_dispatch`, all features with macOS scenarios are tested.
+The `test-macos` job in `ci.yaml` automatically discovers features that have at least one file under `test/<feature>/macos/*.sh`. On push/PR, only features with both macOS scenarios AND changed files under `src/<feature>/` or `test/<feature>/` are tested. On `workflow_dispatch` (including when called from `cicd.yaml` with `is_force=true`), all features with macOS scenarios are tested.
 
-No changes to `test-macos.yaml` are needed when adding a new macOS scenario — discovery is fully automatic.
+No changes to `ci.yaml` are needed when adding a new macOS scenario — discovery is fully automatic.
 
 ## install-os-pkg Dry-Run Tests
 
@@ -200,7 +197,7 @@ curl
 curl
 ```
 
-CI (`test.yaml`) runs the dry-run suite in a matrix across all supported distro images whenever `install-os-pkg` is in the discovered changed-feature set.
+CI (`ci.yaml`) runs the dry-run suite in a matrix across all supported distro images whenever `install-os-pkg` is in the discovered changed-feature set.
 
 ## Fail Scenarios
 
@@ -232,28 +229,43 @@ bash test/run-fail-scenarios.sh <feature>
 
 ### CI integration
 
-`test.yaml` runs `bash test/run-fail-scenarios.sh <feature>` as a separate job step after the main scenario matrix, for any feature that has a `test/<feature>/fail_scenarios.sh` file. No changes to `test.yaml` are needed when adding a new `fail_scenarios.sh`.
+The `test-features` job in `ci.yaml` runs `bash test/run-fail-scenarios.sh <feature>` as a separate step after the main scenario matrix, for every feature that has a `test/<feature>/fail_scenarios.sh`. No changes to `ci.yaml` are needed when adding a new `fail_scenarios.sh`.
 
 ## CI Trigger Logic
 
-### Feature test discovery
+### Change detection
 
-`test.yaml` uses a `discover` job to build the feature matrix:
+`cicd.yaml` runs a `detect` job on every event that computes per-job run flags from the changed-file diff:
 
-- **push / PR**: only features with changed files under `src/<feature>/` or `test/<feature>/`
-- **workflow_dispatch**: all features under `src/`
+| Changed path(s) | Flag set / Jobs gated |
+|---|---|
+| `*.sh`, `*.bash`, `*.bats` | `run_lint` → `lint` |
+| `src/**/devcontainer-feature.json` | `run_validate` → `validate` |
+| `lib/**`, `test/unit/**` | `run_unit` → `unit-native`, `unit-linux` |
+| `src/<f>/` or `test/<f>/` | `run_features`, `features[]` → `test-features` matrix |
+| macOS-capable feature in `features[]` | `run_macos`, `macos_features[]` → `test-macos` matrix |
+| `install-os-pkg` in `features[]` | `run_features` → `test-os-pkg` (6-distro matrix) |
+| `get.sh`, `sysset.sh`, `build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `run_dist` → `test-dist-*` |
 
-No changes to `test.yaml` are needed when adding a new feature — discovery is automatic once a `devcontainer-feature.json` and `test/` directory exist.
+On `workflow_dispatch` or a `v*` tag push, `is_force=true` overrides all flags to `true` regardless of diff. First push to a new branch (zero-SHA `before`) also sets `is_force=true` as a safe fallback.
+
+### Feature test and macOS test discovery
+
+The `detect` job discovers changed features by intersecting all `ls src` names against `src/<f>/` or `test/<f>/` diff paths. macOS-eligible features are found by scanning `test/<feature>/macos/*.sh`.
+
+- **push/PR**: only changed features that exist under `src/` and `test/`
+- **`workflow_dispatch` or tag push**: all features
+
+No changes to any workflow file are needed when adding a new feature or new macOS scenarios — discovery is automatic.
 
 ### Unit test triggers
 
-`test-unit.yaml` triggers on any change to `lib/**` or `test/unit/**`. It runs the full suite across three job groups — no per-module discovery:
+The `unit-native` and `unit-linux` jobs in `ci.yaml` run when `lib/**` or `test/unit/**` are changed. Two job groups run in parallel — no per-module discovery:
 
 | Job | Runs on | Notes |
 |---|---|---|
 | `unit-native` | ubuntu-latest + macos-latest | Installs bash ≥4 on macOS via `brew install bash` |
-| `unit-linux` | debian:bookworm, fedora:latest, rockylinux:9 containers | Validates glibc distro compatibility |
-| `unit-alpine` | alpine:3.20 container (ubuntu-latest host) | Validates musl/Alpine compatibility |
+| `unit-linux` | debian:bookworm, fedora:latest, rockylinux:9, alpine:3.20 containers | Validates glibc and musl compatibility |
 
 `fail-fast: false` ensures a failure in one matrix cell does not cancel the rest.
 
@@ -268,18 +280,134 @@ pre-push:
       run: bash test/run-unit.sh
 ```
 
-### Manual dispatch
+### Release and publish
+
+`is_release=true` is set when the trigger is a `v*` tag push or a `workflow_dispatch` with a `tag` input. The `cd` job in `cicd.yaml` runs only when `is_release=true` AND the `ci` job result is `success`. CD can also be triggered standalone:
 
 ```bash
-# Trigger all feature tests
-gh workflow run "CI - Test Features"
+# Publish without tests (e.g. hotfix or re-deploy)
+gh workflow run "CD" --field tag=v1.2.3
+```
 
-# Trigger unit tests
-gh workflow run "Unit Tests"
+## Monitoring CI Runs (for Agents)
 
-# Watch a run
+Use the `gh` CLI to inspect workflow runs, job results, and logs. MCP GitHub tools do not expose workflow-run APIs; use `gh` for everything run/job/log related.
+
+### Workflow and run structure
+
+`cicd.yaml` is the orchestrator — the only file with event triggers. Its `ci` and `cd` jobs call `ci.yaml` and `cd.yaml` via `workflow_call`. The called workflows' jobs appear as individual entries **inside the same parent run** (no separate nested runs). A typical run contains:
+
+- `detect` — always runs; sets flags
+- `ci / setup`, `ci / lint`, `ci / validate`, `ci / unit-native (ubuntu-latest)`, `ci / unit-native (macos-latest)`, `ci / unit-linux (debian)`, ...
+- `ci / test-features (install-shell)`, `ci / test-features (install-pixi)`, ... (matrix)
+- `ci / test-macos (install-homebrew)`, ... (matrix, if applicable)
+- `ci / test-dist-build`, `ci / test-dist-sysset (debian)`, ...
+- `cd / publish` — only on release triggers
+
+### Listing and identifying runs
+
+```bash
+# List recent runs (all workflows)
+gh run list --limit 10
+
+# List runs for the orchestrator
+gh run list --workflow "CI/CD" --limit 10
+
+# Filter by branch or status
+gh run list --workflow "CI/CD" --branch main --status failure --limit 5
+```
+
+Output columns: run ID, status/conclusion, workflow name, branch, event, elapsed time.
+
+### Viewing run summary and job results
+
+```bash
+# Show run summary: all jobs, their status, and job IDs
+gh run view <run-id>
+
+# Get job list as JSON (includes job IDs, names, conclusions, steps)
+gh run view <run-id> --json jobs
+
+# Get full run metadata as JSON
+gh run view <run-id> --json jobs,status,conclusion,event,headBranch,headSha
+```
+
+Use `--json jobs` to map job names to numeric IDs for log retrieval.
+
+### Fetching logs
+
+```bash
+# Stream all logs for the entire run (verbose for large matrix runs)
+gh run view <run-id> --log
+
+# Fetch only the failed steps' logs — fastest way to find the root cause
+gh run view <run-id> --log-failed
+
+# Fetch logs for a specific job by job ID
+gh run view <run-id> --job <job-id> --log
+```
+
+To look up a job ID by name:
+
+```bash
+# Find the database ID for a job matching a name substring
+gh run view <run-id> --json jobs \
+  | jq -r '.jobs[] | select(.name | test("Test install-shell")) | .databaseId'
+```
+
+Then fetch its logs:
+
+```bash
+gh run view <run-id> --job <job-id> --log
+```
+
+### Watching a run in progress
+
+```bash
+# Watch the most recent run
 gh run watch
 
-# List recent runs
-gh run list --workflow "Unit Tests"
+# Watch a specific run
+gh run watch <run-id>
 ```
+
+### Triggering and re-running
+
+```bash
+# Run the full CI/CD suite (no publish)
+gh workflow run "CI/CD"
+
+# Run with a release tag (triggers publish if CI passes)
+gh workflow run "CI/CD" --field tag=v1.2.3
+
+# Run CI tests only (standalone, discovers all features automatically)
+gh workflow run "CI"
+
+# Publish only (no tests) — useful for hotfix or re-deploy
+gh workflow run "CD" --field tag=v1.2.3
+
+# Re-run only the failed jobs in a run
+gh run rerun <run-id> --failed
+```
+
+### Using the GitHub REST API
+
+For finer-grained access (e.g. downloading step-level logs as raw text):
+
+```bash
+# List all jobs for a run (returns IDs, names, steps, conclusions)
+gh api repos/quantized8/sysset/actions/runs/<run-id>/jobs
+
+# Get the log redirect URL for a specific job
+gh api repos/quantized8/sysset/actions/jobs/<job-id>/logs
+```
+
+### MCP GitHub tools (for agents using MCP)
+
+MCP tools do not expose workflow-run APIs. Use them only to look up context that correlates with a run:
+
+- `mcp_github_list_pull_requests` / `mcp_io_github_git_list_pull_requests` — find the PR associated with a branch
+- `mcp_github_get_commit` / `mcp_io_github_git_get_commit` — inspect the commit that triggered a run
+- `mcp_github_list_commits` / `mcp_io_github_git_list_commits` — find recent commits on a branch
+
+For all workflow-run and job-log operations, use `gh` CLI (`gh run list`, `gh run view`, `gh run watch`, `gh api`) rather than MCP tools.

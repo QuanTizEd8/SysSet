@@ -4,18 +4,18 @@ on:
   workflow_call:
     inputs:
       release_tag:
-        description: "Release tag to publish"
+        description: Release tag to publish.
         type: string
         required: true
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish"
+        description: Release tag to publish.
         required: true
 
 jobs:
-  publish:
-    name: "Publish: GHCR Features + GitHub Release"
+  publish-ghcr:
+    name: GHCR Publication
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -28,13 +28,10 @@ jobs:
         with:
           fetch-tags: true
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
-      - name: "Build distribution artifacts"
-        run: bash build-artifacts.sh "${RELEASE_TAG}"
-
-      - name: "Publish Features to GHCR"
+      - name: Publish Features to GHCR
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
         with:
           publish-features: "true"
@@ -43,20 +40,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Create or update GitHub Release"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
-            echo "ℹ️  Release ${RELEASE_TAG} already exists — uploading/replacing assets." >&2
-            gh release upload "${RELEASE_TAG}" dist/* --clobber
-          else
-            gh release create "${RELEASE_TAG}" dist/* \
-              --title "${RELEASE_TAG}" \
-              --generate-notes
-          fi
-
-      - name: "Create PR for Documentation"
+      - name: Create PR for Documentation
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -72,4 +56,37 @@ jobs:
           if [ "$NO_UPDATES" != "true" ]; then
             git push origin "$branch"
             gh pr create --title "$message" --body "$message"
+          fi
+
+  publish-gh-release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: write
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || inputs.tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-tags: true
+
+      - name: Sync Library Files
+        run: bash sync-lib.sh
+
+      - name: Build Distribution Artifacts
+        run: bash build-artifacts.sh "${RELEASE_TAG}"
+
+      - name: Create or Update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            echo "ℹ️  Release ${RELEASE_TAG} already exists — uploading/replacing assets." >&2
+            gh release upload "${RELEASE_TAG}" dist/* --clobber
+          else
+            gh release create "${RELEASE_TAG}" dist/* \
+              --title "${RELEASE_TAG}" \
+              --generate-notes
           fi

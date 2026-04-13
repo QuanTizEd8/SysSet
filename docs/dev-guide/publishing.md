@@ -51,22 +51,42 @@ The `:0` tag always resolves to the latest `0.x.y` release.
 
 ## Publishing via GitHub Actions
 
-Features are published automatically to [GitHub Container Registry (GHCR)](https://ghcr.io)
-by the `.github/workflows/release.yaml` workflow. The workflow:
+Features are published to [GitHub Container Registry (GHCR)](https://ghcr.io)
+and a GitHub Release is created by the `cd.yaml` reusable workflow, which is
+called from the `cicd.yaml` orchestrator. The publish job:
 
 1. Runs `bash sync-lib.sh` to ensure every feature has up-to-date `_lib/`
    copies and `install.sh` before packaging.
-2. Calls [`devcontainers/action`](https://github.com/devcontainers/action)
+2. Runs `bash build-artifacts.sh <tag>` to produce per-feature tarballs and
+   the `sysset-all.tar.gz` bundle under `dist/`.
+3. Calls [`devcontainers/action`](https://github.com/devcontainers/action)
    with `publish-features: "true"` and `base-path-to-features: "./src"`.
-3. For each feature whose `version` in `devcontainer-feature.json` has not
+4. For each feature whose `version` in `devcontainer-feature.json` has not
    yet been published as a GHCR tag, the action pushes the OCI artefact to
    `ghcr.io/quantized8/sysset/<feature-id>:<major>`, `:<major.minor>`, and
    `:<major.minor.patch>`.
-4. Generates per-feature `README.md` documentation and opens a pull request
+5. Creates (or updates) a GitHub Release with all `dist/*` assets attached.
+6. Generates per-feature `README.md` documentation and opens a pull request
    to commit it.
 
-> The workflow is `workflow_dispatch` only — it never runs automatically on
-> push or PR. Trigger it manually when you are ready to cut a release.
+CD runs automatically only on `v*` tag push **after all CI tests pass**. It
+can also be triggered manually in two ways:
+
+- **Via `cicd.yaml`** (runs tests first, then publishes if they pass):
+
+  ```bash
+  gh workflow run "CI/CD" --field tag=v1.2.3
+  ```
+
+- **Via `cd.yaml` directly** (publish only, no tests — use for hotfixes or
+  re-deploys after manual verification):
+
+  ```bash
+  gh workflow run "CD" --field tag=v1.2.3
+  ```
+
+Or open the **Actions** tab in GitHub, select the desired workflow, and click
+**Run workflow**.
 
 ### Required repository settings
 
@@ -76,15 +96,6 @@ In **Settings → Actions → General → Workflow permissions**:
   allows the action to open the documentation PR automatically.
 - Grant the workflow **read and write permissions** so it can push OCI
   artefacts to GHCR.
-
-### Trigger the release workflow
-
-```bash
-gh workflow run "Release dev container features & Generate Documentation"
-```
-
-Or open the **Actions** tab in GitHub, select the workflow, and click
-**Run workflow**.
 
 ---
 

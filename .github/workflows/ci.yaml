@@ -28,9 +28,42 @@ on:
         type: string
         default: "false"
   workflow_dispatch:
+    inputs:
+      run_lint:
+        description: "Run lint (shfmt + shellcheck)"
+        type: boolean
+        default: true
+      run_validate:
+        description: "Run validate (devcontainer-feature.json)"
+        type: boolean
+        default: true
+      run_unit:
+        description: "Run unit tests"
+        type: boolean
+        default: true
+      run_features:
+        description: "Run feature scenario tests"
+        type: boolean
+        default: true
+      features:
+        description: "Features to test — blank = all, or comma-separated names"
+        type: string
+        default: ""
+      run_macos:
+        description: "Run macOS native feature tests"
+        type: boolean
+        default: true
+      macos_features:
+        description: "macOS features to test — blank = all capable, or comma-separated names"
+        type: string
+        default: ""
+      run_dist:
+        description: "Run dist tests (get.sh, sysset.sh)"
+        type: boolean
+        default: true
 
 jobs:
-  # ── Pass through caller inputs, or auto-discover on workflow_dispatch ─────
+  # ── Pass through caller inputs, or resolve dispatch inputs ───────────────
   setup:
     name: "Setup"
     runs-on: ubuntu-latest
@@ -46,7 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Pass through inputs (workflow_call) or auto-discover (workflow_dispatch)"
+      - name: "Pass through inputs (workflow_call) or resolve inputs (workflow_dispatch)"
         id: setup
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -71,21 +104,30 @@ jobs:
               echo "run_dist=$INPUT_RUN_DIST"
             } >> "$GITHUB_OUTPUT"
           else
-            # workflow_dispatch → run everything
-            all_features=$(ls -1 src | jq -R . | jq -sc .)
+            # workflow_dispatch → use explicit inputs; expand blank features to full list
+            if [[ -z "${INPUT_FEATURES:-}" ]]; then
+              features=$(ls -1 src | jq -R . | jq -sc .)
+            else
+              features=$(printf '%s\n' "$INPUT_FEATURES" | tr ',' '\n' | tr -d ' ' \
+                | grep -v '^$' | jq -R . | jq -sc .)
+            fi
             macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
               | sed 's|test/||; s|/macos/.*||' | sort -u)
-            macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
-            if [[ "$macos_features" != "[]" ]]; then run_macos=true; else run_macos=false; fi
+            if [[ -z "${INPUT_MACOS_FEATURES:-}" ]]; then
+              macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
+            else
+              macos_features=$(printf '%s\n' "$INPUT_MACOS_FEATURES" | tr ',' '\n' | tr -d ' ' \
+                | grep -v '^$' | jq -R . | jq -sc .)
+            fi
             {
-              echo "run_lint=true"
-              echo "run_validate=true"
-              echo "run_unit=true"
-              echo "run_features=true"
-              echo "features=$all_features"
-              echo "run_macos=$run_macos"
+              echo "run_lint=$INPUT_RUN_LINT"
+              echo "run_validate=$INPUT_RUN_VALIDATE"
+              echo "run_unit=$INPUT_RUN_UNIT"
+              echo "run_features=$INPUT_RUN_FEATURES"
+              echo "features=$features"
+              echo "run_macos=$INPUT_RUN_MACOS"
               echo "macos_features=$macos_features"
-              echo "run_dist=true"
+              echo "run_dist=$INPUT_RUN_DIST"
             } >> "$GITHUB_OUTPUT"
           fi
 
@@ -128,9 +170,6 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
-        run: bash sync-lib.sh
-
       - name: "Validate devcontainer-feature.json files"
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
         with:
@@ -155,7 +194,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Install bash ≥4 (macOS)"
@@ -193,7 +232,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Run unit tests in container"
@@ -217,18 +256,18 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
-      - name: "Install latest devcontainer CLI"
+      - name: Install Devcontainer CLI
         run: npm install -g @devcontainers/cli
 
-      - name: "Test ${{ matrix.feature }} scenarios"
+      - name: Test Feature Scenarios
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: devcontainer features test -f ${{ matrix.feature }} --skip-autogenerated --project-folder .
 
-      - name: "Run fail scenarios for ${{ matrix.feature }}"
+      - name: Test Fail Scenarios
         run: bash test/run-fail-scenarios.sh "${{ matrix.feature }}"
 
   # ── install-os-pkg manifest resolution (6 distros) ────────────────────────
@@ -250,7 +289,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Run manifest resolution tests"
@@ -276,7 +315,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Test ${{ matrix.feature }} macOS scenarios"
@@ -291,7 +330,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Run build scenario"
@@ -308,7 +347,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Run get/ scenarios"
@@ -338,7 +377,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Run sysset/ scenarios inside ${{ matrix.distro }} container"
@@ -362,7 +401,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Sync _lib/ copies from lib/"
+      - name: Sync Library Files
         run: bash sync-lib.sh
 
       - name: "Install bash ≥4 (macOS)"

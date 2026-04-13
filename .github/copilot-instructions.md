@@ -71,7 +71,8 @@ Features without a `dependencies/base.yaml`: `install-os-pkg` (it IS the package
 | Run expected-failure scenarios | `bash test/run-fail-scenarios.sh <feature>` |
 | Run lib/ unit tests (all) | `make test-unit` |
 | Run lib/ unit tests (one module) | `bash test/run-unit.sh --module <name>` (e.g. `os`, `shell`, `ospkg`) |
-| Release to GHCR | `workflow_dispatch` on `.github/workflows/release.yaml` |
+| Release to GHCR + GitHub Release | Push a `v*` tag, or `workflow_dispatch` on `cicd.yaml` with a `tag` input |
+| Publish only (skip tests) | `workflow_dispatch` on `cd.yaml` with a `tag` input |
 
 Always run `bash sync-lib.sh` before running feature tests locally.
 
@@ -123,11 +124,24 @@ All shell scripts are formatted with **shfmt** and linted with **shellcheck**.
 
 ## CI
 
-- **test.yaml**: On push/PR to `main`, discovers and tests only features with changed files under `src/<name>/` or `test/<name>/`. `workflow_dispatch` tests all features.
-- **test-unit.yaml**: On push/PR touching `lib/**` or `test/unit/**`, runs the bats unit suite on `ubuntu-latest` and `macos-latest`.
-- **validate.yml**: Validates all `devcontainer-feature.json` schemas on PR.
-- **lint.yaml**: Checks shfmt formatting and shellcheck lint on every push and PR.
-- **release.yaml**: Manual `workflow_dispatch`; publishes to GHCR and opens a docs PR.
+Three workflow files form the pipeline:
+
+- **`cicd.yaml`** — Orchestrator. Defines all event triggers (push, tag, PR, manual). Runs a `detect` job that computes changed-file flags, then calls `ci.yaml` (reusable CI) and conditionally `cd.yaml` (reusable CD) for releases.
+- **`ci.yaml`** — Reusable CI. All lint, validation, unit, feature, and dist test jobs. Also callable standalone via `workflow_dispatch`.
+- **`cd.yaml`** — Reusable CD. Publishes features to GHCR and creates a GitHub Release. Callable standalone via `workflow_dispatch` with a `tag` input.
+
+`detect` in `cicd.yaml` maps changed paths to specific jobs:
+
+| Changed path | Jobs triggered |
+|---|---|
+| `*.sh`, `*.bash`, `*.bats` | `lint` |
+| `src/**/devcontainer-feature.json` | `validate` |
+| `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
+| `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
+| `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
+| `get.sh`, `sysset.sh`, `build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
+
+On `workflow_dispatch` or `v*` tag push, all jobs run. CD runs only when `is_release=true` AND CI passes.
 
 ## Dev Container
 
