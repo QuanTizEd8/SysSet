@@ -21,6 +21,13 @@ check "oh-my-bash main script at custom path" test -f "${_OMB}/oh-my-bash.sh"
 check "omz not at default path" bash -c '! test -d /usr/local/share/oh-my-zsh'
 check "omb not at default path" bash -c '! test -d /usr/local/share/oh-my-bash'
 
+# System custom scaffold under custom OMZ install dir
+_SYS_CUSTOM="${_OMZ}/custom"
+check "oh-my-zsh.remote git config set at custom path" bash -c 'test "$(git -C "'"$_OMZ"'" config oh-my-zsh.remote)" = "origin"'
+check "system custom themes dir at custom OMZ path" test -d "${_SYS_CUSTOM}/themes"
+check "system custom plugins dir at custom OMZ path" test -d "${_SYS_CUSTOM}/plugins"
+check "default plugin cloned at custom OMZ path" test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
+
 # Root user configured (via add_container_user_config, _CONTAINER_USER=root)
 check "root .zshenv exists" test -f "${_HOME}/.zshenv"
 check "root ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"

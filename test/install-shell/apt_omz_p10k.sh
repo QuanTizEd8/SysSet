@@ -22,6 +22,7 @@ check "ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
 check "zshtheme file written" test -f "$_ZSHTHEME"
 check "zshtheme sets ZSH_THEME to p10k" grep -q 'ZSH_THEME=.*powerlevel10k' "$_ZSHTHEME"
 check "zshtheme disables p10k wizard" grep -qF 'POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true' "$_ZSHTHEME"
+check "zshtheme: wizard flag appears before source oh-my-zsh.sh" bash -c 'awk "/POWERLEVEL9K_DISABLE/{w=NR} /source.*oh-my-zsh/{s=NR} END{exit !(w>0 && s>0 && w<s)}" "'"$_ZSHTHEME"'"'
 check "zshtheme sources oh-my-zsh.sh" grep -q 'oh-my-zsh.sh' "$_ZSHTHEME"
 check "zshtheme sources .p10k.zsh" grep -q 'p10k.zsh' "$_ZSHTHEME"
 

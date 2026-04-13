@@ -42,5 +42,7 @@ check "BASH_ENV set in /etc/environment" grep -q '^BASH_ENV=' /etc/environment
 # --- Zsh system-wide config files ---
 check "zsh system zshenv exists" bash -c 'test -f /etc/zsh/zshenv || test -f /etc/zshenv'
 check "zsh system zshrc exists" bash -c 'test -f /etc/zsh/zshrc || test -f /etc/zshrc'
+check "zsh system zprofile exists" bash -c 'test -f /etc/zsh/zprofile || test -f /etc/zprofile'
+check "zsh zprofile sources .profile" bash -c 'grep -q "\.profile" /etc/zsh/zprofile 2>/dev/null || grep -q "\.profile" /etc/zprofile 2>/dev/null'
 
 reportResults
