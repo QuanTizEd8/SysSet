@@ -14,13 +14,16 @@ _NET_CA_CERTS_OK=
 # net::fetch_with_retry <max-attempts> <cmd...>
 # Runs <cmd> up to <max-attempts> times with a 3-second pause between
 # failures.  Does NOT require ospkg.sh.
+# Note: used as the wget retry wrapper (5s delay, up to 60 attempts ≈ 5 min).
+# curl uses its own --retry flag which handles transient errors natively
+# (see fetch_url_stdout/file).
 net::fetch_with_retry() {
   local _max="$1"
   shift
   local _i=1
   while [ "$_i" -le "$_max" ]; do
     "$@" && return 0
-    [ "$_i" -lt "$_max" ] && echo "⚠️  Attempt $_i/$_max failed — retrying in 3s..." >&2 && sleep 3
+    [ "$_i" -lt "$_max" ] && echo "⚠️  Attempt $_i/$_max failed — retrying in 5s..." >&2 && sleep 5
     _i=$((_i + 1))
   done
   echo "⛔ Failed after $_max attempt(s)." >&2
@@ -75,26 +78,30 @@ net::ensure_fetch_tool() {
 
 # net::fetch_url_stdout <url>
 # Writes URL response body to stdout using _NET_FETCH_TOOL, with retries.
+# curl: uses --retry which retries only on transient errors (5xx, 408, 429,
+#   connection failures).  wget: falls back to the shell retry wrapper.
 # Calls net::ensure_fetch_tool automatically if not already initialised.
 net::fetch_url_stdout() {
   net::ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    net::fetch_with_retry 3 curl -fsSL "$1"
+    curl -fsSL --retry 60 --retry-delay 5 --retry-connrefused "$1"
   else
-    net::fetch_with_retry 3 wget -O- "$1"
+    net::fetch_with_retry 60 wget -O- "$1"
   fi
   return 0
 }
 
 # net::fetch_url_file <url> <dest>
 # Writes URL response body to file using _NET_FETCH_TOOL, with retries.
+# curl: uses --retry which retries only on transient errors (5xx, 408, 429,
+#   connection failures).  wget: falls back to the shell retry wrapper.
 # Calls net::ensure_fetch_tool automatically if not already initialised.
 net::fetch_url_file() {
   net::ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    net::fetch_with_retry 3 curl -fsSL "$1" -o "$2"
+    curl -fsSL --retry 60 --retry-delay 5 --retry-connrefused "$1" -o "$2"
   else
-    net::fetch_with_retry 3 wget -O "$2" "$1"
+    net::fetch_with_retry 60 wget -O "$2" "$1"
   fi
   return 0
 }
