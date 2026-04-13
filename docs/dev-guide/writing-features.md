@@ -59,8 +59,7 @@ library available to every script.
 3. Run `bash sync-lib.sh` — this generates `src/<feature-id>/install.sh`
    (bootstrap) and `src/<feature-id>/scripts/_lib/`.
 4. Create `test/<feature-id>/scenarios.json` and at least one `<scenario>.sh`.
-5. Add `test/<feature-id>/test.sh` (stub — see [Testing](testing.md)).
-6. If the feature requires OS packages before `scripts/install.sh` runs,
+5. If the feature requires OS packages before `scripts/install.sh` runs,
    add `src/<feature-id>/dependencies/base.yaml`.
 
 ---

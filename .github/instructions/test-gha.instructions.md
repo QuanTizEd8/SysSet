@@ -229,7 +229,7 @@ bash test/run-fail-scenarios.sh <feature>
 
 ### CI integration
 
-The `test-features` job in `ci.yaml` runs `bash test/run-fail-scenarios.sh <feature>` as a separate step after the main scenario matrix, for every feature that has a `test/<feature>/fail_scenarios.sh`. No changes to `ci.yaml` are needed when adding a new `fail_scenarios.sh`.
+The `test-features` job in `ci.yaml` runs `bash test/run.sh feature <feature>` as a single step that covers both the scenario matrix and fail scenarios. No changes to `ci.yaml` are needed when adding a new `fail_scenarios.sh`.
 
 ## CI Trigger Logic
 
