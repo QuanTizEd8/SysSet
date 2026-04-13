@@ -2,8 +2,9 @@
 # POSIX sh compatible — safe to source from sh and bash scripts alike.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
-# net::ensure_fetch_tool and net::ensure_ca_certs require ospkg.sh to be
-# sourced first (they call ospkg::install if curl/wget/ca-certs are missing).
+# _net_ensure_fetch_tool and _net_ensure_ca_certs are internal helpers.
+# They require ospkg.sh to be sourced first (they call ospkg::install if
+# curl/wget/ca-certs are missing).
 
 [ -n "${_LIB_NET_LOADED-}" ] && return 0
 _LIB_NET_LOADED=1
@@ -31,10 +32,10 @@ net::fetch_with_retry() {
   return 1
 }
 
-# net::ensure_ca_certs
+# _net_ensure_ca_certs (internal)
 # Ensures /etc/ssl/certs/ca-certificates.crt exists; installs ca-certificates
 # via ospkg::install if not.  Requires ospkg.sh to have been sourced first.
-net::ensure_ca_certs() {
+_net_ensure_ca_certs() {
   [ -n "${_NET_CA_CERTS_OK:-}" ] && return 0
   # macOS uses its own keychain; curl/wget use it natively without a .crt file.
   [ "$(uname -s)" = "Darwin" ] && {
@@ -43,7 +44,7 @@ net::ensure_ca_certs() {
   }
   if [ ! -s /etc/ssl/certs/ca-certificates.crt ]; then
     [ -n "${_LIB_OSPKG_LOADED-}" ] || {
-      echo "⛔ net.sh: ospkg.sh must be sourced before net::ensure_ca_certs" >&2
+      echo "⛔ net.sh: ospkg.sh must be sourced before _net_ensure_ca_certs" >&2
       return 1
     }
     echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
@@ -54,10 +55,10 @@ net::ensure_ca_certs() {
   return 0
 }
 
-# net::ensure_fetch_tool
+# _net_ensure_fetch_tool (internal)
 # Sets _NET_FETCH_TOOL to "curl" or "wget"; installs curl via ospkg::install
 # if neither is found.  Requires ospkg.sh to have been sourced first.
-net::ensure_fetch_tool() {
+_net_ensure_fetch_tool() {
   if [ -z "${_NET_FETCH_TOOL:-}" ]; then
     if command -v curl > /dev/null 2>&1; then
       _NET_FETCH_TOOL=curl
@@ -65,7 +66,7 @@ net::ensure_fetch_tool() {
       _NET_FETCH_TOOL=wget
     else
       [ -n "${_LIB_OSPKG_LOADED-}" ] || {
-        echo "⛔ net.sh: ospkg.sh must be sourced before net::ensure_fetch_tool" >&2
+        echo "⛔ net.sh: ospkg.sh must be sourced before _net_ensure_fetch_tool" >&2
         return 1
       }
       echo "ℹ️  Neither curl nor wget found — installing curl." >&2
@@ -73,42 +74,117 @@ net::ensure_fetch_tool() {
       _NET_FETCH_TOOL=curl
     fi
   fi
-  net::ensure_ca_certs
+  _net_ensure_ca_certs
   return 0
 }
 
-# net::fetch_url_stdout <url> [max_retries=60] [delay=5]
+# net::fetch_url_stdout <url> [--retries N] [--delay N] [--header "Name: Value"]...
 # Writes URL response body to stdout using _NET_FETCH_TOOL, with retries.
 # curl: uses --retry which retries only on transient errors (5xx, 408, 429,
-#   connection failures).  wget: falls back to the shell retry wrapper.
-# max_retries defaults to 60 (≈5 min at 5s intervals); delay defaults to 5s.
-# Calls net::ensure_fetch_tool automatically if not already initialised.
+#   connection failures).  wget: falls back to net::fetch_with_retry.
+# --retries defaults to 60 (≈5 min at 5s intervals); --delay defaults to 5s.
+# Multiple --header flags may be supplied; each value is passed verbatim.
+# Calls _net_ensure_fetch_tool automatically if not already initialised.
 net::fetch_url_stdout() {
-  local _max="${2:-60}"
-  local _delay="${3:-5}"
-  net::ensure_fetch_tool
+  local _url="$1"
+  shift
+  local _max=60 _delay=5 _hdrs=''
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --retries)
+        _max="$2"
+        shift 2
+        ;;
+      --delay)
+        _delay="$2"
+        shift 2
+        ;;
+      --header)
+        _hdrs="${_hdrs}${2}
+"
+        shift 2
+        ;;
+      *)
+        echo "⛔ net::fetch_url_stdout: unknown option: '$1'" >&2
+        return 1
+        ;;
+    esac
+  done
+  _net_ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    curl -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused "$1"
+    set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
+    while IFS= read -r _h; do
+      [ -z "$_h" ] && continue
+      set -- "$@" -H "$_h"
+    done << _NET_HDR_EOF_
+$_hdrs
+_NET_HDR_EOF_
+    curl "$@" "$_url"
   else
-    net::fetch_with_retry "$_max" "$_delay" wget -O- "$1"
+    set -- -O-
+    while IFS= read -r _h; do
+      [ -z "$_h" ] && continue
+      set -- "$@" "--header=${_h}"
+    done << _NET_HDR_EOF_
+$_hdrs
+_NET_HDR_EOF_
+    net::fetch_with_retry "$_max" "$_delay" wget "$@" "$_url"
   fi
   return 0
 }
 
-# net::fetch_url_file <url> <dest> [max_retries=60] [delay=5]
+# net::fetch_url_file <url> <dest> [--retries N] [--delay N] [--header "Name: Value"]...
 # Writes URL response body to file using _NET_FETCH_TOOL, with retries.
 # curl: uses --retry which retries only on transient errors (5xx, 408, 429,
-#   connection failures).  wget: falls back to the shell retry wrapper.
-# max_retries defaults to 60 (≈5 min at 5s intervals); delay defaults to 5s.
-# Calls net::ensure_fetch_tool automatically if not already initialised.
+#   connection failures).  wget: falls back to net::fetch_with_retry.
+# --retries defaults to 60 (≈5 min at 5s intervals); --delay defaults to 5s.
+# Multiple --header flags may be supplied; each value is passed verbatim.
+# Calls _net_ensure_fetch_tool automatically if not already initialised.
 net::fetch_url_file() {
-  local _max="${3:-60}"
-  local _delay="${4:-5}"
-  net::ensure_fetch_tool
+  local _url="$1"
+  local _dest="$2"
+  shift 2
+  local _max=60 _delay=5 _hdrs=''
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --retries)
+        _max="$2"
+        shift 2
+        ;;
+      --delay)
+        _delay="$2"
+        shift 2
+        ;;
+      --header)
+        _hdrs="${_hdrs}${2}
+"
+        shift 2
+        ;;
+      *)
+        echo "⛔ net::fetch_url_file: unknown option: '$1'" >&2
+        return 1
+        ;;
+    esac
+  done
+  _net_ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    curl -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused "$1" -o "$2"
+    set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
+    while IFS= read -r _h; do
+      [ -z "$_h" ] && continue
+      set -- "$@" -H "$_h"
+    done << _NET_HDR_EOF_
+$_hdrs
+_NET_HDR_EOF_
+    curl "$@" -o "$_dest" "$_url"
   else
-    net::fetch_with_retry "$_max" "$_delay" wget -O "$2" "$1"
+    set -- -O "$_dest"
+    while IFS= read -r _h; do
+      [ -z "$_h" ] && continue
+      set -- "$@" "--header=${_h}"
+    done << _NET_HDR_EOF_
+$_hdrs
+_NET_HDR_EOF_
+    net::fetch_with_retry "$_max" "$_delay" wget "$@" "$_url"
   fi
   return 0
 }

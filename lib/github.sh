@@ -45,40 +45,25 @@ github::fetch_release_json() {
     _url="https://api.github.com/repos/${_repo}/releases/latest"
   fi
 
-  net::ensure_fetch_tool
-  net::ensure_ca_certs
-
   # Suppress xtrace for the authenticated fetch to prevent GITHUB_TOKEN
   # appearing in logs or set -x traces.
   local _xt=false
   [[ "$-" == *x* ]] && _xt=true
   { set +x; } 2> /dev/null
 
-  # Build header arguments for the detected fetch tool (curl or wget).
-  if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    local -a _hdr_args=(
-      -H "Accept: application/vnd.github+json"
-      -H "X-GitHub-Api-Version: 2022-11-28"
-    )
-    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-    if [ -n "$_dest" ]; then
-      net::fetch_with_retry 3 curl --fail --silent --show-error --location "${_hdr_args[@]}" "$_url" -o "$_dest"
-    else
-      net::fetch_with_retry 3 curl --fail --silent --show-error --location "${_hdr_args[@]}" "$_url"
-    fi
+  # Build header arguments; conditionally include Authorization.
+  local -a _hdrs=(
+    --header "Accept: application/vnd.github+json"
+    --header "X-GitHub-Api-Version: 2022-11-28"
+  )
+  [ -n "${GITHUB_TOKEN:-}" ] && _hdrs+=(--header "Authorization: Bearer ${GITHUB_TOKEN}")
+
+  local _ec=0
+  if [ -n "$_dest" ]; then
+    net::fetch_url_file "$_url" "$_dest" "${_hdrs[@]}" || _ec=$?
   else
-    local -a _hdr_args=(
-      --header="Accept: application/vnd.github+json"
-      --header="X-GitHub-Api-Version: 2022-11-28"
-    )
-    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(--header="Authorization: Bearer ${GITHUB_TOKEN}")
-    if [ -n "$_dest" ]; then
-      net::fetch_with_retry 3 wget -O "$_dest" "${_hdr_args[@]}" "$_url"
-    else
-      net::fetch_with_retry 3 wget -O- "${_hdr_args[@]}" "$_url"
-    fi
+    net::fetch_url_stdout "$_url" "${_hdrs[@]}" || _ec=$?
   fi
-  local _ec=$?
   [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
   return "$_ec"
 }
@@ -128,8 +113,6 @@ github::release_tags() {
   done
 
   local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
-  net::ensure_fetch_tool
-  net::ensure_ca_certs
 
   # Suppress xtrace for the authenticated fetch to prevent GITHUB_TOKEN
   # appearing in logs or set -x traces.
@@ -137,25 +120,18 @@ github::release_tags() {
   [[ "$-" == *x* ]] && _xt=true
   { set +x; } 2> /dev/null
 
+  local -a _hdrs=(
+    --header "Accept: application/vnd.github+json"
+    --header "X-GitHub-Api-Version: 2022-11-28"
+  )
+  [ -n "${GITHUB_TOKEN:-}" ] && _hdrs+=(--header "Authorization: Bearer ${GITHUB_TOKEN}")
+
   local _json
-  local -a _hdr_args=()
-  if [ "$_NET_FETCH_TOOL" = "curl" ]; then
-    _hdr_args+=(-H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
-    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-    _json="$(net::fetch_with_retry 3 curl --fail --silent --show-error --location "${_hdr_args[@]}" "$_url")" || {
-      [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
-      echo "⛔ github::release_tags: failed to reach GitHub API for '${_repo}'." >&2
-      return 1
-    }
-  else
-    _hdr_args+=(--header="Accept: application/vnd.github+json" --header="X-GitHub-Api-Version: 2022-11-28")
-    [ -n "${GITHUB_TOKEN:-}" ] && _hdr_args+=(--header="Authorization: Bearer ${GITHUB_TOKEN}")
-    _json="$(net::fetch_with_retry 3 wget -O- "${_hdr_args[@]}" "$_url")" || {
-      [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
-      echo "⛔ github::release_tags: failed to reach GitHub API for '${_repo}'." >&2
-      return 1
-    }
-  fi
+  _json="$(net::fetch_url_stdout "$_url" "${_hdrs[@]}")" || {
+    [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
+    echo "⛔ github::release_tags: failed to reach GitHub API for '${_repo}'." >&2
+    return 1
+  }
   [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
 
   [ -z "$_json" ] && {

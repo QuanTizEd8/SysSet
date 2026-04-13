@@ -131,8 +131,6 @@ _LIB_MYMODULE_LOADED=1
 - `net::fetch_url_stdout <url>` — fetch URL to stdout; auto-selects curl/wget; 3 retries
 - `net::fetch_url_file <url> <dest>` — fetch URL to file
 - `net::fetch_with_retry <max-attempts> <cmd...>` — generic retry wrapper; 3-second pause between attempts
-- `net::ensure_fetch_tool` — ensure curl or wget is available (installs curl if neither found)
-- `net::ensure_ca_certs` — ensure `/etc/ssl/certs/ca-certificates.crt` is present
 
 ### `os.sh` (auto-sourced by ospkg.sh)
 

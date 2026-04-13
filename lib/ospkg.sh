@@ -75,7 +75,6 @@ _ospkg_ensure_gpg() {
 _ospkg_install_key_entry() {
   local _url="$1"
   local _dest="$2"
-  net::ensure_fetch_tool
   mkdir -p "$(dirname "$_dest")"
   if [[ "$_dest" == *.gpg ]]; then
     _ospkg_ensure_gpg

@@ -100,7 +100,7 @@ When implementing a new feature or editing an existing one, abstract any reusabl
 | `logging.sh` | `logging::setup` · `logging::cleanup` |
 | `os.sh` | `os::require_root` · `os::kernel` · `os::arch` · `os::id` · `os::id_like` · `os::platform` · `os::font_dir` |
 | `ospkg.sh` | `ospkg::detect` · `ospkg::install <pkg>...` · `ospkg::update` · `ospkg::clean` · `ospkg::run [--manifest <f>] [--check_installed] [--no_clean] [--no_update] [--dry_run]` |
-| `net.sh` | `net::fetch_url_stdout <url>` · `net::fetch_url_file <url> <dest>` · `net::fetch_with_retry <n> <cmd...>` · `net::ensure_fetch_tool` · `net::ensure_ca_certs` |
+| `net.sh` | `net::fetch_url_stdout <url>` · `net::fetch_url_file <url> <dest>` · `net::fetch_with_retry <n> <cmd...>` |
 | `git.sh` | `git::clone --url <url> --dir <dir> [--branch <branch>]` |
 | `shell.sh` | `shell::detect_bashrc` · `shell::detect_zshdir` · `shell::resolve_home <user>` · `shell::resolve_omz_theme` · `shell::plugin_names_from_slugs <csv>` · `shell::write_block` · `shell::remove_block` · `shell::export_path` · `shell::export_env` |
 | `github.sh` | `github::fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` · `github::latest_tag <owner/repo>` · `github::release_tags <owner/repo> [--per_page <n>]` · `github::release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` |

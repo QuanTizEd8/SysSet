@@ -80,7 +80,7 @@ echo "ℹ️  Installing Starship to '${BIN_DIR}'..." >&2
 _INSTALLER_SCRIPT="$(mktemp)"
 trap 'rm -f "$_INSTALLER_SCRIPT"' EXIT
 
-net::fetch_with_retry 3 curl -fsSL "$_STARSHIP_INSTALLER_URL" -o "$_INSTALLER_SCRIPT"
+net::fetch_url_file "$_STARSHIP_INSTALLER_URL" "$_INSTALLER_SCRIPT"
 chmod +x "$_INSTALLER_SCRIPT"
 
 # The official installer supports --yes (non-interactive) and --bin-dir.

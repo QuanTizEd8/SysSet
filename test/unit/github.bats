@@ -62,16 +62,16 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "github::release_tags parses multiple tags from JSON array" {
-  # net::fetch_with_retry is used inside; override it to return canned JSON.
+  # net::fetch_url_stdout is used inside; override it to return canned JSON.
   # Each object must be on its own line so that the grep/sed pipeline in
   # github::release_tags extracts one tag per line correctly.
-  net::fetch_with_retry() {
+  net::fetch_url_stdout() {
     printf '{"tag_name":"v3.0.0"}\n'
     printf '{"tag_name":"v2.1.0"}\n'
     printf '{"tag_name":"v2.0.0"}\n'
     return 0
   }
-  export -f net::fetch_with_retry
+  export -f net::fetch_url_stdout
   run github::release_tags "owner/repo"
   assert_output "v3.0.0
 v2.1.0
@@ -79,11 +79,11 @@ v2.0.0"
 }
 
 @test "github::release_tags accepts --per_page option" {
-  net::fetch_with_retry() {
+  net::fetch_url_stdout() {
     printf '%s\n' '[{"tag_name":"v1.0.0"}]'
     return 0
   }
-  export -f net::fetch_with_retry
+  export -f net::fetch_url_stdout
   run github::release_tags "owner/repo" --per_page 5
   assert_output "v1.0.0"
   assert_success
@@ -169,22 +169,22 @@ v2.0.0"
 }
 
 @test "github::fetch_release_json includes Authorization header when GITHUB_TOKEN is set" {
-  # Override fetch_with_retry to print all its arguments so we can inspect headers.
-  net::fetch_with_retry() {
+  # Override net::fetch_url_stdout to print all its arguments so we can inspect headers.
+  net::fetch_url_stdout() {
     printf '%s\n' "$@"
     return 0
   }
-  export -f net::fetch_with_retry
+  export -f net::fetch_url_stdout
   GITHUB_TOKEN="mytoken" run github::fetch_release_json "owner/repo"
   assert_output --partial "Authorization: Bearer mytoken"
 }
 
 @test "github::fetch_release_json builds a tag URL when --tag is given" {
-  net::fetch_with_retry() {
+  net::fetch_url_stdout() {
     printf '%s\n' "$@"
     return 0
   }
-  export -f net::fetch_with_retry
+  export -f net::fetch_url_stdout
   run github::fetch_release_json "owner/repo" --tag "v2.0.0"
   assert_output --partial "releases/tags/v2.0.0"
 }
