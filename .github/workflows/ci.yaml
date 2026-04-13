@@ -82,7 +82,6 @@ jobs:
       - name: "Pass through inputs (workflow_call) or resolve inputs (workflow_dispatch)"
         id: setup
         env:
-          EVENT_NAME: ${{ github.event_name }}
           INPUT_RUN_LINT: ${{ inputs.run_lint }}
           INPUT_RUN_VALIDATE: ${{ inputs.run_validate }}
           INPUT_RUN_UNIT: ${{ inputs.run_unit }}
@@ -92,44 +91,42 @@ jobs:
           INPUT_MACOS_FEATURES: ${{ inputs.macos_features }}
           INPUT_RUN_DIST: ${{ inputs.run_dist }}
         run: |
-          if [[ "$EVENT_NAME" != "workflow_dispatch" ]]; then
-            {
-              echo "run_lint=$INPUT_RUN_LINT"
-              echo "run_validate=$INPUT_RUN_VALIDATE"
-              echo "run_unit=$INPUT_RUN_UNIT"
-              echo "run_features=$INPUT_RUN_FEATURES"
-              echo "features=$INPUT_FEATURES"
-              echo "run_macos=$INPUT_RUN_MACOS"
-              echo "macos_features=$INPUT_MACOS_FEATURES"
-              echo "run_dist=$INPUT_RUN_DIST"
-            } >> "$GITHUB_OUTPUT"
+          # ── Resolve features ──────────────────────────────────────────────
+          # INPUT_FEATURES can be:
+          #   - a JSON array string (from workflow_call via cicd.yaml) → pass through as-is
+          #   - blank (from direct workflow_dispatch with no override) → discover all
+          #   - a comma-separated list (from direct workflow_dispatch form) → parse and convert
+          if [[ "${INPUT_FEATURES:-}" == \[* ]]; then
+            features="$INPUT_FEATURES"
+          elif [[ -z "${INPUT_FEATURES:-}" ]]; then
+            features=$(ls -1 src | jq -R . | jq -sc .)
           else
-            # workflow_dispatch → use explicit inputs; expand blank features to full list
-            if [[ -z "${INPUT_FEATURES:-}" ]]; then
-              features=$(ls -1 src | jq -R . | jq -sc .)
-            else
-              features=$(printf '%s\n' "$INPUT_FEATURES" | tr ',' '\n' | tr -d ' ' \
-                | grep -v '^$' | jq -R . | jq -sc .)
-            fi
+            features=$(printf '%s\n' "$INPUT_FEATURES" | tr ',' '\n' | tr -d ' ' \
+              | grep -v '^$' | jq -R . | jq -sc .)
+          fi
+
+          # ── Resolve macos_features ────────────────────────────────────────
+          if [[ "${INPUT_MACOS_FEATURES:-}" == \[* ]]; then
+            macos_features="$INPUT_MACOS_FEATURES"
+          elif [[ -z "${INPUT_MACOS_FEATURES:-}" ]]; then
             macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
               | sed 's|test/||; s|/macos/.*||' | sort -u)
-            if [[ -z "${INPUT_MACOS_FEATURES:-}" ]]; then
-              macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
-            else
-              macos_features=$(printf '%s\n' "$INPUT_MACOS_FEATURES" | tr ',' '\n' | tr -d ' ' \
-                | grep -v '^$' | jq -R . | jq -sc .)
-            fi
-            {
-              echo "run_lint=$INPUT_RUN_LINT"
-              echo "run_validate=$INPUT_RUN_VALIDATE"
-              echo "run_unit=$INPUT_RUN_UNIT"
-              echo "run_features=$INPUT_RUN_FEATURES"
-              echo "features=$features"
-              echo "run_macos=$INPUT_RUN_MACOS"
-              echo "macos_features=$macos_features"
-              echo "run_dist=$INPUT_RUN_DIST"
-            } >> "$GITHUB_OUTPUT"
+            macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
+          else
+            macos_features=$(printf '%s\n' "$INPUT_MACOS_FEATURES" | tr ',' '\n' | tr -d ' ' \
+              | grep -v '^$' | jq -R . | jq -sc .)
           fi
+
+          {
+            echo "run_lint=$INPUT_RUN_LINT"
+            echo "run_validate=$INPUT_RUN_VALIDATE"
+            echo "run_unit=$INPUT_RUN_UNIT"
+            echo "run_features=$INPUT_RUN_FEATURES"
+            echo "features=$features"
+            echo "run_macos=$INPUT_RUN_MACOS"
+            echo "macos_features=$macos_features"
+            echo "run_dist=$INPUT_RUN_DIST"
+          } >> "$GITHUB_OUTPUT"
 
   # ── Lint (shfmt + shellcheck) ─────────────────────────────────────────────
   lint:
