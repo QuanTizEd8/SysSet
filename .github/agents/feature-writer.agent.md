@@ -55,7 +55,7 @@ For every feature task, execute these phases in order. DO NOT SKIP PHASES.
 2. Design a comprehensive, flexible API (the `options` object in `devcontainer-feature.json` and corresponding environment variables) that covers:
    - Download source/URL and version selection.
    - Installation path and prefix.
-   - Target users (leveraging `users::resolve_list`).
+   - Target users (leveraging `users__resolve_list`).
    - PATH addition and shell activation options.
    - Idempotency behavior (what to do when the tool already exists).
    - Logging (`debug`, `logfile` — required by convention).
@@ -73,9 +73,9 @@ For every feature task, execute these phases in order. DO NOT SKIP PHASES.
 5. Write the installer script under `src/<feature>/scripts/install.sh` following all conventions:
    - File header with `_SELF_DIR` and `_BASE_DIR`.
    - Source `ospkg.sh` first, then `logging.sh`, then other needed modules.
-   - `logging::setup` + EXIT trap for `logging::cleanup`.
+   - `logging__setup` + EXIT trap for `logging__cleanup`.
    - Dual-mode argument parsing (env vars for devcontainer CLI, `--flags` for standalone).
-   - `ospkg::run --manifest` for OS dependencies.
+   - `ospkg__run --manifest` for OS dependencies.
    - Explicit `return` on every function.
 6. Write the `dependencies/base.yaml` manifest if needed.
 7. Run formatting and linting:

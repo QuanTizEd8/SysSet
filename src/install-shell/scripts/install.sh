@@ -31,8 +31,8 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 # ---------------------------------------------------------------------------
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-logging::setup
-trap 'logging::cleanup' EXIT
+logging__setup
+trap 'logging__cleanup' EXIT
 
 # ---------------------------------------------------------------------------
 # Usage
@@ -278,7 +278,7 @@ fi
 # ---------------------------------------------------------------------------
 # Preconditions
 # ---------------------------------------------------------------------------
-os::require_root
+os__require_root
 
 echo "========================================" >&2
 echo "  install-shell" >&2
@@ -288,14 +288,14 @@ echo "========================================" >&2
 # Step 1: Install dependencies
 # ===================================================================
 _PKG_MANIFEST="${_BASE_DIR}/dependencies/base.yaml"
-ospkg::run --manifest "$_PKG_MANIFEST" --check_installed --no_clean
+ospkg__run --manifest "$_PKG_MANIFEST" --check_installed --no_clean
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
     echo "ℹ️  Zsh already installed — skipping." >&2
   else
     echo "📦 Installing Zsh..." >&2
-    ospkg::install zsh
+    ospkg__install zsh
   fi
 fi
 
@@ -392,7 +392,7 @@ if [ -f "$_src" ]; then
 fi
 
 # --- Bash system-wide bashrc ---
-_SYS_BASHRC="$(shell::detect_bashrc)"
+_SYS_BASHRC="$(shell__detect_bashrc)"
 _src="${_FILES_DIR}/bash/bashrc"
 if [ -f "$_src" ]; then
   mkdir -p "$(dirname "$_SYS_BASHRC")"
@@ -425,7 +425,7 @@ fi
 
 # --- Zsh system-wide files ---
 if command -v zsh > /dev/null 2>&1; then
-  _ZSH_ETC="$(shell::detect_zshdir)"
+  _ZSH_ETC="$(shell__detect_zshdir)"
   mkdir -p "$_ZSH_ETC"
 
   for _name in zshenv zprofile zshrc; do
@@ -442,7 +442,7 @@ fi
 # ===================================================================
 # Step 6: Resolve user list
 # ===================================================================
-mapfile -t _RESOLVED_USERS < <(users::resolve_list)
+mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
   echo "ℹ️  No users to configure." >&2
@@ -517,10 +517,10 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
       ;;
   esac
 
-  users::set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
+  users__set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
 fi
 
-ospkg::clean
+ospkg__clean
 
 echo "========================================" >&2
 echo "  install-shell complete" >&2

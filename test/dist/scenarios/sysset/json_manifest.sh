@@ -9,7 +9,7 @@
 #     even though the manifest lists install-pixi first.
 #   • Both features install successfully (verified via installed artifacts).
 #
-# Requires: root (sysset.sh calls os::require_root).
+# Requires: root (sysset.sh calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"

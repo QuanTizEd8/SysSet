@@ -5,7 +5,7 @@
 # Strategy: manifest lists install-pixi before install-os-pkg with
 # override_install_order: true. The log should show install-pixi first.
 #
-# Requires: root (sysset.sh calls os::require_root).
+# Requires: root (sysset.sh calls os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"

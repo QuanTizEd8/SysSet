@@ -16,8 +16,8 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-logging::setup
-trap 'logging::cleanup' EXIT
+logging__setup
+trap 'logging__cleanup' EXIT
 
 # ---------------------------------------------------------------------------
 # Usage
@@ -132,10 +132,10 @@ fi
 
 # Auto-detect font directory when not explicitly set.
 if [[ -z "$FONT_DIR" ]]; then
-  FONT_DIR="$(os::font_dir)"
+  FONT_DIR="$(os__font_dir)"
 fi
 
-ospkg::run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
 
 [[ "${DEBUG:-}" == true ]] && set -x
 

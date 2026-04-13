@@ -28,38 +28,38 @@ _os_load_release() {
   return 0
 }
 
-# os::kernel — prints the kernel name (Linux or Darwin).
-os::kernel() {
+# os__kernel — prints the kernel name (Linux or Darwin).
+os__kernel() {
   [ -n "${_OS_KERNEL-}" ] || _OS_KERNEL="$(uname -s)"
   echo "$_OS_KERNEL"
   return 0
 }
 
-# os::arch — prints the CPU architecture (x86_64, aarch64, arm64, …).
-os::arch() {
+# os__arch — prints the CPU architecture (x86_64, aarch64, arm64, …).
+os__arch() {
   [ -n "${_OS_ARCH-}" ] || _OS_ARCH="$(uname -m)"
   echo "$_OS_ARCH"
   return 0
 }
 
-# os::id — prints the ID field from /etc/os-release (e.g. ubuntu, debian, alpine).
-os::id() {
+# os__id — prints the ID field from /etc/os-release (e.g. ubuntu, debian, alpine).
+os__id() {
   _os_load_release
   echo "${_OS_ID:-}"
   return 0
 }
 
-# os::id_like — prints ID_LIKE from /etc/os-release (space-separated family list).
-os::id_like() {
+# os__id_like — prints ID_LIKE from /etc/os-release (space-separated family list).
+os__id_like() {
   _os_load_release
   echo "${_OS_ID_LIKE:-}"
   return 0
 }
 
-# os::platform — prints a canonical platform tag.
+# os__platform — prints a canonical platform tag.
 # Returns one of: debian | alpine | rhel | macos
 # 'debian' is the fallback for unrecognised Linux distros.
-os::platform() {
+os__platform() {
   if [ -n "${_OS_PLATFORM-}" ]; then
     echo "$_OS_PLATFORM"
     return 0
@@ -84,9 +84,9 @@ os::platform() {
   return 0
 }
 
-# os::require_root
+# os__require_root
 # Exits 1 with a message if the current user is not root.
-os::require_root() {
+os__require_root() {
   if [ "$(id -u)" -ne 0 ]; then
     echo '⛔ This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.' >&2
     exit 1
@@ -94,15 +94,15 @@ os::require_root() {
   return 0
 }
 
-# os::font_dir
+# os__font_dir
 # Prints the appropriate font directory for the current user.
 #   root (id -u = 0): /usr/share/fonts
 #   macOS non-root:   ~/Library/Fonts
 #   Linux non-root:   ${XDG_DATA_HOME:-~/.local/share}/fonts
-os::font_dir() {
+os__font_dir() {
   if [ "$(id -u)" -eq 0 ]; then
     echo "/usr/share/fonts"
-  elif [ "$(os::kernel)" = "Darwin" ]; then
+  elif [ "$(os__kernel)" = "Darwin" ]; then
     echo "${HOME}/Library/Fonts"
   else
     echo "${XDG_DATA_HOME:-${HOME}/.local/share}/fonts"
@@ -110,11 +110,11 @@ os::font_dir() {
   return 0
 }
 
-# os::is_container
+# os__is_container
 # Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI),
 # 1 otherwise.  Uses the same heuristics as Homebrew's check-run-command-as-root()
 # (Library/Homebrew/brew.sh) so that brew can run as root in devcontainers.
-os::is_container() {
+os__is_container() {
   [ -f /.dockerenv ] && return 0
   [ -f /run/.containerenv ] && return 0
   if [ -f /proc/1/cgroup ] &&

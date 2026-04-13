@@ -9,44 +9,44 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# git::clone argument validation
+# git__clone argument validation
 # ---------------------------------------------------------------------------
 
-@test "git::clone fails when --url is missing" {
-  run git::clone --dir "${BATS_TEST_TMPDIR}/repo"
+@test "git__clone fails when --url is missing" {
+  run git__clone --dir "${BATS_TEST_TMPDIR}/repo"
   assert_failure
   assert_output --partial "missing --url"
 }
 
-@test "git::clone fails when --dir is missing" {
-  run git::clone --url "https://example.com/repo.git"
+@test "git__clone fails when --dir is missing" {
+  run git__clone --url "https://example.com/repo.git"
   assert_failure
   assert_output --partial "missing --dir"
 }
 
-@test "git::clone rejects unknown options" {
-  run git::clone --url "https://example.com/repo.git" --dir "/tmp/x" --bogus
+@test "git__clone rejects unknown options" {
+  run git__clone --url "https://example.com/repo.git" --dir "/tmp/x" --bogus
   assert_failure
   assert_output --partial "unknown option"
 }
 
 # ---------------------------------------------------------------------------
-# git::clone idempotency
+# git__clone idempotency
 # ---------------------------------------------------------------------------
 
-@test "git::clone skips when target .git already exists" {
+@test "git__clone skips when target .git already exists" {
   local _dir="${BATS_TEST_TMPDIR}/existing"
   mkdir -p "${_dir}/.git"
-  run git::clone --url "https://example.com/repo.git" --dir "$_dir"
+  run git__clone --url "https://example.com/repo.git" --dir "$_dir"
   assert_success
   assert_output --partial "already exists"
 }
 
 # ---------------------------------------------------------------------------
-# git::clone real clone (shallow, local bare repo as server)
+# git__clone real clone (shallow, local bare repo as server)
 # ---------------------------------------------------------------------------
 
-@test "git::clone clones a local bare repo" {
+@test "git__clone clones a local bare repo" {
   # Create a minimal local bare repository to avoid network access.
   local _src="${BATS_TEST_TMPDIR}/src.git"
   local _dst="${BATS_TEST_TMPDIR}/dst"
@@ -61,14 +61,14 @@ setup() {
   git -C "$_work" commit -m "init" > /dev/null 2>&1
   git -C "$_work" push > /dev/null 2>&1
 
-  run git::clone --url "file://${_src}" --dir "$_dst"
+  run git__clone --url "file://${_src}" --dir "$_dst"
   assert_success
   assert_file_exists "${_dst}/.git/HEAD"
 }
 
-@test "git::clone removes partial directory on clone failure" {
+@test "git__clone removes partial directory on clone failure" {
   local _dst="${BATS_TEST_TMPDIR}/bad_dst"
-  run git::clone --url "https://0.0.0.0/nonexistent.git" --dir "$_dst"
+  run git__clone --url "https://0.0.0.0/nonexistent.git" --dir "$_dst"
   assert_failure
   [[ ! -d "$_dst" ]]
 }

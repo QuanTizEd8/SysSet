@@ -79,10 +79,10 @@ _ospkg_install_key_entry() {
   if [[ "$_dest" == *.gpg ]]; then
     _ospkg_ensure_gpg
     echo "🔑 Fetching and dearmoring key → $_dest" >&2
-    net::fetch_url_stdout "$_url" | gpg --dearmor -o "$_dest"
+    net__fetch_url_stdout "$_url" | gpg --dearmor -o "$_dest"
   else
     echo "🔑 Fetching key → $_dest" >&2
-    net::fetch_url_file "$_url" "$_dest"
+    net__fetch_url_file "$_url" "$_dest"
   fi
   chmod 0644 "$_dest"
   return 0
@@ -129,7 +129,7 @@ _ospkg_brew_run() {
     brew "$@"
     return
   fi
-  if os::is_container; then
+  if os__is_container; then
     brew "$@"
     return
   fi
@@ -171,8 +171,8 @@ _ospkg_ensure_yq() {
   # Older distros package kislyuk/yq (incompatible) or nothing at all.
   if ! command -v yq > /dev/null 2>&1; then
     echo "ℹ️  yq not found — attempting package manager install." >&2
-    ospkg::update >&2 || true
-    ospkg::install yq >&2 || true
+    ospkg__update >&2 || true
+    ospkg__install yq >&2 || true
     # Re-test after potential install.
     if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
       _OSPKG_YQ_BIN="yq"
@@ -187,8 +187,8 @@ _ospkg_ensure_yq() {
   # shellcheck source=lib/checksum.sh
   . "$_OSPKG_LIB_DIR/checksum.sh"
   local _os _arch _yq_base _url _yq_dir _dest _expected_hash
-  _os="$(os::kernel | tr '[:upper:]' '[:lower:]')" # linux | darwin
-  _arch="$(os::arch)"
+  _os="$(os__kernel | tr '[:upper:]' '[:lower:]')" # linux | darwin
+  _arch="$(os__arch)"
   case "$_arch" in
     x86_64) _arch="amd64" ;;
     aarch64 | arm64) _arch="arm64" ;;
@@ -199,13 +199,13 @@ _ospkg_ensure_yq() {
   esac
   _yq_base="https://github.com/mikefarah/yq/releases/latest/download"
   _url="${_yq_base}/yq_${_os}_${_arch}"
-  _yq_dir="$(logging::tmpdir "ospkg/yq")"
+  _yq_dir="$(logging__tmpdir "ospkg/yq")"
   _dest="${_yq_dir}/yq"
   echo "ℹ️  Downloading yq (${_os}/${_arch}) from GitHub Releases." >&2
-  net::fetch_url_file "$_url" "$_dest"
-  net::fetch_url_file "${_yq_base}/checksums" "${_yq_dir}/checksums"
-  net::fetch_url_file "${_yq_base}/checksums_hashes_order" "${_yq_dir}/checksums_hashes_order"
-  net::fetch_url_file "${_yq_base}/extract-checksum.sh" "${_yq_dir}/extract-checksum.sh"
+  net__fetch_url_file "$_url" "$_dest"
+  net__fetch_url_file "${_yq_base}/checksums" "${_yq_dir}/checksums"
+  net__fetch_url_file "${_yq_base}/checksums_hashes_order" "${_yq_dir}/checksums_hashes_order"
+  net__fetch_url_file "${_yq_base}/extract-checksum.sh" "${_yq_dir}/extract-checksum.sh"
   _expected_hash="$(cd "${_yq_dir}" && bash extract-checksum.sh SHA-256 "yq_${_os}_${_arch}" | awk '{print $2}')"
   # Guard against CDN soft errors: a lying CDN may return HTTP 200 with an
   # error-page body, making curl exit 0 but producing garbage content.
@@ -214,7 +214,7 @@ _ospkg_ensure_yq() {
     echo "⛔ yq: extracted checksum is not a valid SHA-256 hash (got: '${_expected_hash:-<empty>}') — a download may have been corrupted by a CDN error page." >&2
     return 1
   fi
-  if ! checksum::verify_sha256 "$_dest" "$_expected_hash"; then
+  if ! checksum__verify_sha256 "$_dest" "$_expected_hash"; then
     echo "⛔ yq: checksum verification failed — aborting." >&2
     return 1
   fi
@@ -226,7 +226,7 @@ _ospkg_ensure_yq() {
 
 # ── Private: PM configuration helpers ────────────────────────────────────────
 # Each _ospkg_set_* function configures the internal state for one PM family.
-# Called only from ospkg::detect().
+# Called only from ospkg__detect().
 
 _ospkg_set_apt() {
   echo "🛠️  Detected ecosystem: APT (tool: apt-get)" >&2
@@ -354,11 +354,11 @@ _ospkg_load_linux_release() {
   return 0
 }
 
-# ── Public: ospkg::detect ────────────────────────────────────────────────────
+# ── Public: ospkg__detect ────────────────────────────────────────────────────
 # Idempotent: detects the package manager and populates _OSPKG_* state.
 # Respects _OSPKG_PREFER_LINUXBREW: when true, brew is checked before the
 # native Linux PM chain (no effect on macOS where brew is always used).
-ospkg::detect() {
+ospkg__detect() {
   [[ "$_OSPKG_DETECTED" == true ]] && return 0
 
   local _kernel
@@ -418,11 +418,11 @@ ospkg::detect() {
   return 0
 }
 
-# ── Public: ospkg::update ────────────────────────────────────────────────────
-# Usage: ospkg::update [--force] [--lists_max_age <N>] [--repo_added]
+# ── Public: ospkg__update ────────────────────────────────────────────────────
+# Usage: ospkg__update [--force] [--lists_max_age <N>] [--repo_added]
 # Runs the package index update, optionally skipping if lists are fresh.
-ospkg::update() {
-  ospkg::detect
+ospkg__update() {
+  ospkg__detect
   local _force=false _max_age=300 _repo_added=false
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -440,7 +440,7 @@ ospkg::update() {
         _repo_added=true
         ;;
       *)
-        echo "⛔ ospkg::update: unknown option: $1" >&2
+        echo "⛔ ospkg__update: unknown option: $1" >&2
         return 1
         ;;
     esac
@@ -482,11 +482,11 @@ ospkg::update() {
   return 0
 }
 
-# ── Public: ospkg::install ───────────────────────────────────────────────────
-# Usage: ospkg::install <pkg>...
+# ── Public: ospkg__install ───────────────────────────────────────────────────
+# Usage: ospkg__install <pkg>...
 # Installs packages, with idempotency check for apt and dnf.
-ospkg::install() {
-  ospkg::detect
+ospkg__install() {
+  ospkg__detect
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     echo "📲 Installing packages:" >&2
     printf '  - %s\n' "$@" >&2
@@ -513,19 +513,19 @@ ospkg::install() {
   return 0
 }
 
-# ── Public: ospkg::clean ─────────────────────────────────────────────────────
-ospkg::clean() {
-  ospkg::detect
+# ── Public: ospkg__clean ─────────────────────────────────────────────────────
+ospkg__clean() {
+  ospkg__detect
   echo "🧹 Cleaning package manager cache." >&2
   "$_OSPKG_CLEAN"
   return 0
 }
 
-# ── Public: ospkg::parse_manifest_yaml ───────────────────────────────────────
-# Usage: ospkg::parse_manifest_yaml <json-file>
+# ── Public: ospkg__parse_manifest_yaml ───────────────────────────────────────
+# Usage: ospkg__parse_manifest_yaml <json-file>
 # Parses a JSON manifest (pre-converted from YAML via yq) and emits a stream
 # of newline-delimited compact JSON records to stdout, each with a "kind" field.
-# Requires: jq in PATH; _OSPKG_OS_RELEASE populated by ospkg::detect.
+# Requires: jq in PATH; _OSPKG_OS_RELEASE populated by ospkg__detect.
 #
 # Output record kinds:
 #   prescript   {kind,content}
@@ -539,7 +539,7 @@ ospkg::clean() {
 #   package     {kind,name,flags,version}
 #   cask        {kind,cask}          — brew (macOS) only
 #   script      {kind,content}
-ospkg::parse_manifest_yaml() {
+ospkg__parse_manifest_yaml() {
   local _json_file="$1"
 
   # Build a full JSON context object from _OSPKG_OS_RELEASE so that every
@@ -749,16 +749,16 @@ end
   return 0
 }
 
-# ── Public: ospkg::run ───────────────────────────────────────────────────────
+# ── Public: ospkg__run ───────────────────────────────────────────────────────
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
 # repos → PM setup → update → install → casks → script → cleanup.
 #
-# Usage: ospkg::run [--manifest <file-or-inline>]
+# Usage: ospkg__run [--manifest <file-or-inline>]
 #                   [--no_update]   [--no_clean]    [--check_installed]  (legacy)
 #                   [--keep_cache]  [--skip_installed] [--prefer_linuxbrew] (new)
 #                   [--keep_repos] [--lists_max_age <N>] [--dry_run]
 #                   [--interactive]
-ospkg::run() {
+ospkg__run() {
   local _manifest='' _no_update=false _no_clean=false _keep_repos=false
   local _lists_max_age=300 _dry_run=false _check_installed=false _interactive=false
   local _prefer_linuxbrew=false
@@ -804,14 +804,14 @@ ospkg::run() {
         _prefer_linuxbrew=true
         ;;
       *)
-        echo "⛔ ospkg::run: unknown option: $1" >&2
+        echo "⛔ ospkg__run: unknown option: $1" >&2
         return 1
         ;;
     esac
   done
 
   if ! [[ "$_lists_max_age" =~ ^[0-9]+$ ]]; then
-    echo "⛔ ospkg::run: invalid lists_max_age value: '$_lists_max_age'." >&2
+    echo "⛔ ospkg__run: invalid lists_max_age value: '$_lists_max_age'." >&2
     return 1
   fi
 
@@ -820,11 +820,11 @@ ospkg::run() {
   # Set prefer_linuxbrew early so detect() picks it up.
   _OSPKG_PREFER_LINUXBREW="$_prefer_linuxbrew"
 
-  ospkg::detect
+  ospkg__detect
 
   # Root check: brew is exempt (it manages its own user/root logic via _ospkg_brew_run).
   if [[ "$_dry_run" == false && "$_OSPKG_PKG_MNGR" != "brew" ]]; then
-    os::require_root
+    os__require_root
   fi
 
   if [[ "$_OSPKG_PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
@@ -852,8 +852,8 @@ ospkg::run() {
     # not a user-requested package, so this runs even in dry-run mode).
     if ! command -v jq > /dev/null 2>&1; then
       echo "ℹ️  jq not found — installing." >&2
-      ospkg::update --force
-      ospkg::install jq
+      ospkg__update --force
+      ospkg__install jq
     fi
 
     # yq is required to convert YAML to JSON.
@@ -863,10 +863,10 @@ ospkg::run() {
     fi
 
     # Convert YAML (or JSON) to JSON via yq, then parse into phase arrays.
-    # Temp files live inside _SYSSET_TMPDIR so logging::cleanup removes them
+    # Temp files live inside _SYSSET_TMPDIR so logging__cleanup removes them
     # automatically on exit, even on unexpected failure.
     local _ospkg_dir _json_tmp
-    _ospkg_dir="$(logging::tmpdir "ospkg")"
+    _ospkg_dir="$(logging__tmpdir "ospkg")"
     _json_tmp="$(mktemp "${_ospkg_dir}/yaml_XXXXXX")"
 
     local -a _Y_PRESCRIPTS=() _Y_KEYS=() _Y_REPOS=() _Y_PPAS=() _Y_TAPS=() _Y_COPR=()
@@ -896,7 +896,7 @@ ospkg::run() {
         cask) _Y_CASKS+=("$_item") ;;
         script) _Y_SCRIPTS+=("$_item") ;;
       esac
-    done < <(ospkg::parse_manifest_yaml "$_json_tmp")
+    done < <(ospkg__parse_manifest_yaml "$_json_tmp")
     rm -f "$_json_tmp"
     echo "ℹ️  YAML manifest parsed: ${#_Y_PRESCRIPTS[@]} prescript(s), ${#_Y_KEYS[@]} key(s), ${#_Y_REPOS[@]} repo(s), ${#_Y_PPAS[@]} ppa(s), ${#_Y_TAPS[@]} tap(s), ${#_Y_COPR[@]} copr(s), ${#_Y_MODULES[@]} module(s), ${#_Y_GROUPS[@]} group(s), ${#_Y_PACKAGES[@]} package(s), ${#_Y_CASKS[@]} cask(s), ${#_Y_SCRIPTS[@]} script(s)." >&2
 
@@ -992,7 +992,7 @@ ospkg::run() {
         echo "📎 Adding ${#_Y_PPAS[@]} PPA(s)." >&2
         if ! command -v add-apt-repository > /dev/null 2>&1; then
           echo "ℹ️  add-apt-repository not found — installing software-properties-common." >&2
-          [[ "$_dry_run" == false ]] && ospkg::install software-properties-common
+          [[ "$_dry_run" == false ]] && ospkg__install software-properties-common
         fi
         local _ppitem _ppa
         for _ppitem in "${_Y_PPAS[@]}"; do
@@ -1111,7 +1111,7 @@ ospkg::run() {
               echo "🔍 [dry-run] group: would run: ${_OSPKG_INSTALL[*]} '${_grp}'" >&2
             else
               echo "📦 Installing group '${_grp}' (pacman)." >&2
-              ospkg::install "$_grp"
+              ospkg__install "$_grp"
             fi
             ;;
           *)
@@ -1132,7 +1132,7 @@ ospkg::run() {
           echo "ℹ️  Package list update not supported by '${_OSPKG_PKG_MNGR}' — skipping." >&2
         fi
       else
-        ospkg::update "${_update_args[@]}"
+        ospkg__update "${_update_args[@]}"
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
       echo "ℹ️  Package list update skipped (no packages in manifest)." >&2
@@ -1188,7 +1188,7 @@ ospkg::run() {
       if [[ "$_dry_run" == true ]]; then
         echo "🔍 [dry-run] packages: ${_pkgs_to_install[*]}" >&2
       else
-        ospkg::install "${_pkgs_to_install[@]}"
+        ospkg__install "${_pkgs_to_install[@]}"
       fi
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
       echo "ℹ️  No packages to install — skipping." >&2
@@ -1260,7 +1260,7 @@ ospkg::run() {
   if [[ "$_dry_run" == true ]]; then
     echo "🔍 [dry-run] cache clean: would run ${_OSPKG_CLEAN}" >&2
   elif [[ "$_no_clean" == false ]]; then
-    ospkg::clean
+    ospkg__clean
   else
     echo "ℹ️  Cache cleanup skipped (--keep_cache / --no_clean)." >&2
   fi

@@ -9,278 +9,278 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# os::kernel
+# os__kernel
 # ---------------------------------------------------------------------------
 
-@test "os::kernel returns the uname -s value" {
+@test "os__kernel returns the uname -s value" {
   reload_lib os.sh
   uname() { echo "Linux"; }
   export -f uname
-  run os::kernel
+  run os__kernel
   assert_output "Linux"
   assert_success
 }
 
-@test "os::kernel returns Darwin" {
+@test "os__kernel returns Darwin" {
   reload_lib os.sh
   uname() { echo "Darwin"; }
   export -f uname
-  run os::kernel
+  run os__kernel
   assert_output "Darwin"
 }
 
-@test "os::kernel uses cached _OS_KERNEL value" {
+@test "os__kernel uses cached _OS_KERNEL value" {
   reload_lib os.sh
   _OS_KERNEL="CachedOS"
-  run os::kernel
+  run os__kernel
   assert_output "CachedOS"
 }
 
 # ---------------------------------------------------------------------------
-# os::arch
+# os__arch
 # ---------------------------------------------------------------------------
 
-@test "os::arch returns the uname -m value" {
+@test "os__arch returns the uname -m value" {
   reload_lib os.sh
   uname() { echo "x86_64"; }
   export -f uname
-  run os::arch
+  run os__arch
   assert_output "x86_64"
 }
 
-@test "os::arch returns aarch64" {
+@test "os__arch returns aarch64" {
   reload_lib os.sh
   uname() { echo "aarch64"; }
   export -f uname
-  run os::arch
+  run os__arch
   assert_output "aarch64"
 }
 
-@test "os::arch uses cached _OS_ARCH value" {
+@test "os__arch uses cached _OS_ARCH value" {
   reload_lib os.sh
   _OS_ARCH="arm64"
-  run os::arch
+  run os__arch
   assert_output "arm64"
 }
 
 # ---------------------------------------------------------------------------
-# os::id / os::id_like  (injecting pre-loaded release state)
+# os__id / os__id_like  (injecting pre-loaded release state)
 # ---------------------------------------------------------------------------
 
-@test "os::id returns ID injected via cached globals" {
+@test "os__id returns ID injected via cached globals" {
   reload_lib os.sh
   _OS_ID="ubuntu"
   _OS_RELEASE_LOADED=1
-  run os::id
+  run os__id
   assert_output "ubuntu"
 }
 
-@test "os::id returns alpine" {
+@test "os__id returns alpine" {
   reload_lib os.sh
   _OS_ID="alpine"
   _OS_RELEASE_LOADED=1
-  run os::id
+  run os__id
   assert_output "alpine"
 }
 
-@test "os::id_like returns injected ID_LIKE" {
+@test "os__id_like returns injected ID_LIKE" {
   reload_lib os.sh
   _OS_ID_LIKE="debian ubuntu"
   _OS_RELEASE_LOADED=1
-  run os::id_like
+  run os__id_like
   assert_output "debian ubuntu"
 }
 
-@test "os::id_like returns empty string when unset" {
+@test "os__id_like returns empty string when unset" {
   reload_lib os.sh
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::id_like
+  run os__id_like
   assert_output ""
 }
 
 # ---------------------------------------------------------------------------
-# os::platform
+# os__platform
 # ---------------------------------------------------------------------------
 
-@test "os::platform returns debian for ID=ubuntu" {
+@test "os__platform returns debian for ID=ubuntu" {
   reload_lib os.sh
   _OS_ID="ubuntu"
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "debian"
 }
 
-@test "os::platform returns debian for ID=debian" {
+@test "os__platform returns debian for ID=debian" {
   reload_lib os.sh
   _OS_ID="debian"
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "debian"
 }
 
-@test "os::platform returns alpine for ID=alpine" {
+@test "os__platform returns alpine for ID=alpine" {
   reload_lib os.sh
   _OS_ID="alpine"
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "alpine"
 }
 
-@test "os::platform returns rhel for ID=fedora" {
+@test "os__platform returns rhel for ID=fedora" {
   reload_lib os.sh
   _OS_ID="fedora"
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "rhel"
 }
 
-@test "os::platform returns rhel for ID=centos" {
+@test "os__platform returns rhel for ID=centos" {
   reload_lib os.sh
   _OS_ID="centos"
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "rhel"
 }
 
-@test "os::platform returns macos for Darwin uname fallback" {
+@test "os__platform returns macos for Darwin uname fallback" {
   reload_lib os.sh
   _OS_ID=""
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
   uname() { echo "Darwin"; }
   export -f uname
-  run os::platform
+  run os__platform
   assert_output "macos"
 }
 
-@test "os::platform returns debian as fallback for unknown Linux" {
+@test "os__platform returns debian as fallback for unknown Linux" {
   reload_lib os.sh
   _OS_ID=""
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
   uname() { echo "Linux"; }
   export -f uname
-  run os::platform
+  run os__platform
   assert_output "debian"
 }
 
-@test "os::platform returns debian when ID_LIKE contains debian" {
+@test "os__platform returns debian when ID_LIKE contains debian" {
   reload_lib os.sh
   _OS_ID="linuxmint"
   _OS_ID_LIKE="ubuntu debian"
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "debian"
 }
 
-@test "os::platform uses cached _OS_PLATFORM" {
+@test "os__platform uses cached _OS_PLATFORM" {
   reload_lib os.sh
   _OS_PLATFORM="rhel"
-  run os::platform
+  run os__platform
   assert_output "rhel"
 }
 
-@test "os::platform returns rhel for ID=rhel" {
+@test "os__platform returns rhel for ID=rhel" {
   reload_lib os.sh
   _OS_ID="rhel"
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "rhel"
 }
 
-@test "os::platform returns rhel for ID=rocky" {
+@test "os__platform returns rhel for ID=rocky" {
   reload_lib os.sh
   _OS_ID="rocky"
   _OS_ID_LIKE=""
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "rhel"
 }
 
-@test "os::platform returns rhel when ID_LIKE contains fedora" {
+@test "os__platform returns rhel when ID_LIKE contains fedora" {
   reload_lib os.sh
   _OS_ID="custom"
   _OS_ID_LIKE="fedora"
   _OS_RELEASE_LOADED=1
-  run os::platform
+  run os__platform
   assert_output "rhel"
 }
 
 # ---------------------------------------------------------------------------
-# os::require_root
+# os__require_root
 # ---------------------------------------------------------------------------
 
-@test "os::require_root succeeds when id -u returns 0" {
+@test "os__require_root succeeds when id -u returns 0" {
   reload_lib os.sh
   create_fake_bin "id" "0"
   prepend_fake_bin_path
-  run os::require_root
+  run os__require_root
   assert_success
 }
 
-@test "os::require_root fails with message when id -u returns non-zero" {
+@test "os__require_root fails with message when id -u returns non-zero" {
   reload_lib os.sh
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
-  run os::require_root
+  run os__require_root
   assert_failure
   assert_output --partial "must be run as root"
 }
 
 # ---------------------------------------------------------------------------
-# os::font_dir
+# os__font_dir
 # ---------------------------------------------------------------------------
 
-@test "os::font_dir returns /usr/share/fonts for root" {
+@test "os__font_dir returns /usr/share/fonts for root" {
   reload_lib os.sh
   create_fake_bin "id" "0"
   prepend_fake_bin_path
-  run os::font_dir
+  run os__font_dir
   assert_output "/usr/share/fonts"
 }
 
-@test "os::font_dir returns ~/Library/Fonts for macOS non-root" {
+@test "os__font_dir returns ~/Library/Fonts for macOS non-root" {
   reload_lib os.sh
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   uname() { echo "Darwin"; }
   export -f uname
-  HOME="/home/testuser" run os::font_dir
+  HOME="/home/testuser" run os__font_dir
   assert_output "/home/testuser/Library/Fonts"
 }
 
-@test "os::font_dir returns XDG_DATA_HOME path for Linux non-root" {
+@test "os__font_dir returns XDG_DATA_HOME path for Linux non-root" {
   reload_lib os.sh
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   uname() { echo "Linux"; }
   export -f uname
-  HOME="/home/testuser" XDG_DATA_HOME="/custom/data" run os::font_dir
+  HOME="/home/testuser" XDG_DATA_HOME="/custom/data" run os__font_dir
   assert_output "/custom/data/fonts"
 }
 
-@test "os::font_dir returns default XDG path when XDG_DATA_HOME not set" {
+@test "os__font_dir returns default XDG path when XDG_DATA_HOME not set" {
   reload_lib os.sh
   create_fake_bin "id" "1001"
   prepend_fake_bin_path
   uname() { echo "Linux"; }
   export -f uname
-  HOME="/home/testuser" XDG_DATA_HOME="" run os::font_dir
+  HOME="/home/testuser" XDG_DATA_HOME="" run os__font_dir
   assert_output "/home/testuser/.local/share/fonts"
 }
 
 # ---------------------------------------------------------------------------
-# os::is_container
+# os__is_container
 # ---------------------------------------------------------------------------
 
-@test "os::is_container returns true when /.dockerenv exists" {
+@test "os__is_container returns true when /.dockerenv exists" {
   reload_lib os.sh
   # Use a temp file as the sentinel — override the built-in check via function
   # injection: the simplest approach is writing /.dockerenv to a tmpdir and
@@ -293,27 +293,27 @@ setup() {
   run bash -c "
     source '${LIB_ROOT}/os.sh'
     # Override the check: replace /.dockerenv with \$_tmp/.dockerenv
-    os::is_container() {
+    os__is_container() {
       [[ -f '${_tmp}/.dockerenv' ]] && return 0
       return 1
     }
-    os::is_container
+    os__is_container
   "
   assert_success
   rm -rf "$_tmp"
 }
 
-@test "os::is_container returns false when no container markers are present" {
+@test "os__is_container returns false when no container markers are present" {
   reload_lib os.sh
   run bash -c "
     source '${LIB_ROOT}/os.sh'
     # Override the check: point all paths to non-existent files.
-    os::is_container() {
+    os__is_container() {
       [[ -f '/no-such-dockerenv-sentinel' ]] && return 0
       [[ -f '/run/.containerenv-sentinel' ]] && return 0
       return 1
     }
-    os::is_container
+    os__is_container
   "
   assert_failure
 }

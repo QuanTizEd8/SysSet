@@ -648,7 +648,7 @@ Linux host, `pm` is `brew` but the remaining keys (`id`, `id_like`,
 
 **Root privilege** — On Linux, the installer requires root for native PM
 operations. On macOS, `brew` must run as a non-root user; the
-`os::require_root` check is skipped when the detected PM is `brew`. The
+`os__require_root` check is skipped when the detected PM is `brew`. The
 `dry_run` option also skips the root check on all platforms.
 
 **Brew user handling** — When the installer runs as root (as it always does
@@ -1284,7 +1284,7 @@ is exposed. The rationale:
   permissions. Brew's single-user ownership model is simpler than both and
   doesn't warrant a user-facing option.
 
-Container detection is implemented via `os::is_container()` in `lib/os.sh`,
+Container detection is implemented via `os__is_container()` in `lib/os.sh`,
 reusing the same indicators brew checks: `/.dockerenv` (Docker),
 `/run/.containerenv` (Podman), and cgroup inspection for `docker`,
 `kubepods`, `garden`, `azpl_job`, `actions_job` (Kubernetes, Cloud Foundry,
@@ -1353,7 +1353,7 @@ Rationale:
   never published to a package registry.
 - **All in-repo manifests were migrated.** The feature-level
   `dependencies/base.yaml` files used by other features (which also consume
-  `ospkg::run()`) were converted to YAML as part of the implementation.
+  `ospkg__run()`) were converted to YAML as part of the implementation.
 - **A backward-compatible approach would have been costly.** Supporting two formats
   means maintaining two parsers, producing confusing error messages when the
   wrong format is used (or worse, silently misinterpreting one format as the

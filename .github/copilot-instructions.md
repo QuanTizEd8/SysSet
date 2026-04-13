@@ -97,15 +97,15 @@ When implementing a new feature or editing an existing one, abstract any reusabl
 
 | Module | Key API |
 |---|---|
-| `logging.sh` | `logging::setup` · `logging::cleanup` |
-| `os.sh` | `os::require_root` · `os::kernel` · `os::arch` · `os::id` · `os::id_like` · `os::platform` · `os::font_dir` |
-| `ospkg.sh` | `ospkg::detect` · `ospkg::install <pkg>...` · `ospkg::update` · `ospkg::clean` · `ospkg::run [--manifest <f>] [--check_installed] [--no_clean] [--no_update] [--dry_run]` |
-| `net.sh` | `net::fetch_url_stdout <url>` · `net::fetch_url_file <url> <dest>` · `net::fetch_with_retry <n> <cmd...>` |
-| `git.sh` | `git::clone --url <url> --dir <dir> [--branch <branch>]` |
-| `shell.sh` | `shell::detect_bashrc` · `shell::detect_zshdir` · `shell::resolve_home <user>` · `shell::resolve_omz_theme` · `shell::plugin_names_from_slugs <csv>` · `shell::write_block` · `shell::remove_block` · `shell::export_path` · `shell::export_env` |
-| `github.sh` | `github::fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` · `github::latest_tag <owner/repo>` · `github::release_tags <owner/repo> [--per_page <n>]` · `github::release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` |
-| `checksum.sh` | `checksum::verify_sha256 <file> <expected_hash>` · `checksum::verify_sha256_sidecar <file> <sha256_file>` |
-| `users.sh` | `users::resolve_list` · `users::set_login_shell <shell_path> <username>...` |
+| `logging.sh` | `logging__setup` · `logging__cleanup` |
+| `os.sh` | `os__require_root` · `os__kernel` · `os__arch` · `os__id` · `os__id_like` · `os__platform` · `os__font_dir` |
+| `ospkg.sh` | `ospkg__detect` · `ospkg__install <pkg>...` · `ospkg__update` · `ospkg__clean` · `ospkg__run [--manifest <f>] [--check_installed] [--no_clean] [--no_update] [--dry_run]` |
+| `net.sh` | `net__fetch_url_stdout <url>` · `net__fetch_url_file <url> <dest>` · `net__fetch_with_retry <n> <cmd...>` |
+| `git.sh` | `git__clone --url <url> --dir <dir> [--branch <branch>]` |
+| `shell.sh` | `shell__detect_bashrc` · `shell__detect_zshdir` · `shell__resolve_home <user>` · `shell__resolve_omz_theme` · `shell__plugin_names_from_slugs <csv>` · `shell__write_block` · `shell__remove_block` · `shell__export_path` · `shell__export_env` |
+| `github.sh` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` · `github__latest_tag <owner/repo>` · `github__release_tags <owner/repo> [--per_page <n>]` · `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` |
+| `checksum.sh` | `checksum__verify_sha256 <file> <expected_hash>` · `checksum__verify_sha256_sidecar <file> <sha256_file>` |
+| `users.sh` | `users__resolve_list` · `users__set_login_shell <shell_path> <username>...` |
 
 `ospkg.sh` internally sources `os.sh` and `net.sh`, so sourcing `ospkg.sh` first is sufficient for most features. Source `github.sh`, `checksum.sh`, `shell.sh`, `git.sh`, and `users.sh` explicitly when needed.
 

@@ -2,7 +2,7 @@
 # shellcheck disable=SC2016,SC2088  # bash -c literal script, ~/ in labels
 # fresh_install: uninstall the pre-installed Homebrew, then run the feature
 # to install it from scratch.  This exercises the full install code path on
-# macOS: net::fetch_url_file download, official installer run as a non-root
+# macOS: net__fetch_url_file download, official installer run as a non-root
 # user, and Case B shellenv export to personal dotfiles.
 #
 # ⚠️  This scenario is DESTRUCTIVE: it removes the GHA runner's Homebrew

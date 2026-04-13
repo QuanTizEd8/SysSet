@@ -73,7 +73,7 @@ _install_homebrew_bare() {
   # shellcheck source=/dev/null
   . "$_self_dir/scripts/_lib/net.sh"
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
-  net::fetch_url_file \
+  net__fetch_url_file \
     "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" \
     "$_tmpfile"
   NONINTERACTIVE=1 /bin/bash "$_tmpfile"

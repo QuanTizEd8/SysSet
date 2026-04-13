@@ -6,9 +6,9 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-logging::setup
+logging__setup
 echo "↪️ Script entry: System Package Installation" >&2
-trap 'logging::cleanup' EXIT
+trap 'logging__cleanup' EXIT
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
@@ -252,6 +252,6 @@ _OSPKG_ARGS+=(--lists_max_age "$LISTS_MAX_AGE")
 [[ "$SKIP_INSTALLED" == true ]] && _OSPKG_ARGS+=(--skip_installed)
 [[ "$PREFER_LINUXBREW" == true ]] && _OSPKG_ARGS+=(--prefer_linuxbrew)
 [[ "$INTERACTIVE" == true ]] && _OSPKG_ARGS+=(--interactive)
-ospkg::run "${_OSPKG_ARGS[@]}"
+ospkg__run "${_OSPKG_ARGS[@]}"
 echo "✅ Package installation complete."
 echo "↩️ Script exit: System Package Installation" >&2

@@ -43,10 +43,10 @@ setup() {
   reload_lib os.sh
 }
 
-@test "os::kernel returns the uname output" {
+@test "os__kernel returns the uname output" {
   uname() { printf 'Linux\n'; }
   export -f uname
-  run os::kernel
+  run os__kernel
   assert_success
   assert_output "Linux"
 }
@@ -100,7 +100,7 @@ When the real command must be completely hidden — for example, testing wget de
   create_fake_bin "wget" ""
   local _saved="$PATH"
   export PATH="${BATS_TEST_TMPDIR}/bin"   # only fake bin — real curl invisible
-  net::ensure_fetch_tool
+  net__ensure_fetch_tool
   local _result="$_NET_FETCH_TOOL"
   export PATH="$_saved"                   # restore before bats teardown uses rm, etc.
   [[ "$_result" == "wget" ]]
@@ -127,15 +127,15 @@ For commands where a function override is awkward (requires parsing arguments), 
 To mock a lib function called by the function under test, define it in the test body before invoking the real function:
 
 ```bash
-@test "github::latest_tag parses tag_name from JSON" {
+@test "github__latest_tag parses tag_name from JSON" {
   reload_lib net.sh
   reload_lib github.sh
-  github::fetch_release_json() {
+  github__fetch_release_json() {
     printf '{"tag_name":"v1.2.3"}\n'
     return 0
   }
-  export -f github::fetch_release_json
-  run github::latest_tag "owner/repo"
+  export -f github__fetch_release_json
+  run github__latest_tag "owner/repo"
   assert_success
   assert_output "v1.2.3"
 }
@@ -143,15 +143,15 @@ To mock a lib function called by the function under test, define it in the test 
 
 ## Subprocess Isolation for `logging.sh`
 
-`logging::setup` executes `exec 3>&1 4>&2`, which redirects file descriptor 3. Bats uses fd 3 for TAP output — the redirect corrupts bats' reporting and causes most tests in the file to silently vanish.
+`logging__setup` executes `exec 3>&1 4>&2`, which redirects file descriptor 3. Bats uses fd 3 for TAP output — the redirect corrupts bats' reporting and causes most tests in the file to silently vanish.
 
-**Rule:** Every test that calls `logging::setup` or `logging::cleanup` must run in a `bash -c` subprocess isolated from bats' fd 3:
+**Rule:** Every test that calls `logging__setup` or `logging__cleanup` must run in a `bash -c` subprocess isolated from bats' fd 3:
 
 ```bash
-@test "logging::setup creates a temp log file" {
+@test "logging__setup creates a temp log file" {
   run bash -c "
     source '${BATS_TEST_DIRNAME}/../../lib/logging.sh'
-    logging::setup
+    logging__setup
     [[ -f \"\${_LOGGING_TMPFILE}\" ]] && echo OK
   "
   assert_success
@@ -216,20 +216,20 @@ macOS-specific return values to test for explicitly:
 
 | Function | macOS value |
 |---|---|
-| `os::kernel` | `Darwin` |
-| `os::platform` | `macos` |
-| `os::font_dir` (as root) | `/Library/Fonts` |
-| `os::font_dir` (non-root, no `$XDG_DATA_HOME`) | `${HOME}/Library/Fonts` |
+| `os__kernel` | `Darwin` |
+| `os__platform` | `macos` |
+| `os__font_dir` (as root) | `/Library/Fonts` |
+| `os__font_dir` (non-root, no `$XDG_DATA_HOME`) | `${HOME}/Library/Fonts` |
 
-macOS has no `/etc/os-release`, so `os::id`, `os::id_like`, and `os::platform` fall through to the `uname -s` path.
+macOS has no `/etc/os-release`, so `os__id`, `os__id_like`, and `os__platform` fall through to the `uname -s` path.
 
 ## Common Pitfalls
 
 | Pitfall | Symptom | Fix |
 |---|---|---|
 | `declare -A` in sourced file creates local var | All ospkg platform lookups return the same value | `reload_lib` pre-declares `declare -gA _OSPKG_OS_RELEASE=()` before sourcing |
-| `logging::setup` hijacks fd 3 | Only 1 of N logging tests runs; bats prints "Bad file descriptor" | Wrap every logging test in `run bash -c "..."` |
-| Real `curl` found despite fake bin prepend | `net::ensure_fetch_tool` always returns `curl` even in the wget test | Replace PATH entirely (`export PATH="${BATS_TEST_TMPDIR}/bin"`); restore afterward |
+| `logging__setup` hijacks fd 3 | Only 1 of N logging tests runs; bats prints "Bad file descriptor" | Wrap every logging test in `run bash -c "..."` |
+| Real `curl` found despite fake bin prepend | `net__ensure_fetch_tool` always returns `curl` even in the wget test | Replace PATH entirely (`export PATH="${BATS_TEST_TMPDIR}/bin"`); restore afterward |
 | PATH left restricted | Bats teardown `rm: command not found` | Always `export PATH="$_saved"` before the test function returns |
 | `export -f` missing | Overridden function invisible inside sourced library | Add `export -f <funcname>` after defining the override |
 | Global state leaking between tests | Tests pass individually but fail in suite | Call `reload_lib` in `setup()` for every test that needs a clean module state |

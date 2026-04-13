@@ -5,11 +5,11 @@
 [[ -n "${_LIB_GIT_LOADED-}" ]] && return 0
 _LIB_GIT_LOADED=1
 
-# git::clone --url <url> --dir <dir> [--branch <branch>]
+# git__clone --url <url> --dir <dir> [--branch <branch>]
 # Clones <url> into <dir> with depth=1.  If <dir>/.git already exists the
 # clone is skipped (idempotent).  On failure the partially-created <dir> is
 # removed so a re-run does not silently skip a broken clone.
-git::clone() {
+git__clone() {
   local branch="" dir="" url=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -29,21 +29,21 @@ git::clone() {
         shift
         ;;
       --*)
-        echo "⛔ git::clone: unknown option '${1}'" >&2
+        echo "⛔ git__clone: unknown option '${1}'" >&2
         return 1
         ;;
       *)
-        echo "⛔ git::clone: unexpected argument '${1}'" >&2
+        echo "⛔ git__clone: unexpected argument '${1}'" >&2
         return 1
         ;;
     esac
   done
   [ -z "${dir}" ] && {
-    echo "⛔ git::clone: missing --dir" >&2
+    echo "⛔ git__clone: missing --dir" >&2
     return 1
   }
   [ -z "${url}" ] && {
-    echo "⛔ git::clone: missing --url" >&2
+    echo "⛔ git__clone: missing --url" >&2
     return 1
   }
 

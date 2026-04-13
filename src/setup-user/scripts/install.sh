@@ -18,10 +18,10 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-logging::setup
+logging__setup
 
 echo "↪️ Script entry: User Setup" >&2
-trap 'logging::cleanup' EXIT
+trap 'logging__cleanup' EXIT
 
 # ---------------------------------------------------------------------------
 # Argument parsing (CLI invocation — not used by devcontainer tooling)
@@ -140,8 +140,8 @@ USERNAME="${USERNAME:-vscode}"
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
-os::require_root
-ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
+os__require_root
+ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
 
 if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
   echo "⛔ user_id must be a non-negative integer, got: '${USER_ID}'" >&2
@@ -262,7 +262,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-  ospkg::run --manifest "${_SELF_DIR}/../dependencies/sudo.yaml" --check_installed
+  ospkg__run --manifest "${_SELF_DIR}/../dependencies/sudo.yaml" --check_installed
   mkdir -p "$SUDOERS_DIR"
   echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
   chmod 0440 "${SUDOERS_DIR}/${USERNAME}"

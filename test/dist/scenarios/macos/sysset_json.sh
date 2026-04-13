@@ -2,9 +2,9 @@
 # macos/sysset_json.sh — Verify that sysset.sh processes a JSON manifest and
 # installs features on macOS from co-located tarballs in the all-bundle.
 #
-# setup-shim is used because it requires no package manager (no ospkg::run
+# setup-shim is used because it requires no package manager (no ospkg__run
 # call), works on macOS as root, and produces verifiable shim artifacts.
-# Requires: root for sysset.sh (os::require_root).
+# Requires: root for sysset.sh (os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"

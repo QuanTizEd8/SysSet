@@ -7,7 +7,7 @@
 [ -n "${_LIB_GITHUB_LOADED-}" ] && return 0
 _LIB_GITHUB_LOADED=1
 
-# github::fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]
+# github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]
 #
 # Fetches the GitHub Releases API response for a repository.
 # Without --tag: fetches /releases/latest (single release object).
@@ -15,7 +15,7 @@ _LIB_GITHUB_LOADED=1
 # Without --dest: writes JSON to stdout.
 # With    --dest: writes JSON to <file>.
 # Respects GITHUB_TOKEN env var (Authorization: Bearer).
-github::fetch_release_json() {
+github__fetch_release_json() {
   local _repo="$1"
   shift
   local _tag="" _dest=""
@@ -32,7 +32,7 @@ github::fetch_release_json() {
         shift
         ;;
       *)
-        echo "⛔ github::fetch_release_json: unknown option: '$1'" >&2
+        echo "⛔ github__fetch_release_json: unknown option: '$1'" >&2
         return 1
         ;;
     esac
@@ -60,41 +60,41 @@ github::fetch_release_json() {
 
   local _ec=0
   if [ -n "$_dest" ]; then
-    net::fetch_url_file "$_url" "$_dest" "${_hdrs[@]}" || _ec=$?
+    net__fetch_url_file "$_url" "$_dest" "${_hdrs[@]}" || _ec=$?
   else
-    net::fetch_url_stdout "$_url" "${_hdrs[@]}" || _ec=$?
+    net__fetch_url_stdout "$_url" "${_hdrs[@]}" || _ec=$?
   fi
   [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
   return "$_ec"
 }
 
-# github::latest_tag <owner/repo>
+# github__latest_tag <owner/repo>
 #
 # Prints the latest release tag name for the given repository.
 # Exits 1 if the API call fails or no tag can be parsed.
-github::latest_tag() {
+github__latest_tag() {
   local _repo="$1"
   local _tag
-  _tag="$(github::fetch_release_json "$_repo" |
+  _tag="$(github__fetch_release_json "$_repo" |
     grep '"tag_name"' | head -1 |
     sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
-    echo "⛔ github::latest_tag: failed to reach GitHub API for '${_repo}'." >&2
+    echo "⛔ github__latest_tag: failed to reach GitHub API for '${_repo}'." >&2
     return 1
   }
   [ -z "$_tag" ] && {
-    echo "⛔ github::latest_tag: could not parse tag_name for '${_repo}'." >&2
+    echo "⛔ github__latest_tag: could not parse tag_name for '${_repo}'." >&2
     return 1
   }
   echo "$_tag"
   return 0
 }
 
-# github::release_tags <owner/repo> [--per_page <n>]
+# github__release_tags <owner/repo> [--per_page <n>]
 #
 # Prints one release tag per line (newest first) for the given repository.
 # Fetches /releases?per_page=<n> (default 100).
 # Useful for version-matching against a list (grep/sort/tail in the caller).
-github::release_tags() {
+github__release_tags() {
   local _repo="$1"
   shift
   local _per_page=100
@@ -106,7 +106,7 @@ github::release_tags() {
         shift
         ;;
       *)
-        echo "⛔ github::release_tags: unknown option: '$1'" >&2
+        echo "⛔ github__release_tags: unknown option: '$1'" >&2
         return 1
         ;;
     esac
@@ -127,15 +127,15 @@ github::release_tags() {
   [ -n "${GITHUB_TOKEN:-}" ] && _hdrs+=(--header "Authorization: Bearer ${GITHUB_TOKEN}")
 
   local _json
-  _json="$(net::fetch_url_stdout "$_url" "${_hdrs[@]}")" || {
+  _json="$(net__fetch_url_stdout "$_url" "${_hdrs[@]}")" || {
     [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
-    echo "⛔ github::release_tags: failed to reach GitHub API for '${_repo}'." >&2
+    echo "⛔ github__release_tags: failed to reach GitHub API for '${_repo}'." >&2
     return 1
   }
   [[ "$_xt" == true ]] && { set -x; } 2> /dev/null
 
   [ -z "$_json" ] && {
-    echo "⛔ github::release_tags: received empty response for '${_repo}'." >&2
+    echo "⛔ github__release_tags: received empty response for '${_repo}'." >&2
     return 1
   }
   printf '%s\n' "$_json" |
@@ -144,14 +144,14 @@ github::release_tags() {
   return 0
 }
 
-# github::release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere_pattern>]
+# github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere_pattern>]
 #
 # Prints one browser_download_url per line from a GitHub release.
 # Without --tag: uses /releases/latest.
 # With    --tag: uses /releases/tags/<tag>.
 # With    --filter: applies an extended-regex grep to the URL list.
 # Exits 1 if the API call fails.
-github::release_asset_urls() {
+github__release_asset_urls() {
   local _repo="$1"
   shift
   local _tag="" _filter=""
@@ -168,7 +168,7 @@ github::release_asset_urls() {
         shift
         ;;
       *)
-        echo "⛔ github::release_asset_urls: unknown option: '$1'" >&2
+        echo "⛔ github__release_asset_urls: unknown option: '$1'" >&2
         return 1
         ;;
     esac
@@ -181,7 +181,7 @@ github::release_asset_urls() {
   [ -n "$_tag" ] && _fetch_args="--tag ${_tag}"
 
   # shellcheck disable=SC2086
-  github::fetch_release_json "$_repo" ${_fetch_args} --dest "$_tmpfile" || {
+  github__fetch_release_json "$_repo" ${_fetch_args} --dest "$_tmpfile" || {
     rm -f "$_tmpfile"
     return 1
   }

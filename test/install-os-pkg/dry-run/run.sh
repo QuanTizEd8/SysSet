@@ -48,11 +48,11 @@ LIB_DIR="$SCRIPT_DIR/../../../lib"
 . "$LIB_DIR/ospkg.sh"
 # shellcheck source=lib/net.sh
 . "$LIB_DIR/net.sh"
-ospkg::detect
+ospkg__detect
 if ! command -v jq > /dev/null 2>&1; then
   echo "▶  Installing jq (required by YAML parser)."
-  ospkg::update --force >&2
-  ospkg::install jq >&2
+  ospkg__update --force >&2
+  ospkg__install jq >&2
 fi
 if ! command -v yq > /dev/null 2>&1 || ! yq -o=json '.' /dev/null > /dev/null 2>&1; then
   echo "▶  Installing yq (required by YAML parser)."

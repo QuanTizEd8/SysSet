@@ -7,9 +7,9 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SELF_DIR/_lib/logging.sh"
 # shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
-logging::setup
+logging__setup
 echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2
-trap 'logging::cleanup' EXIT
+trap 'logging__cleanup' EXIT
 
 # ── Constants ────────────────────────────────────────────────────────────────
 _PIXI_RELEASES_BASE_URL="https://github.com/prefix-dev/pixi/releases/download"
@@ -80,13 +80,13 @@ fi
   VERSION="0.66.0"
 }
 
-ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
 
 pixi_bin="${INSTALL_PATH}/pixi"
 
 if [[ "$VERSION" == "latest" ]]; then
   echo "ℹ️ Resolving latest Pixi release tag from GitHub API." >&2
-  VERSION="$(github::latest_tag prefix-dev/pixi)" || {
+  VERSION="$(github__latest_tag prefix-dev/pixi)" || {
     echo "⛔ Failed to resolve latest Pixi version." >&2
     exit 1
   }
@@ -95,8 +95,8 @@ if [[ "$VERSION" == "latest" ]]; then
   echo "ℹ️ Resolved Pixi version: '${VERSION}'." >&2
 fi
 
-net::fetch_url_file \
-  "${_PIXI_RELEASES_BASE_URL}/v${VERSION}/pixi-$(os::arch)-unknown-linux-musl" \
+net__fetch_url_file \
+  "${_PIXI_RELEASES_BASE_URL}/v${VERSION}/pixi-$(os__arch)-unknown-linux-musl" \
   "$pixi_bin"
 
 chmod +rx "$pixi_bin"

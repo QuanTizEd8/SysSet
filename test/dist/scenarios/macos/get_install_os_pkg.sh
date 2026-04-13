@@ -2,7 +2,7 @@
 # macos/get_install_os_pkg.sh — Verify get.sh downloads and installs a feature
 # on macOS using a local HTTP file server.
 #
-# setup-shim is used because it requires no package manager (no ospkg::run
+# setup-shim is used because it requires no package manager (no ospkg__run
 # call), works on macOS as root, and produces verifiable shim artifacts.
 set -euo pipefail
 

@@ -5,7 +5,7 @@ applyTo: "src/**/dependencies/*.yaml, **/*.pkgmanifest.yaml, **/*.pkgmanifest.js
 
 # ospkg Manifest Format
 
-Manifests are consumed by `ospkg::run --manifest <file-or-inline>`.
+Manifests are consumed by `ospkg__run --manifest <file-or-inline>`.
 Manifests are written in **YAML** (or **JSON**) format.
 
 ---
@@ -162,9 +162,9 @@ JSON is also accepted (and produced by `yq -o=json`). The same schema applies.
 
 ---
 
-## `ospkg::run` / Feature Option Reference
+## `ospkg__run` / Feature Option Reference
 
-| ospkg::run flag | Feature option | Default | Effect |
+| ospkg__run flag | Feature option | Default | Effect |
 |-----------------|---------------|---------|--------|
 | `--manifest <val>` | `manifest` | `""` | Path or inline manifest content |
 | `--no_update` | `update=false` | `true` | Skip package list refresh |

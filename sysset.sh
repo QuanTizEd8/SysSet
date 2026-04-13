@@ -38,8 +38,8 @@ SYSSET_REPO="quantized8/sysset"
 # shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
 
-logging::setup
-trap 'logging::cleanup' EXIT
+logging__setup
+trap 'logging__cleanup' EXIT
 
 echo "↪️  Script entry: sysset manifest installer" >&2
 
@@ -155,7 +155,7 @@ if [[ ! -f "$_MANIFEST" ]]; then
 fi
 
 # ── Preconditions ─────────────────────────────────────────────────────────────
-os::require_root
+os__require_root
 
 # ── Detect manifest format ────────────────────────────────────────────────────
 _ext="${_MANIFEST##*.}"
@@ -174,7 +174,7 @@ esac
 # jq — always needed (JSON baseline; yq is built on top of it for YAML)
 if ! command -v jq > /dev/null 2>&1; then
   echo "ℹ️  jq not found — installing via package manager." >&2
-  ospkg::install jq
+  ospkg__install jq
 fi
 
 # yq (mikefarah/yq) — only needed for YAML manifests.
@@ -182,8 +182,8 @@ fi
 # incompatible binary).
 _install_yq() {
   local _os _arch _url
-  _os="$(os::kernel | tr '[:upper:]' '[:lower:]')" # linux | darwin
-  _arch="$(os::arch)"
+  _os="$(os__kernel | tr '[:upper:]' '[:lower:]')" # linux | darwin
+  _arch="$(os__arch)"
   case "$_arch" in
     x86_64) _arch="amd64" ;;
     aarch64 | arm64) _arch="arm64" ;;
@@ -192,14 +192,14 @@ _install_yq() {
       return 1
       ;;
   esac
-  _url="$(github::release_asset_urls mikefarah/yq \
+  _url="$(github__release_asset_urls mikefarah/yq \
     --filter "yq_${_os}_${_arch}$" | head -1)"
   if [[ -z "$_url" ]]; then
     echo "⛔ Could not find yq release asset for ${_os}/${_arch}." >&2
     return 1
   fi
   echo "ℹ️  Downloading yq from: ${_url}" >&2
-  net::fetch_url_file "$_url" /usr/local/bin/yq
+  net__fetch_url_file "$_url" /usr/local/bin/yq
   chmod +rx /usr/local/bin/yq
   echo "✅ yq installed to /usr/local/bin/yq" >&2
   return 0
@@ -307,7 +307,7 @@ _run_feature() {
   else
     local _url="https://github.com/${SYSSET_REPO}/releases/download/${_TAG}/sysset-${_feature}.tar.gz"
     echo "ℹ️  [${_feature}] Downloading @ ${_TAG} ..." >&2
-    if ! net::fetch_url_file "$_url" "$_tmpdir/feature.tar.gz"; then
+    if ! net__fetch_url_file "$_url" "$_tmpdir/feature.tar.gz"; then
       rm -rf "$_tmpdir"
       echo "⛔ [${_feature}] Failed to download tarball." >&2
       return 1

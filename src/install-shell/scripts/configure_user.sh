@@ -244,7 +244,7 @@ fi
 # ---------------------------------------------------------------------------
 # Resolve user's home directory and group
 # ---------------------------------------------------------------------------
-_HOME="$(shell::resolve_home "$USERNAME")"
+_HOME="$(shell__resolve_home "$USERNAME")"
 _GROUP="$(id -gn "$USERNAME" 2> /dev/null || echo "$USERNAME")"
 
 if [ ! -d "$_HOME" ]; then
@@ -349,7 +349,7 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
   # Resolve the ZSH_THEME value (e.g. "powerlevel10k/powerlevel10k").
   _OMZ_THEME_VALUE=""
   if [ -n "$OHMYZSH_THEME" ]; then
-    _OMZ_THEME_VALUE="$(shell::resolve_omz_theme \
+    _OMZ_THEME_VALUE="$(shell__resolve_omz_theme \
       --theme_slug "$OHMYZSH_THEME" \
       --custom_dir "${OHMYZSH_INSTALL_DIR}/custom")"
   fi
@@ -357,7 +357,7 @@ if [ -n "$OHMYZSH_INSTALL_DIR" ] && [ -d "$OHMYZSH_INSTALL_DIR" ]; then
   # Build plugin names list from slugs.
   _OMZ_PLUGIN_NAMES=""
   if [ -n "$OHMYZSH_PLUGINS" ]; then
-    _OMZ_PLUGIN_NAMES="$(shell::plugin_names_from_slugs "$OHMYZSH_PLUGINS" | tr '\n' ' ')"
+    _OMZ_PLUGIN_NAMES="$(shell__plugin_names_from_slugs "$OHMYZSH_PLUGINS" | tr '\n' ' ')"
     _OMZ_PLUGIN_NAMES="${_OMZ_PLUGIN_NAMES% }"
   fi
 
@@ -485,7 +485,7 @@ if [ -n "$OHMYBASH_INSTALL_DIR" ] && [ -d "$OHMYBASH_INSTALL_DIR" ]; then
   # Build plugin names list from slugs.
   _OMB_PLUGIN_NAMES=""
   if [ -n "$OHMYBASH_PLUGINS" ]; then
-    _OMB_PLUGIN_NAMES="$(shell::plugin_names_from_slugs "$OHMYBASH_PLUGINS" | tr '\n' ' ')"
+    _OMB_PLUGIN_NAMES="$(shell__plugin_names_from_slugs "$OHMYBASH_PLUGINS" | tr '\n' ' ')"
     _OMB_PLUGIN_NAMES="${_OMB_PLUGIN_NAMES% }"
   fi
 

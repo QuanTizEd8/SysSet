@@ -50,12 +50,12 @@ Every feature's `scripts/install.sh` has access to a shared bash library
 
 | Module | Key functions |
 |---|---|
-| `os.sh` | `os::require_root` |
-| `logging.sh` | `logging::setup`, `logging::cleanup` |
-| `net.sh` | `net::fetch_url_file`, `net::fetch_url_stdout`, `net::fetch_with_retry` |
-| `ospkg.sh` | `ospkg::run`, `ospkg::install`, `ospkg::clean`, `ospkg::detect` |
-| `shell.sh` | `shell::detect_bashrc`, `shell::detect_zshdir`, `shell::resolve_home` |
-| `git.sh` | `git::clone` |
+| `os.sh` | `os__require_root` |
+| `logging.sh` | `logging__setup`, `logging__cleanup` |
+| `net.sh` | `net__fetch_url_file`, `net__fetch_url_stdout`, `net__fetch_with_retry` |
+| `ospkg.sh` | `ospkg__run`, `ospkg__install`, `ospkg__clean`, `ospkg__detect` |
+| `shell.sh` | `shell__detect_bashrc`, `shell__detect_zshdir`, `shell__resolve_home` |
+| `git.sh` | `git__clone` |
 
 See [Writing features — Shared library reference](writing-features.md#shared-library-reference)
 for the full API.

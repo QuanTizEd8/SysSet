@@ -67,17 +67,17 @@ _LIB_<MODULENAME>_LOADED=1
 
 | Function | Signature | Description |
 |---|---|---|
-| `logging::setup` | `logging::setup` | Creates `$_LOGFILE_TMP` (mktemp), saves original fds (`exec 3>&1 4>&2`), starts tee pipe. Does NOT install trap — caller does. |
-| `logging::cleanup` | `logging::cleanup` | Restores fds, waits for tee, writes `$_LOGFILE_TMP` to `$LOGFILE` (if set), removes tmp file. |
+| `logging__setup` | `logging__setup` | Creates `$_LOGFILE_TMP` (mktemp), saves original fds (`exec 3>&1 4>&2`), starts tee pipe. Does NOT install trap — caller does. |
+| `logging__cleanup` | `logging__cleanup` | Restores fds, waits for tee, writes `$_LOGFILE_TMP` to `$LOGFILE` (if set), removes tmp file. |
 
 Caller pattern:
 ```bash
 . "$_SELF_DIR/_lib/logging.sh"
-logging::setup
-trap 'logging::cleanup' EXIT
+logging__setup
+trap 'logging__cleanup' EXIT
 # ...or for features with extra teardown:
 __cleanup__() {
-  logging::cleanup
+  logging__cleanup
   # feature-specific cleanup here
 }
 trap '__cleanup__' EXIT
@@ -87,7 +87,7 @@ trap '__cleanup__' EXIT
 
 | Function | Signature | Description |
 |---|---|---|
-| `os::require_root` | `os::require_root` | Exits 1 with message if `$(id -u) != 0`. |
+| `os__require_root` | `os__require_root` | Exits 1 with message if `$(id -u) != 0`. |
 
 ### `lib/ospkg.sh` — guard: `_LIB_OSPKG_LOADED`
 
@@ -95,41 +95,41 @@ Sources `_lib/os.sh` internally.
 
 | Function | Signature | Description |
 |---|---|---|
-| `ospkg::detect` | `ospkg::detect` | Detects `PKG_MNGR`, builds `INSTALL[]` array, sets `PKG_PREFIX`, loads `OS_RELEASE[]` associative array. **Idempotent** — no-op if `PKG_MNGR` already set. Sets global state in caller scope. |
-| `ospkg::update` | `ospkg::update` | Runs package list update for detected pkg manager. |
-| `ospkg::install` | `ospkg::install <pkg>...` | Idempotent install: checks if packages are already installed before running the install command. |
-| `ospkg::clean` | `ospkg::clean` | Dispatches to the appropriate `clean_apk`/`clean_apt`/`clean_dnf`/`clean_pacman`/`clean_zypper`. |
-| `ospkg::eval_selector_block` | `ospkg::eval_selector_block <block>` | Returns 0 if all `key=val` conditions in the block match `OS_RELEASE[]`. |
-| `ospkg::pkg_matches_selectors` | `ospkg::pkg_matches_selectors <line>` | Returns 0 if a manifest line has no selector blocks or any block passes. |
-| `ospkg::parse_manifest` | `ospkg::parse_manifest <content>` | Parses manifest content into caller-scope vars: `_M_PRESCRIPT`, `_M_REPO`, `_M_KEY`, `_M_PKG`, `_M_SCRIPT`. |
+| `ospkg__detect` | `ospkg__detect` | Detects `PKG_MNGR`, builds `INSTALL[]` array, sets `PKG_PREFIX`, loads `OS_RELEASE[]` associative array. **Idempotent** — no-op if `PKG_MNGR` already set. Sets global state in caller scope. |
+| `ospkg__update` | `ospkg__update` | Runs package list update for detected pkg manager. |
+| `ospkg__install` | `ospkg__install <pkg>...` | Idempotent install: checks if packages are already installed before running the install command. |
+| `ospkg__clean` | `ospkg__clean` | Dispatches to the appropriate `clean_apk`/`clean_apt`/`clean_dnf`/`clean_pacman`/`clean_zypper`. |
+| `ospkg__eval_selector_block` | `ospkg__eval_selector_block <block>` | Returns 0 if all `key=val` conditions in the block match `OS_RELEASE[]`. |
+| `ospkg__pkg_matches_selectors` | `ospkg__pkg_matches_selectors <line>` | Returns 0 if a manifest line has no selector blocks or any block passes. |
+| `ospkg__parse_manifest` | `ospkg__parse_manifest <content>` | Parses manifest content into caller-scope vars: `_M_PRESCRIPT`, `_M_REPO`, `_M_KEY`, `_M_PKG`, `_M_SCRIPT`. |
 
-**Note on global state:** `ospkg::detect` writes `PKG_MNGR`, `INSTALL`, `PKG_PREFIX`, and `OS_RELEASE` into the caller's global scope. This is intentional and unavoidable without subshells. Document at every call site.
+**Note on global state:** `ospkg__detect` writes `PKG_MNGR`, `INSTALL`, `PKG_PREFIX`, and `OS_RELEASE` into the caller's global scope. This is intentional and unavoidable without subshells. Document at every call site.
 
 ### `lib/net.sh` — guard: `_LIB_NET_LOADED`
 
-**Precondition:** `net::ensure_fetch_tool` and `net::ensure_ca_certs` require `ospkg::detect` to have been called first (they call `ospkg::install` internally if curl/wget or ca-certificates are missing). A runtime guard enforces this: `[[ -n "${_LIB_OSPKG_LOADED-}" ]] || { echo "⛔ net.sh: ospkg.sh must be sourced first" >&2; return 1; }`.
+**Precondition:** `net__ensure_fetch_tool` and `net__ensure_ca_certs` require `ospkg__detect` to have been called first (they call `ospkg__install` internally if curl/wget or ca-certificates are missing). A runtime guard enforces this: `[[ -n "${_LIB_OSPKG_LOADED-}" ]] || { echo "⛔ net.sh: ospkg.sh must be sourced first" >&2; return 1; }`.
 
 | Function | Signature | Description |
 |---|---|---|
-| `net::fetch_with_retry` | `net::fetch_with_retry <max-attempts> <cmd>...` | Runs `<cmd>` up to `max-attempts` times, 3-second pause between failures. |
-| `net::ensure_fetch_tool` | `net::ensure_fetch_tool` | Sets `_FETCH_TOOL` to `curl` or `wget`; installs curl via `ospkg::install` if neither found. |
-| `net::ensure_ca_certs` | `net::ensure_ca_certs` | Ensures `/etc/ssl/certs/ca-certificates.crt` exists; installs `ca-certificates` if not. |
-| `net::fetch_url_stdout` | `net::fetch_url_stdout <url>` | Writes URL response to stdout using `_FETCH_TOOL`, with retries. |
-| `net::fetch_url_file` | `net::fetch_url_file <url> <dest>` | Writes URL response to file using `_FETCH_TOOL`, with retries. |
+| `net__fetch_with_retry` | `net__fetch_with_retry <max-attempts> <cmd>...` | Runs `<cmd>` up to `max-attempts` times, 3-second pause between failures. |
+| `net__ensure_fetch_tool` | `net__ensure_fetch_tool` | Sets `_FETCH_TOOL` to `curl` or `wget`; installs curl via `ospkg__install` if neither found. |
+| `net__ensure_ca_certs` | `net__ensure_ca_certs` | Ensures `/etc/ssl/certs/ca-certificates.crt` exists; installs `ca-certificates` if not. |
+| `net__fetch_url_stdout` | `net__fetch_url_stdout <url>` | Writes URL response to stdout using `_FETCH_TOOL`, with retries. |
+| `net__fetch_url_file` | `net__fetch_url_file <url> <dest>` | Writes URL response to file using `_FETCH_TOOL`, with retries. |
 
 ### `lib/git.sh` — guard: `_LIB_GIT_LOADED`
 
 | Function | Signature | Description |
 |---|---|---|
-| `git::clone` | `git::clone --url <url> --dir <dir> [--branch <branch>]` | Idempotent clone (no-op if dir already exists). Cleans up partial clone on failure. Migrated from `install-shell/scripts/helpers.sh`. |
+| `git__clone` | `git__clone --url <url> --dir <dir> [--branch <branch>]` | Idempotent clone (no-op if dir already exists). Cleans up partial clone on failure. Migrated from `install-shell/scripts/helpers.sh`. |
 
 ### `lib/shell.sh` — guard: `_LIB_SHELL_LOADED`
 
 | Function | Signature | Description |
 |---|---|---|
-| `shell::detect_bashrc` | `shell::detect_bashrc` | Probes `/etc/bash.bashrc`, `/etc/bashrc`, `/etc/bash/bashrc`; falls back to `strings` binary scan. Migrated from `install-shell/scripts/helpers.sh`. |
-| `shell::detect_zshdir` | `shell::detect_zshdir` | Detects zsh etc dir. Migrated from `install-shell/scripts/helpers.sh`. |
-| `shell::resolve_omz_theme` | `shell::resolve_omz_theme <value>` | Resolves Oh My Zsh theme name. Migrated from `install-shell/scripts/helpers.sh`. |
+| `shell__detect_bashrc` | `shell__detect_bashrc` | Probes `/etc/bash.bashrc`, `/etc/bashrc`, `/etc/bash/bashrc`; falls back to `strings` binary scan. Migrated from `install-shell/scripts/helpers.sh`. |
+| `shell__detect_zshdir` | `shell__detect_zshdir` | Detects zsh etc dir. Migrated from `install-shell/scripts/helpers.sh`. |
+| `shell__resolve_omz_theme` | `shell__resolve_omz_theme <value>` | Resolves Oh My Zsh theme name. Migrated from `install-shell/scripts/helpers.sh`. |
 
 ---
 
@@ -148,7 +148,7 @@ Sources `_lib/os.sh` internally.
 | `parse_manifest` | install-os-pkg/scripts/install.sh | — | `ospkg.sh` |
 | `_fetch_with_retry` / `_fetch_url_stdout` / `_fetch_url_file` | install-os-pkg/scripts/install.sh (prefixed `_`) | install-shell/scripts/helpers.sh (as `fetch_with_retry`), install-fonts/scripts/helpers.sh | `net.sh` |
 | `_ensure_fetch_tool` / `_ensure_ca_certs` | install-os-pkg/scripts/install.sh | — | `net.sh` |
-| `git_clone` | install-shell/scripts/helpers.sh | — | `git.sh` (as `git::clone`) |
+| `git_clone` | install-shell/scripts/helpers.sh | — | `git.sh` (as `git__clone`) |
 | `detect_sys_bashrc` / `detect_zsh_etcdir` / `resolve_omz_theme_value` | install-shell/scripts/helpers.sh | — | `shell.sh` (renamed `shell::*`) |
 | `fetch_with_retry` | install-fonts/scripts/helpers.sh | — | `net.sh` (share with install-shell) |
 
@@ -193,10 +193,10 @@ These assume install-os-pkg is already on PATH (installed as a prior feature or 
 | Feature | Currently declares `dependsOn` | Bootstrap pattern | Decision |
 |---|---|---|---|
 | install-shell | Yes | A (bash-ensuring) | Drop `dependsOn`; source `_lib/ospkg.sh` from `scripts/install.sh`; change bootstrap from pattern A to a minimal bash-only check |
-| install-fonts | Yes | B (install-os-pkg CLI) | Drop `dependsOn`; change bootstrap to pattern A; call `ospkg::install` from `scripts/install.sh` |
+| install-fonts | Yes | B (install-os-pkg CLI) | Drop `dependsOn`; change bootstrap to pattern A; call `ospkg__install` from `scripts/install.sh` |
 | setup-user | Yes | n/a (delegates to scripts/ only) | Drop `dependsOn`; source `_lib/ospkg.sh` from `scripts/install.sh` |
-| install-miniforge | Yes | B (install-os-pkg CLI) | Drop `dependsOn`; change bootstrap to pattern A; call `ospkg::install` from `scripts/install.sh` |
-| install-conda-env | Yes | B (install-os-pkg CLI) | Drop `dependsOn`; change bootstrap to pattern A; call `ospkg::install` from `scripts/install.sh` |
+| install-miniforge | Yes | B (install-os-pkg CLI) | Drop `dependsOn`; change bootstrap to pattern A; call `ospkg__install` from `scripts/install.sh` |
+| install-conda-env | Yes | B (install-os-pkg CLI) | Drop `dependsOn`; change bootstrap to pattern A; call `ospkg__install` from `scripts/install.sh` |
 | install-podman | Yes | (read scripts before deciding) | **Defer to Phase 2** — likely needs GPG key + apt repo management |
 | install-pixi | No | Calls install-os-pkg CLI in bootstrap (`install-os-pkg --manifest ...`) but doesn't declare `dependsOn` | Fix bootstrap to pattern A; source `_lib/ospkg.sh` from `scripts/install.sh` for any install calls |
 
@@ -290,7 +290,7 @@ files so the sync pipeline can be validated end-to-end before any real refactori
 8 features. Highest ROI — pure boilerplate reduction with no semantic changes.
 
 **Files modified:**
-- `.devcontainer/lib/logging.sh` (implement `logging::setup`, `logging::cleanup`)
+- `.devcontainer/lib/logging.sh` (implement `logging__setup`, `logging__cleanup`)
 - `src/install-shell/scripts/install.sh`
 - `src/install-fonts/scripts/install.sh`
 - `src/install-pixi/scripts/install.sh`
@@ -318,26 +318,26 @@ trap __cleanup__ EXIT
 **After (features with no extra teardown):**
 ```bash
 . "$_SELF_DIR/_lib/logging.sh"
-logging::setup
-trap 'logging::cleanup' EXIT
+logging__setup
+trap 'logging__cleanup' EXIT
 ```
 
 **Special cases:**
 
 `install-miniforge/scripts/install.sh` has feature-specific teardown (removes installer files,
-`.a` and `.pyc` files). Keep a local `__cleanup__` that calls `logging::cleanup` first:
+`.a` and `.pyc` files). Keep a local `__cleanup__` that calls `logging__cleanup` first:
 ```bash
 . "$_SELF_DIR/_lib/logging.sh"
-logging::setup
+logging__setup
 __cleanup__() {
-  logging::cleanup
+  logging__cleanup
   # installer teardown: rm installer, checksum, .a/.pyc files...
 }
 trap '__cleanup__' EXIT
 ```
 
 `setup-shim/install.sh` uses a simpler one-line log append (no tee, no temp file). Apply the
-full `logging::setup` + `logging::cleanup` pattern to bring it in line with the others.
+full `logging__setup` + `logging__cleanup` pattern to bring it in line with the others.
 
 **Steps:**
 1. Implement `logging.sh` functions
@@ -365,7 +365,7 @@ This is the largest structural change in the plan.
 Functions extracted to `ospkg.sh` (currently inlined in `scripts/install.sh`, ~140 lines total):
 - `clean_apk`, `clean_apt`, `clean_dnf`, `clean_pacman`, `clean_zypper`
 - `exit_if_not_root` (moves to `os.sh`)
-- `install` → `ospkg::install`
+- `install` → `ospkg__install`
 - `eval_selector_block`, `pkg_matches_selectors`, `parse_manifest`
 - pkg manager detection block (currently in main body before arg parsing)
 - `OS_RELEASE[]` loading (currently in main body)
@@ -387,22 +387,22 @@ fi
 _SELF_DIR="$(dirname "$0")"
 exec bash "$_SELF_DIR/scripts/install.sh" "$@"
 ```
-Their `scripts/install.sh` then sources `_lib/ospkg.sh`, calls `ospkg::detect`, and calls
-`ospkg::install` for prerequisites instead of shelling out to `install-os-pkg`.
+Their `scripts/install.sh` then sources `_lib/ospkg.sh`, calls `ospkg__detect`, and calls
+`ospkg__install` for prerequisites instead of shelling out to `install-os-pkg`.
 
 **Files modified:**
-- `.devcontainer/lib/os.sh` (implement `os::require_root`)
+- `.devcontainer/lib/os.sh` (implement `os__require_root`)
 - `.devcontainer/lib/ospkg.sh` (implement full module)
 - `src/install-os-pkg/scripts/install.sh` (replace ~140 lines of inlined functions with `. _lib/ospkg.sh`)
 - `src/install-miniforge/install.sh` (pattern B → pattern A)
-- `src/install-miniforge/scripts/install.sh` (add `ospkg::detect`, replace `install-os-pkg` CLI calls)
+- `src/install-miniforge/scripts/install.sh` (add `ospkg__detect`, replace `install-os-pkg` CLI calls)
 - `src/install-conda-env/install.sh` (pattern B → pattern A)
-- `src/install-conda-env/scripts/install.sh` (add `ospkg::detect`)
+- `src/install-conda-env/scripts/install.sh` (add `ospkg__detect`)
 - `src/install-fonts/install.sh` (pattern B → pattern A)
-- `src/install-fonts/scripts/install.sh` (add `ospkg::detect`, `ospkg::install`)
-- `src/install-shell/scripts/install.sh` (add `ospkg::detect` — bootstrap already is pattern A)
-- `src/setup-user/scripts/install.sh` (add `ospkg::detect`, `ospkg::install`)
-- `src/install-pixi/scripts/install.sh` (add `ospkg::detect` — pixi uses curl which is its prerequisite)
+- `src/install-fonts/scripts/install.sh` (add `ospkg__detect`, `ospkg__install`)
+- `src/install-shell/scripts/install.sh` (add `ospkg__detect` — bootstrap already is pattern A)
+- `src/setup-user/scripts/install.sh` (add `ospkg__detect`, `ospkg__install`)
+- `src/install-pixi/scripts/install.sh` (add `ospkg__detect` — pixi uses curl which is its prerequisite)
 - `src/install-miniforge/devcontainer-feature.json` (remove `dependsOn: install-os-pkg`)
 - `src/install-conda-env/devcontainer-feature.json` (remove `dependsOn`)
 - `src/install-fonts/devcontainer-feature.json` (remove `dependsOn`)
@@ -434,10 +434,10 @@ helpers into a single `net.sh` module.
 **Files modified:**
 - `.devcontainer/lib/net.sh` (implement full module)
 - `src/install-os-pkg/scripts/install.sh` (remove `_fetch_with_retry`, `_fetch_url_stdout`, `_fetch_url_file`, `_ensure_fetch_tool`, `_ensure_ca_certs`; add `. _lib/net.sh`; replace `_fetch_*` / `_ensure_*` calls with `net::*`)
-- `src/install-shell/scripts/helpers.sh` (remove `fetch_with_retry`; add `. _lib/net.sh` if not already sourced via another module; update all call sites to `net::fetch_with_retry`)
+- `src/install-shell/scripts/helpers.sh` (remove `fetch_with_retry`; add `. _lib/net.sh` if not already sourced via another module; update all call sites to `net__fetch_with_retry`)
 - `src/install-fonts/scripts/helpers.sh` (remove `fetch_with_retry` — this file may become empty or be deleted early if only `fetch_with_retry` was in it)
 - `src/install-fonts/scripts/install.sh` (update call sites)
-- `src/install-miniforge/scripts/install.sh` (uses `curl` directly; add `net::ensure_fetch_tool` before curl calls if appropriate)
+- `src/install-miniforge/scripts/install.sh` (uses `curl` directly; add `net__ensure_fetch_tool` before curl calls if appropriate)
 
 **Note:** After removing `fetch_with_retry` from `install-fonts/scripts/helpers.sh`, that file
 may be empty. If so, delete it and remove its `source` call from `install.sh`.
@@ -456,12 +456,12 @@ may be empty. If so, delete it and remove its `source` call from `install.sh`.
 `helpers.sh` files permanently.
 
 **Files modified:**
-- `.devcontainer/lib/git.sh` (implement `git::clone` — migrated from helpers.sh)
-- `.devcontainer/lib/shell.sh` (implement `shell::detect_bashrc`, `shell::detect_zshdir`, `shell::resolve_omz_theme` — migrated from helpers.sh)
+- `.devcontainer/lib/git.sh` (implement `git__clone` — migrated from helpers.sh)
+- `.devcontainer/lib/shell.sh` (implement `shell__detect_bashrc`, `shell__detect_zshdir`, `shell__resolve_omz_theme` — migrated from helpers.sh)
 - `src/install-shell/scripts/install.sh`:
   - Replace `. "$_SELF_DIR/helpers.sh"` with `. "$_SELF_DIR/_lib/git.sh"` and `. "$_SELF_DIR/_lib/shell.sh"`
-  - Replace all `git_clone` calls with `git::clone`
-  - Replace `detect_sys_bashrc` → `shell::detect_bashrc`, `detect_zsh_etcdir` → `shell::detect_zshdir`, `resolve_omz_theme_value` → `shell::resolve_omz_theme`
+  - Replace all `git_clone` calls with `git__clone`
+  - Replace `detect_sys_bashrc` → `shell__detect_bashrc`, `detect_zsh_etcdir` → `shell__detect_zshdir`, `resolve_omz_theme_value` → `shell__resolve_omz_theme`
 
 **Files deleted:**
 - `src/install-shell/scripts/helpers.sh`
@@ -476,7 +476,7 @@ may be empty. If so, delete it and remove its `source` call from `install.sh`.
 6. `git add` all changes; commit
 
 **Verification:**
-- `install-shell/scripts/install.sh --debug` → all `git::clone`, `shell::detect_bashrc`, etc. paths exercised
+- `install-shell/scripts/install.sh --debug` → all `git__clone`, `shell__detect_bashrc`, etc. paths exercised
 - `shellcheck` on `install-shell/scripts/install.sh` passes (no source-not-found warnings — update `# shellcheck source=` directives)
 - No remaining references to `helpers.sh` in any file: `grep -r 'helpers\.sh' .devcontainer/src/` → zero matches
 

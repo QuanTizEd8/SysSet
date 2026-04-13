@@ -28,7 +28,7 @@ library available to every script.
     - [Cleanup](#cleanup)
   - [OS package dependencies](#os-package-dependencies)
     - [`dependencies/base.yaml`](#dependenciesbaseyaml)
-    - [`ospkg::run` versus `ospkg::install`](#ospkgrun-versus-ospkginstall)
+    - [`ospkg__run` versus `ospkg__install`](#ospkgrun-versus-ospkginstall)
   - [Shared library reference](#shared-library-reference)
     - [`os.sh`](#ossh)
     - [`logging.sh`](#loggingsh)
@@ -236,24 +236,24 @@ explicitly.
 
 # Source additional modules only when their functions are needed:
 # shellcheck source=_lib/github.sh
-. "$_SELF_DIR/_lib/github.sh"    # github::fetch_release_json, ::latest_tag, etc.
+. "$_SELF_DIR/_lib/github.sh"    # github__fetch_release_json, __latest_tag, etc.
 # shellcheck source=_lib/checksum.sh
-. "$_SELF_DIR/_lib/checksum.sh"  # checksum::verify_sha256, ::verify_sha256_sidecar
+. "$_SELF_DIR/_lib/checksum.sh"  # checksum__verify_sha256, __verify_sha256_sidecar
 # shellcheck source=_lib/users.sh
-. "$_SELF_DIR/_lib/users.sh"     # users::resolve_list, ::set_login_shell
+. "$_SELF_DIR/_lib/users.sh"     # users__resolve_list, __set_login_shell
 # shellcheck source=_lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"     # shell::write_block, ::export_path, etc.
+. "$_SELF_DIR/_lib/shell.sh"     # shell__write_block, __export_path, etc.
 # shellcheck source=_lib/git.sh
-. "$_SELF_DIR/_lib/git.sh"       # git::clone
+. "$_SELF_DIR/_lib/git.sh"       # git__clone
 ```
 
 > **Check the library first.** Before writing inline logic for any of the
 > common operations below, confirm there is not already a lib function for it:
-> `os::kernel` / `os::arch` instead of `uname -s` / `uname -m`;
-> `os::font_dir` instead of manual platform detection;
-> `github::latest_tag` instead of a hand-rolled API call;
-> `checksum::verify_sha256_sidecar` instead of inline sha256sum/shasum logic;
-> `users::resolve_list` + `users::set_login_shell` instead of a local
+> `os__kernel` / `os__arch` instead of `uname -s` / `uname -m`;
+> `os__font_dir` instead of manual platform detection;
+> `github__latest_tag` instead of a hand-rolled API call;
+> `checksum__verify_sha256_sidecar` instead of inline sha256sum/shasum logic;
+> `users__resolve_list` + `users__set_login_shell` instead of a local
 > deduplication loop and manual `chsh` calls.
 
 ### Logging setup and the EXIT trap
@@ -262,13 +262,13 @@ Always set up logging immediately after sourcing the library and before
 any other work, with the EXIT trap to ensure cleanup runs even on error:
 
 ```bash
-logging::setup
+logging__setup
 echo "↪️ Script entry: My Feature" >&2
-trap 'logging::cleanup' EXIT
+trap 'logging__cleanup' EXIT
 ```
 
-`logging::setup` redirects stdout and stderr through `tee` into a temp file.
-`logging::cleanup` (called on EXIT) flushes the captured output to `$LOGFILE`
+`logging__setup` redirects stdout and stderr through `tee` into a temp file.
+`logging__cleanup` (called on EXIT) flushes the captured output to `$LOGFILE`
 if that variable is set. Enabling debug tracing must come after setting up
 logging so that the trace output is also captured:
 
@@ -345,7 +345,7 @@ set):
 Validate early and exit with a clear message:
 
 ```bash
-os::require_root
+os__require_root
 
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$|^latest$ ]]; then
   echo "⛔ Invalid version: '${VERSION}'" >&2
@@ -353,7 +353,7 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$|^latest$ ]]; then
 fi
 ```
 
-Always call `os::require_root` near the top of any script that installs
+Always call `os__require_root` near the top of any script that installs
 system packages or writes to system directories.
 
 ### Main logic
@@ -388,14 +388,14 @@ echo "✅ my-feature setup complete." >&2
 
 ### Cleanup
 
-The `logging::cleanup` trap handles log flushing. If the feature installs OS
-packages using `ospkg::run --no_clean`, call `ospkg::clean` explicitly at the
+The `logging__cleanup` trap handles log flushing. If the feature installs OS
+packages using `ospkg__run --no_clean`, call `ospkg__clean` explicitly at the
 end before the success message, so the cache is cleared regardless of whether
 earlier steps succeeded:
 
 ```bash
 # (at the very end, before the success echo)
-ospkg::clean
+ospkg__clean
 echo "✅ my-feature setup complete." >&2
 ```
 
@@ -418,33 +418,33 @@ ca-certificates
 curl
 ```
 
-Call it at the start of the script with `ospkg::run`:
+Call it at the start of the script with `ospkg__run`:
 
 ```bash
-ospkg::run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
-ospkg::clean
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+ospkg__clean
 ```
 
 `--check_installed` skips packages whose binary is already in `PATH`, so
 repeated runs are fast.
 
-### `ospkg::run` versus `ospkg::install`
+### `ospkg__run` versus `ospkg__install`
 
-- **`ospkg::run --manifest <file>`** — the full pipeline: detect PM, update
+- **`ospkg__run --manifest <file>`** — the full pipeline: detect PM, update
   package lists, install packages from the manifest, run pre/post scripts,
   clean cache. Use this for manifests.
-- **`ospkg::install <pkg>...`** — installs named packages directly, with an
+- **`ospkg__install <pkg>...`** — installs named packages directly, with an
   idempotency check (skips already-installed packages on APT/DNF). Use this
   for individual packages installed outside a manifest.
 
-When calling `ospkg::install` after `ospkg::run`, pass `--no_clean` to
-`ospkg::run` and call `ospkg::clean` once explicitly at the end, so that a
+When calling `ospkg__install` after `ospkg__run`, pass `--no_clean` to
+`ospkg__run` and call `ospkg__clean` once explicitly at the end, so that a
 single cache refresh covers all installs:
 
 ```bash
-ospkg::run --manifest "$_MANIFEST" --check_installed --no_clean
-ospkg::install some-extra-package
-ospkg::clean
+ospkg__run --manifest "$_MANIFEST" --check_installed --no_clean
+ospkg__install some-extra-package
+ospkg__clean
 ```
 
 ---
@@ -464,51 +464,51 @@ Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
 
 | Function | Signature | Description |
 |---|---|---|
-| `os::require_root` | `os::require_root` | Exits 1 with a message if the current user is not root. |
-| `os::kernel` | `os::kernel` | Prints the kernel name (`Linux` or `Darwin`). Cached after first call. Use instead of `uname -s`. |
-| `os::arch` | `os::arch` | Prints the CPU architecture (e.g. `x86_64`, `aarch64`, `arm64`). Cached after first call. Use instead of `uname -m`. |
-| `os::id` | `os::id` | Prints the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`). |
-| `os::id_like` | `os::id_like` | Prints the `ID_LIKE` field from `/etc/os-release`. |
-| `os::platform` | `os::platform` | Prints a canonical platform tag: `debian` \| `alpine` \| `rhel` \| `macos`. |
-| `os::font_dir` | `os::font_dir` | Prints the appropriate font directory for the current user: `/usr/share/fonts` (root), `~/Library/Fonts` (macOS non-root), `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root). |
+| `os__require_root` | `os__require_root` | Exits 1 with a message if the current user is not root. |
+| `os__kernel` | `os__kernel` | Prints the kernel name (`Linux` or `Darwin`). Cached after first call. Use instead of `uname -s`. |
+| `os__arch` | `os__arch` | Prints the CPU architecture (e.g. `x86_64`, `aarch64`, `arm64`). Cached after first call. Use instead of `uname -m`. |
+| `os__id` | `os__id` | Prints the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`). |
+| `os__id_like` | `os__id_like` | Prints the `ID_LIKE` field from `/etc/os-release`. |
+| `os__platform` | `os__platform` | Prints a canonical platform tag: `debian` \| `alpine` \| `rhel` \| `macos`. |
+| `os__font_dir` | `os__font_dir` | Prints the appropriate font directory for the current user: `/usr/share/fonts` (root), `~/Library/Fonts` (macOS non-root), `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root). |
 
 ### `logging.sh`
 
 | Function | Signature | Description |
 |---|---|---|
-| `logging::setup` | `logging::setup` | Redirects stdout+stderr through `tee` into a temp file. Sets the global `_LOGFILE_TMP`. Saves original stdout as fd 3, stderr as fd 4. Does **not** install an EXIT trap — caller is responsible. |
-| `logging::cleanup` | `logging::cleanup` | Restores original fds, flushes the temp log to `$LOGFILE` (if set), and deletes the temp file. No-op if `logging::setup` was never called. |
+| `logging__setup` | `logging__setup` | Redirects stdout+stderr through `tee` into a temp file. Sets the global `_LOGFILE_TMP`. Saves original stdout as fd 3, stderr as fd 4. Does **not** install an EXIT trap — caller is responsible. |
+| `logging__cleanup` | `logging__cleanup` | Restores original fds, flushes the temp log to `$LOGFILE` (if set), and deletes the temp file. No-op if `logging__setup` was never called. |
 
 `$LOGFILE` is a user-visible option (type string, default `""`). When set,
-`logging::cleanup` appends the full session log to that file.
+`logging__cleanup` appends the full session log to that file.
 
 ### `net.sh`
 
 Auto-loaded by `ospkg.sh`. Can also be sourced standalone (requires `ospkg.sh`
-for `net::ensure_fetch_tool` and `net::ensure_ca_certs`).
+for `net__ensure_fetch_tool` and `net__ensure_ca_certs`).
 
 | Function | Signature | Description |
 |---|---|---|
-| `net::fetch_with_retry` | `net::fetch_with_retry <max-attempts> <cmd...>` | Runs `<cmd>` up to `<max-attempts>` times with a 3-second pause between failures. Does **not** require `ospkg.sh`. |
-| `net::ensure_ca_certs` | `net::ensure_ca_certs` | Ensures CA certificates are present; installs `ca-certificates` via `ospkg::install` if not. Idempotent. |
-| `net::ensure_fetch_tool` | `net::ensure_fetch_tool` | Sets `_NET_FETCH_TOOL` to `curl` or `wget`; installs `curl` if neither is found. Calls `net::ensure_ca_certs` automatically. Idempotent. |
-| `net::fetch_url_stdout` | `net::fetch_url_stdout <url>` | Downloads `<url>` to stdout with retries. Calls `net::ensure_fetch_tool` automatically. |
-| `net::fetch_url_file` | `net::fetch_url_file <url> <dest>` | Downloads `<url>` to a file with retries. Calls `net::ensure_fetch_tool` automatically. |
+| `net__fetch_with_retry` | `net__fetch_with_retry <max-attempts> <cmd...>` | Runs `<cmd>` up to `<max-attempts>` times with a 3-second pause between failures. Does **not** require `ospkg.sh`. |
+| `net__ensure_ca_certs` | `net__ensure_ca_certs` | Ensures CA certificates are present; installs `ca-certificates` via `ospkg__install` if not. Idempotent. |
+| `net__ensure_fetch_tool` | `net__ensure_fetch_tool` | Sets `_NET_FETCH_TOOL` to `curl` or `wget`; installs `curl` if neither is found. Calls `net__ensure_ca_certs` automatically. Idempotent. |
+| `net__fetch_url_stdout` | `net__fetch_url_stdout <url>` | Downloads `<url>` to stdout with retries. Calls `net__ensure_fetch_tool` automatically. |
+| `net__fetch_url_file` | `net__fetch_url_file <url> <dest>` | Downloads `<url>` to a file with retries. Calls `net__ensure_fetch_tool` automatically. |
 
 Typical download pattern:
 
 ```bash
-net::fetch_url_file \
+net__fetch_url_file \
   "https://example.com/tool-$(uname -m).tar.gz" \
   /tmp/tool.tar.gz
 ```
 
-When you need to pass extra flags (e.g. `--compressed`), use `net::ensure_fetch_tool`
-directly and call the tool yourself inside `net::fetch_with_retry`:
+When you need to pass extra flags (e.g. `--compressed`), use `net__ensure_fetch_tool`
+directly and call the tool yourself inside `net__fetch_with_retry`:
 
 ```bash
-net::ensure_fetch_tool
-net::fetch_with_retry 3 curl \
+net__ensure_fetch_tool
+net__fetch_with_retry 3 curl \
   --compressed -fsSLo /tmp/tool.bin \
   "https://example.com/tool-$(uname -m)"
 ```
@@ -517,14 +517,14 @@ net::fetch_with_retry 3 curl \
 
 | Function | Signature | Description |
 |---|---|---|
-| `ospkg::detect` | `ospkg::detect` | Detects the package manager and populates internal state. Idempotent. Called automatically by all other `ospkg::*` functions. |
-| `ospkg::update` | `ospkg::update [--force] [--lists_max_age N] [--repo_added]` | Refreshes the package index. Skips when lists are fresh (within `<N>` seconds). `--repo_added` forces a refresh unconditionally. |
-| `ospkg::install` | `ospkg::install <pkg>...` | Installs packages with an idempotency check on APT and DNF. |
-| `ospkg::clean` | `ospkg::clean` | Removes the package manager cache to reduce image layer size. |
-| `ospkg::run` | `ospkg::run [options]` | Full pipeline: detect → root check → parse manifest → prescript → keys → repos → update → install → script → remove repos → clean. See options below. |
-| `ospkg::parse_manifest_yaml` | `ospkg::parse_manifest_yaml <json-file>` | Parses a YAML/JSON manifest (pre-converted to JSON by `yq`) and emits normalized records for the pipeline. |
+| `ospkg__detect` | `ospkg__detect` | Detects the package manager and populates internal state. Idempotent. Called automatically by all other `ospkg::*` functions. |
+| `ospkg__update` | `ospkg__update [--force] [--lists_max_age N] [--repo_added]` | Refreshes the package index. Skips when lists are fresh (within `<N>` seconds). `--repo_added` forces a refresh unconditionally. |
+| `ospkg__install` | `ospkg__install <pkg>...` | Installs packages with an idempotency check on APT and DNF. |
+| `ospkg__clean` | `ospkg__clean` | Removes the package manager cache to reduce image layer size. |
+| `ospkg__run` | `ospkg__run [options]` | Full pipeline: detect → root check → parse manifest → prescript → keys → repos → update → install → script → remove repos → clean. See options below. |
+| `ospkg__parse_manifest_yaml` | `ospkg__parse_manifest_yaml <json-file>` | Parses a YAML/JSON manifest (pre-converted to JSON by `yq`) and emits normalized records for the pipeline. |
 
-`ospkg::run` options:
+`ospkg__run` options:
 
 | Option | Default | Description |
 |---|---|---|
@@ -560,21 +560,21 @@ manifest format, all selector keys, and examples.
 
 | Function | Signature | Description |
 |---|---|---|
-| `shell::detect_bashrc` | `shell::detect_bashrc` | Prints the system-wide bashrc path for the current distro (`/etc/bash.bashrc`, `/etc/bashrc`, or `/etc/bash/bashrc`). |
-| `shell::detect_zshdir` | `shell::detect_zshdir` | Prints the system-wide zsh config directory (`/etc/zsh` or `/etc`). |
-| `shell::resolve_home` | `shell::resolve_home <username>` | Prints the home directory for a user via `eval echo "~<user>"`. |
-| `shell::resolve_omz_theme` | `shell::resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` | Given an `owner/repo` slug and `ZSH_CUSTOM`, prints the `ZSH_THEME` value for oh-my-zsh. |
-| `shell::plugin_names_from_slugs` | `shell::plugin_names_from_slugs <csv-slugs>` | Extracts repository names (basenames) from a comma-separated list of `owner/repo` slugs. |
-| `shell::write_block` | `shell::write_block --file <f> --marker <m> --content <c>` | Writes a fenced `# BEGIN <m>` … `# END <m>` block into a file. Idempotent: replaces any existing block with the same marker. |
-| `shell::remove_block` | `shell::remove_block --file <f> --marker <m>` | Removes a fenced block (by marker) from a file. |
-| `shell::export_path` | `shell::export_path --users <list> --path <dir> [--marker <m>] [--rc_files <list>]` | Appends a `PATH` export block to each user's shell RC files. |
-| `shell::export_env` | `shell::export_env --users <list> --name <VAR> --value <val> [--marker <m>] [--rc_files <list>]` | Appends an `export VAR=val` block to each user's shell RC files. |
+| `shell__detect_bashrc` | `shell__detect_bashrc` | Prints the system-wide bashrc path for the current distro (`/etc/bash.bashrc`, `/etc/bashrc`, or `/etc/bash/bashrc`). |
+| `shell__detect_zshdir` | `shell__detect_zshdir` | Prints the system-wide zsh config directory (`/etc/zsh` or `/etc`). |
+| `shell__resolve_home` | `shell__resolve_home <username>` | Prints the home directory for a user via `eval echo "~<user>"`. |
+| `shell__resolve_omz_theme` | `shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` | Given an `owner/repo` slug and `ZSH_CUSTOM`, prints the `ZSH_THEME` value for oh-my-zsh. |
+| `shell__plugin_names_from_slugs` | `shell__plugin_names_from_slugs <csv-slugs>` | Extracts repository names (basenames) from a comma-separated list of `owner/repo` slugs. |
+| `shell__write_block` | `shell__write_block --file <f> --marker <m> --content <c>` | Writes a fenced `# BEGIN <m>` … `# END <m>` block into a file. Idempotent: replaces any existing block with the same marker. |
+| `shell__remove_block` | `shell__remove_block --file <f> --marker <m>` | Removes a fenced block (by marker) from a file. |
+| `shell__export_path` | `shell__export_path --users <list> --path <dir> [--marker <m>] [--rc_files <list>]` | Appends a `PATH` export block to each user's shell RC files. |
+| `shell__export_env` | `shell__export_env --users <list> --name <VAR> --value <val> [--marker <m>] [--rc_files <list>]` | Appends an `export VAR=val` block to each user's shell RC files. |
 
 ### `git.sh`
 
 | Function | Signature | Description |
 |---|---|---|
-| `git::clone` | `git::clone --url <url> --dir <dir> [--branch <branch>]` | Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists. On failure, removes the partial clone so re-runs do not silently skip a broken directory. |
+| `git__clone` | `git__clone --url <url> --dir <dir> [--branch <branch>]` | Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists. On failure, removes the partial clone so re-runs do not silently skip a broken directory. |
 
 ### `github.sh`
 
@@ -582,26 +582,26 @@ Source explicitly. Requires `net.sh` (and `ospkg.sh`) to have been sourced first
 
 | Function | Signature | Description |
 |---|---|---|
-| `github::fetch_release_json` | `github::fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` | Fetches GitHub Releases API JSON. Without `--tag`: `/releases/latest`. Without `--dest`: writes to stdout. |
-| `github::latest_tag` | `github::latest_tag <owner/repo>` | Prints the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
-| `github::release_tags` | `github::release_tags <owner/repo> [--per_page <n>]` | Prints one tag per line (newest first) from `/releases?per_page=<n>` (default 100). Useful for version matching. |
-| `github::release_asset_urls` | `github::release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` | Prints `browser_download_url` values from a release. `--filter` applies an extended-regex grep to the URL list. |
+| `github__fetch_release_json` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` | Fetches GitHub Releases API JSON. Without `--tag`: `/releases/latest`. Without `--dest`: writes to stdout. |
+| `github__latest_tag` | `github__latest_tag <owner/repo>` | Prints the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
+| `github__release_tags` | `github__release_tags <owner/repo> [--per_page <n>]` | Prints one tag per line (newest first) from `/releases?per_page=<n>` (default 100). Useful for version matching. |
+| `github__release_asset_urls` | `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` | Prints `browser_download_url` values from a release. `--filter` applies an extended-regex grep to the URL list. |
 
 Typical patterns:
 
 ```bash
 # Resolve "latest" to a concrete tag:
 if [[ "$VERSION" == "latest" ]]; then
-  VERSION="$(github::latest_tag owner/repo)" || { echo "⛔ Failed to resolve version." >&2; exit 1; }
+  VERSION="$(github__latest_tag owner/repo)" || { echo "⛔ Failed to resolve version." >&2; exit 1; }
 fi
 
 # Pick a release tag matching a partial version string:
-releases="$(github::release_tags owner/repo)"
+releases="$(github__release_tags owner/repo)"
 tag="$(printf '%s\n' "$releases" | grep "^${VERSION//./\\.}" | head -1)"
 
 # Fetch release JSON to a temp file, then parse it yourself:
 json="$(mktemp)"
-github::fetch_release_json owner/repo --tag "$tag" --dest "$json"
+github__fetch_release_json owner/repo --tag "$tag" --dest "$json"
 ```
 
 ### `checksum.sh`
@@ -610,15 +610,15 @@ Source explicitly. Works transparently with `sha256sum` (Linux) or `shasum` (mac
 
 | Function | Signature | Description |
 |---|---|---|
-| `checksum::verify_sha256` | `checksum::verify_sha256 <file> <expected_hash>` | Verifies the SHA-256 digest of `<file>` against `<expected_hash>`. Exits 1 on mismatch. |
-| `checksum::verify_sha256_sidecar` | `checksum::verify_sha256_sidecar <file> <sha256_file>` | Reads the expected hash from the first whitespace-separated field of `<sha256_file>` then delegates to `checksum::verify_sha256`. Use for `.sha256` sidecar files. |
+| `checksum__verify_sha256` | `checksum__verify_sha256 <file> <expected_hash>` | Verifies the SHA-256 digest of `<file>` against `<expected_hash>`. Exits 1 on mismatch. |
+| `checksum__verify_sha256_sidecar` | `checksum__verify_sha256_sidecar <file> <sha256_file>` | Reads the expected hash from the first whitespace-separated field of `<sha256_file>` then delegates to `checksum__verify_sha256`. Use for `.sha256` sidecar files. |
 
 Typical pattern:
 
 ```bash
-net::fetch_url_file "$DOWNLOAD_URL" /tmp/tool.bin
-net::fetch_url_file "$DOWNLOAD_URL.sha256" /tmp/tool.bin.sha256
-checksum::verify_sha256_sidecar /tmp/tool.bin /tmp/tool.bin.sha256
+net__fetch_url_file "$DOWNLOAD_URL" /tmp/tool.bin
+net__fetch_url_file "$DOWNLOAD_URL.sha256" /tmp/tool.bin.sha256
+checksum__verify_sha256_sidecar /tmp/tool.bin /tmp/tool.bin.sha256
 ```
 
 ### `users.sh`
@@ -629,20 +629,20 @@ Source explicitly. Reads the standard devcontainer user-config env vars
 
 | Function | Signature | Description |
 |---|---|---|
-| `users::resolve_list` | `users::resolve_list` | Prints one deduplicated username per line to stdout. Root is excluded from auto-detected paths (CURRENT, REMOTE, CONTAINER user) but **allowed** when explicitly listed in `ADD_USER_CONFIG`. |
-| `users::set_login_shell` | `users::set_login_shell <shell_path> <username>...` | Registers `<shell_path>` in `/etc/shells`, patches Alpine PAM if needed, then calls `chsh -s` for each user. Skips users already on that shell; warns (does not abort) on `chsh` failure. |
+| `users__resolve_list` | `users__resolve_list` | Prints one deduplicated username per line to stdout. Root is excluded from auto-detected paths (CURRENT, REMOTE, CONTAINER user) but **allowed** when explicitly listed in `ADD_USER_CONFIG`. |
+| `users__set_login_shell` | `users__set_login_shell <shell_path> <username>...` | Registers `<shell_path>` in `/etc/shells`, patches Alpine PAM if needed, then calls `chsh -s` for each user. Skips users already on that shell; warns (does not abort) on `chsh` failure. |
 
 Typical bash caller pattern:
 
 ```bash
-mapfile -t _RESOLVED_USERS < <(users::resolve_list)
+mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
   echo "ℹ️  No users to configure." >&2
 fi
 for _username in "${_RESOLVED_USERS[@]}"; do
   # ... per-user configuration ...
 done
-users::set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
+users__set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
 ```
 
 ---

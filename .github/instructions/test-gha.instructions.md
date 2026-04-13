@@ -49,13 +49,13 @@ macOS has no `/etc/os-release`, so kernel/platform/distro detection uses `uname 
 
 | Function | macOS return value |
 |---|---|
-| `os::kernel` | `Darwin` |
-| `os::platform` | `macos` |
-| `os::id` | *(empty — no os-release)* |
-| `os::font_dir` (as root) | `/Library/Fonts` |
-| `os::font_dir` (non-root, no `$XDG_DATA_HOME`) | `${HOME}/Library/Fonts` |
+| `os__kernel` | `Darwin` |
+| `os__platform` | `macos` |
+| `os__id` | *(empty — no os-release)* |
+| `os__font_dir` (as root) | `/Library/Fonts` |
+| `os__font_dir` (non-root, no `$XDG_DATA_HOME`) | `${HOME}/Library/Fonts` |
 
-### `shell::detect_bashrc` / `shell::detect_zshdir` on macOS
+### `shell__detect_bashrc` / `shell__detect_zshdir` on macOS
 
 These functions probe binary paths using `strings`. On macOS, `strings` may return different paths than on Linux. Tests exercising these functions should use `create_fake_bin "strings" "..."` to control the probe output rather than relying on the host.
 

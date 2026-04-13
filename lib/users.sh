@@ -2,13 +2,13 @@
 # POSIX sh compatible — safe to source from sh and bash scripts alike.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
-# users::set_login_shell uses awk and shell utilities available on all
+# users__set_login_shell uses awk and shell utilities available on all
 # supported platforms (Debian, Alpine, macOS).
 
 [ -n "${_LIB_USERS_LOADED-}" ] && return 0
 _LIB_USERS_LOADED=1
 
-# users::resolve_list
+# users__resolve_list
 #
 # Reads the standard devcontainer user-config env vars and prints one
 # deduplicated username per line to stdout.
@@ -27,11 +27,11 @@ _LIB_USERS_LOADED=1
 #   ADD_USER_CONFIG           — comma-separated extra usernames; root allowed here
 #
 # Usage (bash caller — collect into array):
-#   mapfile -t _RESOLVED_USERS < <(users::resolve_list)
+#   mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 #
 # Usage (POSIX sh caller — iterate):
-#   users::resolve_list | while IFS= read -r _u; do ...; done
-users::resolve_list() {
+#   users__resolve_list | while IFS= read -r _u; do ...; done
+users__resolve_list() {
   # Track seen names in a local space-separated string for dedup.
   local _seen=""
   local _out=""
@@ -99,7 +99,7 @@ users::resolve_list() {
   return 0
 }
 
-# users::set_login_shell <shell_path> <username>...
+# users__set_login_shell <shell_path> <username>...
 #
 # Sets the login shell for one or more users.
 #   • Ensures <shell_path> is registered in /etc/shells (idempotent).
@@ -108,7 +108,7 @@ users::resolve_list() {
 #   • Calls chsh -s <shell_path> for each user; skips users already on that
 #     shell; logs a warning when chsh fails but does not abort.
 # Exits early (with a warning, not an error) if chsh is not installed.
-users::set_login_shell() {
+users__set_login_shell() {
   local _shell="$1"
   shift
 

@@ -31,13 +31,13 @@ fi
 . "$_SELF_DIR/_lib/logging.sh"
 # shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
-logging::setup
-trap 'logging::cleanup' EXIT
+logging__setup
+trap 'logging__cleanup' EXIT
 
 # ---------------------------------------------------------------------------
 # 1. Install packages
 # ---------------------------------------------------------------------------
-ospkg::run --manifest "${_BASE_DIR}/dependencies/base.yaml"
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml"
 
 # ---------------------------------------------------------------------------
 # 2. Ensure newuidmap / newgidmap have setuid bit
@@ -51,7 +51,7 @@ chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap 2> /dev/null || true
 # ---------------------------------------------------------------------------
 # 3. Resolve user list
 # ---------------------------------------------------------------------------
-mapfile -t _RESOLVED_USERS < <(users::resolve_list)
+mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 
 if [ ${#_RESOLVED_USERS[@]} -eq 0 ]; then
   echo "install-podman: No users to configure." >&2

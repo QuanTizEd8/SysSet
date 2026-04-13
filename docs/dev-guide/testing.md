@@ -646,14 +646,14 @@ setup() {
 ```
 
 **`bash -c` subprocess isolation** — modules that manipulate file descriptors
-(e.g. `logging::setup` redirects fd 3 and 4) must be tested in isolated
+(e.g. `logging__setup` redirects fd 3 and 4) must be tested in isolated
 subprocesses to avoid interfering with bats' own TAP output on fd 3:
 
 ```bash
-@test "logging::setup creates a temp log file" {
+@test "logging__setup creates a temp log file" {
   run bash -c "
     source '${_LOGGING_LIB}'
-    logging::setup
+    logging__setup
     [[ -f \"\${_LOGGING_TMPFILE}\" ]] && echo OK
   "
   assert_success

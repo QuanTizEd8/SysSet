@@ -9,7 +9,7 @@ _SHELL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/os.sh
 . "$_SHELL_LIB_DIR/os.sh"
 
-# shell::detect_bashrc
+# shell__detect_bashrc
 # Prints the system-wide bashrc path for the current distro.
 #   /etc/bash.bashrc  — Debian/Ubuntu, Arch, openSUSE
 #   /etc/bashrc       — Fedora/RHEL/CentOS, NixOS, macOS
@@ -18,7 +18,7 @@ _SHELL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # itself reports the file it was compiled with); (2) os-release platform IDs.
 # Never uses file-existence checks — a file at the wrong path for this distro
 # won't be sourced by any shell, so writing to it would have no effect.
-shell::detect_bashrc() {
+shell__detect_bashrc() {
   # Ask bash which RC file it was compiled with — most accurate.
   local _compiled
   _compiled="$(strings "$(command -v bash 2> /dev/null)" 2> /dev/null |
@@ -27,8 +27,8 @@ shell::detect_bashrc() {
     echo "$_compiled"
     return 0
   fi
-  # os::platform fallback.
-  case "$(os::platform)" in
+  # os__platform fallback.
+  case "$(os__platform)" in
     alpine)
       echo "/etc/bash/bashrc"
       return 0
@@ -42,7 +42,7 @@ shell::detect_bashrc() {
   return 0
 }
 
-# shell::detect_zshdir
+# shell__detect_zshdir
 # Prints the directory prefix for system-wide zsh config files.
 #   /etc/zsh  — Debian/Ubuntu, Arch, Alpine, Gentoo, Void
 #   /etc      — Fedora/RHEL, openSUSE, NixOS, macOS
@@ -50,7 +50,7 @@ shell::detect_bashrc() {
 # of its global zshenv); (2) os-release platform IDs.
 # Never uses directory-existence checks — a directory at the wrong path for
 # this distro won't be used by the shell anyway.
-shell::detect_zshdir() {
+shell__detect_zshdir() {
   # Ask zsh which global zshenv path it was compiled with.
   local _compiled
   _compiled="$(strings "$(command -v zsh 2> /dev/null)" 2> /dev/null |
@@ -59,8 +59,8 @@ shell::detect_zshdir() {
     dirname "$_compiled"
     return 0
   fi
-  # os::platform fallback.
-  case "$(os::platform)" in
+  # os__platform fallback.
+  case "$(os__platform)" in
     rhel | macos)
       echo "/etc"
       return 0
@@ -70,14 +70,14 @@ shell::detect_zshdir() {
   return 0
 }
 
-# shell::write_block --file <file> --marker <id> --content <content>
+# shell__write_block --file <file> --marker <id> --content <content>
 # Idempotently writes a shell block wrapped in named idempotency markers:
 #   # >>> <id> >>>
 #   <content>
 #   # <<< <id> <<<
 # Creates parent dirs and the file if needed. Updates the block content
 # in-place if the marker already exists; appends otherwise.
-shell::write_block() {
+shell__write_block() {
   local _file="" _marker="" _content=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -118,12 +118,12 @@ shell::write_block() {
   return 0
 }
 
-# shell::sync_block --files <files> --marker <id> [--content <text>]
+# shell__sync_block --files <files> --marker <id> [--content <text>]
 # For each file in the newline-separated <files> list:
 #   - If --content is present: write or update the named idempotency block.
 #   - If --content is absent: remove the named idempotency block if it exists.
 # Skips blank lines in the file list.
-shell::sync_block() {
+shell__sync_block() {
   local _files="" _marker="" _content="" _has_content=false
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -151,7 +151,7 @@ shell::sync_block() {
   while IFS= read -r _f; do
     [ -z "$_f" ] && continue
     if [ "$_has_content" = true ]; then
-      shell::write_block --file "$_f" --marker "$_marker" --content "$_content"
+      shell__write_block --file "$_f" --marker "$_marker" --content "$_content"
     else
       [ -f "$_f" ] || continue
       grep -qF "$_begin" "$_f" || continue
@@ -167,12 +167,12 @@ shell::sync_block() {
   return 0
 }
 
-# shell::user_login_file [--home <dir>]
+# shell__user_login_file [--home <dir>]
 # Prints the bash login startup file path for the given home directory.
 # Returns the first existing of .bash_profile, .bash_login, .profile;
 # falls back to <home>/.bash_profile if none exist yet.
 # Default home: $HOME
-shell::user_login_file() {
+shell__user_login_file() {
   local _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -195,14 +195,14 @@ shell::user_login_file() {
   return 0
 }
 
-# shell::system_path_files [--profile_d <filename>]
+# shell__system_path_files [--profile_d <filename>]
 # Prints system-wide shell startup file paths for PATH or env variable
 # injection (intended for root on Linux). One absolute path per line:
-#   1. BASH_ENV file (non-login non-interactive bash — via shell::ensure_bashenv)
+#   1. BASH_ENV file (non-login non-interactive bash — via shell__ensure_bashenv)
 #   2. /etc/profile.d/<filename>  — only if --profile_d is given
 #   3. <global bashrc>            — non-login interactive bash
 #   4. <global zshdir>/zshenv    — all zsh invocations
-shell::system_path_files() {
+shell__system_path_files() {
   local _profiled=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -214,21 +214,21 @@ shell::system_path_files() {
       *) shift ;;
     esac
   done
-  shell::ensure_bashenv
+  shell__ensure_bashenv
   [ -n "$_profiled" ] && echo "/etc/profile.d/${_profiled}"
-  shell::detect_bashrc
-  echo "$(shell::detect_zshdir)/zshenv"
+  shell__detect_bashrc
+  echo "$(shell__detect_zshdir)/zshenv"
   return 0
 }
 
-# shell::user_path_files [--home <dir>]
+# shell__user_path_files [--home <dir>]
 # Prints user-scoped shell startup file paths for a PATH export.
 # One absolute path per line:
 #   <login_file>    — bash login (.bash_profile/.bash_login/.profile)
 #   <home>/.bashrc  — bash non-login interactive
 #   <home>/.zshenv  — all zsh invocations (login, interactive, non-interactive)
 # Default home: $HOME
-shell::user_path_files() {
+shell__user_path_files() {
   local _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -240,13 +240,13 @@ shell::user_path_files() {
       *) shift ;;
     esac
   done
-  shell::user_login_file --home "$_home"
+  shell__user_login_file --home "$_home"
   echo "${_home}/.bashrc"
   echo "${_home}/.zshenv"
   return 0
 }
 
-# shell::user_init_files [--home <dir>]
+# shell__user_init_files [--home <dir>]
 # Prints user-scoped shell startup file paths for a full shell initializer
 # (e.g. eval "$(brew shellenv)"). One absolute path per line:
 #   <login_file>       — bash login (.bash_profile/.bash_login/.profile)
@@ -254,7 +254,7 @@ shell::user_path_files() {
 #   <home>/.zprofile  — zsh login
 #   <home>/.zshrc     — zsh interactive
 # Default home: $HOME
-shell::user_init_files() {
+shell__user_init_files() {
   local _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -266,18 +266,18 @@ shell::user_init_files() {
       *) shift ;;
     esac
   done
-  shell::user_login_file --home "$_home"
+  shell__user_login_file --home "$_home"
   echo "${_home}/.bashrc"
   echo "${_home}/.zprofile"
   echo "${_home}/.zshrc"
   return 0
 }
 
-# shell::resolve_omz_theme --theme_slug <slug> --custom_dir <dir>
+# shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>
 # Given an owner/repo theme slug and the ZSH_CUSTOM directory, prints the
 # ZSH_THEME value that oh-my-zsh expects (e.g. "powerlevel10k/powerlevel10k").
 # Prints the repo name alone if the theme file can't be found.
-shell::resolve_omz_theme() {
+shell__resolve_omz_theme() {
   local slug="" custom_dir=""
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -312,10 +312,10 @@ shell::resolve_omz_theme() {
   return 0
 }
 
-# shell::plugin_names_from_slugs <comma-separated-slugs>
+# shell__plugin_names_from_slugs <comma-separated-slugs>
 # Extracts the repo names (basenames) from a CSV of owner/repo slugs.
 # Prints one name per line.
-shell::plugin_names_from_slugs() {
+shell__plugin_names_from_slugs() {
   local _slugs="$1"
   [ -z "$_slugs" ] && return 0
   local IFS=','
@@ -327,15 +327,15 @@ shell::plugin_names_from_slugs() {
   return 0
 }
 
-# shell::resolve_home <username>
+# shell__resolve_home <username>
 # Prints the home directory for the given user.
-shell::resolve_home() {
+shell__resolve_home() {
   local _user="$1"
   eval echo "~${_user}"
   return 0
 }
 
-# shell::ensure_bashenv
+# shell__ensure_bashenv
 # Detects or creates the system-wide BASH_ENV file and registers it in
 # /etc/environment. Prints the absolute path to the file.
 # Detection priority:
@@ -343,7 +343,7 @@ shell::resolve_home() {
 #   2. BASH_ENV= entry in /etc/environment — already registered, reuse.
 #   3. Create <bashrc_dir>/bashenv, register BASH_ENV="<path>" in /etc/environment.
 # Callers are responsible for writing content to the returned path.
-shell::ensure_bashenv() {
+shell__ensure_bashenv() {
   # 1. Live environment variable
   if [ -n "${BASH_ENV:-}" ]; then
     echo "ℹ️ BASH_ENV already set to '${BASH_ENV}'; reusing." >&2
@@ -367,7 +367,7 @@ shell::ensure_bashenv() {
   fi
   # 3. Create new bashenv file and register in /etc/environment
   local _bashrc
-  _bashrc="$(shell::detect_bashrc)"
+  _bashrc="$(shell__detect_bashrc)"
   local _bashenv_dir
   _bashenv_dir="$(dirname "$_bashrc")"
   local _bashenv_path="${_bashenv_dir}/bashenv"

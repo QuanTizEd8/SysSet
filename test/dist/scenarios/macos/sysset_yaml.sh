@@ -5,9 +5,9 @@
 # yq (mikefarah/yq) is fetched by sysset.sh from GitHub Releases when absent.
 # This test verifies the auto-install path on macOS (darwin/arm64 or amd64).
 #
-# setup-shim is used because it requires no package manager (no ospkg::run
+# setup-shim is used because it requires no package manager (no ospkg__run
 # call), works on macOS as root, and produces verifiable shim artifacts.
-# Requires: root for sysset.sh (os::require_root).
+# Requires: root for sysset.sh (os__require_root).
 set -euo pipefail
 
 REPO_ROOT="${1:?REPO_ROOT required as \$1}"

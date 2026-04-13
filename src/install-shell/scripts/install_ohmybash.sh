@@ -108,7 +108,7 @@ echo "ℹ️  Installing Oh My Bash to '${INSTALL_DIR}' (branch: ${BRANCH})..." 
 # Clone Oh My Bash
 # ---------------------------------------------------------------------------
 umask g-w,o-w
-git::clone --url "$_OHMYBASH_REPO_URL" --dir "$INSTALL_DIR" --branch "$BRANCH"
+git__clone --url "$_OHMYBASH_REPO_URL" --dir "$INSTALL_DIR" --branch "$BRANCH"
 
 # Set update metadata so 'omb update' knows which remote/branch.
 git -C "$INSTALL_DIR" config oh-my-bash.remote origin
@@ -124,7 +124,7 @@ mkdir -p "${OSH_CUSTOM_DIR}/themes" "${OSH_CUSTOM_DIR}/plugins"
 # ---------------------------------------------------------------------------
 if [ -n "${THEME}" ]; then
   _THEME_REPO_NAME="$(basename "$THEME")"
-  git::clone \
+  git__clone \
     --url "${_GITHUB_BASE_URL}/${THEME}" \
     --dir "${OSH_CUSTOM_DIR}/themes/${_THEME_REPO_NAME}"
   echo "ℹ️  Installed custom theme '${THEME}'." >&2
@@ -144,7 +144,7 @@ if [ -n "${PLUGINS}" ]; then
       continue
     fi
     _PLUGIN_NAME="$(basename "$_slug")"
-    git::clone \
+    git__clone \
       --url "${_GITHUB_BASE_URL}/${_slug}" \
       --dir "${OSH_CUSTOM_DIR}/plugins/${_PLUGIN_NAME}"
     echo "ℹ️  Installed custom plugin '${_slug}'." >&2

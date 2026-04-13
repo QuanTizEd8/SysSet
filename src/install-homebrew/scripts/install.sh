@@ -5,16 +5,16 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
 # ospkg.sh is sourced for net::* and os::* access.
-# ospkg::detect (lazy) is only called on Linux, not macOS.
+# ospkg__detect (lazy) is only called on Linux, not macOS.
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 # shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
-logging::setup
+logging__setup
 echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
-trap 'logging::cleanup' EXIT
+trap 'logging__cleanup' EXIT
 
 # ── Constants ────────────────────────────────────────────────────────────────
 _BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD"
@@ -26,7 +26,7 @@ _BREW_UNINSTALLER_URL="${_BREW_INSTALL_BASE_URL}/uninstall.sh"
 install_linux_deps() {
   echo "↪️ Function entry: install_linux_deps" >&2
   echo "📦 Installing Homebrew build dependencies." >&2
-  ospkg::run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+  ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
   echo "↩️ Function exit: install_linux_deps" >&2
   return 0
 }
@@ -44,7 +44,7 @@ run_brew_installer() {
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
   echo "📥 Downloading Homebrew installer to '${_tmpfile}'." >&2
-  net::fetch_url_file "$_BREW_INSTALLER_URL" "$_tmpfile"
+  net__fetch_url_file "$_BREW_INSTALLER_URL" "$_tmpfile"
   chmod a+r "$_tmpfile"
   echo "ℹ️ Installing as '${RESOLVED_INSTALL_USER}'." >&2
   _brew_run_as_install_user env "${_env_vars[@]}" /bin/bash "$_tmpfile"
@@ -60,7 +60,7 @@ uninstall_brew() {
   _tmpfile="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
   # shellcheck disable=SC2064
   trap "rm -f '${_tmpfile}'" RETURN
-  net::fetch_url_file "$_BREW_UNINSTALLER_URL" "$_tmpfile"
+  net__fetch_url_file "$_BREW_UNINSTALLER_URL" "$_tmpfile"
   chmod a+r "$_tmpfile"
   _brew_run_as_install_user env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$RESOLVED_PREFIX"
   echo "✅ Homebrew uninstalled." >&2
@@ -72,8 +72,8 @@ export_shellenv_for_user() {
   echo "↪️ Function entry: export_shellenv_for_user" >&2
   local _user="$1"
   # shellcheck disable=SC2016  # shellcheck disable=SC2016  local _brew_content='eval "$('''${RESOLVED_PREFIX}/bin/brew''' shellenv)"'
-  shell::sync_block \
-    --files "$(shell::user_init_files --home "$(shell::resolve_home "$_user")")" \
+  shell__sync_block \
+    --files "$(shell__user_init_files --home "$(shell__resolve_home "$_user")")" \
     --marker "brew shellenv (install-homebrew)" \
     --content "$_brew_content"
   echo "↩️ Function exit: export_shellenv_for_user" >&2
@@ -92,17 +92,17 @@ export_shellenv_main() {
   local _marker="brew shellenv (install-homebrew)"
   if [ "$EXPORT_PATH" != "auto" ]; then
     # Explicit newline-separated path list
-    shell::sync_block --files "$EXPORT_PATH" --marker "$_marker" --content "$_brew_content"
+    shell__sync_block --files "$EXPORT_PATH" --marker "$_marker" --content "$_brew_content"
     echo "↩️ Function exit: export_shellenv_main" >&2
     return 0
   fi
   # auto mode
   local _is_root=false
   [ "$(id -u)" = "0" ] && _is_root=true
-  if [ "$_is_root" = true ] && [ "$(os::kernel)" != "Darwin" ]; then
+  if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
     echo "ℹ️ Case A: system-wide shellenv export (root + Linux)." >&2
-    shell::sync_block \
-      --files "$(shell::system_path_files --profile_d "brew.sh")" \
+    shell__sync_block \
+      --files "$(shell__system_path_files --profile_d "brew.sh")" \
       --marker "$_marker" \
       --content "$_brew_content"
   else
@@ -126,8 +126,8 @@ export_shellenv_main() {
 
 detect_brew_prefix() {
   echo "↪️ Function entry: detect_brew_prefix" >&2
-  if [ "$(os::kernel)" = "Darwin" ]; then
-    if [ "$(os::arch)" = "arm64" ]; then
+  if [ "$(os__kernel)" = "Darwin" ]; then
+    if [ "$(os__arch)" = "arm64" ]; then
       echo "/opt/homebrew"
     else
       echo "/usr/local"
@@ -143,7 +143,7 @@ detect_brew_prefix() {
 # prefix on Intel macOS and Linux, where brew lives in ${prefix}/Homebrew.
 detect_brew_repository() {
   echo "↪️ Function entry: detect_brew_repository" >&2
-  if [ "$(os::kernel)" = "Darwin" ] && [ "$(os::arch)" = "arm64" ]; then
+  if [ "$(os__kernel)" = "Darwin" ] && [ "$(os__arch)" = "arm64" ]; then
     echo "${RESOLVED_PREFIX}"
   else
     echo "${RESOLVED_PREFIX}/Homebrew"
@@ -202,7 +202,7 @@ enforce_options() {
 }
 
 # _sync_init_files <marker> [content]
-# Calls shell::sync_block for the relevant init files for RESOLVED_INSTALL_USER
+# Calls shell__sync_block for the relevant init files for RESOLVED_INSTALL_USER
 # (and any extra USERS) plus system-wide files when running as root on Linux.
 # If content is given, writes/updates the block; if absent, removes it.
 _sync_init_files() {
@@ -213,27 +213,27 @@ _sync_init_files() {
   local _files _slug _is_root=false
   [ "$(id -u)" = "0" ] && _is_root=true
 
-  if [ "$_is_root" = true ] && [ "$(os::kernel)" != "Darwin" ]; then
+  if [ "$_is_root" = true ] && [ "$(os__kernel)" != "Darwin" ]; then
     _slug="$(echo "$_marker" | tr ' ()' '_' | tr -s '_' | tr '[:upper:]' '[:lower:]')"
-    _files="$(shell::system_path_files --profile_d "${_slug}.sh")"
+    _files="$(shell__system_path_files --profile_d "${_slug}.sh")"
   else
-    _files="$(shell::user_init_files --home "$(shell::resolve_home "$RESOLVED_INSTALL_USER")")"
+    _files="$(shell__user_init_files --home "$(shell__resolve_home "$RESOLVED_INSTALL_USER")")"
   fi
   if [ "$_has_content" = true ]; then
-    shell::sync_block --files "$_files" --marker "$_marker" --content "$_content"
+    shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
   else
-    shell::sync_block --files "$_files" --marker "$_marker"
+    shell__sync_block --files "$_files" --marker "$_marker"
   fi
 
   if [ -n "${USERS-}" ]; then
     IFS=',' read -ra _EXTRA_USERS <<< "$USERS"
     for _u in "${_EXTRA_USERS[@]}"; do
       [[ -z "$_u" ]] && continue
-      _files="$(shell::user_init_files --home "$(shell::resolve_home "$_u")")"
+      _files="$(shell__user_init_files --home "$(shell__resolve_home "$_u")")"
       if [ "$_has_content" = true ]; then
-        shell::sync_block --files "$_files" --marker "$_marker" --content "$_content"
+        shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
       else
-        shell::sync_block --files "$_files" --marker "$_marker"
+        shell__sync_block --files "$_files" --marker "$_marker"
       fi
     done
   fi
@@ -248,7 +248,7 @@ _brew_run_as_install_user() {
   echo "↪️ Function entry: _brew_run_as_install_user" >&2
   if [ "$(id -u)" != "0" ] || [ "${RESOLVED_INSTALL_USER}" = "root" ]; then
     "$@"
-  elif [ "$(os::kernel)" = "Darwin" ]; then
+  elif [ "$(os__kernel)" = "Darwin" ]; then
     sudo -u "${RESOLVED_INSTALL_USER}" "$@"
   else
     runuser -u "${RESOLVED_INSTALL_USER}" -- "$@"
@@ -271,7 +271,7 @@ detect_install_user() {
     return 0
   fi
   # Running as root.
-  if [ "$(os::kernel)" = "Darwin" ]; then
+  if [ "$(os__kernel)" = "Darwin" ]; then
     # The official Homebrew installer refuses to run as root on macOS.
     # We must find a non-root user to install as.
     if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
@@ -485,7 +485,7 @@ RESOLVED_INSTALL_USER="$(detect_install_user)"
 echo "ℹ️ Install user: '${RESOLVED_INSTALL_USER}'." >&2
 
 # ── Step 1: Linux build dependencies ─────────────────────────────────────────
-if [ "$(os::kernel)" != "Darwin" ]; then
+if [ "$(os__kernel)" != "Darwin" ]; then
   install_linux_deps
 fi
 

@@ -151,8 +151,8 @@ There is one file per concern:
 
 | File | Namespace | Provides |
 |---|---|---|
-| `os.sh` | `os::` | Kernel/arch/distro detection, `os::require_root`, `os::font_dir` |
-| `logging.sh` | `logging::` | `logging::setup`, `logging::cleanup` |
+| `os.sh` | `os::` | Kernel/arch/distro detection, `os__require_root`, `os__font_dir` |
+| `logging.sh` | `logging::` | `logging__setup`, `logging__cleanup` |
 | `net.sh` | `net::` | URL fetching with retry, curl/wget detection, CA cert installation |
 | `ospkg.sh` | `ospkg::` | Cross-distro package manager abstraction, manifest parsing and execution |
 | `shell.sh` | `shell::` | Shell config path detection, block writing, theme/plugin resolution |

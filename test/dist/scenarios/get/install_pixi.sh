@@ -26,7 +26,7 @@ start_file_server "${REPO_ROOT}/dist" "$_PORT"
 export SYSSET_BASE_URL="http://127.0.0.1:${_PORT}/"
 
 # ── Run get.sh ────────────────────────────────────────────────────────────────
-# install-pixi requires root (ospkg::require_root); installs pixi to /usr/local/bin.
+# install-pixi requires root (ospkg__require_root); installs pixi to /usr/local/bin.
 check "get.sh installs install-pixi successfully" \
   sudo -E bash "${REPO_ROOT}/dist/get.sh" install-pixi
 

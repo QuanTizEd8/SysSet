@@ -85,7 +85,7 @@ __cleanup__() {
     find "$BIN_DIR" -follow -type f -name '*.a' -delete 2> /dev/null || true
     find "$BIN_DIR" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
   fi
-  logging::cleanup
+  logging__cleanup
   echo "↩️ Function exit: __cleanup__" >&2
 }
 
@@ -122,8 +122,8 @@ download_miniforge() {
   local checksum_url="${installer_url}.sha256"
   mkdir -p "$INSTALLER_DIR"
   echo "📥 Downloading installer from $installer_url" >&2
-  net::fetch_url_file "$installer_url" "$INSTALLER"
-  net::fetch_url_file "$checksum_url" "$CHECKSUM"
+  net__fetch_url_file "$installer_url" "$INSTALLER"
+  net__fetch_url_file "$checksum_url" "$CHECKSUM"
   echo "↩️ Function exit: download_miniforge" >&2
 }
 
@@ -135,7 +135,7 @@ check_root_requirement() {
     *) _require=false ;;
   esac
   if [[ "$_require" == true ]]; then
-    os::require_root
+    os__require_root
   else
     echo "ℹ️ Root not required for bin_dir '$BIN_DIR'. Skipping root check." >&2
   fi
@@ -241,7 +241,7 @@ set_executable_paths() {
 set_installer_filename() {
   echo "↪️ Function entry: set_installer_filename" >&2
   local installer_platform
-  installer_platform="$(os::kernel)-$(os::arch)"
+  installer_platform="$(os__kernel)-$(os__arch)"
   INSTALLER_FILENAME="Miniforge3-${MINIFORGE_VERSION}-${installer_platform}.sh"
   INSTALLER="${INSTALLER_DIR}/${INSTALLER_FILENAME}"
   CHECKSUM="${INSTALLER}.sha256"
@@ -253,14 +253,14 @@ resolve_miniforge_version() {
   local tag conda_ver
   if [[ "$VERSION" == "latest" ]]; then
     echo "ℹ️ Resolving latest Miniforge release tag from GitHub API." >&2
-    tag="$(github::latest_tag conda-forge/miniforge)" || {
+    tag="$(github__latest_tag conda-forge/miniforge)" || {
       echo "⛔ Failed to resolve latest Miniforge version." >&2
       exit 1
     }
   else
     echo "ℹ️ Resolving Miniforge release tag for conda version '${VERSION}' from GitHub API." >&2
     local releases
-    releases="$(github::release_tags conda-forge/miniforge)" || {
+    releases="$(github__release_tags conda-forge/miniforge)" || {
       echo "⛔ Failed to list Miniforge releases." >&2
       exit 1
     }
@@ -387,7 +387,7 @@ uninstall_miniforge() {
 verify_miniforge() {
   echo "↪️ Function entry: verify_miniforge" >&2
   echo "📦 Verifying installer checksum" >&2
-  checksum::verify_sha256_sidecar "$INSTALLER" "$CHECKSUM"
+  checksum__verify_sha256_sidecar "$INSTALLER" "$CHECKSUM"
   echo "↩️ Function exit: verify_miniforge" >&2
 }
 
@@ -407,17 +407,17 @@ export_path_main() {
     local _is_public=true _is_root=false
     case "$BIN_DIR" in "${HOME}"/*) _is_public=false ;; esac
     [ "$(id -u)" = "0" ] && _is_root=true
-    echo "ℹ️ Platform: '$(os::platform)'; is_public=${_is_public}; is_root=${_is_root}." >&2
+    echo "ℹ️ Platform: '$(os__platform)'; is_public=${_is_public}; is_root=${_is_root}." >&2
     if [ "$_is_public" = true ] && [ "$_is_root" = true ]; then
       echo "ℹ️ Case A: system-wide PATH export (public install, root)." >&2
-      _target_files="$(shell::system_path_files --profile_d "conda_bin_path.sh")"
+      _target_files="$(shell__system_path_files --profile_d "conda_bin_path.sh")"
     else
       echo "ℹ️ Case B: user-scoped PATH export." >&2
       # shellcheck disable=SC2119 # no args → uses $HOME default, intentional
-      _target_files="$(shell::user_path_files)"
+      _target_files="$(shell__user_path_files)"
     fi
   fi
-  shell::sync_block --files "$_target_files" --marker "$_marker" --content "$_content"
+  shell__sync_block --files "$_target_files" --marker "$_marker" --content "$_content"
   echo "↩️ Function exit: export_path_main" >&2
   return
 }
@@ -458,14 +458,14 @@ _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$_SELF_DIR/_lib/github.sh"
 # shellcheck source=lib/checksum.sh
 . "$_SELF_DIR/_lib/checksum.sh"
-logging::setup
+logging__setup
 echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
 trap '__cleanup__' EXIT
 
 # ── Constants ────────────────────────────────────────────────────────────────
 _MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
 
-ospkg::run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2

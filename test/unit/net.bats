@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Unit tests for lib/net.sh
 #
-# net::fetch_url_stdout / net::fetch_url_file rely on curl/wget network access
+# net__fetch_url_stdout / net__fetch_url_file rely on curl/wget network access
 # and are exercised at the feature integration level.  These unit tests focus
 # on the locally-testable retry logic and on the tool-detection caching.
 
@@ -13,10 +13,10 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# net::fetch_with_retry
+# net__fetch_with_retry
 # ---------------------------------------------------------------------------
 
-@test "net::fetch_with_retry succeeds on the first attempt" {
+@test "net__fetch_with_retry succeeds on the first attempt" {
   reload_lib net.sh
   local _count=0
   _passing_cmd() {
@@ -24,11 +24,11 @@ setup() {
     return 0
   }
   export -f _passing_cmd
-  run net::fetch_with_retry 3 0 _passing_cmd
+  run net__fetch_with_retry 3 0 _passing_cmd
   assert_success
 }
 
-@test "net::fetch_with_retry retries on failure then succeeds" {
+@test "net__fetch_with_retry retries on failure then succeeds" {
   reload_lib net.sh
   # Write a counter file and succeed on the second attempt.
   local _counter="${BATS_TEST_TMPDIR}/attempts"
@@ -45,11 +45,11 @@ printf '%s' "$n" > "$counter_file"
 EOF
   chmod +x "${BATS_TEST_TMPDIR}/bin/_retry_cmd"
   prepend_fake_bin_path
-  run net::fetch_with_retry 3 0 _retry_cmd
+  run net__fetch_with_retry 3 0 _retry_cmd
   assert_success
 }
 
-@test "net::fetch_with_retry exhausts all attempts and fails" {
+@test "net__fetch_with_retry exhausts all attempts and fails" {
   reload_lib net.sh
   create_fake_bin "_always_fail" ""
   cat > "${BATS_TEST_TMPDIR}/bin/_always_fail" << 'EOF'
@@ -61,7 +61,7 @@ EOF
   # Override sleep to a no-op so the test is fast.
   sleep() { :; }
   export -f sleep
-  run net::fetch_with_retry 2 0 _always_fail
+  run net__fetch_with_retry 2 0 _always_fail
   assert_failure
   assert_output --partial "Failed after 2"
 }
@@ -146,10 +146,10 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# net::fetch_url_stdout  /  net::fetch_url_file  (routing tests)
+# net__fetch_url_stdout  /  net__fetch_url_file  (routing tests)
 # ---------------------------------------------------------------------------
 
-@test "net::fetch_url_stdout routes to curl when _NET_FETCH_TOOL=curl" {
+@test "net__fetch_url_stdout routes to curl when _NET_FETCH_TOOL=curl" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -158,28 +158,28 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_stdout "https://example.com"
+  run net__fetch_url_stdout "https://example.com"
   assert_output --partial "curl"
   assert_output --partial "--retry 60"
   assert_output --partial "--compressed"
 }
 
-@test "net::fetch_url_stdout routes to wget when _NET_FETCH_TOOL=wget" {
+@test "net__fetch_url_stdout routes to wget when _NET_FETCH_TOOL=wget" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_stdout "https://example.com"
+  export -f net__fetch_with_retry
+  run net__fetch_url_stdout "https://example.com"
   assert_output --partial "tool=wget"
   assert_output --partial "retry=60"
   assert_output --partial "delay=5"
 }
 
-@test "net::fetch_url_file routes to curl when _NET_FETCH_TOOL=curl" {
+@test "net__fetch_url_file routes to curl when _NET_FETCH_TOOL=curl" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -188,28 +188,28 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_file "https://example.com" "/tmp/out"
+  run net__fetch_url_file "https://example.com" "/tmp/out"
   assert_output --partial "curl"
   assert_output --partial "--retry 60"
   assert_output --partial "--compressed"
 }
 
-@test "net::fetch_url_file routes to wget when _NET_FETCH_TOOL=wget" {
+@test "net__fetch_url_file routes to wget when _NET_FETCH_TOOL=wget" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_file "https://example.com" "/tmp/out"
+  export -f net__fetch_with_retry
+  run net__fetch_url_file "https://example.com" "/tmp/out"
   assert_output --partial "tool=wget"
   assert_output --partial "retry=60"
   assert_output --partial "delay=5"
 }
 
-@test "net::fetch_url_stdout passes --retries to curl" {
+@test "net__fetch_url_stdout passes --retries to curl" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -218,24 +218,24 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_stdout "https://example.com" --retries 3
+  run net__fetch_url_stdout "https://example.com" --retries 3
   assert_output --partial "--retry 3"
 }
 
-@test "net::fetch_url_stdout passes --retries to wget" {
+@test "net__fetch_url_stdout passes --retries to wget" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_stdout "https://example.com" --retries 3
+  export -f net__fetch_with_retry
+  run net__fetch_url_stdout "https://example.com" --retries 3
   assert_output --partial "retry=3"
 }
 
-@test "net::fetch_url_file passes --retries to curl" {
+@test "net__fetch_url_file passes --retries to curl" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -244,24 +244,24 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_file "https://example.com" "/tmp/out" --retries 3
+  run net__fetch_url_file "https://example.com" "/tmp/out" --retries 3
   assert_output --partial "--retry 3"
 }
 
-@test "net::fetch_url_file passes --retries to wget" {
+@test "net__fetch_url_file passes --retries to wget" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_file "https://example.com" "/tmp/out" --retries 3
+  export -f net__fetch_with_retry
+  run net__fetch_url_file "https://example.com" "/tmp/out" --retries 3
   assert_output --partial "retry=3"
 }
 
-@test "net::fetch_url_stdout passes --delay to curl" {
+@test "net__fetch_url_stdout passes --delay to curl" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -270,24 +270,24 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_stdout "https://example.com" --delay 10
+  run net__fetch_url_stdout "https://example.com" --delay 10
   assert_output --partial "--retry-delay 10"
 }
 
-@test "net::fetch_url_stdout passes --delay to wget" {
+@test "net__fetch_url_stdout passes --delay to wget" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_stdout "https://example.com" --delay 10
+  export -f net__fetch_with_retry
+  run net__fetch_url_stdout "https://example.com" --delay 10
   assert_output --partial "delay=10"
 }
 
-@test "net::fetch_url_file passes --delay to curl" {
+@test "net__fetch_url_file passes --delay to curl" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -296,24 +296,24 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_file "https://example.com" "/tmp/out" --delay 10
+  run net__fetch_url_file "https://example.com" "/tmp/out" --delay 10
   assert_output --partial "--retry-delay 10"
 }
 
-@test "net::fetch_url_file passes --delay to wget" {
+@test "net__fetch_url_file passes --delay to wget" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     echo "retry=$1 delay=$2 tool=$3"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_file "https://example.com" "/tmp/out" --delay 10
+  export -f net__fetch_with_retry
+  run net__fetch_url_file "https://example.com" "/tmp/out" --delay 10
   assert_output --partial "delay=10"
 }
 
-@test "net::fetch_url_stdout passes --header to curl as -H pairs" {
+@test "net__fetch_url_stdout passes --header to curl as -H pairs" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -322,7 +322,7 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_stdout "https://example.com" \
+  run net__fetch_url_stdout "https://example.com" \
     --header "Accept: application/json" \
     --header "Authorization: Bearer mytoken"
   assert_output --partial "-H"
@@ -330,23 +330,23 @@ EOF
   assert_output --partial "Authorization: Bearer mytoken"
 }
 
-@test "net::fetch_url_stdout passes --header to wget as --header=K: V" {
+@test "net__fetch_url_stdout passes --header to wget as --header=K: V" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     printf '%s\n' "$@"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_stdout "https://example.com" \
+  export -f net__fetch_with_retry
+  run net__fetch_url_stdout "https://example.com" \
     --header "Accept: application/json" \
     --header "Authorization: Bearer mytoken"
   assert_output --partial "--header=Accept: application/json"
   assert_output --partial "--header=Authorization: Bearer mytoken"
 }
 
-@test "net::fetch_url_file passes --header to curl as -H pairs" {
+@test "net__fetch_url_file passes --header to curl as -H pairs" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
@@ -355,7 +355,7 @@ EOF
     return 0
   }
   export -f curl
-  run net::fetch_url_file "https://example.com" "/tmp/out" \
+  run net__fetch_url_file "https://example.com" "/tmp/out" \
     --header "Accept: application/json" \
     --header "Authorization: Bearer mytoken"
   assert_output --partial "-H"
@@ -363,36 +363,36 @@ EOF
   assert_output --partial "Authorization: Bearer mytoken"
 }
 
-@test "net::fetch_url_file passes --header to wget as --header=K: V" {
+@test "net__fetch_url_file passes --header to wget as --header=K: V" {
   reload_lib net.sh
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
-  net::fetch_with_retry() {
+  net__fetch_with_retry() {
     printf '%s\n' "$@"
     return 0
   }
-  export -f net::fetch_with_retry
-  run net::fetch_url_file "https://example.com" "/tmp/out" \
+  export -f net__fetch_with_retry
+  run net__fetch_url_file "https://example.com" "/tmp/out" \
     --header "Accept: application/json" \
     --header "Authorization: Bearer mytoken"
   assert_output --partial "--header=Accept: application/json"
   assert_output --partial "--header=Authorization: Bearer mytoken"
 }
 
-@test "net::fetch_url_stdout rejects unknown option" {
+@test "net__fetch_url_stdout rejects unknown option" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
-  run net::fetch_url_stdout "https://example.com" --bogus foo
+  run net__fetch_url_stdout "https://example.com" --bogus foo
   assert_failure
   assert_output --partial "unknown option"
 }
 
-@test "net::fetch_url_file rejects unknown option" {
+@test "net__fetch_url_file rejects unknown option" {
   reload_lib net.sh
   _NET_FETCH_TOOL=curl
   _NET_CA_CERTS_OK=true
-  run net::fetch_url_file "https://example.com" "/tmp/out" --bogus foo
+  run net__fetch_url_file "https://example.com" "/tmp/out" --bogus foo
   assert_failure
   assert_output --partial "unknown option"
 }
