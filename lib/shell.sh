@@ -9,7 +9,6 @@ _SHELL__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/os.sh
 . "$_SHELL__LIB_DIR/os.sh"
 
-
 # shell__detect_bashrc
 # Prints the system-wide bashrc path for the current distro.
 #   /etc/bash.bashrc  — Debian/Ubuntu, Arch, openSUSE
@@ -43,7 +42,6 @@ shell__detect_bashrc() {
   return 0
 }
 
-
 # shell__detect_zshdir
 # Prints the directory prefix for system-wide zsh config files.
 #   /etc/zsh  — Debian/Ubuntu, Arch, Alpine, Gentoo, Void
@@ -71,7 +69,6 @@ shell__detect_zshdir() {
   echo "/etc/zsh"
   return 0
 }
-
 
 # shell__write_block --file <file> --marker <id> --content <content>
 # Idempotently writes a shell block wrapped in named idempotency markers:
@@ -120,7 +117,6 @@ shell__write_block() {
   fi
   return 0
 }
-
 
 # shell__sync_block --files <files> --marker <id> [--content <text>]
 # For each file in the newline-separated <files> list:
@@ -171,7 +167,6 @@ shell__sync_block() {
   return 0
 }
 
-
 # shell__user_login_file [--home <dir>]
 # Prints the bash login startup file path for the given home directory.
 # Returns the first existing of .bash_profile, .bash_login, .profile;
@@ -200,7 +195,6 @@ shell__user_login_file() {
   return 0
 }
 
-
 # shell__system_path_files [--profile_d <filename>]
 # Prints system-wide shell startup file paths for PATH or env variable
 # injection (intended for root on Linux). One absolute path per line:
@@ -227,7 +221,6 @@ shell__system_path_files() {
   return 0
 }
 
-
 # shell__user_path_files [--home <dir>]
 # Prints user-scoped shell startup file paths for a PATH export.
 # One absolute path per line:
@@ -252,7 +245,6 @@ shell__user_path_files() {
   echo "${_home}/.zshenv"
   return 0
 }
-
 
 # shell__user_init_files [--home <dir>]
 # Prints user-scoped shell startup file paths for a full shell initializer
@@ -280,7 +272,6 @@ shell__user_init_files() {
   echo "${_home}/.zshrc"
   return 0
 }
-
 
 # shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>
 # Given an owner/repo theme slug and the ZSH_CUSTOM directory, prints the
@@ -321,7 +312,6 @@ shell__resolve_omz_theme() {
   return 0
 }
 
-
 # shell__plugin_names_from_slugs <comma-separated-slugs>
 # Extracts the repo names (basenames) from a CSV of owner/repo slugs.
 # Prints one name per line.
@@ -337,7 +327,6 @@ shell__plugin_names_from_slugs() {
   return 0
 }
 
-
 # shell__resolve_home <username>
 # Prints the home directory for the given user.
 shell__resolve_home() {
@@ -345,7 +334,6 @@ shell__resolve_home() {
   eval echo "~${_user}"
   return 0
 }
-
 
 # shell__ensure_bashenv
 # Detects or creates the system-wide BASH_ENV file and registers it in

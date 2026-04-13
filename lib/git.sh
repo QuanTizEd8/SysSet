@@ -5,7 +5,6 @@
 [[ -n "${_GIT__LIB_LOADED-}" ]] && return 0
 _GIT__LIB_LOADED=1
 
-
 # git__clone --url <url> --dir <dir> [--branch <branch>]
 # Clones <url> into <dir> with depth=1.  If <dir>/.git already exists the
 # clone is skipped (idempotent).  On failure the partially-created <dir> is

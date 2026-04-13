@@ -13,7 +13,6 @@ _NET__LIB_LOADED=1
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
 
-
 # net__fetch_with_retry <max-attempts> <delay> <cmd...>
 # Runs <cmd> up to <max-attempts> times with a <delay>-second pause between
 # failures.  Does NOT require ospkg.sh.
@@ -33,7 +32,6 @@ net__fetch_with_retry() {
   echo "⛔ Failed after $_max attempt(s)." >&2
   return 1
 }
-
 
 # net__fetch_url_stdout <url> [--retries N] [--delay N] [--header "Name: Value"]...
 # Writes URL response body to stdout using _NET_FETCH_TOOL, with retries.
@@ -89,7 +87,6 @@ _NET_HDR_EOF_
   fi
   return 0
 }
-
 
 # net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header "Name: Value"]...
 # Writes URL response body to file using _NET_FETCH_TOOL, with retries.
@@ -147,7 +144,6 @@ _NET_HDR_EOF_
   return 0
 }
 
-
 # _net__ensure_fetch_tool (internal)
 # Sets _NET_FETCH_TOOL to "curl" or "wget"; installs curl via ospkg__install
 # if neither is found.  Requires ospkg.sh to have been sourced first.
@@ -170,7 +166,6 @@ _net__ensure_fetch_tool() {
   _net__ensure_ca_certs
   return 0
 }
-
 
 # _net__ensure_ca_certs (internal)
 # Ensures /etc/ssl/certs/ca-certificates.crt exists; installs ca-certificates

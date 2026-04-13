@@ -9,7 +9,6 @@
 [ -n "${_USERS__LIB_LOADED-}" ] && return 0
 _USERS__LIB_LOADED=1
 
-
 # users__resolve_list
 #
 # Reads the standard devcontainer user-config env vars and prints one
@@ -100,7 +99,6 @@ users__resolve_list() {
   done
   return 0
 }
-
 
 # users__set_login_shell <shell_path> <username>...
 #

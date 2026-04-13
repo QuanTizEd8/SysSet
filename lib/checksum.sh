@@ -6,7 +6,6 @@
 [ -n "${_CHECKSUM__LIB_LOADED-}" ] && return 0
 _CHECKSUM__LIB_LOADED=1
 
-
 # checksum__verify_sha256 <file> <expected_hash>
 #
 # Verifies the SHA-256 digest of <file> against <expected_hash>.
@@ -36,7 +35,6 @@ checksum__verify_sha256() {
   fi
   return 0
 }
-
 
 # checksum__verify_sha256_sidecar <file> <sha256_file>
 #

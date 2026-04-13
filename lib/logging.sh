@@ -9,7 +9,6 @@ _LIB_LOGGING_SETUP=false
 _SYSSET_TMPDIR=
 _SYSSET_MASKED_VALUES=()
 
-
 # logging__setup — redirect stdout+stderr through tee into a temp file.
 #
 # Creates _SYSSET_TMPDIR (a process-lifetime temp directory) on first call.
@@ -34,14 +33,12 @@ logging__setup() {
   return 0
 }
 
-
 # logging__mask_secret <value> — register a secret value to be redacted when
 # logging__cleanup writes to $LOGFILE.  Call once per secret after logging__setup.
 logging__mask_secret() {
   [[ -n "${1:-}" ]] && _SYSSET_MASKED_VALUES+=("$1")
   return 0
 }
-
 
 # logging__tmpdir <name> — return (and create if needed) a named subdirectory
 # of _SYSSET_TMPDIR.  Idempotent.
@@ -54,7 +51,6 @@ logging__tmpdir() {
   echo "${_SYSSET_TMPDIR}/${1}"
   return 0
 }
-
 
 # logging__cleanup — flush temp log to $LOGFILE, delete _SYSSET_TMPDIR, and
 # restore original fds.

@@ -13,14 +13,12 @@ _OS__ID_LIKE=""
 _OS__PLATFORM=""
 _OS__RELEASE_LOADED=""
 
-
 # os__kernel — prints the kernel name (Linux or Darwin).
 os__kernel() {
   [ -n "${_OS__KERNEL-}" ] || _OS__KERNEL="$(uname -s)"
   echo "$_OS__KERNEL"
   return 0
 }
-
 
 # os__arch — prints the CPU architecture (x86_64, aarch64, arm64, …).
 os__arch() {
@@ -29,7 +27,6 @@ os__arch() {
   return 0
 }
 
-
 # os__id — prints the ID field from /etc/os-release (e.g. ubuntu, debian, alpine).
 os__id() {
   _os__load_release
@@ -37,14 +34,12 @@ os__id() {
   return 0
 }
 
-
 # os__id_like — prints ID_LIKE from /etc/os-release (space-separated family list).
 os__id_like() {
   _os__load_release
   echo "${_OS__ID_LIKE:-}"
   return 0
 }
-
 
 # os__platform — prints a canonical platform tag.
 # Returns one of: debian | alpine | rhel | macos
@@ -74,7 +69,6 @@ os__platform() {
   return 0
 }
 
-
 # os__require_root
 # Exits 1 with a message if the current user is not root.
 os__require_root() {
@@ -84,7 +78,6 @@ os__require_root() {
   fi
   return 0
 }
-
 
 # os__font_dir
 # Prints the appropriate font directory for the current user.
@@ -102,7 +95,6 @@ os__font_dir() {
   return 0
 }
 
-
 # os__is_container
 # Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI),
 # 1 otherwise.  Uses the same heuristics as Homebrew's check-run-command-as-root()
@@ -116,7 +108,6 @@ os__is_container() {
   fi
   return 1
 }
-
 
 # _os__load_release (private)
 # Parses /etc/os-release once and caches ID and ID_LIKE.
@@ -132,4 +123,3 @@ _os__load_release() {
   _OS__RELEASE_LOADED=1
   return 0
 }
-
