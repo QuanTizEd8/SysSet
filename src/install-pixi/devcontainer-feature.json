@@ -34,7 +34,7 @@
       "installer_dir": {
          "type": "string",
          "default": "/tmp/pixi-installer",
-         "description": "Directory to download the pixi .tar.gz archive and its .sha256 sidecar to.\nBoth files are removed after installation unless keep_installer is true.\n"
+         "description": "Directory to download the pixi .tar.gz archive and its .tar.gz.sha256 sidecar to.\nBoth files are removed after installation unless keep_installer is true.\n"
       },
       "arch": {
          "type": "string",
@@ -91,7 +91,7 @@
       "keep_installer": {
          "type": "boolean",
          "default": false,
-         "description": "Keep the downloaded .tar.gz archive and .sha256 sidecar file after installation.\nBy default both files are removed from installer_dir on exit.\n"
+         "description": "Keep the downloaded .tar.gz archive and .tar.gz.sha256 sidecar file after installation.\nBy default both files are removed from installer_dir on exit.\n"
       },
       "debug": {
          "type": "boolean",
