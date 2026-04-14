@@ -1,5 +1,5 @@
 #!/bin/bash
-# keep_installer=true: the downloaded .tar.gz archive and .sha256 sidecar
+# keep_installer=true: the downloaded .tar.gz archive and .tar.gz.sha256 sidecar
 # must remain in installer_dir after installation completes.
 set -e
 
@@ -14,6 +14,6 @@ echo "=== /tmp/pixi-installer/ contents ==="
 ls -la /tmp/pixi-installer/ 2> /dev/null || echo "(directory missing)"
 check "installer_dir exists" test -d /tmp/pixi-installer
 check "pixi archive preserved" bash -c 'ls /tmp/pixi-installer/pixi-*.tar.gz 2>/dev/null | grep -q .'
-check "pixi sidecar preserved" bash -c 'ls /tmp/pixi-installer/pixi-*.sha256 2>/dev/null | grep -q .'
+check "pixi sidecar preserved" bash -c 'ls /tmp/pixi-installer/pixi-*.tar.gz.sha256 2>/dev/null | grep -q .'
 
 reportResults
