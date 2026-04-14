@@ -159,6 +159,7 @@ _net__ensure_fetch_tool() {
         return 1
       }
       echo "ℹ️  Neither curl nor wget found — installing curl." >&2
+      ospkg__update
       ospkg__install curl
       _NET_FETCH_TOOL=curl
     fi
