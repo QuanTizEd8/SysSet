@@ -286,7 +286,7 @@ Special case for `EXPORT_PATH`: because empty string is a valid user-supplied va
 
 When `NETRC` is non-empty, the installer cannot use `net__fetch_url_file` directly
 (which has no netrc support). Instead, `download_pixi` falls back to an inline
-`curl --netrc-file "$NETRC"` (or `wget --auth-no-challenge --netrc=$NETRC`) call for
+`curl --netrc-file "$NETRC"` (or `wget --netrc-file "$NETRC"`) call for
 the archive download. The sidecar (`.tar.gz.sha256`) does not contain secrets and is
 fetched with `net__fetch_url_file` even when `NETRC` is set, unless a netrc-protected
 mirror delivers both.
