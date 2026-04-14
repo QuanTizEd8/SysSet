@@ -213,3 +213,121 @@ v2.0.0"
   assert_success
   assert_output "https://example.com/v2.tar.gz"
 }
+
+# ---------------------------------------------------------------------------
+# _github__api_list_field  (shared extraction helper)
+# ---------------------------------------------------------------------------
+
+@test "_github__api_list_field extracts name field from JSON array" {
+  net__fetch_url_stdout() {
+    printf '{"name":"v2.0.0"}\n'
+    printf '{"name":"v1.9.0"}\n'
+    return 0
+  }
+  export -f net__fetch_url_stdout
+  run _github__api_list_field "https://api.github.com/repos/owner/repo/tags?per_page=100" "name"
+  assert_output "v2.0.0
+v1.9.0"
+  assert_success
+}
+
+@test "_github__api_list_field returns 1 when fetch fails" {
+  net__fetch_url_stdout() { return 1; }
+  export -f net__fetch_url_stdout
+  run _github__api_list_field "https://api.github.com/repos/owner/repo/tags?per_page=100" "name"
+  assert_failure
+}
+
+@test "_github__api_list_field returns 1 on empty response" {
+  net__fetch_url_stdout() {
+    printf ''
+    return 0
+  }
+  export -f net__fetch_url_stdout
+  run _github__api_list_field "https://api.github.com/repos/owner/repo/tags?per_page=100" "name"
+  assert_failure
+}
+
+@test "_github__api_list_field returns 1 when the requested field is absent" {
+  net__fetch_url_stdout() {
+    printf '{"message":"API rate limit exceeded"}\n'
+    return 0
+  }
+  export -f net__fetch_url_stdout
+  run _github__api_list_field "https://api.github.com/repos/owner/repo/tags?per_page=100" "name"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+# github__tags
+# ---------------------------------------------------------------------------
+
+@test "github__tags prints tag names from /tags endpoint" {
+  net__fetch_url_stdout() {
+    printf '{"name":"v2.48.0"}\n'
+    printf '{"name":"v2.47.2"}\n'
+    printf '{"name":"v2.47.1"}\n'
+    return 0
+  }
+  export -f net__fetch_url_stdout
+  run github__tags "git/git"
+  assert_output "v2.48.0
+v2.47.2
+v2.47.1"
+  assert_success
+}
+
+@test "github__tags accepts --per_page option" {
+  # Stub _github__api_get to echo the URL as a "name" field so it passes
+  # through the grep/sed extraction and appears in the final output.
+  _github__api_get() {
+    printf '{"name":"%s"}\n' "$1"
+    return 0
+  }
+  export -f _github__api_get
+  run github__tags "git/git" --per_page 50
+  assert_output --partial "tags?per_page=50"
+  assert_success
+}
+
+@test "github__tags rejects unknown option" {
+  run github__tags "git/git" --bogus
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+@test "github__tags fails when API call fails" {
+  net__fetch_url_stdout() { return 1; }
+  export -f net__fetch_url_stdout
+  run github__tags "git/git"
+  assert_failure
+  assert_output --partial "failed to reach GitHub API"
+}
+
+@test "github__tags fails when the tags response has no name fields" {
+  net__fetch_url_stdout() {
+    printf '{"message":"API rate limit exceeded"}\n'
+    return 0
+  }
+  export -f net__fetch_url_stdout
+  run github__tags "git/git"
+  assert_failure
+  assert_output --partial "failed to reach GitHub API"
+}
+
+# ---------------------------------------------------------------------------
+# github__release_tags still works after refactor
+# ---------------------------------------------------------------------------
+
+@test "github__release_tags still parses tag_name via shared helper" {
+  net__fetch_url_stdout() {
+    printf '{"tag_name":"v3.0.0"}\n'
+    printf '{"tag_name":"v2.9.0"}\n'
+    return 0
+  }
+  export -f net__fetch_url_stdout
+  run github__release_tags "owner/repo"
+  assert_output "v3.0.0
+v2.9.0"
+  assert_success
+}

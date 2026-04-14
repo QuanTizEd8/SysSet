@@ -28,7 +28,7 @@ reload_lib() {
     _CHECKSUM__LIB_LOADED _GITHUB__LIB_LOADED _USERS__LIB_LOADED
 
   # Reset os.sh lazy-cached globals.
-  unset _OS__KERNEL _OS__ARCH _OS__ID _OS__ID_LIKE _OS__PLATFORM _OS__RELEASE_LOADED
+  unset _OS__KERNEL _OS__ARCH _OS__ID _OS__ID_LIKE _OS__CODENAME _OS__PLATFORM _OS__RELEASE_LOADED
 
   # Reset net.sh cached state.
   unset _NET_FETCH_TOOL _NET_CA_CERTS_OK

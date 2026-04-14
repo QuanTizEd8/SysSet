@@ -10,6 +10,7 @@ _OS__KERNEL=""
 _OS__ARCH=""
 _OS__ID=""
 _OS__ID_LIKE=""
+_OS__CODENAME=""
 _OS__PLATFORM=""
 _OS__RELEASE_LOADED=""
 
@@ -110,7 +111,7 @@ os__is_container() {
 }
 
 # _os__load_release (private)
-# Parses /etc/os-release once and caches ID and ID_LIKE.
+# Parses /etc/os-release once and caches ID, ID_LIKE, and VERSION_CODENAME.
 # Uses grep/sed rather than sourcing the file to avoid env pollution.
 _os__load_release() {
   [ -n "${_OS__RELEASE_LOADED-}" ] && return 0
@@ -119,7 +120,23 @@ _os__load_release() {
       sed 's/^ID=//;s/^"//;s/"$//')"
     _OS__ID_LIKE="$(grep -m1 '^ID_LIKE=' /etc/os-release 2> /dev/null |
       sed 's/^ID_LIKE=//;s/^"//;s/"$//')"
+    _OS__CODENAME="$(grep -m1 '^VERSION_CODENAME=' /etc/os-release 2> /dev/null |
+      sed 's/^VERSION_CODENAME=//;s/^"//;s/"$//')"
+    # Fallback: UBUNTU_CODENAME (present on some Ubuntu releases that lack VERSION_CODENAME).
+    if [ -z "${_OS__CODENAME-}" ]; then
+      _OS__CODENAME="$(grep -m1 '^UBUNTU_CODENAME=' /etc/os-release 2> /dev/null |
+        sed 's/^UBUNTU_CODENAME=//;s/^"//;s/"$//')"
+    fi
   fi
   _OS__RELEASE_LOADED=1
+  return 0
+}
+
+# os__codename — prints the VERSION_CODENAME from /etc/os-release (e.g. jammy, bookworm).
+# Falls back to UBUNTU_CODENAME if VERSION_CODENAME is absent.
+# Returns an empty string on macOS or distros that do not set a codename.
+os__codename() {
+  _os__load_release
+  echo "${_OS__CODENAME:-}"
   return 0
 }

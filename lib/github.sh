@@ -96,19 +96,43 @@ github__release_tags() {
 
   local _url="https://api.github.com/repos/${_repo}/releases?per_page=${_per_page}"
 
-  local _json
-  _json="$(_github__api_get "$_url")" || {
+  _github__api_list_field "$_url" "tag_name" || {
     echo "⛔ github__release_tags: failed to reach GitHub API for '${_repo}'." >&2
     return 1
   }
+  return 0
+}
 
-  [ -z "$_json" ] && {
-    echo "⛔ github__release_tags: received empty response for '${_repo}'." >&2
+# github__tags <owner/repo> [--per_page <n>]
+#
+# Prints one tag name per line for the given repository.
+# Fetches /tags?per_page=<n> (default 100).
+# Unlike github__release_tags (which uses /releases), this endpoint includes
+# all tags including lightweight tags not associated with a release.
+github__tags() {
+  local _repo="$1"
+  shift
+  local _per_page=100
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --per_page)
+        shift
+        _per_page="$1"
+        shift
+        ;;
+      *)
+        echo "⛔ github__tags: unknown option: '$1'" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  local _url="https://api.github.com/repos/${_repo}/tags?per_page=${_per_page}"
+
+  _github__api_list_field "$_url" "name" || {
+    echo "⛔ github__tags: failed to reach GitHub API for '${_repo}'." >&2
     return 1
   }
-  printf '%s\n' "$_json" |
-    grep '"tag_name"' |
-    sed 's/.*"tag_name": *"\([^"]*\)".*/\1/'
   return 0
 }
 
@@ -164,6 +188,25 @@ github__release_asset_urls() {
   else
     printf '%s\n' "$_urls"
   fi
+  return 0
+}
+
+# _github__api_list_field <url> <field>  (internal)
+#
+# Fetches a GitHub API list endpoint and extracts all values of the named JSON
+# field, printing one value per line.
+# Returns 1 if the API call fails or the response is empty.
+_github__api_list_field() {
+  local _url="$1"
+  local _field="$2"
+  local _json _result
+  _json="$(_github__api_get "$_url")" || return 1
+  [ -z "$_json" ] && return 1
+  _result="$(printf '%s\n' "$_json" |
+    grep "\"${_field}\"" |
+    sed "s/.*\"${_field}\": *\"\([^\"]*\)\".*/\1/")"
+  [ -z "$_result" ] && return 1
+  printf '%s\n' "$_result"
   return 0
 }
 

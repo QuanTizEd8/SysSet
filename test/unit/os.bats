@@ -100,6 +100,43 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# os__codename
+# ---------------------------------------------------------------------------
+
+@test "os__codename returns injected VERSION_CODENAME" {
+  reload_lib os.sh
+  _OS__CODENAME="jammy"
+  _OS__RELEASE_LOADED=1
+  run os__codename
+  assert_output "jammy"
+  assert_success
+}
+
+@test "os__codename returns bookworm" {
+  reload_lib os.sh
+  _OS__CODENAME="bookworm"
+  _OS__RELEASE_LOADED=1
+  run os__codename
+  assert_output "bookworm"
+}
+
+@test "os__codename returns empty string when unset" {
+  reload_lib os.sh
+  _OS__CODENAME=""
+  _OS__RELEASE_LOADED=1
+  run os__codename
+  assert_output ""
+}
+
+@test "os__codename returns empty string on macOS (no os-release)" {
+  reload_lib os.sh
+  # No _OS__CODENAME set, no /etc/os-release → should return empty.
+  _OS__RELEASE_LOADED=1
+  run os__codename
+  assert_output ""
+}
+
+# ---------------------------------------------------------------------------
 # os__platform
 # ---------------------------------------------------------------------------
 

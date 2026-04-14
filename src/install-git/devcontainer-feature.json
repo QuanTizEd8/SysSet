@@ -1,48 +1,120 @@
 {
-  "id": "install-git",
-  "version": "0.1.0",
-  "name": "Git Installation",
-  "description": "Install Git from the official Git repository.",
+   "id": "install-git",
+   "version": "0.1.0",
+   "name": "Git Installer",
+   "description": "Install Git in the development container. Two strategies controlled by 'method': 'package' uses the OS package manager (with Ubuntu git-core PPA on Ubuntu when version=latest); 'source' builds from a kernel.org tarball for full version control on any platform. Version is controlled independently by the 'version' option: 'latest', 'stable', or a specific version string.",
    "options": {
-      "version": {
-         "default": "",
-         "description": "Version of Git to install.\nThis must be a regex matching a version number (`^` and `$` are automatically added to this). The latest version matching the regex will be selected. If not specified, the latest version will be installed.",
-         "type": "string"
+      "method": {
+         "type": "string",
+         "default": "package",
+         "description": "Installation strategy.\n'package' (default) — install via the OS package manager. On Ubuntu with version=latest, activates the git-core PPA (ppa:git-core/ppa) to provide the newest upstream stable release; all other platforms and version values use their native package manager directly. On macOS, delegates to Homebrew.\n'source' — build from a kernel.org source tarball. Requires a C toolchain and build dependencies (installed automatically). Version is controlled by the 'version' option. Works on all supported Linux distributions and macOS (requires Xcode CLT).",
+         "enum": ["package", "source"]
       },
-      "installer_dir": {
-         "default": "/tmp/git-installer",
-         "description": "Path to a directory to download the installer to.",
-         "type": "string"
+      "version": {
+         "type": "string",
+         "default": "latest",
+         "description": "Version of git to install.\n'latest' (default) — with method=package: newest available package (Ubuntu PPA on Ubuntu, native package manager elsewhere; Homebrew on macOS already tracks latest). With method=source: builds the newest tag from the GitHub Tags API, including release candidates.\n'stable' — with method=package: native package manager without PPA activation, even on Ubuntu. With method=source: builds the newest stable release (release candidates excluded).\nA version string (e.g. '2.47.2', '2.47.0-rc1') — with method=package: passes the version to the package manager (user is responsible for availability). With method=source: builds exactly that version from the kernel.org tarball.",
+         "proposals": ["latest", "stable"]
       },
       "prefix": {
-         "default": "/usr/local/git",
-         "description": "Path to the directory where Git will be installed.",
-         "type": "string"
+         "type": "string",
+         "default": "auto",
+         "description": "Installation prefix for source builds (passed as prefix= to make install).\n'auto' (default) — resolves to /usr/local when running as root, or $HOME/.local when running as a non-root user.\nAn explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created."
       },
       "sysconfdir": {
-         "default": "/etc",
-         "description": "Path to the system configuration directory for Git.",
-         "type": "string"
+         "type": "string",
+         "default": "auto",
+         "description": "System configuration directory for source builds (passed as sysconfdir= to make). Git reads <sysconfdir>/gitconfig as its system-level config file.\n'auto' (default) — resolves to /etc when running as root, or $HOME/.config when running as a non-root user.\nAn explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created."
       },
-      "source": {
-         "default": "https://www.kernel.org/pub/software/scm/git/git-",
-         "description": "URL to download the Git source code from.\nThe full URL is built by appending the resolved version to this URL.",
-         "type": "string"
+      "installer_dir": {
+         "type": "string",
+         "default": "/tmp/git-build",
+         "description": "Working directory for the source build: tarball download, extraction, and compilation happen here.\nRemoved after a successful build unless no_clean=true.\nIgnored when method=package."
       },
       "no_clean": {
+         "type": "boolean",
          "default": false,
-         "description": "Skip removing installer artifacts after installation.",
-         "type": "boolean"
+         "description": "Keep the source build directory (installer_dir) after a successful install.\nUseful for debugging build failures or inspecting the compiled binaries.\nIgnored when method=package."
+      },
+      "no_flags": {
+         "type": "string",
+         "default": "",
+         "description": "Space-separated list of components to exclude from the source build (case-insensitive). Available values: 'perl', 'python', 'tcltk', 'gettext'. Each value maps to the corresponding NO_<FLAG>=YesPlease make variable.\n'perl' — disables Perl scripts (git-svn, git-send-email, git-archimport, git-cvsimport, gitweb) and removes the Perl runtime requirement.\n'python' — disables Python scripts (git-p4) and removes the Python runtime requirement.\n'tcltk' — disables Tcl/Tk GUI tools (gitk, git-gui) and removes the Tcl/Tk requirement.\n'gettext' — disables i18n/translation support; git output is English-only and the gettext/libintl build dependency is removed.\nUnknown values are logged as warnings and ignored. Silently ignored when method=package.\nOn Alpine Linux, gettext is always disabled regardless of this option (required for a successful build)."
+      },
+      "make_flags": {
+         "type": "string",
+         "default": "",
+         "description": "Additional flags appended verbatim last to the make invocation for source builds (space-separated KEY=VALUE pairs, e.g. 'NO_CURL=YesPlease OPENSSL_SHA256=YesPlease'). Appended after all computed flags including no_flags, so last-position values take effect. No validation — unknown flags are silently ignored by make. Silently ignored when method=package."
+      },
+      "export_path": {
+         "type": "string",
+         "default": "auto",
+         "description": "Controls PATH and MANPATH export for source builds.\n'auto' (default) — writes idempotent export blocks to all system-wide shell startup files: the BASH_ENV file (non-login non-interactive bash, registered in /etc/environment), /etc/profile.d/install-git.sh (login shells), the system-wide bashrc (non-login interactive bash), and <zshdir>/zshenv (all zsh). This covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.\n'' (empty string) — skips all PATH/MANPATH writes.\nA newline-separated list of absolute file paths — writes only to those files.\nIgnored when method=package (git lands in /usr/bin which is universally on PATH)."
+      },
+      "install_completions": {
+         "type": "boolean",
+         "default": true,
+         "description": "Install bash and zsh completion scripts for source builds.\nAs root: copies git-completion.bash to /etc/bash_completion.d/git and git-completion.zsh to <zshdir>/completions/_git (where <zshdir> is detected by shell__detect_zshdir).\nAs non-root: copies to $HOME/.local/share/bash-completion/completions/git (bash) and $HOME/.zfunc/_git (zsh).\nThe source files are taken from $PREFIX/share/git-core/contrib/completion/ which is populated by make install.\nIgnored when method=package (completions are installed by the package manager)."
+      },
+      "if_exists": {
+         "type": "string",
+         "default": "skip",
+         "description": "What to do when git is already present in PATH before installation begins.\nIf the installed version already matches the resolved target version, installation is always skipped silently regardless of this setting.\n'skip' — log a notice and exit successfully without making any changes (idempotent).\n'fail' — print an error and exit non-zero.\n'reinstall' — detect how git is currently installed, uninstall it, then install fresh using the selected method. Detection is per-platform: dpkg (Debian/Ubuntu), apk (Alpine), rpm (RHEL/Fedora), brew (macOS). If the existing git is package-managed, it is removed via the package manager; if source-installed, all files under prefix and the equivs dummy package (Debian/Ubuntu only) are removed before reinstalling.\n'update' — upgrade to the resolved target version. Detects the existing install method and compares it to the requested method. Same-method updates proceed in place (package manager re-runs natively; source rebuild overwrites binaries if the prefix matches, or removes the old prefix first if it differs). Method-switch updates (e.g. package→source or source→package) behave identically to reinstall.",
+         "enum": ["skip", "fail", "reinstall", "update"]
+      },
+      "default_branch": {
+         "type": "string",
+         "default": "main",
+         "description": "Sets init.defaultBranch in the system-level gitconfig (/etc/gitconfig as root, $HOME/.config/git/config as non-root). Applies to all newly initialised repositories. Set to '' to skip writing this setting."
+      },
+      "safe_directory": {
+         "type": "string",
+         "default": "",
+         "description": "Sets safe.directory in the system-level gitconfig. Use '*' to trust all directories (useful in containers where the working directory may be owned by a different UID), a specific absolute path, or a newline-separated list of paths. Set to '' to skip writing this setting."
+      },
+      "system_gitconfig": {
+         "type": "string",
+         "default": "",
+         "description": "Freeform content to append to the system-level gitconfig (as root: /etc/gitconfig; as non-root: $HOME/.config/git/config). Accepts standard gitconfig format, e.g. '[core]\n  autocrlf = input\n[push]\n  default = simple'. Written after any settings from default_branch and safe_directory. Set to '' to skip."
+      },
+      "users": {
+         "type": "string",
+         "default": "",
+         "description": "Controls which users receive per-user gitconfig entries. Comma-separated list of explicit usernames, plus the following special tokens: '_REMOTE_USER' (the devcontainer remoteUser, from the _REMOTE_USER env var), '_CONTAINER_USER' (the devcontainer containerUser, from _CONTAINER_USER), 'all' (current user + _REMOTE_USER + _CONTAINER_USER, deduplicated). Tokens and names can be mixed: '_REMOTE_USER,alice'. As non-root, restricted to the current user only; other names are ignored with a warning. User gitconfig is written only when at least one of user_name, user_email, or user_gitconfig is non-empty."
+      },
+      "user_name": {
+         "type": "string",
+         "default": "",
+         "description": "Sets user.name in the per-user gitconfig (~/.gitconfig) for all users specified by the 'users' option. Set to '' to skip writing this setting."
+      },
+      "user_email": {
+         "type": "string",
+         "default": "",
+         "description": "Sets user.email in the per-user gitconfig (~/.gitconfig) for all users specified by the 'users' option. Set to '' to skip writing this setting."
+      },
+      "user_gitconfig": {
+         "type": "string",
+         "default": "",
+         "description": "Freeform content to append to the per-user gitconfig (~/.gitconfig) for all users specified by the 'users' option. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip."
+      },
+      "symlink": {
+         "type": "boolean",
+         "default": true,
+         "description": "Create a symlink /usr/local/bin/git -> ${PREFIX}/bin/git when prefix resolves to something other than /usr/local (source builds only, root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) always resolves to the installed binary regardless of the chosen prefix.\nNo-op when method=package (git is already in /usr/bin), when prefix resolves to /usr/local, or when running as non-root (cannot write to /usr/local/bin).\nIgnored when method=package."
       },
       "debug": {
+         "type": "boolean",
          "default": false,
-         "description": "Enable debug output.",
-         "type": "boolean"
+         "description": "Enable debug output (set -x)."
       },
       "logfile": {
+         "type": "string",
          "default": "",
-         "description": "Log all output (stdout + stderr) to this file in addition to console.",
-         "type": "string"
+         "description": "Append install log to this file path."
       }
-   }
+   },
+   "containerEnv": {
+      "PATH": "/usr/local/bin:${PATH}"
+   },
+   "installsAfter": []
 }
