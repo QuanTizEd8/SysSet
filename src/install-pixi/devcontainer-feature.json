@@ -7,7 +7,7 @@
       "version": {
          "type": "string",
          "default": "latest",
-         "description": "Version of Pixi to install (e.g. '0.67.0').\nAccepts 'latest' (resolved via the GitHub Releases API) or any 'X.Y.Z' / 'vX.Y.Z' version string.\nIf the already-installed Pixi version matches the resolved version,\nthe install is skipped silently regardless of the 'if_exists' setting.\n",
+         "description": "Version of Pixi to install (e.g. '0.67.0').\nAccepts 'latest' (resolved via the GitHub Releases API) or any 'X.Y.Z', 'X.Y', 'vX.Y.Z', or 'vX.Y' version string.\nIf the already-installed Pixi version matches the resolved version,\nthe install is skipped silently regardless of the 'if_exists' setting.\n",
          "proposals": [
             "latest",
             "0.67.0",
@@ -23,7 +23,7 @@
       "if_exists": {
          "type": "string",
          "default": "skip",
-         "description": "What to do when a pixi binary already exists at bin_dir.\n'skip'      -- log a warning and continue to post-install steps (default).\n'fail'      -- print an error and exit non-zero.\n'uninstall' -- remove the existing binary, then install fresh.\n'update'    -- run 'pixi self-update [--version <resolved>]' to update in-place.\n               Only works for installer-managed pixi (not Homebrew/conda/mamba).\nVersion-match: if the installed version already equals the resolved target\nversion, the install is always skipped silently regardless of this setting.\n",
+         "description": "What to do when a pixi binary already exists at bin_dir.\n'skip'      -- log a warning and continue to post-install steps (default).\n'fail'      -- print an error and exit non-zero.\n'uninstall' -- remove the existing binary, then install fresh.\n'update'    -- run 'pixi self-update --version <resolved>' to update in-place.\n               Only works for installer-managed pixi (not Homebrew/conda/mamba).\nVersion-match: if the installed version already equals the resolved target\nversion, the install is always skipped silently regardless of this setting.\n",
          "enum": [
             "skip",
             "fail",

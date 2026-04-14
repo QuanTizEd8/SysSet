@@ -9,10 +9,10 @@ Install Pixi, the open-source, cross-platform package and project manager for co
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `version` | string | `"latest"` | Version of Pixi to install (e.g. `"0.67.0"`). Accepts `"latest"` (resolved via GitHub Releases API) or any `"X.Y.Z"` / `"vX.Y.Z"` string. If the installed version already matches the resolved version, the install is always skipped silently. |
+| `version` | string | `"latest"` | Version of Pixi to install (e.g. `"0.67.0"`). Accepts `"latest"` (resolved via GitHub Releases API) or any `"X.Y.Z"`, `"X.Y"`, or `"vX.Y.Z"` / `"vX.Y"` string. If the installed version already matches the resolved version, the install is always skipped silently. |
 | `bin_dir` | string | `"auto"` | Directory where the pixi binary will be installed. `"auto"` resolves to `/usr/local/bin` (root) or `$HOME/.pixi/bin` (non-root). Set to `""` to use the pixi default (`$HOME/.pixi/bin`) regardless of the current user. |
-| `if_exists` | string | `"skip"` | What to do when a pixi binary is already found at `bin_dir`. One of: `"skip"` (warn and continue), `"fail"` (exit non-zero), `"uninstall"` (remove then install fresh), `"update"` (run `pixi self-update`). Version-match: if installed version equals resolved target, always skips silently. |
-| `installer_dir` | string | `"/tmp/pixi-installer"` | Directory to download the `.tar.gz` archive and `.sha256` sidecar to. Removed after installation unless `keep_installer` is `true`. |
+| `if_exists` | string | `"skip"` | What to do when a pixi binary is already found at `bin_dir`. One of: `"skip"` (warn and continue), `"fail"` (exit non-zero), `"uninstall"` (remove then install fresh), `"update"` (run `pixi self-update --version <resolved_version>`). Version-match: if installed version equals resolved target, always skips silently. |
+| `installer_dir` | string | `"/tmp/pixi-installer"` | Directory to download the `.tar.gz` archive and `.tar.gz.sha256` sidecar to. Removed after installation unless `keep_installer` is `true`. |
 | `arch` | string | `""` | Override CPU architecture for release asset selection. Accepted: `"x86_64"`, `"aarch64"`, `"riscv64"`. When empty, auto-detected from `uname -m`. Useful for cross-arch image builds only. |
 | `home_dir` | string | `""` | Set `PIXI_HOME` — where pixi stores global environments (`pixi global install`) and configuration. When empty, uses the pixi default (`$HOME/.pixi`), which is already on the container's case-sensitive ext4 filesystem. `PIXI_HOME` is a runtime variable read on every pixi invocation; use `export_pixi_home` to write it to shell startup files. |
 | `download_url` | string | `""` | Override the binary download URL. Checksum verification is skipped with a warning when this is set. Useful for air-gapped environments, internal mirrors, or custom builds. |
@@ -22,7 +22,7 @@ Install Pixi, the open-source, cross-platform package and project manager for co
 | `symlink` | boolean | `true` | Create a symlink `/usr/local/bin/pixi → $BIN_DIR/pixi` when `bin_dir` resolves to something other than `/usr/local/bin` (root only). Ensures the `containerEnv` PATH entry (`/usr/local/bin`) always resolves to the installed binary regardless of the chosen `bin_dir`. No-op when `bin_dir` resolves to `/usr/local/bin`, or when running as non-root (cannot write to `/usr/local/bin`). |
 | `shell_completion` | boolean | `false` | Write an idempotent `eval "$(pixi completion --shell <shell>)"` block to the appropriate shell config file. |
 | `shell_type` | string | `"bash"` | Shell to configure completion for. Only used when `shell_completion` is `true`. One of: `"bash"`, `"zsh"`, `"fish"`, `"nushell"`, `"elvish"`. |
-| `keep_installer` | boolean | `false` | Keep the downloaded `.tar.gz` archive and `.sha256` sidecar after installation. |
+| `keep_installer` | boolean | `false` | Keep the downloaded `.tar.gz` archive and `.tar.gz.sha256` sidecar after installation. |
 | `debug` | boolean | `false` | Enable debug output (`set -x`). |
 | `logfile` | string | `""` | Log all output (stdout + stderr) to this file in addition to the console. |
 
@@ -244,7 +244,7 @@ If pixi is already installed in the image and you want to upgrade it on each reb
 
 ### Preserve Downloaded Archive
 
-Keep the `.tar.gz` and `.sha256` sidecar in `installer_dir` after installation (useful for caching layers):
+Keep the `.tar.gz` and `.tar.gz.sha256` sidecar in `installer_dir` after installation (useful for caching layers):
 
 ```jsonc
 {

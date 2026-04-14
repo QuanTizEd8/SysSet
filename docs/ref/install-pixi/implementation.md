@@ -160,9 +160,9 @@ checksums, shell config writes, OS packages, and logging.
 - **Outputs (globals):** `_SKIP_INSTALL` (boolean string `true`/`false`).
 
 ### `update_pixi`
-- **Responsibility:** Runs `pixi self-update`.
-  - If `VERSION` is non-empty (resolved from user input), runs `pixi self-update --version "$VERSION"` (no `v` prefix — confirmed from CLI docs).
-  - Verifies that the binary is callable after the update and prints the new version.
+- **Responsibility:** Runs `pixi self-update --version "$VERSION"` (no `v` prefix — confirmed from CLI docs).
+  - Finds the pixi binary from `$BIN_DIR/pixi` or, if absent, from PATH.
+  - Exits non-zero if no pixi binary is found.
 - **Inputs (globals):** `BIN_DIR`, `VERSION`.
 
 ### `install_pixi_binary`
