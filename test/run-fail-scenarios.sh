@@ -7,11 +7,14 @@
 # exit.  Reports pass/fail counts and exits non-zero if any scenario exits zero.
 #
 # DSL (inside fail_scenarios.sh):
-#   fail_scenario "label" [--network none] [KEY=VALUE ...]
+#   fail_scenario "label" [--network none] [--setup-cmd <cmd>] [KEY=VALUE ...]
 #
 # --network none: blocks all networking inside the test container.  The runner
 #   pre-builds a base image with the feature's dependencies so apt-get is not
 #   needed at test time.
+# --setup-cmd <cmd>: runs additional shell commands inside the container before
+#   invoking the feature install script. Useful for creating preconditions such
+#   as an already-installed package.
 set -euo pipefail
 
 FEATURE="${1:?Usage: run-fail-scenarios.sh <feature>}"
@@ -57,12 +60,18 @@ fail_scenario() {
   local -a net_args=()
   local -a env_args=()
   local use_base=false
+  local setup_cmd=""
+  local ready_marker="__FAIL_SCENARIO_INSTALL_STARTED__"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --network)
         net_args=(--network "$2")
         use_base=true
+        shift 2
+        ;;
+      --setup-cmd)
+        setup_cmd="$2"
         shift 2
         ;;
       *=*)
@@ -84,19 +93,26 @@ fail_scenario() {
   echo ""
   echo "▶ Fail scenario: ${label}"
   local rc=0
-  docker run --rm \
+  local output=""
+  output="$({ docker run --rm \
     "${net_args[@]+"${net_args[@]}"}" \
     "${env_args[@]+"${env_args[@]}"}" \
     -v "${REPO_ROOT}:/repo" \
     "$image" \
-    bash -c "${pre_cmd}bash /repo/${INSTALL_SCRIPT}" 2>&1 ||
+    bash -c "set -e; ${pre_cmd}${setup_cmd:+${setup_cmd} && }printf '%s\n' '${ready_marker}' >&2; exec bash /repo/${INSTALL_SCRIPT}"; } 2>&1)" ||
     rc=$?
 
-  if [[ $rc -ne 0 ]]; then
+  printf '%s\n' "$output"
+
+  if [[ $rc -ne 0 && "$output" == *"${ready_marker}"* ]]; then
     echo "✅ PASS: '${label}' exited ${rc} (non-zero as expected)"
     ((_pass++)) || true
   else
-    echo "❌ FAIL: '${label}' exited 0 (expected non-zero)"
+    if [[ $rc -eq 0 ]]; then
+      echo "❌ FAIL: '${label}' exited 0 (expected non-zero)"
+    else
+      echo "❌ FAIL: '${label}' failed before the install script ran (exit ${rc})"
+    fi
     _errors+=("$label")
     ((_fail++)) || true
   fi

@@ -1,0 +1,192 @@
+{
+    "package_default": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "debug": true
+            }
+        }
+    },
+    "package_debian": {
+        "image": "debian:12",
+        "features": {
+            "install-git": {
+                "version": "stable",
+                "debug": true
+            }
+        }
+    },
+    "package_stable": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "version": "stable",
+                "prefix": "/opt/git",
+                "export_path": "/tmp/install-git-path.sh",
+                "symlink": false,
+                "install_completions": false,
+                "no_clean": true,
+                "debug": true
+            }
+        }
+    },
+    "package_alpine": {
+        "image": "alpine:3.20",
+        "features": {
+            "install-git": {
+                "version": "stable",
+                "debug": true
+            }
+        }
+    },
+    "package_fedora": {
+        "image": "fedora:41",
+        "features": {
+            "install-git": {
+                "version": "stable",
+                "debug": true
+            }
+        }
+    },
+    "gitconfig_system": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "default_branch": "trunk",
+                "safe_directory": "*\n/workspaces/sysset\n/tmp/repo",
+                "system_gitconfig": "[push]\n  default = simple\n[fetch]\n  prune = true",
+                "debug": true
+            }
+        }
+    },
+    "gitconfig_user": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-git": {
+                "users": "_REMOTE_USER",
+                "user_name": "Dev User",
+                "user_email": "dev@example.com",
+                "user_gitconfig": "[pull]\n  rebase = false",
+                "debug": true
+            }
+        }
+    },
+    "logfile": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "logfile": "/tmp/git.log",
+                "debug": true
+            }
+        }
+    },
+    "source_stable": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "stable",
+                "debug": true
+            }
+        }
+    },
+    "source_pinned": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "2.47.2",
+                "debug": true
+            }
+        }
+    },
+    "source_no_clean": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "stable",
+                "no_clean": true,
+                "debug": true
+            }
+        }
+    },
+    "source_custom_prefix": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "stable",
+                "prefix": "/opt/git",
+                "debug": true
+            }
+        }
+    },
+    "source_export_path_disabled": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "stable",
+                "prefix": "/opt/git",
+                "export_path": "",
+                "symlink": false,
+                "debug": true
+            }
+        }
+    },
+    "source_no_flags_perl": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "stable",
+                "no_flags": "perl",
+                "debug": true
+            }
+        }
+    },
+    "if_exists_skip": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-git": {
+                "if_exists": "skip",
+                "debug": true
+            }
+        }
+    },
+    "if_exists_reinstall_source": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "stable",
+                "prefix": "/opt/git",
+                "if_exists": "reinstall",
+                "default_branch": "trunk",
+                "debug": true
+            }
+        }
+    },
+    "if_exists_update_package": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-git": {
+                "if_exists": "update",
+                "version": "stable",
+                "default_branch": "trunk",
+                "debug": true
+            }
+        }
+    },
+    "if_exists_fail": {
+        "image": "ubuntu:24.04",
+        "features": {
+            "install-git": {
+                "if_exists": "fail",
+                "debug": true
+            }
+        }
+    }
+}
