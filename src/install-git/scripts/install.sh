@@ -399,6 +399,45 @@ _git__ppa_check_codename() {
 
 # _git__ppa_import_key
 # Imports the git-core PPA GPG key to /usr/share/keyrings/git-core-ppa.gpg.
+_git__ppa_setup() {
+  # Refreshes package lists, then sets up the git-core PPA (signing key +
+  # sources.list entry + apt-get update).
+  #
+  # Primary: add-apt-repository -y ppa:git-core/ppa — the standard method.
+  # It downloads the key directly from Launchpad over HTTPS (no keyserver
+  # dependency) and runs apt-get update automatically.
+  #
+  # Fallback: manual GPG import + sources.list, used only when
+  # add-apt-repository cannot be installed.
+  echo "🔑 Setting up git-core PPA..." >&2
+
+  # Ensure package lists are fresh before installing any prerequisite.
+  ospkg__update
+
+  if ! command -v add-apt-repository > /dev/null 2>&1; then
+    ospkg__install software-properties-common
+  fi
+  if command -v add-apt-repository > /dev/null 2>&1 &&
+    add-apt-repository -y ppa:git-core/ppa; then
+    # add-apt-repository already ran apt-get update — no extra update needed.
+    return 0
+  fi
+
+  # Last-resort fallback: manual GPG key import + sources.list entry.
+  echo "⚠️  add-apt-repository failed or unavailable — using manual key import." >&2
+  ospkg__install gpg || ospkg__install gnupg || {
+    echo "⛔ Cannot install gpg/gnupg for PPA key import." >&2
+    return 1
+  }
+  _git__ppa_import_key
+  local _codename
+  _codename="$(os__codename)"
+  printf 'deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu %s main\n' \
+    "${_codename}" > /etc/apt/sources.list.d/git-core-ppa.list
+  apt-get update -y
+  return 0
+}
+
 _git__ppa_import_key() {
   local _fingerprint="F911AB184317630C59970973E363C90F8F1B6217"
   local _keyring="/usr/share/keyrings/git-core-ppa.gpg"
@@ -433,15 +472,7 @@ _git__ppa_import_key() {
 _git__install_package() {
   if [ "${VERSION}" = "latest" ] && [ "$(os__id)" = "ubuntu" ]; then
     if _git__ppa_check_codename; then
-      # Ensure gpg is available before key import (may be absent on minimal images).
-      ospkg__install gpg 2> /dev/null || ospkg__install gnupg 2> /dev/null || true
-      _git__ppa_import_key
-      local _codename
-      _codename="$(os__codename)"
-      cat > /etc/apt/sources.list.d/git-core-ppa.list << EOF
-deb [signed-by=/usr/share/keyrings/git-core-ppa.gpg] https://ppa.launchpadcontent.net/git-core/ppa/ubuntu ${_codename} main
-EOF
-      apt-get update -y
+      _git__ppa_setup
       ospkg__install git
       apt-get clean
       apt-get dist-clean 2> /dev/null || rm -rf /var/lib/apt/lists/*
