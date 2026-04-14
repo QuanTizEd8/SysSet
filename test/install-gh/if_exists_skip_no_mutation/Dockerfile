@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 # Pre-install gh, then remove curl so the scenario can detect whether the
 # feature mutated the image before deciding to skip.
-RUN apt-get update \
+RUN (apt-get update || (sleep 15 && apt-get update)) \
  && apt-get install -y --no-install-recommends curl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && ARCH="$(uname -m)" \

@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 # Pre-install gh (binary) so the if_exists scenarios have an existing binary to detect.
-RUN apt-get update \
+RUN (apt-get update || (sleep 15 && apt-get update)) \
  && apt-get install -y --no-install-recommends curl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && ARCH="$(uname -m)" \

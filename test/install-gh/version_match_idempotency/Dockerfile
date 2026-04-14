@@ -2,7 +2,7 @@ FROM ubuntu:latest
 # Pre-install gh 2.67.0 so version-match idempotency can be tested.
 # The feature is called with version=2.67.0 + if_exists=fail; the version-match
 # guard should exit 0 before if_exists policy is applied.
-RUN apt-get update \
+RUN (apt-get update || (sleep 15 && apt-get update)) \
  && apt-get install -y --no-install-recommends curl ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && ARCH="$(uname -m)" \
