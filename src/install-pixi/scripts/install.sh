@@ -635,8 +635,8 @@ _SKIP_INSTALL=false
 if [ -n "${_INSTALLED_VER}" ] && [ "${_INSTALLED_VER}" = "${VERSION}" ]; then
   echo "ℹ️ Installed pixi version '${_INSTALLED_VER}' matches '${VERSION}'. Skipping install." >&2
   _SKIP_INSTALL=true
-elif [ -x "${BIN_DIR}/pixi" ] || command -v pixi > /dev/null 2>&1; then
-  # Binary found but version differs (or version unknown): apply if_exists policy.
+elif [ -x "${BIN_DIR}/pixi" ]; then
+  # A different version is already at the requested install target: apply policy.
   handle_if_exists
 fi
 

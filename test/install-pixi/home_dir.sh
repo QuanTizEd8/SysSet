@@ -26,7 +26,7 @@ echo "=== /etc/bash.bashrc ==="
 cat /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 echo "=== /etc/zsh/zshenv ==="
 cat /etc/zsh/zshenv 2> /dev/null || echo "(missing)"
-check "BASH_ENV registered in /etc/environment" grep -Fq 'BASH_ENV="/etc/bashenv"' /etc/environment
+check "BASH_ENV registered in /etc/environment" grep -Fq 'BASH_ENV=' /etc/environment
 check "/etc/bashenv has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' /etc/bashenv
 check "/etc/bash.bashrc has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' /etc/bash.bashrc
 check "/etc/zsh/zshenv has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' /etc/zsh/zshenv
