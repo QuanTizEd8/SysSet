@@ -3,7 +3,7 @@
 ## Summary
 
 The installer downloads a pre-built static binary from GitHub Releases, verifies it
-against a `.sha256` sidecar file, extracts it to `BIN_DIR`, and optionally updates
+against a `.tar.gz.sha256` sidecar file, extracts it to `BIN_DIR`, and optionally updates
 shell startup files for PATH and completion. It follows the same structural patterns
 as `src/install-miniforge/scripts/install.sh`.
 
@@ -34,10 +34,10 @@ checksums, shell config writes, OS packages, and logging.
 
 ### `net__fetch_url_file` — Reused from `lib/net.sh`
 - **Responsibility:** Downloads a URL to a local file path with retries.
-- **Reuse or New:** Reused. Called by `download_pixi` for both the `.tar.gz` archive and the `.sha256` sidecar.
+- **Reuse or New:** Reused. Called by `download_pixi` for both the `.tar.gz` archive and the `.tar.gz.sha256` sidecar.
 
 ### `checksum__verify_sha256_sidecar` — Reused from `lib/checksum.sh`
-- **Responsibility:** Reads the expected hash from a `.sha256` sidecar and calls `checksum__verify_sha256`.
+- **Responsibility:** Reads the expected hash from a `.tar.gz.sha256` sidecar and calls `checksum__verify_sha256`.
 - **Reuse or New:** Reused. Called after both files are downloaded, before extraction.
 
 ### `shell__system_path_files` — Reused from `lib/shell.sh`
@@ -82,7 +82,7 @@ checksums, shell config writes, OS packages, and logging.
 - **Notes:** Must stay in sync with the dual-mode argument-parsing block.
 
 ### `__cleanup__`
-- **Responsibility:** EXIT trap. Removes the `.tar.gz` archive and `.sha256` sidecar from `INSTALLER_DIR` (unless `KEEP_INSTALLER=true`). Removes `INSTALLER_DIR` if it becomes empty. Always calls `logging__cleanup`.
+- **Responsibility:** EXIT trap. Removes the `.tar.gz` archive and `.tar.gz.sha256` sidecar from `INSTALLER_DIR` (unless `KEEP_INSTALLER=true`). Removes `INSTALLER_DIR` if it becomes empty. Always calls `logging__cleanup`.
 - **Inputs (globals):** `KEEP_INSTALLER`, `ARCHIVE` (path), `SIDECAR` (path), `INSTALLER_DIR`.
 
 ### `resolve_bin_dir`
@@ -287,7 +287,7 @@ Special case for `EXPORT_PATH`: because empty string is a valid user-supplied va
 When `NETRC` is non-empty, the installer cannot use `net__fetch_url_file` directly
 (which has no netrc support). Instead, `download_pixi` falls back to an inline
 `curl --netrc-file "$NETRC"` (or `wget --auth-no-challenge --netrc=$NETRC`) call for
-the archive download. The sidecar (`.sha256`) does not contain secrets and is
+the archive download. The sidecar (`.tar.gz.sha256`) does not contain secrets and is
 fetched with `net__fetch_url_file` even when `NETRC` is set, unless a netrc-protected
 mirror delivers both.
 

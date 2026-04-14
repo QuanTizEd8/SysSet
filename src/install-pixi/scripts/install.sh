@@ -16,7 +16,7 @@ Options:
                               (root: /usr/local/bin, non-root: $HOME/.pixi/bin).
   --if_exists (string)        Action when pixi already exists: skip | fail | uninstall | update.
                               Default: 'skip'. Version-match always skips silently.
-  --installer_dir (string)    Download directory for .tar.gz + .sha256. Default: '/tmp/pixi-installer'.
+  --installer_dir (string)    Download directory for .tar.gz + .tar.gz.sha256. Default: '/tmp/pixi-installer'.
   --arch (string)             Override CPU arch: x86_64 | aarch64 | riscv64. Default: '' (auto-detect).
   --home_dir (string)         Set PIXI_HOME. Default: '' (pixi default: $HOME/.pixi).
   --download_url (string)     Custom .tar.gz URL (skips checksum). Default: ''.

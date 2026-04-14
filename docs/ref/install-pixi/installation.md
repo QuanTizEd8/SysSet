@@ -115,7 +115,7 @@ our feature implements an `if_exists` guard.
 | `pixi-aarch64-apple-darwin.tar.gz` | Apple Silicon macOS |
 | `pixi-${TRIPLE}.tar.gz.sha256` | SHA-256 checksum **of the `.tar.gz` archive** |
 
-> **Checksum clarity:** The `.sha256` sidecar file contains the SHA-256 hash of
+> **Checksum clarity:** The `.tar.gz.sha256` sidecar file contains the SHA-256 hash of
 > the corresponding `.tar.gz` archive (not of the extracted binary). Verification
 > must happen on the archive *before* extraction.
 
@@ -221,7 +221,7 @@ marker-fenced block to the target file.
 
 ### Method 7 — Checksum Verification Detail
 
-Pixi publishes `.sha256` sidecar files alongside each release archive. The
+Pixi publishes `.tar.gz.sha256` sidecar files alongside each release archive. The
 content format is `<sha256hex>  <filename>` (standard `sha256sum` output).
 
 **URL format:**
@@ -250,7 +250,7 @@ air-gapped), skip checksum verification and emit a `⚠️ warning`.
 The official installer script (Method 1) is not used as the primary method for
 the following reasons:
 
-1. **Checksum verification requires the archive.** The `.sha256` sidecar hashes
+1. **Checksum verification requires the archive.** The `.tar.gz.sha256` sidecar hashes
    the `.tar.gz` archive; verification must happen before extraction. We must
    download the archive ourselves anyway, so there is no advantage to also
    delegating the download to the upstream script.
@@ -279,8 +279,9 @@ the following reasons:
    `$HOME/.pixi/bin` by convention. The `export_path` option controls
    whether a PATH block is written to shell RC files.
 
-4. **Auto no-path-update:** When `bin_dir` is explicitly non-empty, do not
-   write shell RC modifications (the user chose an explicit path).
+4. **Auto path export:** When `bin_dir` is explicitly a system directory (e.g. `/usr/local/bin`),
+   `export_path="auto"` is a no-op because the directory is already on `PATH`.
+   For custom directories, `export_path` controls whether shell RC modifications are written.
 
 5. **`if_exists` handling:** `skip` (warn + continue), `fail` (exit 1),
    `uninstall` (remove binary + reinstall), `update` (`pixi self-update
