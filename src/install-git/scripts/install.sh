@@ -592,6 +592,17 @@ _git__source_build() {
   make -s -j"${_ncpus}" ${_make_flags} ${MAKE_FLAGS} all
   # shellcheck disable=SC2086
   make -s ${_make_flags} ${MAKE_FLAGS} install
+
+  # `make install` does not install contrib/completion scripts. Copy them
+  # from the source tree to the prefix now, before the build dir is cleaned.
+  local _comp_src_dir="${INSTALLER_DIR}/git-${_ver}/contrib/completion"
+  local _comp_dst_dir="${PREFIX}/share/git-core/contrib/completion"
+  if [ -d "${_comp_src_dir}" ]; then
+    mkdir -p "${_comp_dst_dir}"
+    cp "${_comp_src_dir}/"*.bash "${_comp_dst_dir}/" 2> /dev/null || true
+    cp "${_comp_src_dir}/"*.zsh "${_comp_dst_dir}/" 2> /dev/null || true
+  fi
+
   cd /
   return 0
 }
@@ -837,7 +848,9 @@ esac
 # 5. Shell completions (source build only).
 if [ "${METHOD}" = "source" ] && [ "${INSTALL_COMPLETIONS}" = "true" ]; then
   _comp_src="${PREFIX}/share/git-core/contrib/completion"
-  if [ "$(id -u)" = "0" ]; then
+  if [ ! -d "${_comp_src}" ]; then
+    echo "ℹ️  Completion scripts not found at '${_comp_src}' — skipping." >&2
+  elif [ "$(id -u)" = "0" ]; then
     mkdir -p /etc/bash_completion.d
     cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
     _zshdir="$(shell__detect_zshdir)"
