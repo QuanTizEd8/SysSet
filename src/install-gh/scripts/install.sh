@@ -137,10 +137,11 @@ _gh__repos_rhel() {
   fi
   if command -v zypper > /dev/null 2>&1; then
     zypper addrepo "https://cli.github.com/packages/rpm/gh-cli.repo" gh-cli
-    zypper --gpg-auto-import-keys ref gh-cli
+    # --retry 3: retry transient mirror/network timeouts up to 3 times.
+    zypper --retry 3 --gpg-auto-import-keys ref gh-cli
     # zypper exits 6 ("INFO_REPOS_SKIPPED") when system update repos have stale
     # metadata in containers. Treat exit 6 as success — gh is still installed.
-    zypper install -y gh || {
+    zypper --retry 3 install -y gh || {
       _rc=$?
       [ "${_rc}" -eq 6 ] || exit "${_rc}"
     }
