@@ -1,0 +1,208 @@
+{
+    "default_install": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "debug": true
+            }
+        }
+    },
+    "specific_version_binary": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "version": "2.67.0",
+                "method": "binary",
+                "debug": true
+            }
+        }
+    },
+    "repos_debian": {
+        "image": "debian:12",
+        "features": {
+            "install-gh": {
+                "debug": true
+            }
+        }
+    },
+    "repos_alpine": {
+        "image": "alpine:3.20",
+        "features": {
+            "install-gh": {
+                "debug": true
+            }
+        }
+    },
+    "repos_fedora": {
+        "image": "fedora:41",
+        "features": {
+            "install-gh": {
+                "debug": true
+            }
+        }
+    },
+    "repos_opensuse": {
+        "image": "opensuse/leap:15.6",
+        "features": {
+            "install-gh": {
+                "debug": true
+            }
+        }
+    },
+    "binary_custom_path": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "method": "binary",
+                "install_path": "/opt/gh/bin",
+                "symlink": true,
+                "debug": true
+            }
+        }
+    },
+    "binary_no_symlink": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "method": "binary",
+                "install_path": "/opt/gh/bin",
+                "symlink": false,
+                "debug": true
+            }
+        }
+    },
+    "binary_no_completions": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "method": "binary",
+                "install_completions": false,
+                "debug": true
+            }
+        }
+    },
+    "repos_no_completions": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "install_completions": false,
+                "debug": true
+            }
+        }
+    },
+    "git_protocol_https": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "add_remote_user_config": true,
+                "add_current_user_config": false,
+                "add_container_user_config": false,
+                "git_protocol": "https",
+                "debug": true
+            }
+        }
+    },
+    "setup_git": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "add_remote_user_config": true,
+                "add_current_user_config": false,
+                "add_container_user_config": false,
+                "setup_git": true,
+                "debug": true
+            }
+        }
+    },
+    "sign_commits_ssh": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "add_remote_user_config": true,
+                "add_current_user_config": false,
+                "add_container_user_config": false,
+                "sign_commits": "ssh",
+                "debug": true
+            }
+        }
+    },
+    "sign_commits_gpg": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "add_remote_user_config": true,
+                "add_current_user_config": false,
+                "add_container_user_config": false,
+                "sign_commits": "gpg",
+                "debug": true
+            }
+        }
+    },
+    "if_exists_skip": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "if_exists": "skip",
+                "debug": true
+            }
+        }
+    },
+    "if_exists_skip_no_mutation": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "if_exists": "skip",
+                "debug": true
+            }
+        }
+    },
+    "version_match_idempotency": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "method": "binary",
+                "version": "2.67.0",
+                "if_exists": "fail",
+                "debug": true
+            }
+        }
+    },
+    "no_clean": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "method": "binary",
+                "no_clean": true,
+                "installer_dir": "/tmp/gh-debug",
+                "debug": true
+            }
+        }
+    },
+    "logfile": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "logfile": "/tmp/gh-install.log",
+                "debug": true
+            }
+        }
+    },
+    "ghes_hostname": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "add_remote_user_config": true,
+                "add_current_user_config": false,
+                "add_container_user_config": false,
+                "setup_git": true,
+                "git_hostname": "git.corp.example.com",
+                "debug": true
+            }
+        }
+    }
+}

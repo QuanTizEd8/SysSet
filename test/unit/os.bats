@@ -250,6 +250,15 @@ setup() {
   assert_output "rhel"
 }
 
+@test "os__platform treats openSUSE family as rhel-compatible for zypper callers" {
+  reload_lib os.sh
+  _OS__ID="opensuse-tumbleweed"
+  _OS__ID_LIKE="opensuse suse"
+  _OS__RELEASE_LOADED=1
+  run os__platform
+  assert_output "rhel"
+}
+
 # ---------------------------------------------------------------------------
 # os__require_root
 # ---------------------------------------------------------------------------

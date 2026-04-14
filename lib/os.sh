@@ -55,11 +55,13 @@ os__platform() {
     debian | ubuntu) _OS__PLATFORM="debian" ;;
     alpine) _OS__PLATFORM="alpine" ;;
     rhel | centos | fedora | rocky | almalinux) _OS__PLATFORM="rhel" ;;
+    opensuse-leap | opensuse-tumbleweed | opensuse | sles | sle-micro) _OS__PLATFORM="rhel" ;;
     *)
       case "${_OS__ID_LIKE:-}" in
         *debian* | *ubuntu*) _OS__PLATFORM="debian" ;;
         *alpine*) _OS__PLATFORM="alpine" ;;
         *rhel* | *fedora* | *centos* | *"Red Hat"*) _OS__PLATFORM="rhel" ;;
+        *suse*) _OS__PLATFORM="rhel" ;;
         *)
           [ "$(uname -s)" = "Darwin" ] && _OS__PLATFORM="macos" || _OS__PLATFORM="debian"
           ;;
