@@ -144,6 +144,8 @@ _gh__repos_rhel() {
     net__fetch_url_file \
       "https://cli.github.com/packages/rpm/gh-cli.repo" \
       "/etc/yum.repos.d/gh-cli.repo"
+    # gh RPM has a hard dependency on git; ensure it is available first.
+    dnf install -y git
     dnf install -y gh --repo gh-cli
   elif command -v yum > /dev/null 2>&1; then
     mkdir -p /etc/yum.repos.d
@@ -755,11 +757,10 @@ esac
 
 # ── Main orchestration ────────────────────────────────────────────────────────
 
-os__require_root
-
 # Step 1: Early-exit if gh is already installed and version is 'latest' with
-# if_exists=skip or if_exists=fail. Avoids installing base deps and hitting the
-# GitHub API when no installation work is needed.
+# if_exists=skip or if_exists=fail. Avoids requiring root, installing base deps,
+# and hitting the GitHub API when no installation work is needed.
+# This must run before os__require_root so macOS non-root installs can skip cleanly.
 if [ "${VERSION}" = "latest" ] && command -v gh > /dev/null 2>&1; then
   if [ "${IF_EXISTS}" = "skip" ]; then
     _existing="$(gh --version 2> /dev/null | head -1 | awk '{print $3}')" || _existing=""
@@ -771,6 +772,8 @@ if [ "${VERSION}" = "latest" ] && command -v gh > /dev/null 2>&1; then
     exit 1
   fi
 fi
+
+os__require_root
 
 # Step 2: Install base OS dependencies (curl, ca-certificates).
 ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
