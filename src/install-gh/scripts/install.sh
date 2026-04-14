@@ -420,7 +420,9 @@ _gh__configure_user() {
       fi
       # Ensure .gitconfig is owned by the user (su -l may create it as root
       # if the home dir is owned by root in some images).
-      [ -f "${_home}/.gitconfig" ] && chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
+      if [ -f "${_home}/.gitconfig" ]; then
+        chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
+      fi
     fi
 
     # sign_commits: set commit signing config via git config.
@@ -452,7 +454,9 @@ _gh__configure_user() {
           fi
           ;;
       esac
-      [ -f "${_home}/.gitconfig" ] && chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
+      if [ -f "${_home}/.gitconfig" ]; then
+        chown "${_user}:${_user}" "${_home}/.gitconfig" 2> /dev/null || true
+      fi
     fi
   done << EOF
 ${_users}

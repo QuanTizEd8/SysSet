@@ -16,7 +16,7 @@ check "gh --version succeeds" gh --version
 
 # --- completions installed (bash) ---
 echo "=== /etc/bash_completion.d/gh ==="
-cat /etc/bash_completion.d/gh 2> /dev/null | head -5 || echo "(missing)"
+head -5 /etc/bash_completion.d/gh 2> /dev/null || echo "(missing)"
 check "bash completion file exists" test -f /etc/bash_completion.d/gh
 check "bash completion file is non-empty" test -s /etc/bash_completion.d/gh
 
