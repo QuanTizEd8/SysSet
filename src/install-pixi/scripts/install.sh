@@ -141,9 +141,9 @@ resolve_installer_paths() {
     echo "ℹ️ Using custom download URL; checksum verification will be skipped." >&2
   else
     ARCHIVE_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
-    SIDECAR_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.sha256"
+    SIDECAR_URL="https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
     ARCHIVE="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz"
-    SIDECAR="${INSTALLER_DIR}/pixi-${TRIPLE}.sha256"
+    SIDECAR="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz.sha256"
   fi
   echo "ℹ️ Archive URL: '${ARCHIVE_URL}'" >&2
   echo "↩️ Function exit: resolve_installer_paths" >&2
