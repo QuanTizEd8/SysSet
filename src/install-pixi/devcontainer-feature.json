@@ -54,7 +54,7 @@
       "netrc": {
          "type": "string",
          "default": "",
-         "description": "Path to a .netrc file for authenticating the download request.\nPassed as the NETRC env var to curl/wget.\nUse when downloading from a private mirror that requires credentials.\nSee https://pixi.prefix.dev/latest/installation/#using-netrc-for-authentication\n"
+         "description": "Path to a .netrc file for authenticating the download request.\nPassed to curl via --netrc-file or to wget via --netrc-file.\nUse when downloading from a private mirror that requires credentials.\nSee https://pixi.prefix.dev/latest/installation/#using-netrc-for-authentication\n"
       },
       "export_path": {
          "type": "string",
