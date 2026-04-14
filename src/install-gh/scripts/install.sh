@@ -136,12 +136,17 @@ _gh__repos_rhel() {
     echo "⚠️ Version pinning is not supported for method=repos on RHEL-based systems. Installing latest available gh." >&2
   fi
   if command -v zypper > /dev/null 2>&1; then
-    zypper addrepo "https://cli.github.com/packages/rpm/gh-cli.repo" gh-cli
-    # --retry 3: retry transient mirror/network timeouts up to 3 times.
-    zypper --retry 3 --gpg-auto-import-keys ref gh-cli
+    mkdir -p /etc/zypp/repos.d
+    # Drop the .repo file directly so zypper parses baseurl from it.
+    # 'zypper addrepo <URL>' treats the URL as the baseurl directly; when the
+    # URL ends in .repo the fetched metadata path becomes wrong (.repo/repodata/).
+    net__fetch_url_file \
+      "https://cli.github.com/packages/rpm/gh-cli.repo" \
+      "/etc/zypp/repos.d/gh-cli.repo"
+    zypper --gpg-auto-import-keys ref gh-cli
     # zypper exits 6 ("INFO_REPOS_SKIPPED") when system update repos have stale
     # metadata in containers. Treat exit 6 as success — gh is still installed.
-    zypper --retry 3 install -y gh || {
+    zypper install -y gh || {
       _rc=$?
       [ "${_rc}" -eq 6 ] || exit "${_rc}"
     }
