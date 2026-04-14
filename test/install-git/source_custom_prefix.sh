@@ -18,7 +18,7 @@ check "git --version succeeds" /opt/git/bin/git --version
 check "/usr/local/bin/git exists" test -e /usr/local/bin/git
 check "/usr/local/bin/git is a symlink" test -L /usr/local/bin/git
 check "symlink target is /opt/git/bin/git" bash -c '[ "$(readlink /usr/local/bin/git)" = "/opt/git/bin/git" ]'
-check "command -v resolves through the symlink" bash -c '[ "$(command -v git)" = "/usr/local/bin/git" ]'
+check "git canonically resolves to /opt/git/bin/git" bash -c '[ "$(readlink -f "$(command -v git)")" = "/opt/git/bin/git" ]'
 
 # --- PATH export written for non-standard prefix ---
 echo "=== /etc/profile.d/install-git.sh ==="
