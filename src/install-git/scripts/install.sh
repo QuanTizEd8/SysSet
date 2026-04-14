@@ -725,15 +725,24 @@ _git__write_system_gitconfig() {
   fi
   mkdir -p "$(dirname "${_cfg}")"
 
+  # Prefer the installed binary (handles source builds at non-standard prefixes
+  # where ${PREFIX}/bin is not yet on PATH); fall back to the system git.
+  local _git
+  if command -v "${PREFIX}/bin/git" > /dev/null 2>&1; then
+    _git="${PREFIX}/bin/git"
+  else
+    _git="git"
+  fi
+
   if [ -n "${DEFAULT_BRANCH}" ]; then
-    git config --file "${_cfg}" init.defaultBranch "${DEFAULT_BRANCH}"
+    "${_git}" config --file "${_cfg}" init.defaultBranch "${DEFAULT_BRANCH}"
   fi
 
   if [ -n "${SAFE_DIRECTORY}" ]; then
     local _entry
     printf '%s\n' "${SAFE_DIRECTORY}" | while IFS= read -r _entry; do
       [ -z "${_entry}" ] && continue
-      git config --file "${_cfg}" --add safe.directory "${_entry}"
+      "${_git}" config --file "${_cfg}" --add safe.directory "${_entry}"
     done
   fi
 
@@ -794,8 +803,16 @@ _git__write_user_gitconfig() {
     }
     _cfg="${_home}/.gitconfig"
 
-    [ -n "${USER_NAME}" ] && git config --file "${_cfg}" user.name "${USER_NAME}"
-    [ -n "${USER_EMAIL}" ] && git config --file "${_cfg}" user.email "${USER_EMAIL}"
+    # Prefer the installed binary (handles source builds at non-standard prefixes).
+    local _git
+    if command -v "${PREFIX}/bin/git" > /dev/null 2>&1; then
+      _git="${PREFIX}/bin/git"
+    else
+      _git="git"
+    fi
+
+    [ -n "${USER_NAME}" ] && "${_git}" config --file "${_cfg}" user.name "${USER_NAME}"
+    [ -n "${USER_EMAIL}" ] && "${_git}" config --file "${_cfg}" user.email "${USER_EMAIL}"
     [ -n "${USER_GITCONFIG}" ] && printf '%s\n' "${USER_GITCONFIG}" >> "${_cfg}"
 
     # Fix ownership when root writes to a non-root user's file.
