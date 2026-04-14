@@ -400,33 +400,19 @@ _git__ppa_check_codename() {
 # _git__ppa_import_key
 # Imports the git-core PPA GPG key to /usr/share/keyrings/git-core-ppa.gpg.
 _git__ppa_setup() {
-  # Refreshes package lists, then sets up the git-core PPA (signing key +
-  # sources.list entry + apt-get update).
+  # Sets up the git-core PPA: imports the signing key to
+  # /usr/share/keyrings/git-core-ppa.gpg and writes a signed-by sources.list
+  # entry at /etc/apt/sources.list.d/git-core-ppa.list.
   #
-  # Primary: add-apt-repository -y ppa:git-core/ppa — the standard method.
-  # It downloads the key directly from Launchpad over HTTPS (no keyserver
-  # dependency) and runs apt-get update automatically.
-  #
-  # Fallback: manual GPG import + sources.list, used only when
-  # add-apt-repository cannot be installed.
+  # NOTE: add-apt-repository is NOT used here because on Ubuntu 22.04+ it
+  # creates a DEB822 .sources file with a distro-generated name instead of the
+  # canonical git-core-ppa.list expected by downstream consumers.
   echo "🔑 Setting up git-core PPA..." >&2
 
-  # Ensure package lists are fresh before installing any prerequisite.
+  # Refresh package lists before installing gpg to avoid stale-list failures.
   ospkg__update
-
-  if ! command -v add-apt-repository > /dev/null 2>&1; then
-    ospkg__install software-properties-common
-  fi
-  if command -v add-apt-repository > /dev/null 2>&1 &&
-    add-apt-repository -y ppa:git-core/ppa; then
-    # add-apt-repository already ran apt-get update — no extra update needed.
-    return 0
-  fi
-
-  # Last-resort fallback: manual GPG key import + sources.list entry.
-  echo "⚠️  add-apt-repository failed or unavailable — using manual key import." >&2
   ospkg__install gpg || ospkg__install gnupg || {
-    echo "⛔ Cannot install gpg/gnupg for PPA key import." >&2
+    echo "⛔ Cannot install gpg/gnupg — aborting PPA setup." >&2
     return 1
   }
   _git__ppa_import_key
@@ -444,22 +430,26 @@ _git__ppa_import_key() {
   mkdir -p "$(dirname "${_keyring}")"
 
   echo "🔑 Importing git-core PPA GPG key..." >&2
-  if net__fetch_url_stdout \
-    "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${_fingerprint}" |
-    gpg --dearmor -o "${_keyring}" 2> /dev/null; then
-    echo "✅ GPG key imported via HTTPS keyserver." >&2
-    return 0
+
+  # Primary: HTTPS download from Ubuntu keyserver, validated before dearmor.
+  local _key_data
+  _key_data="$(net__fetch_url_stdout \
+    "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x${_fingerprint}" 2> /dev/null)" || true
+  if printf '%s' "${_key_data}" | grep -q 'BEGIN PGP'; then
+    if printf '%s' "${_key_data}" | gpg --dearmor -o "${_keyring}"; then
+      echo "✅ GPG key imported via HTTPS keyserver." >&2
+      return 0
+    fi
   fi
 
-  # Fallback: gpg --recv-keys with multiple keyservers.
+  # Fallback: gpg --recv-keys with HKP keyservers (Ubuntu and PGP).
   local _ks
-  for _ks in \
-    "hkp://keyserver.ubuntu.com" \
-    "hkp://keyserver.pgp.com" \
-    "hkps://keys.openpgp.org"; do
+  for _ks in "hkp://keyserver.ubuntu.com" "hkp://keyserver.pgp.com"; do
     echo "ℹ️ Trying keyserver ${_ks}..." >&2
     if gpg --recv-keys --keyserver "${_ks}" "${_fingerprint}" 2> /dev/null; then
-      gpg --export --armor "${_fingerprint}" | gpg --dearmor -o "${_keyring}" && return 0
+      if gpg --export --armor "${_fingerprint}" | gpg --dearmor -o "${_keyring}"; then
+        return 0
+      fi
     fi
   done
 
