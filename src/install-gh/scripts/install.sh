@@ -137,8 +137,13 @@ _gh__repos_rhel() {
   fi
   if command -v zypper > /dev/null 2>&1; then
     zypper addrepo "https://cli.github.com/packages/rpm/gh-cli.repo" gh-cli
-    zypper ref gh-cli
-    zypper install -y gh
+    zypper --gpg-auto-import-keys ref gh-cli
+    # zypper exits 6 ("INFO_REPOS_SKIPPED") when system update repos have stale
+    # metadata in containers. Treat exit 6 as success — gh is still installed.
+    zypper install -y gh || {
+      _rc=$?
+      [ "${_rc}" -eq 6 ] || exit "${_rc}"
+    }
   elif command -v dnf > /dev/null 2>&1; then
     mkdir -p /etc/yum.repos.d
     net__fetch_url_file \
