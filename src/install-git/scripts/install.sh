@@ -233,6 +233,22 @@ fi
 [ -z "${USERS-}" ] && USERS=""
 [ -z "${VERSION-}" ] && VERSION="latest"
 
+# Validate enum options early (fail fast before any install steps).
+case "${METHOD}" in
+  package | source) ;;
+  *)
+    echo "⛔ Unknown method: '${METHOD}' (expected: package, source)" >&2
+    exit 1
+    ;;
+esac
+case "${IF_EXISTS}" in
+  skip | fail | reinstall | update) ;;
+  *)
+    echo "⛔ Unknown if_exists value: '${IF_EXISTS}' (expected: skip, fail, reinstall, update)" >&2
+    exit 1
+    ;;
+esac
+
 # ── Helper functions ──────────────────────────────────────────────────────────
 
 # _git__check_exists
@@ -600,7 +616,9 @@ EOF
   ) || {
     echo "⚠️ equivs dummy package installation failed — skipping registration." >&2
     rm -rf "${_tmpdir}"
-    [ "${_had_equivs}" = "false" ] && apt-get purge -y equivs > /dev/null 2>&1 || true
+    if [ "${_had_equivs}" = "false" ]; then
+      apt-get purge -y equivs > /dev/null 2>&1 || true
+    fi
     return 0
   }
 
