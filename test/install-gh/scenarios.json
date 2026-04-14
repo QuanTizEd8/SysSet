@@ -204,5 +204,32 @@
                 "debug": true
             }
         }
+    },
+    "add_user_config": {
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "add_user_config": "testuser",
+                "add_current_user_config": false,
+                "add_remote_user_config": false,
+                "add_container_user_config": false,
+                "setup_git": true,
+                "debug": true
+            }
+        }
+    },
+    "extensions": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "add_remote_user_config": true,
+                "add_current_user_config": false,
+                "add_container_user_config": false,
+                "extensions": "github/gh-copilot",
+                "logfile": "/tmp/gh-ext-install.log",
+                "debug": true
+            }
+        }
     }
 }

@@ -15,10 +15,10 @@ library functions are required.
 - `os__id` is used for Arch Linux detection (ID=`arch`) since `os__platform` maps Arch → `debian` as the
   fallback and would route incorrectly.
 
-### `ospkg__detect` · `ospkg__run` · `ospkg__install` · `ospkg__update`
+### `ospkg__run` · `ospkg__install` · `ospkg__update`
 - **Reuse** from `lib/ospkg.sh`.
-- `ospkg__detect` is called for the repos method to initialise package manager state; `ospkg__install`
-  (or `ospkg__run --manifest`) installs individual packages.
+- `ospkg__run --manifest` installs the base dependencies; `ospkg__install` installs individual packages
+  (e.g. `gnupg` for the Debian repo method, `tar`/`unzip` in the binary method when not already present).
 
 ### `github__latest_tag`
 - **Reuse** from `lib/github.sh`.
@@ -39,8 +39,9 @@ library functions are required.
 
 ### `users__resolve_list`
 - **Reuse** from `lib/users.sh`.
-- Used by `_gh__install_extensions` to expand `users` option tokens (`_REMOTE_USER`, `_CONTAINER_USER`,
-  `all`) into a deduplicated list of usernames.
+- Used by `_gh__install_extensions` to build a deduplicated list of usernames from the feature's
+  `ADD_CURRENT_USER_CONFIG`, `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`, and `ADD_USER_CONFIG`
+  env vars (set to `true`/`false`/`<username>` depending on the option values).
 
 ---
 
@@ -99,8 +100,15 @@ Detection order:
 ### `_gh__repos_rhel`
 **Responsibility:** Set up the official GitHub CLI rpm repo and install `gh`.
 1. Detect sub-PM and add the repo:
-   - `command -v zypper`: `zypper addrepo https://cli.github.com/packages/rpm/gh-cli.repo gh-cli && zypper ref gh-cli`
-     (writes to `/etc/zypp/repos.d/` — zypper's native location; do **not** use `/etc/yum.repos.d/` for zypper)
+   - `command -v zypper`:
+     ```bash
+     mkdir -p /etc/zypp/repos.d
+     net__fetch_url_file \
+       "https://cli.github.com/packages/rpm/gh-cli.repo" \
+       "/etc/zypp/repos.d/gh-cli.repo"
+     zypper --gpg-auto-import-keys ref gh-cli
+     ```
+     (Fetch the `.repo` file directly into `/etc/zypp/repos.d/` — `zypper addrepo <URL>` misinterprets `.repo` URLs as base URLs, producing wrong metadata paths. This is zypper's native location; do **not** use `/etc/yum.repos.d/` for zypper.)
    - `command -v dnf` or `command -v yum`:
      ```bash
      mkdir -p /etc/yum.repos.d
@@ -109,15 +117,10 @@ Detection order:
        "/etc/yum.repos.d/gh-cli.repo"
      ```
 2. Detect sub-PM and install:
-   - `command -v zypper`: `zypper install -y gh`
-   - `command -v dnf` → detect dnf major version ≥ 5 = dnf5, < 5 = dnf4:
-     ```bash
-     local _major; _major="$(dnf --version 2>/dev/null | head -1 | grep -oE '^[0-9]+')"
-     ```
-     Both dnf4 and dnf5: `dnf install -y gh --repo gh-cli` (the `--repo` flag is the same for both,
-     the config-manager step is skipped since we copied the repo file directly)
+   - `command -v zypper`: `zypper install -y gh` (with exit code 6 guard — zypper returns 6 for INFO_REPOS_SKIPPED in containers; treat as success)
+   - `command -v dnf`: `dnf install -y gh --repo gh-cli`
    - `command -v yum`: `yum install -y gh`
-3. Version pinning is not supported via rpm; a warning is logged when `VERSION ≠ latest`.
+3. Version pinning is not supported via rpm/zypper; a warning is logged when `VERSION ≠ latest`.
 
 **Note:** Downloading the `.repo` file directly to `/etc/yum.repos.d/` bypasses the need for
 `dnf config-manager` (which requires a plugin), giving a simpler cross-variant flow.
@@ -249,12 +252,13 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
     GIT_HOSTNAME=github.com, ADD_CURRENT_USER_CONFIG=true, ADD_REMOTE_USER_CONFIG=true,
     ADD_CONTAINER_USER_CONFIG=true, ADD_USER_CONFIG=""
 5.  [[ DEBUG == true ]] && set -x
-6.  os__require_root  (must run as root)
-7.  EARLY-EXIT (no-mutation): if VERSION=latest AND gh is already in PATH:
+6.  EARLY-EXIT (no-mutation): if VERSION=latest AND gh is already in PATH:
       if IF_EXISTS=skip:  print info, exit 0  (no deps installed, no API call)
       if IF_EXISTS=fail:  print error, exit 1 (no deps installed, no API call)
-    This preserves the contract that skip/fail make no system changes when the tool is
-    already present and the caller did not request a specific version.
+    This runs BEFORE os__require_root and BEFORE installing base deps, preserving the contract
+    that skip/fail make zero system changes when the tool is already present and no specific
+    version was requested.
+7.  os__require_root  (must run as root for all subsequent steps)
 8.  ospkg__run --manifest base.yaml --check_installed  (install curl, ca-certificates)
 9.  _resolved_version="$(_gh__resolve_version)"
 10. Export user config env vars:

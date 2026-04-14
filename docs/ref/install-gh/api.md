@@ -8,7 +8,7 @@
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `version` | string | `latest` | Version of gh to install. `latest`: newest release. A semver string (e.g. `2.89.0`): exact version. |
+| `version` | string | `latest` | Version of gh to install. `latest`: newest release. A semver string (e.g. `2.89.0`): exact version on `method=binary` and `method=repos` on Debian/Ubuntu (apt). On macOS (Homebrew), Alpine, Arch, and RHEL-family (dnf/yum/zypper), version pinning is not supported — a warning is logged and the latest available package is installed instead. |
 | `method` | enum | `repos` | `repos`: official package repos (apt/dnf/apk/pacman/brew). `binary`: pre-built binary from GitHub Releases. |
 | `install_path` | string | `/usr/local/bin` | Directory where the `gh` binary is installed. `method=binary` only. |
 | `symlink` | boolean | `true` | Create `/usr/local/bin/gh → install_path/gh` when `install_path ≠ /usr/local/bin` (root + `method=binary` only). |

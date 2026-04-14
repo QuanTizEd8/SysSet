@@ -99,15 +99,19 @@ yum update gh   # upgrade
 **openSUSE / SUSE (zypper):**
 
 ```bash
-zypper addrepo https://cli.github.com/packages/rpm/gh-cli.repo
-zypper ref
+# Download the .repo file directly — 'zypper addrepo <URL>' treats the URL as
+# a baseurl, which produces the wrong metadata path for .repo file URLs.
+mkdir -p /etc/zypp/repos.d
+curl -fsSL https://cli.github.com/packages/rpm/gh-cli.repo \
+  -o /etc/zypp/repos.d/gh-cli.repo
+zypper --gpg-auto-import-keys ref gh-cli
 zypper install -y gh
 zypper update gh  # upgrade
 ```
 
 **Version pinning:** The official docs show only un-versioned `dnf install gh`; they do not document a version-pinned RPM install form. This is a design constraint of `method=repos` on RPM-family distros, not a gap in the feature: for exact version pinning on RHEL/Fedora, use `method=binary`.
 
-**Known issue:** dnf4 vs dnf5 require different plugin syntax. Scripts must detect the active dnf version.
+**Note on dnf4 vs dnf5:** Both accept `dnf install -y gh --repo gh-cli` when the repo file is copied directly to `/etc/yum.repos.d/` — no `config-manager` plugin is needed.
 
 ---
 
