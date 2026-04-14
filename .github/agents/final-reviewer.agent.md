@@ -1,7 +1,7 @@
 ---
 description: "Use for a final end-to-end consistency review after all implementation and testing is complete. Verifies sync state, doc/code/JSON alignment, formatting, linting, and test pass status. Subagent of feature-writer — not user-invocable. Invoke as the very last step before considering a task done."
 tools: [read, execute, search]
-model: ["Claude Sonnet 4.6 (copilot)"]
+model: ["GPT-5.3-Codex (copilot)"]
 user-invocable: false
 agents: []
 ---
@@ -48,11 +48,13 @@ Report any shellcheck warnings or errors.
 
 ### Check 4 — Document ↔ JSON ↔ Script Alignment
 
-Read these three files and verify they agree:
+Read these files and verify they agree:
 
-1. **`docs/ref/<feature>.md`** — the reference document
-2. **`src/<feature>/devcontainer-feature.json`** — the JSON API
-3. **`src/<feature>/scripts/install.sh`** — the script argument parser
+1. **`docs/ref/<feature-name>/installation.md`** — the installation reference
+2. **`docs/ref/<feature-name>/api.md`** — the API reference
+3. **`docs/ref/<feature-name>/implementation.md`** — the implementation reference
+4. **`src/<feature>/devcontainer-feature.json`** — the JSON API
+5. **`src/<feature>/scripts/install.sh`** — the script argument parser
 
 For each option, verify:
 - Same name in all three (doc, JSON key, script flag/env var).

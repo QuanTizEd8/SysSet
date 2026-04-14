@@ -1,7 +1,7 @@
 ---
 description: "Use when monitoring CI workflow results after pushing changes to GitHub. Reads CI logs, diagnoses failures, and reports actionable findings. Subagent of feature-writer — not user-invocable. Invoke after git push to watch and interpret CI results."
 tools: [execute, read, search, web, github/*]
-model: ["GPT-5.4 mini (copilot)"]
+model: ["GPT-5 mini (copilot)"]
 user-invocable: false
 agents: []
 ---
@@ -48,10 +48,9 @@ GH_PAGER=cat gh run list --limit 15
 
 To find runs for a specific workflow:
 ```bash
-GH_PAGER=cat gh run list --workflow test.yaml --limit 5
-GH_PAGER=cat gh run list --workflow test-unit.yaml --limit 5
-GH_PAGER=cat gh run list --workflow test-macos.yaml --limit 5
-GH_PAGER=cat gh run list --workflow lint.yaml --limit 5
+GH_PAGER=cat gh run list --workflow cicd.yaml --limit 5
+GH_PAGER=cat gh run list --workflow ci.yaml --limit 5
+GH_PAGER=cat gh run list --workflow cd.yaml --limit 5
 ```
 
 Each line shows: STATUS  TITLE  WORKFLOW  BRANCH  EVENT  RUN_ID  ELAPSED  AGE
@@ -147,7 +146,7 @@ Compare against recent passing runs to determine if the failure is:
 
 ```bash
 # Find the most recent completed run before the current one
-GH_PAGER=cat gh run list --workflow test.yaml --limit 10 --json databaseId,conclusion,createdAt | \
+GH_PAGER=cat gh run list --workflow cicd.yaml --limit 10 --json databaseId,conclusion,createdAt | \
   jq '.[] | select(.conclusion != null) | {id: .databaseId, conclusion: .conclusion, time: .createdAt}'
 ```
 
