@@ -275,9 +275,9 @@ When `bin_dir` is a system directory (e.g. `/usr/local/bin`, `/opt/pixi/bin`, `/
 
 ### `if_exists` — `"update"` Caveats
 
-- `"update"` runs `pixi self-update [--version <resolved_version>]`.
+- `"update"` runs `pixi self-update --version <resolved_version>`.
 - This **only works for installer-managed pixi**. pixi installed via Homebrew or conda/mamba cannot self-update and will fail.
-- If `version` is `"latest"`, the `--version` flag is omitted and pixi updates to the latest available version that its internal self-update logic resolves. This may differ from `github__latest_tag`; to pin to an exact version use a numeric `version`.
+- `version` is always resolved to a concrete semver string before the update path is taken (even when `version="latest"`), so `--version` is always passed to `pixi self-update`. To always track the latest release, use `version="latest"` together with `if_exists="update"` — the resolved version is fetched from the GitHub API at install time.
 
 ### `export_path` — Scope Rules
 
@@ -292,7 +292,7 @@ For the default `bin_dir="/usr/local/bin"` in devcontainer images, `/usr/local/b
 
 ### `shell_completion` — Supported Shells
 
-| `shell` value | Completion file target (root) | Completion file target (non-root) |
+| `shell_type` value | Completion file target (root) | Completion file target (non-root) |
 |---|---|---|
 | `bash` | global bashrc | `~/.bashrc` |
 | `zsh` | global zshenv | `~/.zshenv` |

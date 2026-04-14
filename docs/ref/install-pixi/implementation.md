@@ -119,15 +119,15 @@ checksums, shell config writes, OS packages, and logging.
 - **Outputs (globals):** `TRIPLE`.
 
 ### `resolve_installer_paths`
-- **Responsibility:** Sets `ARCHIVE`, `SIDECAR`, and `DOWNLOAD_URL_RESOLVED`:
+- **Responsibility:** Sets `ARCHIVE`, `SIDECAR`, `ARCHIVE_URL`, and `SIDECAR_URL`:
   - If `DOWNLOAD_URL` is non-empty, sets `ARCHIVE_URL="$DOWNLOAD_URL"` and `SIDECAR_URL=""` (checksum skipped).
   - Otherwise, constructs standard URLs:
     ```
     https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz
-    https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.sha256
+    https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256
     ```
   - Sets `ARCHIVE="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz"`.
-  - Sets `SIDECAR="${INSTALLER_DIR}/pixi-${TRIPLE}.sha256"`.
+  - Sets `SIDECAR="${INSTALLER_DIR}/pixi-${TRIPLE}.tar.gz.sha256"`.
 - **Inputs (globals):** `VERSION`, `TRIPLE`, `DOWNLOAD_URL`, `INSTALLER_DIR`.
 - **Outputs (globals):** `ARCHIVE`, `SIDECAR`, `ARCHIVE_URL`, `SIDECAR_URL`.
 
@@ -150,12 +150,12 @@ checksums, shell config writes, OS packages, and logging.
 - **Outputs:** echoes version string to stdout.
 
 ### `handle_if_exists`
-- **Responsibility:** Implements the `IF_EXISTS` policy when a pixi binary is already present.
-  - **Always** runs `get_installed_version` first. If the installed version matches `VERSION`, skips silently (version-match idempotency).
+- **Responsibility:** Implements the `IF_EXISTS` policy when a pixi binary already exists at `$BIN_DIR/pixi`.
   - `skip`      — logs warning, sets `_SKIP_INSTALL=true`, continues to post-install.
   - `fail`      — prints error, exits 1.
   - `uninstall` — removes `$BIN_DIR/pixi`, then proceeds to download + install.
   - `update`    — runs `update_pixi`, sets `_SKIP_INSTALL=true`, continues to post-install.
+  - Version-match idempotency is implemented in `main` **before** calling `handle_if_exists`: if the installed version already matches `VERSION`, the install is skipped entirely without entering `handle_if_exists`.
 - **Inputs (globals):** `BIN_DIR`, `IF_EXISTS`, `VERSION`.
 - **Outputs (globals):** `_SKIP_INSTALL` (boolean string `true`/`false`).
 
@@ -239,27 +239,26 @@ checksums, shell config writes, OS packages, and logging.
 5.  Parse CLI args OR read env vars (dual-mode)
 6.  Apply defaults
 7.  [[ DEBUG == true ]] && set -x
-8.  logging__setup --logfile "$LOGFILE"  — sets LOGFILE and reopens tee
-9.  resolve_bin_dir                 — resolve "auto" / "" to concrete path
-10. check_root_requirement
-11. resolve_pixi_version             — normalise VERSION to bare semver
-12. get_installed_version → _INSTALLED_VER
-13. If _INSTALLED_VER == VERSION:
-      → log "already installed, skipping" and jump to step 19 (post-install)
-14. If BIN_DIR/pixi exists OR 'pixi' on PATH:
+8.  resolve_bin_dir                 — resolve "auto" / "" to concrete path
+9.  check_root_requirement
+10. resolve_pixi_version             — normalise VERSION to bare semver
+11. get_installed_version → _INSTALLED_VER (only when BIN_DIR/pixi exists)
+12. If _INSTALLED_VER == VERSION:
+      → log "already installed, skipping" and jump to step 18 (post-install)
+13. If BIN_DIR/pixi exists:
       → handle_if_exists             — may exit, set _SKIP_INSTALL, or remove binary
-15. If _SKIP_INSTALL != true:
+14. If _SKIP_INSTALL != true:
       a. detect_triple
       b. resolve_installer_paths
       c. download_pixi
       d. verify_pixi (or warn if skipped)
       e. install_pixi_binary
-16. verify_installed_binary      — try $BIN_DIR/pixi, fall back to PATH; exit on failure
-17. create_symlink
-18. export_path_main             — no-op when EXPORT_PATH="auto" and BIN_DIR=/usr/local/bin
-19. export_pixi_home_main        — no-op when HOME_DIR is empty
-20. install_completion
-21. echo "✅ Pixi ${VERSION} installed."
+15. verify_installed_binary      — try $BIN_DIR/pixi, fall back to PATH; exit on failure
+16. create_symlink
+17. export_path_main             — no-op when EXPORT_PATH="auto" and BIN_DIR=/usr/local/bin
+18. export_pixi_home_main        — no-op when HOME_DIR is empty
+19. install_completion
+20. echo "✅ Pixi ${VERSION} installed."
 ```
 
 ### Argument Parsing (Dual-Mode)
@@ -270,9 +269,9 @@ options are read from `--flag value` pairs. When invoked with no arguments
 (devcontainer feature mode), options are read from identically-named environment
 variables set by the devcontainer CLI from `devcontainer-feature.json`.
 
-Boolean CLI flags (`--debug`, `--keep_installer`, `--shell_completion`) are
-presence-only: when the flag is present it is set to `true`; no `false` equivalent
-exists on the CLI (just omit them).
+Boolean CLI flags (`--debug`, `--keep_installer`, `--shell_completion`) require
+an explicit value of `true` or `false` (e.g. `--debug true`). Omitting the flag
+is equivalent to the default value (`false` for all three).
 
 ### Default Value Logic
 

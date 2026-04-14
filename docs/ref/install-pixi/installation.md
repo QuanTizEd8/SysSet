@@ -113,7 +113,7 @@ our feature implements an `if_exists` guard.
 | `pixi-riscv64gc-unknown-linux-gnu.tar.gz` | Linux RISC-V |
 | `pixi-x86_64-apple-darwin.tar.gz` | Intel macOS |
 | `pixi-aarch64-apple-darwin.tar.gz` | Apple Silicon macOS |
-| `pixi-${TRIPLE}.sha256` | SHA-256 checksum **of the `.tar.gz` archive** |
+| `pixi-${TRIPLE}.tar.gz.sha256` | SHA-256 checksum **of the `.tar.gz` archive** |
 
 > **Checksum clarity:** The `.sha256` sidecar file contains the SHA-256 hash of
 > the corresponding `.tar.gz` archive (not of the extracted binary). Verification
@@ -130,12 +130,12 @@ ARCHIVE="$TMP_DIR/pixi.tar.gz"
 # 1. Download archive + checksum sidecar
 curl -fsSL -o "$ARCHIVE" \
   "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz"
-curl -fsSL -o "$TMP_DIR/pixi.sha256" \
-  "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.sha256"
+curl -fsSL -o "$TMP_DIR/pixi.tar.gz.sha256" \
+  "https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256"
 
 # 2. Verify archive checksum BEFORE extraction
 # (use lib/checksum.sh in the actual installer — example shows Linux variant only)
-sha256sum --check <(echo "$(awk '{print $1}' "$TMP_DIR/pixi.sha256")  $ARCHIVE")
+sha256sum --check <(echo "$(awk '{print $1}' "$TMP_DIR/pixi.tar.gz.sha256")  $ARCHIVE")
 
 # 3. Extract binary from archive
 tar -xzf "$ARCHIVE" -C "$TMP_DIR"
@@ -226,7 +226,7 @@ content format is `<sha256hex>  <filename>` (standard `sha256sum` output).
 
 **URL format:**
 ```
-https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.sha256
+https://github.com/prefix-dev/pixi/releases/download/v${VERSION}/pixi-${TRIPLE}.tar.gz.sha256
 ```
 
 **Implementation using `lib/checksum.sh`:**
@@ -276,7 +276,7 @@ the following reasons:
    or `shell__export_path`).
 
 3. **Standalone mode (non-root/user install):** Default `bin_dir=""` maps to
-   `$HOME/.pixi/bin` by convention. The `no_path_update` option controls
+   `$HOME/.pixi/bin` by convention. The `export_path` option controls
    whether a PATH block is written to shell RC files.
 
 4. **Auto no-path-update:** When `bin_dir` is explicitly non-empty, do not
@@ -413,7 +413,7 @@ environments declared in `pixi.toml`. Omit it if your project doesn't have a
   Confirms `--version x.y.z` syntax without `v` prefix (example: `pixi self-update --version 0.46.0`).
 - [GitHub releases — v0.67.0](https://github.com/prefix-dev/pixi/releases/tag/v0.67.0) —
   Confirmed release asset naming: `pixi-${TRIPLE}.tar.gz` and
-  `pixi-${TRIPLE}.sha256` (hash of archive).
+  `pixi-${TRIPLE}.tar.gz.sha256` (hash of archive).
 - [Official Env Var Reference](https://pixi.prefix.dev/latest/reference/environment_variables/) —
   Documents `PIXI_HOME` (global data dir), `PIXI_BIN_DIR` (binary location, defaults to `$PIXI_HOME/bin`), `PIXI_CACHE_DIR`, `RATTLER_AUTH_FILE`.
 - [Official Configuration Reference](https://pixi.prefix.dev/latest/reference/pixi_configuration/) —
