@@ -1,0 +1,4 @@
+# Common prerequisites for both Node.js installation methods.
+packages:
+  - ca-certificates
+  - curl

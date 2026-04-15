@@ -1,0 +1,18 @@
+# Dependencies for extracting Node.js .tar.xz archives (method=binary).
+packages:
+  - tar
+
+apt:
+  packages:
+    - xz-utils
+
+apk:
+  packages:
+    - xz
+
+dnf:
+  packages:
+    - xz
+
+brew:
+  packages: []
