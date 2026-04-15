@@ -1,8 +1,7 @@
 # SysSet — System Setup
 
-A collection of system setup scripts that declaratively install tools and configure environments.
-Designed for use as both [devcontainer features](https://containers.dev/implementors/features/) published to GHCR,
-and as scripts for general Linux and macOS system setup.
+**SysSet** is a project developing system setup tools that must work seamlessly on both macOS and various Linux distributions, both in containers and on bare-metal machines. These tools are distributed as both [**devcontainer features**](https://containers.dev/implementors/features/) (published to GHCR) and **standalone/bundled installers** (published to GitHub Releases). They provide users with a seamless experience for installing and configuring essential software in their environments, with rich configuration options that cater to a wide range of use cases and requirements. These tools must be robust, reliable, consistently designed, and thoroughly tested, with comprehensive documentation.
+
 
 ## Critical: Generated Files — Never Edit Directly
 
