@@ -55,7 +55,6 @@ Makefile                        Developer targets: format, format-check, lint, s
 .shellcheckrc                   shellcheck defaults (shell=bash, external-sources=true)
 ```
 
-Features without a `dependencies/base.yaml`: `install-os-pkg` (it IS the package installer), `setup-shim`.
 
 ## Key Commands
 
