@@ -411,10 +411,11 @@ The file is a YAML ospkg manifest (see
 
 Example — the minimum set needed before downloading a binary:
 
-```
+```yaml
 # Base dependencies for my-feature.
-ca-certificates
-curl
+packages:
+  - ca-certificates
+  - curl
 ```
 
 Call it at the start of the script with `ospkg__run`:
