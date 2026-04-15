@@ -61,7 +61,7 @@ Features without a `dependencies/base.yaml`: `install-os-pkg` (it IS the package
 ## Key Commands
 
 | Task | Command |
-|---|---|
+|------|---------|
 | Sync generated files | `bash sync-lib.sh` |
 | Verify generated files up to date | `bash sync-lib.sh --check` |
 | Format all shell files | `make format` |
@@ -153,3 +153,11 @@ The `_src → ../src` symlink allows the devcontainer CLI (which only looks insi
 - `docs/dev-guide/testing.md` — test structure, writing scenarios, running locally
 - `docs/dev-guide/repo-structure.md` — annotated directory tree, sync mechanism
 - `docs/dev-guide/publishing.md` — versioning, release, GHCR, containers.dev index
+
+## Key References
+
+- [JSON Schema for devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainerFeature.schema.json)
+- [Full JSON Schema for devcontainer.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.schema.json)
+- [Core JSON Schema for devcontainer.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.base.schema.json)
+- [devcontainer CLI Repository](https://github.com/devcontainers/cli)
+- [devcontainer GitHub Organization](https://github.com/devcontainers)
