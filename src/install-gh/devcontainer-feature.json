@@ -104,8 +104,5 @@
          "default": "",
          "description": "Append install log to this file path."
       }
-   },
-   "containerEnv": {
-      "PATH": "/usr/local/bin:${PATH}"
    }
 }

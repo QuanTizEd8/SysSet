@@ -104,9 +104,6 @@
          "description": "Log all output (stdout + stderr) to this file in addition to the console."
       }
    },
-   "containerEnv": {
-      "PATH": "/usr/local/bin:${PATH}"
-   },
    "mounts": [
       {
          "source": "${localWorkspaceFolderBasename}-pixi",
