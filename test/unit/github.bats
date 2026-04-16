@@ -331,3 +331,250 @@ v2.47.1"
 v2.9.0"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# github__pick_release_asset  (heuristic asset selector)
+#
+# All tests stub github__release_asset_urls, os__arch, and os__kernel to
+# avoid network calls and make assertions deterministic.
+# ---------------------------------------------------------------------------
+
+# Helper: stub os__arch and os__kernel to fixed values.
+_stub_arch_kernel() {
+  _STUB_ARCH="$1"
+  _STUB_KERNEL="$2"
+  export _STUB_ARCH _STUB_KERNEL
+  os__arch() { printf '%s\n' "$_STUB_ARCH"; }
+  os__kernel() { printf '%s\n' "$_STUB_KERNEL"; }
+  export -f os__arch os__kernel
+}
+
+# Helper: stub github__release_asset_urls to print the given newline-separated URLs.
+_stub_urls() {
+  _STUB_URLS="$1"
+  export _STUB_URLS
+  github__release_asset_urls() {
+    printf '%s\n' "$_STUB_URLS"
+    return 0
+  }
+  export -f github__release_asset_urls
+}
+
+# --- basic success / failure ------------------------------------------------
+
+@test "github__pick_release_asset returns the single matching URL" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset fails when no assets are returned" {
+  _stub_arch_kernel "x86_64" "Linux"
+  github__release_asset_urls() { return 1; }
+  export -f github__release_asset_urls
+  run github__pick_release_asset "owner/repo"
+  assert_failure
+}
+
+@test "github__pick_release_asset fails when asset list is empty" {
+  _stub_arch_kernel "x86_64" "Linux"
+  github__release_asset_urls() { printf ''; return 0; }
+  export -f github__release_asset_urls
+  run github__pick_release_asset "owner/repo"
+  assert_failure
+  assert_output --partial "no assets found"
+}
+
+@test "github__pick_release_asset rejects unknown option" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool.tar.gz"
+  run github__pick_release_asset "owner/repo" --bogus
+  assert_failure
+  assert_output --partial "unknown option"
+}
+
+# --- --asset-regex pre-filter -----------------------------------------------
+
+@test "github__pick_release_asset --asset-regex: exact single match returns immediately" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-linux-arm64.tar.gz
+https://example.com/tool-darwin-amd64.tar.gz"
+  run github__pick_release_asset "owner/repo" --asset-regex "linux-amd64"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset --asset-regex: no match returns failure" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz"
+  run github__pick_release_asset "owner/repo" --asset-regex "does-not-match"
+  assert_failure
+  assert_output --partial "matched no assets"
+}
+
+# --- negative arch filter ---------------------------------------------------
+
+@test "github__pick_release_asset removes other-arch assets on x86_64" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-linux-arm64.tar.gz
+https://example.com/tool-linux-aarch64.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset removes other-arch assets on aarch64" {
+  _stub_arch_kernel "aarch64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-linux-arm64.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-arm64.tar.gz"
+}
+
+@test "github__pick_release_asset skips arch filter when it would produce empty list" {
+  # Only one asset; it would be removed by the bad-arch filter (no arch keyword
+  # matches x86_64 negative patterns).  The filter must be skipped.
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux.tar.gz"
+}
+
+# --- negative platform filter -----------------------------------------------
+
+@test "github__pick_release_asset removes Windows assets on Linux" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-windows-amd64.exe
+https://example.com/tool-Windows-amd64.zip"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset removes macOS assets on Linux" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-darwin-amd64.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset removes Linux assets on Darwin" {
+  _stub_arch_kernel "x86_64" "Darwin"
+  _stub_urls "https://example.com/tool-darwin-amd64.tar.gz
+https://example.com/tool-linux-amd64.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-darwin-amd64.tar.gz"
+}
+
+# --- negative misc filter ---------------------------------------------------
+
+@test "github__pick_release_asset removes checksum files" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-linux-amd64.tar.gz.sha256
+https://example.com/Checksums.txt"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset removes .deb and .rpm packages" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-amd64.deb
+https://example.com/tool-x86_64.rpm"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset skips misc filter when it would empty the list" {
+  # All assets are .txt — the misc filter would remove everything, so it must
+  # be skipped and we still get exactly one candidate.
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/install.txt"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/install.txt"
+}
+
+# --- positive arch tiebreaker -----------------------------------------------
+
+@test "github__pick_release_asset prefers explicit arch match (amd64) on x86_64" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64.tar.gz
+https://example.com/tool-linux.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64.tar.gz"
+}
+
+@test "github__pick_release_asset prefers explicit arch match (arm64) on aarch64" {
+  _stub_arch_kernel "aarch64" "Linux"
+  _stub_urls "https://example.com/tool-linux-arm64.tar.gz
+https://example.com/tool-linux.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-arm64.tar.gz"
+}
+
+# --- positive static/musl tiebreaker ----------------------------------------
+
+@test "github__pick_release_asset prefers musl/static build when multiple remain" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64-musl.tar.gz
+https://example.com/tool-linux-amd64-gnu.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_success
+  assert_output "https://example.com/tool-linux-amd64-musl.tar.gz"
+}
+
+# --- ambiguity error --------------------------------------------------------
+
+@test "github__pick_release_asset fails when more than one candidate remains" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64-v1.tar.gz
+https://example.com/tool-linux-amd64-v2.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_failure
+  assert_output --partial "ambiguous"
+}
+
+@test "github__pick_release_asset lists filenames on ambiguity" {
+  _stub_arch_kernel "x86_64" "Linux"
+  _stub_urls "https://example.com/tool-linux-amd64-v1.tar.gz
+https://example.com/tool-linux-amd64-v2.tar.gz"
+  run github__pick_release_asset "owner/repo"
+  assert_failure
+  assert_output --partial "tool-linux-amd64-v1.tar.gz"
+  assert_output --partial "tool-linux-amd64-v2.tar.gz"
+}
+
+# --- --tag forwarding -------------------------------------------------------
+
+@test "github__pick_release_asset passes --tag to github__release_asset_urls" {
+  _stub_arch_kernel "x86_64" "Linux"
+  github__release_asset_urls() {
+    # Capture the arguments and echo back the tag value found.
+    while [ "$#" -gt 0 ]; do
+      [ "$1" = "--tag" ] && { printf 'TAG=%s\n' "$2"; return 0; }
+      shift
+    done
+    printf 'NO_TAG\n'
+    return 0
+  }
+  export -f github__release_asset_urls
+  run github__pick_release_asset "owner/repo" --tag "v1.2.3"
+  assert_success
+  assert_output "TAG=v1.2.3"
+}
