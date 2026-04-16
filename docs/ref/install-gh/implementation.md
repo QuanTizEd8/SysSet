@@ -176,14 +176,11 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 10. Verify: `"${PREFIX}/bin/gh" --version`.
 
 ### `_gh__create_symlink`
-**Responsibility:** Create `/usr/local/bin/gh -> $PREFIX/bin/gh` when `method=binary` and
-`PREFIX ≠ /usr/local`.
-- No-op conditions: `SYMLINK ≠ true`, `METHOD=repos`, `PREFIX=/usr/local`, or running as
-  non-root (cannot write to `/usr/local/bin`).
-- If `/usr/local/bin/gh` already exists as a real file (not a symlink), log an error and exit 1.
-- If it exists as a symlink, remove it first, then re-link.
-- `ln -sf "${PREFIX}/bin/gh" /usr/local/bin/gh`
-- This is the same pattern as `install-git`'s `symlink` option.
+**Responsibility:** Create a symlink from the canonical bin directory to `$PREFIX/bin/gh` when
+`method=binary` and `PREFIX` differs from the canonical path.
+- No-op conditions: `SYMLINK ≠ true`, `METHOD=repos`, or `PREFIX` already equals the canonical path.
+- Root: creates `/usr/local/bin/gh -> $PREFIX/bin/gh`. If `/usr/local/bin/gh` already exists as a real file (not a symlink), log an error and exit 1.
+- Non-root: creates `$HOME/.local/bin/gh -> $PREFIX/bin/gh` (creating `$HOME/.local/bin` if needed).
 
 ### `_gh__install_completions`
 **Responsibility:** Install completions for each shell listed in `SHELL_COMPLETIONS`. No-op when empty.

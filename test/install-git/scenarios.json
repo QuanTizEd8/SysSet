@@ -188,5 +188,17 @@
                 "debug": true
             }
         }
+    },
+    "source_custom_prefix_nonroot": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-git": {
+                "method": "source",
+                "version": "stable",
+                "prefix": "/opt/git",
+                "debug": true
+            }
+        }
     }
 }

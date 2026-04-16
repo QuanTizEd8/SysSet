@@ -297,7 +297,7 @@ _gh__install_binary() {
   return 0
 }
 
-# _gh__create_symlink — create /usr/local/bin/gh -> PREFIX/bin/gh (binary method only).
+# _gh__create_symlink — create symlink to PREFIX/bin/gh in the canonical bin dir.
 _gh__create_symlink() {
   echo "↪️ Function entry: _gh__create_symlink" >&2
   if [ "${SYMLINK}" != "true" ]; then
@@ -310,22 +310,28 @@ _gh__create_symlink() {
     echo "↩️ Function exit: _gh__create_symlink" >&2
     return 0
   fi
-  if [ "${PREFIX}" = "/usr/local" ]; then
-    echo "ℹ️ prefix is already /usr/local; no symlink needed." >&2
-    echo "↩️ Function exit: _gh__create_symlink" >&2
-    return 0
+  if [ "$(id -u)" = "0" ]; then
+    if [ "${PREFIX}" = "/usr/local" ]; then
+      echo "ℹ️ prefix is already /usr/local; no symlink needed." >&2
+      echo "↩️ Function exit: _gh__create_symlink" >&2
+      return 0
+    fi
+    if [ -e "/usr/local/bin/gh" ] && [ ! -L "/usr/local/bin/gh" ]; then
+      echo "⛔ /usr/local/bin/gh exists as a regular file — cannot create symlink." >&2
+      exit 1
+    fi
+    ln -sf "${PREFIX}/bin/gh" /usr/local/bin/gh
+    echo "✅ Created symlink /usr/local/bin/gh -> ${PREFIX}/bin/gh" >&2
+  else
+    if [ "${PREFIX}" = "${HOME}/.local" ]; then
+      echo "ℹ️ prefix is already ${HOME}/.local; no symlink needed." >&2
+      echo "↩️ Function exit: _gh__create_symlink" >&2
+      return 0
+    fi
+    mkdir -p "${HOME}/.local/bin"
+    ln -sf "${PREFIX}/bin/gh" "${HOME}/.local/bin/gh"
+    echo "✅ Created symlink ${HOME}/.local/bin/gh -> ${PREFIX}/bin/gh" >&2
   fi
-  if [ "$(id -u)" != "0" ]; then
-    echo "ℹ️ Running as non-root; skipping symlink (cannot write /usr/local/bin)." >&2
-    echo "↩️ Function exit: _gh__create_symlink" >&2
-    return 0
-  fi
-  if [ -e "/usr/local/bin/gh" ] && [ ! -L "/usr/local/bin/gh" ]; then
-    echo "⛔ /usr/local/bin/gh exists as a regular file — cannot create symlink." >&2
-    exit 1
-  fi
-  ln -sf "${PREFIX}/bin/gh" /usr/local/bin/gh
-  echo "✅ Created symlink /usr/local/bin/gh -> ${PREFIX}/bin/gh" >&2
   echo "↩️ Function exit: _gh__create_symlink" >&2
   return 0
 }
@@ -750,7 +756,14 @@ fi
 [ -z "${GIT_PROTOCOL-}" ] && GIT_PROTOCOL=""
 [ -z "${IF_EXISTS-}" ] && IF_EXISTS="skip"
 [ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS="bash zsh"
-[ -z "${PREFIX-}" ] && PREFIX="/usr/local"
+if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
+  if [ "$(id -u)" = "0" ]; then
+    PREFIX="/usr/local"
+  else
+    PREFIX="${HOME}/.local"
+  fi
+  echo "ℹ️ Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'." >&2
+fi
 [ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/gh-install"
 [ -z "${LOGFILE-}" ] && LOGFILE=""
 [ -z "${METHOD-}" ] && METHOD="repos"

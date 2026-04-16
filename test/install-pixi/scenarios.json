@@ -157,5 +157,16 @@
                 "debug": true
             }
         }
+    },
+    "custom_bin_dir_symlink_nonroot": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-pixi": {
+                "prefix": "/opt/pixi",
+                "symlink": true,
+                "debug": true
+            }
+        }
     }
 }

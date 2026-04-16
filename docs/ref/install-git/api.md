@@ -16,7 +16,7 @@
 | `keep_installer` | boolean | `false` | Keep `installer_dir` after a successful source build. Ignored for `method=package`. |
 | `no_flags` | string | `""` | Space-separated component flags to disable in source build (`perl`, `python`, `tcltk`, `gettext`). Ignored for `method=package`. |
 | `make_flags` | string | `""` | Additional `KEY=VALUE` pairs appended verbatim last to every `make` invocation for source builds. Overrides any computed flag. Ignored for `method=package`. |
-| `symlink` | boolean | `true` | Create `/usr/local/bin/git → ${PREFIX}/bin/git` when `prefix` resolves to a non-`/usr/local` path (source + root only). Ensures `containerEnv` PATH always resolves correctly. |
+| `symlink` | boolean | `true` | Create a symlink from the canonical bin directory to `${PREFIX}/bin/git` when `prefix` resolves to a non-default path (source builds only). Root: `/usr/local/bin/git → ${PREFIX}/bin/git`. Non-root: `$HOME/.local/bin/git → ${PREFIX}/bin/git`. Ensures `containerEnv` PATH always resolves correctly. |
 | `shell_completions` | string | `"bash zsh"` | Space-separated list of shell names to install completions for after a source build. Supported: `"bash"`, `"zsh"`. Copies completion scripts from `$PREFIX/share/git-core/contrib/completion/` to system completion dirs (root) or user dirs (non-root). Set to `""` to skip. Ignored for `method=package`. |
 | `export_path` | string | `"auto"` | PATH/MANPATH export target files after a source build. `"auto"`: all system-wide startup files. `""`: skip. Newline-separated paths: explicit targets. Ignored for `method=package`. |
 | `if_exists` | enum | `"skip"` | When `git` is already in PATH: `"skip"` exits silently; `"fail"` exits non-zero; `"reinstall"` detects and tears down then reinstalls; `"update"` upgrades in place or tears down and reinstalls on a method switch. Version match always short-circuits to skip. |
@@ -398,8 +398,7 @@ For `method=source` with a **custom prefix** (e.g. `prefix=/opt/git`), the binar
 
 `symlink` is silently skipped when:
 - `method=package`
-- `prefix` resolves to `/usr/local`
-- running as non-root (cannot write to `/usr/local/bin`; use `export_path` instead)
+- `prefix` resolves to the canonical path (`/usr/local` for root, `$HOME/.local` for non-root)
 
 ### Shell Completions (`shell_completions`)
 

@@ -923,11 +923,16 @@ if { [ "${ADD_CURRENT_USER_CONFIG}" = "true" ] || [ "${ADD_REMOTE_USER_CONFIG}" 
   _git__write_user_gitconfig
 fi
 
-# 8. Symlink /usr/local/bin/git → ${PREFIX}/bin/git
-#    (source + root + non-standard prefix only).
-if [ "${METHOD}" = "source" ] && [ "${SYMLINK}" = "true" ] &&
-  [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
-  ln -sf "${PREFIX}/bin/git" /usr/local/bin/git
+# 8. Symlink (source builds + non-standard prefix only).
+if [ "${METHOD}" = "source" ] && [ "${SYMLINK}" = "true" ]; then
+  if [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
+    ln -sf "${PREFIX}/bin/git" /usr/local/bin/git
+    echo "✅ Created symlink /usr/local/bin/git → ${PREFIX}/bin/git" >&2
+  elif [ "$(id -u)" != "0" ] && [ "${PREFIX}" != "${HOME}/.local" ]; then
+    mkdir -p "${HOME}/.local/bin"
+    ln -sf "${PREFIX}/bin/git" "${HOME}/.local/bin/git"
+    echo "✅ Created symlink ${HOME}/.local/bin/git → ${PREFIX}/bin/git" >&2
+  fi
 fi
 
 echo "↩️ Script exit: Git Installation Devcontainer Feature Installer" >&2

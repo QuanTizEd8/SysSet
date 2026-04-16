@@ -770,14 +770,18 @@ if [ -n "${USERS}" ] && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; the
   _git__write_user_gitconfig
 fi
 
-# Post-install: symlink /usr/local/bin/git -> ${PREFIX}/bin/git (source + root + non-default prefix only).
-if [ "${METHOD}" = "source" ] && [ "${SYMLINK}" = "true" ] \
-  && [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
-  ln -sf "${PREFIX}/bin/git" /usr/local/bin/git
+# Post-install: symlink from canonical bin dir to ${PREFIX}/bin/git (source + non-default prefix only).
+if [ "${METHOD}" = "source" ] && [ "${SYMLINK}" = "true" ]; then
+  if [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
+    ln -sf "${PREFIX}/bin/git" /usr/local/bin/git
+  elif [ "$(id -u)" != "0" ] && [ "${PREFIX}" != "${HOME}/.local" ]; then
+    mkdir -p "${HOME}/.local/bin"
+    ln -sf "${PREFIX}/bin/git" "${HOME}/.local/bin/git"
+  fi
 fi
 ```
 
-No intermediate resolution function is needed — `$METHOD` is always explicitly `"package"` or `"source"`. The PATH/MANPATH export is inlined directly rather than wrapped in a function, as it is two `shell__sync_block` calls with no branching complexity beyond the prefix check. The gitconfig writes are delegated to the two dedicated functions above. The symlink step is a single `ln -sf` guarded by four conditions and needs no dedicated function.
+No intermediate resolution function is needed — `$METHOD` is always explicitly `"package"` or `"source"`. The PATH/MANPATH export is inlined directly rather than wrapped in a function. The symlink step uses a nested if/elif to handle both root and non-root cases without a dedicated function.
 
 ### macOS Source Builds
 

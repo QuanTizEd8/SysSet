@@ -18,13 +18,13 @@
       },
       "prefix": {
          "type": "string",
-         "default": "/usr/local",
-         "description": "Installation prefix when method=binary. The 'gh' binary is placed at '$prefix/bin/gh'.\nDefaults to '/usr/local'. Must be writable or creatable by the installer; the directory is created if it does not exist. Ignored when method=repos (the package manager controls the install location, typically /usr/bin)."
+         "default": "auto",
+         "description": "Installation prefix when method=binary. The 'gh' binary is placed at '$prefix/bin/gh'.\n'auto' (default) — resolves to /usr/local when running as root, or $HOME/.local when running as non-root.\nAn explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.\nIgnored when method=repos (the package manager controls the install location, typically /usr/bin)."
       },
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create a symlink /usr/local/bin/gh -> $prefix/bin/gh when prefix is not /usr/local (method=binary only, root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) resolves to the installed binary regardless of prefix.\nNo-op when prefix is already /usr/local, when method=repos (gh lands in /usr/bin which is always on PATH), or when running as non-root (cannot write to /usr/local/bin)."
+         "description": "Create a symlink from the canonical bin directory to $prefix/bin/gh when prefix resolves to a non-default path (method=binary only).\nRoot: creates /usr/local/bin/gh -> $prefix/bin/gh. Non-root: creates $HOME/.local/bin/gh -> $prefix/bin/gh.\nEnsures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.\nNo-op when prefix already resolves to the canonical path (/usr/local for root, $HOME/.local for non-root), or when method=repos (gh lands in /usr/bin which is always on PATH)."
       },
       "shell_completions": {
          "type": "string",
@@ -104,5 +104,8 @@
          "default": "",
          "description": "Append install log to this file path."
       }
+   },
+   "containerEnv": {
+      "PATH": "${HOME}/.local/bin:${PATH}"
    }
 }

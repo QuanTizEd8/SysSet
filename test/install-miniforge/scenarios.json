@@ -178,5 +178,12 @@
         "features": {
             "install-miniforge": { "if_exists": "update", "debug": true }
         }
+    },
+    "export_path_symlink_nonroot": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-miniforge": { "prefix": "/opt/myforge", "symlink": true, "debug": true }
+        }
     }
 }

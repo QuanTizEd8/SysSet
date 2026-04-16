@@ -29,7 +29,7 @@ Install Node.js and npm in the development container. Two methods are supported,
 | `add_user_config` | string | `""` | Comma-separated list of additional usernames for the resolved user list. Root is accepted here. |
 | `set_permissions` | boolean | `true` | Create nvm group, set group-write/setgid on `nvm_dir`, run installer as user (`method=nvm` only). |
 | `group` | string | `"nvm"` | Group name for nvm directory ownership (`method=nvm`, `set_permissions=true`). |
-| `symlink` | boolean | `true` | For nvm: creates a bridge symlink `/usr/local/share/nvm → nvm_dir` so that `containerEnv.NVM_DIR` and `containerEnv.PATH` stay valid when `nvm_dir` is set to a non-default path. `NVM_SYMLINK_CURRENT=true` is always enabled regardless of this option. For binary: creates symlinks for `node`, `npm`, `npx`, `corepack` in `/usr/local/bin` when `prefix` is not `/usr/local`. Root only. |
+| `symlink` | boolean | `true` | For nvm (root only): creates a bridge symlink `/usr/local/share/nvm → nvm_dir` so that `containerEnv.NVM_DIR` and `containerEnv.PATH` stay valid when `nvm_dir` is non-default. `NVM_SYMLINK_CURRENT=true` is always enabled. For binary: root symlinks `node`, `npm`, `npx`, `corepack` into `/usr/local/bin` when `prefix` is not `/usr/local`; non-root symlinks them into `$HOME/.local/bin` when `prefix` is not `$HOME/.local`. |
 | `node_gyp_deps` | boolean | `true` | Install `make`, `gcc`/`g++`, `python3` for compiling native modules (node-gyp). |
 | `pnpm_version` | string (proposals) | `"none"` | pnpm version to install globally (`"none"` to skip, `"latest"`, or explicit version). |
 | `yarn_version` | string (proposals) | `"none"` | Yarn version to install globally (`"none"` to skip, `"latest"` via corepack, or explicit version). |

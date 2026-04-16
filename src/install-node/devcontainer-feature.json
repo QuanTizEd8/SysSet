@@ -30,8 +30,9 @@
       },
       "nvm_dir": {
          "type": "string",
-         "default": "/usr/local/share/nvm",
-         "description": "Directory where nvm is installed ($NVM_DIR). Only used when method=nvm.\nDefault: '/usr/local/share/nvm' — system-wide location suitable for root installs in containers.\nMay be set to any writable absolute path, e.g. '/opt/nvm' or a user-specific path like '/home/user/.nvm'.\nWhen this differs from '/usr/local/share/nvm' (the containerEnv NVM_DIR value) and symlink=true, a symlink is created from '/usr/local/share/nvm' to the actual nvm_dir, keeping the containerEnv value valid without any extra configuration."
+         "default": "auto",
+         "description": "Directory where nvm is installed ($NVM_DIR). Only used when method=nvm.\n'auto' (default) — resolves to '/usr/local/share/nvm' when running as root, or '${HOME}/.nvm' when running as non-root (nvm's own upstream default).\nAn explicit path — used as-is; e.g. '/opt/nvm' or '/home/user/.nvm'.\nThe resolved value is written as 'export NVM_DIR=...' into shell startup files by export_path / add_*_user_config, so interactive shells always see the correct NVM_DIR regardless of identity.\nNote: containerEnv.NVM_DIR is statically set to '/usr/local/share/nvm'; for non-root installs, shell RC files override this. For non-interactive processes, set 'remoteEnv.NVM_DIR' in devcontainer.json if needed.\nWhen running as root and symlink=true, a bridge symlink is created from '/usr/local/share/nvm' to the actual nvm_dir when they differ, keeping the containerEnv NVM_DIR value valid.",
+         "proposals": ["auto", "/usr/local/share/nvm", "${localEnv:HOME}/.nvm", "/opt/nvm"]
       },
       "prefix": {
          "type": "string",
@@ -92,7 +93,7 @@
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation (root only).\n\nFor method=nvm:\n  - The feature sets NVM_SYMLINK_CURRENT=true (both in containerEnv and during install), which causes nvm to maintain a '$NVM_DIR/current' symlink always pointing to the active Node.js version. The containerEnv PATH includes '$NVM_DIR/current/bin', so 'nvm use' version switching works automatically for all container processes.\n  - When nvm_dir differs from '/usr/local/share/nvm' (the containerEnv NVM_DIR value), creates a directory symlink /usr/local/share/nvm -> nvm_dir so that both containerEnv.NVM_DIR and the PATH entry remain valid without extra user configuration.\n\nFor method=binary:\n  - Symlinks node, npm, npx, and corepack from $prefix/bin/ into /usr/local/bin only when prefix resolves to something other than /usr/local (otherwise they are already in /usr/local/bin).\n\nNo-op when running as non-root (cannot write to /usr/local/share or /usr/local/bin)."
+         "description": "Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation.\n\nFor method=nvm (root only):\n  - The feature sets NVM_SYMLINK_CURRENT=true (both in containerEnv and during install), which causes nvm to maintain a '$NVM_DIR/current' symlink always pointing to the active Node.js version. The containerEnv PATH includes '$NVM_DIR/current/bin', so 'nvm use' version switching works automatically for all container processes.\n  - When nvm_dir resolves to a value other than '/usr/local/share/nvm' (the containerEnv NVM_DIR value), creates a directory symlink /usr/local/share/nvm -> nvm_dir so that the containerEnv NVM_DIR and PATH entry remain valid.\n  - No-op when running as non-root (cannot write to /usr/local/share).\n\nFor method=binary:\n  - Root: symlinks node, npm, npx, and corepack from $prefix/bin/ into /usr/local/bin when prefix is not /usr/local.\n  - Non-root: symlinks node, npm, npx, and corepack from $prefix/bin/ into $HOME/.local/bin when prefix is not $HOME/.local."
       },
       "node_gyp_deps": {
          "type": "boolean",
@@ -125,7 +126,7 @@
    "containerEnv": {
       "NVM_DIR": "/usr/local/share/nvm",
       "NVM_SYMLINK_CURRENT": "true",
-      "PATH": "/usr/local/share/nvm/current/bin:${PATH}"
+      "PATH": "${HOME}/.local/bin:${HOME}/.nvm/current/bin:/usr/local/share/nvm/current/bin:${PATH}"
    },
    "customizations": {
       "vscode": {

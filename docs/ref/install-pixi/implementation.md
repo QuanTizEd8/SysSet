@@ -372,19 +372,17 @@ This avoids modifying `/etc/profile.d/` and system bashrc/zshenv for a no-op. If
 user explicitly supplies a file list (non-`auto` value), the write happens regardless —
 they are asking for it explicitly.
 
-### Symlink: root-only, non-standard prefix only
+### Symlink: canonical bin directory, non-standard prefix only
 
-`create_symlink` creates `/usr/local/bin/pixi → $PREFIX/bin/pixi` with `ln -sf` only when:
+`create_symlink` creates a symlink from the canonical bin directory to `$PREFIX/bin/pixi` only
+when `SYMLINK=true` and `PREFIX` differs from the canonical path:
 
-```bash
-if [ "${SYMLINK}" = "true" ] && [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
-  ln -sf "${PREFIX}/bin/pixi" /usr/local/bin/pixi
-fi
-```
+- Root: `/usr/local/bin/pixi → $PREFIX/bin/pixi` when `PREFIX ≠ /usr/local`.
+- Non-root: `$HOME/.pixi/bin/pixi → $PREFIX/bin/pixi` when `PREFIX ≠ $HOME/.pixi`
+  (`$HOME/.pixi/bin` is created if needed).
 
-This is directly analogous to install-git's step 8. It is a no-op for the default case
-(`prefix=auto` → root → `/usr/local`) since that is the standard prefix. It is also a
-no-op for non-root installs since they cannot write to `/usr/local/bin`.
+This is a no-op for the default case (`prefix=auto` → canonical path) since no symlink
+is needed when the binary is already in the right location.
 
 ### Cleanup Safety
 

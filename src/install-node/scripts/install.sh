@@ -240,7 +240,7 @@ fi
 [ "${VERSION+defined}" ] || VERSION="lts/*"
 [ "${ADDITIONAL_VERSIONS+defined}" ] || ADDITIONAL_VERSIONS=""
 [ "${NVM_VERSION+defined}" ] || NVM_VERSION="latest"
-[ "${NVM_DIR+defined}" ] || NVM_DIR="/usr/local/share/nvm"
+[ "${NVM_DIR+defined}" ] || NVM_DIR="auto"
 [ "${PREFIX+defined}" ] || PREFIX="auto"
 [ "${ARCH+defined}" ] || ARCH=""
 [ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/node-installer"
@@ -685,37 +685,76 @@ _node_install_via_binary() {
   return 0
 }
 
+# _node_resolve_nvm_dir
+# Resolves NVM_DIR from 'auto' to an identity-appropriate path.
+_node_resolve_nvm_dir() {
+  echo "↪️ Function entry: _node_resolve_nvm_dir" >&2
+  case "${NVM_DIR}" in
+    auto)
+      if [ "$(id -u)" = "0" ]; then
+        NVM_DIR="/usr/local/share/nvm"
+      else
+        NVM_DIR="${HOME}/.nvm"
+      fi
+      ;;
+    "") NVM_DIR="${HOME}/.nvm" ;;
+    *) ;; # explicit value: use as-is
+  esac
+  echo "ℹ️ Resolved nvm_dir to '${NVM_DIR}'" >&2
+  echo "↩️ Function exit: _node_resolve_nvm_dir" >&2
+  return 0
+}
+
 # _node_create_symlinks
 # Creates containerEnv-bridge symlinks and per-binary symlinks.
 _node_create_symlinks() {
   echo "↪️ Function entry: _node_create_symlinks" >&2
-  if [ "$(id -u)" != "0" ] || [ "$SYMLINK" != "true" ]; then
-    echo "ℹ️ Skipping symlink creation (non-root or symlink=false)." >&2
+  if [ "$SYMLINK" != "true" ]; then
+    echo "ℹ️ Skipping symlink creation (symlink=false)." >&2
     echo "↩️ Function exit: _node_create_symlinks (skipped)" >&2
     return 0
   fi
 
-  if [ "$METHOD" = "nvm" ]; then
-    # Bridge symlink: /usr/local/share/nvm → NVM_DIR (when they differ)
-    if [ "$NVM_DIR" != "/usr/local/share/nvm" ]; then
-      echo "ℹ️ Creating NVM_DIR bridge symlink: /usr/local/share/nvm → ${NVM_DIR}" >&2
-      mkdir -p "$(dirname "/usr/local/share/nvm")"
-      ln -sf "$NVM_DIR" "/usr/local/share/nvm"
+  if [ "$(id -u)" = "0" ]; then
+    if [ "$METHOD" = "nvm" ]; then
+      # Bridge symlink: /usr/local/share/nvm → NVM_DIR (when they differ).
+      # The containerEnv.NVM_DIR is always /usr/local/share/nvm; keep it valid
+      # for any non-default nvm_dir value (root only — non-root can't write there).
+      local _nvm_canonical_root="/usr/local/share/nvm"
+      if [ "$NVM_DIR" != "${_nvm_canonical_root}" ]; then
+        echo "ℹ️ Creating NVM_DIR bridge symlink: ${_nvm_canonical_root} → ${NVM_DIR}" >&2
+        mkdir -p "$(dirname "${_nvm_canonical_root}")"
+        ln -sf "$NVM_DIR" "${_nvm_canonical_root}"
+      fi
+      # Note: the nvm current → version symlink is maintained by nvm itself
+      # (NVM_SYMLINK_CURRENT=true). No per-binary symlinks are needed.
+    elif [ "$METHOD" = "binary" ]; then
+      # Binaries already in /usr/local/bin when prefix is /usr/local
+      if [ "$PREFIX" = "/usr/local" ]; then
+        echo "ℹ️ prefix=/usr/local — binary symlinks not needed." >&2
+      else
+        for _bin in node npm npx corepack; do
+          local _src="${PREFIX}/bin/${_bin}"
+          if [ -f "$_src" ]; then
+            echo "ℹ️ Symlinking ${_src} → /usr/local/bin/${_bin}" >&2
+            ln -sf "$_src" "/usr/local/bin/${_bin}"
+          fi
+        done
+      fi
     fi
-    # Note: the nvm current → version symlink is maintained by nvm itself
-    # (NVM_SYMLINK_CURRENT=true). No per-binary symlinks are needed.
-  elif [ "$METHOD" = "binary" ]; then
-    # Binaries already in /usr/local/bin when prefix is /usr/local
-    if [ "$PREFIX" = "/usr/local" ]; then
-      echo "ℹ️ prefix=/usr/local — binary symlinks not needed." >&2
-    else
+  else
+    # Non-root: only method=binary with a non-default prefix.
+    if [ "$METHOD" = "binary" ] && [ "$PREFIX" != "${HOME}/.local" ]; then
+      mkdir -p "${HOME}/.local/bin"
       for _bin in node npm npx corepack; do
         local _src="${PREFIX}/bin/${_bin}"
         if [ -f "$_src" ]; then
-          echo "ℹ️ Symlinking ${_src} → /usr/local/bin/${_bin}" >&2
-          ln -sf "$_src" "/usr/local/bin/${_bin}"
+          echo "ℹ️ Symlinking ${_src} → ${HOME}/.local/bin/${_bin}" >&2
+          ln -sf "$_src" "${HOME}/.local/bin/${_bin}"
         fi
       done
+    else
+      echo "ℹ️ Skipping symlink creation (non-root: method=nvm or prefix is ${HOME}/.local)." >&2
     fi
   fi
 
@@ -890,6 +929,12 @@ _node_install_yarn() {
   echo "↩️ Function exit: _node_install_yarn" >&2
   return 0
 }
+
+# =============================================================================
+# Resolve auto values
+# =============================================================================
+
+_node_resolve_nvm_dir
 
 # =============================================================================
 # OS base dependencies (always — ensures curl is available for binary method)

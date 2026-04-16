@@ -115,7 +115,7 @@
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create a symlink /usr/local/bin/git -> ${PREFIX}/bin/git when prefix resolves to something other than /usr/local (source builds only, root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) always resolves to the installed binary regardless of the chosen prefix.\nNo-op when method=package (git is already in /usr/bin), when prefix resolves to /usr/local, or when running as non-root (cannot write to /usr/local/bin).\nIgnored when method=package."
+         "description": "Create a symlink from the canonical bin directory to $prefix/bin/git when prefix resolves to a non-default path (source builds only).\nRoot: creates /usr/local/bin/git -> $prefix/bin/git. Non-root: creates $HOME/.local/bin/git -> $prefix/bin/git.\nEnsures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.\nNo-op when method=package (git is already in /usr/bin), or when prefix already resolves to the canonical path (/usr/local for root, $HOME/.local for non-root)."
       },
       "debug": {
          "type": "boolean",
@@ -127,6 +127,9 @@
          "default": "",
          "description": "Append install log to this file path."
       }
+   },
+   "containerEnv": {
+      "PATH": "${HOME}/.local/bin:${PATH}"
    },
    "installsAfter": []
 }

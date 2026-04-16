@@ -428,18 +428,33 @@ create_symlink() {
     echo "↩️ Function exit: create_symlink" >&2
     return
   fi
-  if [ "$PREFIX" = "/opt/conda" ]; then
-    echo "ℹ️ prefix is already /opt/conda; no symlink needed." >&2
-    echo "↩️ Function exit: create_symlink" >&2
-    return
+  if [ "$(id -u)" = "0" ]; then
+    if [ "$PREFIX" = "/opt/conda" ]; then
+      echo "ℹ️ prefix is already /opt/conda; no symlink needed." >&2
+      echo "↩️ Function exit: create_symlink" >&2
+      return
+    fi
+    if [ -d "/opt/conda" ] && [ ! -L "/opt/conda" ]; then
+      echo "⛔ /opt/conda exists as a real directory; cannot create symlink. Disable symlink or remove the directory." >&2
+      exit 1
+    fi
+    [ -L "/opt/conda" ] && rm -f "/opt/conda"
+    ln -s "$PREFIX" /opt/conda
+    echo "✅ Created symlink /opt/conda -> $PREFIX." >&2
+  else
+    if [ "$PREFIX" = "${HOME}/miniforge3" ]; then
+      echo "ℹ️ prefix is already ${HOME}/miniforge3; no symlink needed." >&2
+      echo "↩️ Function exit: create_symlink" >&2
+      return
+    fi
+    if [ -d "${HOME}/miniforge3" ] && [ ! -L "${HOME}/miniforge3" ]; then
+      echo "⛔ ${HOME}/miniforge3 exists as a real directory; cannot create symlink. Disable symlink or remove the directory." >&2
+      exit 1
+    fi
+    [ -L "${HOME}/miniforge3" ] && rm -f "${HOME}/miniforge3"
+    ln -s "$PREFIX" "${HOME}/miniforge3"
+    echo "✅ Created symlink ${HOME}/miniforge3 -> $PREFIX." >&2
   fi
-  if [ -d "/opt/conda" ] && [ ! -L "/opt/conda" ]; then
-    echo "⛔ /opt/conda exists as a real directory; cannot create symlink. Disable symlink or remove the directory." >&2
-    exit 1
-  fi
-  [ -L "/opt/conda" ] && rm -f "/opt/conda"
-  ln -s "$PREFIX" /opt/conda
-  echo "✅ Created symlink /opt/conda -> $PREFIX." >&2
   echo "↩️ Function exit: create_symlink" >&2
 }
 
@@ -647,10 +662,14 @@ fi
   echo "ℹ️ Argument 'ACTIVATE_ENV' set to default value 'base'." >&2
   ACTIVATE_ENV="base"
 }
-[ -z "${PREFIX-}" ] && {
-  echo "ℹ️ Argument 'PREFIX' set to default value '/opt/conda'." >&2
-  PREFIX="/opt/conda"
-}
+if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
+  if [ "$(id -u)" = "0" ]; then
+    PREFIX="/opt/conda"
+  else
+    PREFIX="${HOME}/miniforge3"
+  fi
+  echo "ℹ️ Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'." >&2
+fi
 [ -z "${DEBUG-}" ] && {
   echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
   DEBUG=false

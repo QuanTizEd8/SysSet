@@ -191,6 +191,18 @@
             }
         }
     },
+    "binary_custom_path_nonroot": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-gh": {
+                "method": "binary",
+                "prefix": "/opt/gh",
+                "symlink": true,
+                "debug": true
+            }
+        }
+    },
     "ghes_hostname": {
         "remoteUser": "vscode",
         "build": { "dockerfile": "Dockerfile" },
