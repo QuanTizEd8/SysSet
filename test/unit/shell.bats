@@ -371,6 +371,108 @@ zsh-syntax-highlighting"
 }
 
 # ---------------------------------------------------------------------------
+# shell__detect_zdotdir
+# ---------------------------------------------------------------------------
+
+@test "shell__detect_zdotdir returns ZDOTDIR when home matches HOME" {
+  reload_lib shell.sh
+  ZDOTDIR="/custom/zsh" run shell__detect_zdotdir --home "$HOME"
+  assert_output "/custom/zsh"
+}
+
+@test "shell__detect_zdotdir falls back to home when no ZDOTDIR and no zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD1"
+  mkdir -p "$_home"
+  # Stub shell__detect_zshdir to point to a nonexistent system dir.
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  unset ZDOTDIR
+  run shell__detect_zdotdir --home "$_home"
+  assert_output "$_home"
+}
+
+@test "shell__detect_zdotdir parses ZDOTDIR=\$HOME/... from user .zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD2"
+  mkdir -p "$_home"
+  printf 'export ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  run shell__detect_zdotdir --home "$_home"
+  assert_output "${_home}/.config/zsh"
+}
+
+@test "shell__detect_zdotdir parses ZDOTDIR=\${HOME}/... from user .zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD3"
+  mkdir -p "$_home"
+  printf 'ZDOTDIR="${HOME}/.config/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  run shell__detect_zdotdir --home "$_home"
+  assert_output "${_home}/.config/zsh"
+}
+
+@test "shell__detect_zdotdir parses ZDOTDIR=~/... from user .zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD4"
+  mkdir -p "$_home"
+  printf 'ZDOTDIR=~/.config/zsh\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  run shell__detect_zdotdir --home "$_home"
+  assert_output "${_home}/.config/zsh"
+}
+
+@test "shell__detect_zdotdir substitutes \$XDG_CONFIG_HOME" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD5"
+  mkdir -p "$_home"
+  printf 'export ZDOTDIR="$XDG_CONFIG_HOME/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  XDG_CONFIG_HOME="${_home}/.xdg" run shell__detect_zdotdir --home "$_home"
+  assert_output "${_home}/.xdg/zsh"
+}
+
+@test "shell__detect_zdotdir defaults XDG_CONFIG_HOME to home/.config" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD6"
+  mkdir -p "$_home"
+  printf 'ZDOTDIR="${XDG_CONFIG_HOME}/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  unset XDG_CONFIG_HOME
+  run shell__detect_zdotdir --home "$_home"
+  assert_output "${_home}/.config/zsh"
+}
+
+@test "shell__detect_zdotdir falls back to home on unresolvable variable" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD7"
+  mkdir -p "$_home"
+  printf 'ZDOTDIR="${CUSTOM_VAR}/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  run shell__detect_zdotdir --home "$_home"
+  assert_output "$_home"
+}
+
+@test "shell__detect_zdotdir user .zshenv overrides system zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeZD8"
+  local _sys="${BATS_TEST_TMPDIR}/sysZD8"
+  mkdir -p "$_home" "$_sys"
+  printf 'ZDOTDIR="$HOME/.system-zsh"\n' > "${_sys}/zshenv"
+  printf 'ZDOTDIR="$HOME/.user-zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "$_sys"; }
+  export -f shell__detect_zshdir
+  run shell__detect_zdotdir --home "$_home"
+  assert_output "${_home}/.user-zsh"
+}
+
+# ---------------------------------------------------------------------------
 # shell__user_path_files  (additional scenario)
 # ---------------------------------------------------------------------------
 
@@ -383,6 +485,30 @@ zsh-syntax-highlighting"
   assert_output "${_home}/.bash_login
 ${_home}/.bashrc
 ${_home}/.zshenv"
+}
+
+@test "shell__user_path_files uses --zdotdir for .zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homePZ"
+  local _zd="${BATS_TEST_TMPDIR}/zdotPZ"
+  mkdir -p "$_home" "$_zd"
+  run shell__user_path_files --home "$_home" --zdotdir "$_zd"
+  assert_output "${_home}/.bash_profile
+${_home}/.bashrc
+${_zd}/.zshenv"
+}
+
+@test "shell__user_path_files auto-detects zdotdir from .zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homePZA"
+  mkdir -p "$_home"
+  printf 'ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  run shell__user_path_files --home "$_home"
+  assert_output "${_home}/.bash_profile
+${_home}/.bashrc
+${_home}/.config/zsh/.zshenv"
 }
 
 # ---------------------------------------------------------------------------
@@ -399,4 +525,30 @@ ${_home}/.zshenv"
 ${_home}/.bashrc
 ${_home}/.zprofile
 ${_home}/.zshrc"
+}
+
+@test "shell__user_init_files uses --zdotdir for zsh files" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeIZ"
+  local _zd="${BATS_TEST_TMPDIR}/zdotIZ"
+  mkdir -p "$_home" "$_zd"
+  run shell__user_init_files --home "$_home" --zdotdir "$_zd"
+  assert_output "${_home}/.bash_profile
+${_home}/.bashrc
+${_zd}/.zprofile
+${_zd}/.zshrc"
+}
+
+@test "shell__user_init_files auto-detects zdotdir from .zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeIZA"
+  mkdir -p "$_home"
+  printf 'ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  run shell__user_init_files --home "$_home"
+  assert_output "${_home}/.bash_profile
+${_home}/.bashrc
+${_home}/.config/zsh/.zprofile
+${_home}/.config/zsh/.zshrc"
 }

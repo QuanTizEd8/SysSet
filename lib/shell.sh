@@ -221,14 +221,16 @@ shell__system_path_files() {
   return 0
 }
 
-# shell__user_path_files [--home <dir>]
-# Prints user-scoped shell startup file paths for a PATH export.
-# One absolute path per line:
-#   <login_file>    — bash login (.bash_profile/.bash_login/.profile)
-#   <home>/.bashrc  — bash non-login interactive
-#   <home>/.zshenv  — all zsh invocations (login, interactive, non-interactive)
-# Default home: $HOME
-shell__user_path_files() {
+# shell__detect_zdotdir [--home <dir>]
+# Prints the ZDOTDIR for the given home directory.
+# Detection order:
+#   1. If <home> matches $HOME and $ZDOTDIR is set → use $ZDOTDIR directly
+#      (we are the target user, the value is live in the environment).
+#   2. Parse ZDOTDIR= assignments from the system zshenv and <home>/.zshenv.
+#      Substitutes $HOME, ${HOME}, ~, $XDG_CONFIG_HOME, ${XDG_CONFIG_HOME}.
+#      If the result still contains unresolvable variables ($...), falls back.
+#   3. Falls back to <home>.
+shell__detect_zdotdir() {
   local _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -240,22 +242,65 @@ shell__user_path_files() {
       *) shift ;;
     esac
   done
-  shell__user_login_file --home "$_home"
-  echo "${_home}/.bashrc"
-  echo "${_home}/.zshenv"
+
+  # Tier 1: live environment — we ARE the target user.
+  if [[ "$_home" == "${HOME:-}" && -n "${ZDOTDIR:-}" ]]; then
+    echo "$ZDOTDIR"
+    return 0
+  fi
+
+  # Tier 2: parse ZDOTDIR= from zshenv files.
+  local _zshenv_files=""
+  local _sys_zshenv
+  _sys_zshenv="$(shell__detect_zshdir)/zshenv"
+  [[ -f "$_sys_zshenv" ]] && _zshenv_files="$_sys_zshenv"
+  [[ -f "${_home}/.zshenv" ]] && _zshenv_files="${_zshenv_files:+${_zshenv_files}
+}${_home}/.zshenv"
+
+  if [[ -n "$_zshenv_files" ]]; then
+    local _val=""
+    while IFS= read -r _f; do
+      [[ -z "$_f" ]] && continue
+      # Match last ZDOTDIR= assignment (last wins, like shell evaluation).
+      # Strips optional 'export ', quotes, and trailing comments.
+      # Uses [[:space:]] instead of \s for macOS sed compatibility.
+      _val="$(grep -E '^[[:space:]]*(export[[:space:]]+)?ZDOTDIR=' "$_f" 2> /dev/null | tail -1 |
+        sed -E 's/^[[:space:]]*(export[[:space:]]+)?ZDOTDIR=//; s/^["'"'"']//; s/["'"'"'][[:space:]]*(#.*)?$//; s/[[:space:]]*#.*//')" || true
+      # Keep iterating — user .zshenv overrides system zshenv.
+    done <<< "$_zshenv_files"
+    if [[ -n "$_val" ]]; then
+      # Substitute known variables with concrete values.
+      local _xdg="${XDG_CONFIG_HOME:-${_home}/.config}"
+      _val="${_val//\$\{XDG_CONFIG_HOME\}/$_xdg}"
+      _val="${_val//\$XDG_CONFIG_HOME/$_xdg}"
+      _val="${_val//\$\{HOME\}/$_home}"
+      _val="${_val//\$HOME/$_home}"
+      _val="${_val/#\~/$_home}"
+      # If unresolvable variables remain, fall back to <home>.
+      if [[ "$_val" == *'$'* ]]; then
+        echo "$_home"
+        return 0
+      fi
+      echo "$_val"
+      return 0
+    fi
+  fi
+
+  # Tier 3: fallback.
+  echo "$_home"
   return 0
 }
 
-# shell__user_init_files [--home <dir>]
-# Prints user-scoped shell startup file paths for a full shell initializer
-# (e.g. eval "$(brew shellenv)"). One absolute path per line:
-#   <login_file>       — bash login (.bash_profile/.bash_login/.profile)
+# shell__user_path_files [--home <dir>] [--zdotdir <dir>]
+# Prints user-scoped shell startup file paths for a PATH export.
+# One absolute path per line:
+#   <login_file>      — bash login (.bash_profile/.bash_login/.profile)
 #   <home>/.bashrc    — bash non-login interactive
-#   <home>/.zprofile  — zsh login
-#   <home>/.zshrc     — zsh interactive
+#   <zdotdir>/.zshenv — all zsh invocations (login, interactive, non-interactive)
 # Default home: $HOME
-shell__user_init_files() {
-  local _home="${HOME:-}"
+# Default zdotdir: auto-detected via shell__detect_zdotdir
+shell__user_path_files() {
+  local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
     case $1 in
       --home)
@@ -263,13 +308,52 @@ shell__user_init_files() {
         _home="$1"
         shift
         ;;
+      --zdotdir)
+        shift
+        _zdotdir="$1"
+        shift
+        ;;
       *) shift ;;
     esac
   done
+  [[ -z "$_zdotdir" ]] && _zdotdir="$(shell__detect_zdotdir --home "$_home")"
   shell__user_login_file --home "$_home"
   echo "${_home}/.bashrc"
-  echo "${_home}/.zprofile"
-  echo "${_home}/.zshrc"
+  echo "${_zdotdir}/.zshenv"
+  return 0
+}
+
+# shell__user_init_files [--home <dir>] [--zdotdir <dir>]
+# Prints user-scoped shell startup file paths for a full shell initializer
+# (e.g. eval "$(brew shellenv)"). One absolute path per line:
+#   <login_file>        — bash login (.bash_profile/.bash_login/.profile)
+#   <home>/.bashrc      — bash non-login interactive
+#   <zdotdir>/.zprofile — zsh login
+#   <zdotdir>/.zshrc    — zsh interactive
+# Default home: $HOME
+# Default zdotdir: auto-detected via shell__detect_zdotdir
+shell__user_init_files() {
+  local _home="${HOME:-}" _zdotdir=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      --zdotdir)
+        shift
+        _zdotdir="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  [[ -z "$_zdotdir" ]] && _zdotdir="$(shell__detect_zdotdir --home "$_home")"
+  shell__user_login_file --home "$_home"
+  echo "${_home}/.bashrc"
+  echo "${_zdotdir}/.zprofile"
+  echo "${_zdotdir}/.zshrc"
   return 0
 }
 
