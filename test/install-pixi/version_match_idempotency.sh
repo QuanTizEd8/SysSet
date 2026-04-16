@@ -1,6 +1,6 @@
 #!/bin/bash
-# version=0.41.0 + if_exists=uninstall, with pixi 0.41.0 pre-installed (see Dockerfile).
-# The version-match check fires before if_exists dispatch, so uninstall is never
+# version=0.41.0 + if_exists=reinstall, with pixi 0.41.0 pre-installed (see Dockerfile).
+# The version-match check fires before if_exists dispatch, so reinstall is never
 # triggered. pixi is unchanged and post-install steps still run.
 set -e
 

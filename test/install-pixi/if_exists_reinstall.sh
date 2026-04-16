@@ -1,5 +1,5 @@
 #!/bin/bash
-# if_exists=uninstall: pixi is pre-installed (see Dockerfile). The feature
+# if_exists=reinstall: pixi is pre-installed (see Dockerfile). The feature
 # removes the existing binary and installs a fresh copy.
 set -e
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# if_exists=uninstall: conda is pre-installed in the image (see Dockerfile).
+# if_exists=reinstall: conda is pre-installed in the image (see Dockerfile).
 # The feature detects the existing installation, uninstalls it, and installs a
 # fresh copy.  Verifies the reinstalled conda is functional.
 set -e

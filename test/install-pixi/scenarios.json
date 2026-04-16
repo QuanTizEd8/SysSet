@@ -53,11 +53,11 @@
             }
         }
     },
-    "if_exists_uninstall": {
+    "if_exists_reinstall": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-pixi": {
-                "if_exists": "uninstall",
+                "if_exists": "reinstall",
                 "debug": true
             }
         }
@@ -86,7 +86,7 @@
         "features": {
             "install-pixi": {
                 "version": "0.41.0",
-                "if_exists": "uninstall",
+                "if_exists": "reinstall",
                 "debug": true
             }
         }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# preserve_config=true + if_exists=uninstall with pre-existing conda 24.7.1,
+# preserve_config=true + if_exists=reinstall with pre-existing conda 24.7.1,
 # a /root/.condarc, and a conda initialize block in /root/.bashrc:
 # the feature skips conda init --reverse and skips .condarc/.conda deletion,
 # so both survive after uninstall + reinstall.

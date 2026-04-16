@@ -1,5 +1,5 @@
 #!/bin/bash
-# preserve_envs=false + if_exists=uninstall with pre-existing conda 24.7.1 and
+# preserve_envs=false + if_exists=reinstall with pre-existing conda 24.7.1 and
 # a named environment "myenv": the feature resolves latest, sees a version
 # mismatch, skips env export, uninstalls, then reinstalls fresh conda without
 # recreating any environments.

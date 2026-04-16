@@ -153,7 +153,7 @@ checksums, shell config writes, OS packages, and logging.
 - **Responsibility:** Implements the `IF_EXISTS` policy when a pixi binary already exists at `$PREFIX/bin/pixi`.
   - `skip`      — logs warning, sets `_SKIP_INSTALL=true`, continues to post-install.
   - `fail`      — prints error, exits 1.
-  - `uninstall` — removes `$PREFIX/bin/pixi`, then proceeds to download + install.
+  - `reinstall` — removes `$PREFIX/bin/pixi`, then proceeds to download + install.
   - `update`    — runs `update_pixi`, sets `_SKIP_INSTALL=true`, continues to post-install.
   - Version-match idempotency is implemented in `main` **before** calling `handle_if_exists`: if the installed version already matches `VERSION`, the install is skipped entirely without entering `handle_if_exists`.
 - **Inputs (globals):** `PREFIX`, `IF_EXISTS`, `VERSION`.

@@ -59,10 +59,10 @@
             "install-miniforge": { "keep_installer": true, "debug": true }
         }
     },
-    "if_exists_uninstall": {
+    "if_exists_reinstall": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "debug": true }
+            "install-miniforge": { "if_exists": "reinstall", "debug": true }
         }
     },
     "if_exists_skip": {
@@ -146,31 +146,31 @@
     "version_match_idempotency": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "version": "24.7.1", "if_exists": "uninstall", "debug": true }
+            "install-miniforge": { "version": "24.7.1", "if_exists": "reinstall", "debug": true }
         }
     },
     "preserve_envs_true": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": true, "debug": true }
+            "install-miniforge": { "if_exists": "reinstall", "preserve_envs": true, "debug": true }
         }
     },
     "preserve_envs_false": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_envs": false, "debug": true }
+            "install-miniforge": { "if_exists": "reinstall", "preserve_envs": false, "debug": true }
         }
     },
     "preserve_config_true": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_config": true, "debug": true }
+            "install-miniforge": { "if_exists": "reinstall", "preserve_config": true, "debug": true }
         }
     },
     "preserve_config_false": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "if_exists": "uninstall", "preserve_config": false, "debug": true }
+            "install-miniforge": { "if_exists": "reinstall", "preserve_config": false, "debug": true }
         }
     },
     "if_exists_update_preinstall": {

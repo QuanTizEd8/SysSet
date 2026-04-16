@@ -11,18 +11,18 @@
       },
       "if_exists": {
          "default": "skip",
-         "description": "What to do when conda is already installed at prefix.\n'skip' — warn and continue to post-install steps (idempotent).\n'fail' — print an error and exit non-zero.\n'uninstall' — uninstall the existing installation then install fresh.\n'update' — update the base conda environment to the resolved version.\n",
-         "enum": ["skip", "fail", "uninstall", "update"],
+         "description": "What to do when conda is already installed at prefix.\n'skip' — warn and continue to post-install steps (idempotent).\n'fail' — print an error and exit non-zero.\n'reinstall' — uninstall the existing installation then install fresh.\n'update' — update the base conda environment to the resolved version.\n",
+         "enum": ["skip", "fail", "reinstall", "update"],
          "type": "string"
       },
       "preserve_envs": {
          "default": true,
-         "description": "When if_exists is 'uninstall', export all non-base conda environments before\nuninstalling and recreate them after reinstalling.\nEach environment is exported with --from-history; on recreation failure the YAML\nis kept at /tmp/conda-env-preserve for manual recovery.\nDefaults to true.\n",
+         "description": "When if_exists is 'reinstall', export all non-base conda environments before\nuninstalling and recreate them after reinstalling.\nEach environment is exported with --from-history; on recreation failure the YAML\nis kept at /tmp/conda-env-preserve for manual recovery.\nDefaults to true.\n",
          "type": "boolean"
       },
       "preserve_config": {
          "default": true,
-         "description": "When if_exists is 'uninstall', skip conda init --reverse and preserve .condarc\nand .conda directories during uninstall.\nSet to false to perform a full clean uninstall.\nDefaults to true.\n",
+         "description": "When if_exists is 'reinstall', skip conda init --reverse and preserve .condarc\nand .conda directories during uninstall.\nSet to false to perform a full clean uninstall.\nDefaults to true.\n",
          "type": "boolean"
       },
       "update_base": {

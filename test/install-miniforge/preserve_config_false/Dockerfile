@@ -2,7 +2,7 @@ FROM ubuntu:latest
 # Pre-install Miniforge with conda 24.7.1 (tag 24.7.1-2), run conda init bash
 # to populate /root/.bashrc with the conda initialize block, and create a
 # /root/.condarc.  The preserve_config_false scenario verifies that both are
-# removed after an if_exists=uninstall cycle when preserve_config=false.
+# removed after an if_exists=reinstall cycle when preserve_config=false.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \

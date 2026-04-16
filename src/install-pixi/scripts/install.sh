@@ -14,7 +14,7 @@ Options:
   --version (string)          Version to install, e.g. '0.67.0'. Default: 'latest'.
   --prefix (string)          Installation prefix. The 'pixi' binary is placed at '$prefix/bin/pixi'. Default: 'auto'
                               (root: /usr/local, non-root: $HOME/.pixi).
-  --if_exists (string)        Action when pixi already exists: skip | fail | uninstall | update.
+  --if_exists (string)        Action when pixi already exists: skip | fail | reinstall | update.
                               Default: 'skip'. Version-match always skips silently.
   --installer_dir (string)    Download directory for .tar.gz + .tar.gz.sha256. Default: '/tmp/pixi-installer'.
   --arch (string)             Override CPU arch: x86_64 | aarch64 | riscv64. Default: '' (auto-detect).
@@ -216,7 +216,7 @@ handle_if_exists() {
       echo "⛔ pixi already installed and if_exists=fail." >&2
       exit 1
       ;;
-    uninstall)
+    reinstall)
       echo "🗑 Removing existing pixi binary at '${PREFIX}/bin/pixi'..." >&2
       rm -f "${PREFIX}/bin/pixi"
       _SKIP_INSTALL=false
@@ -598,9 +598,9 @@ fi
 
 # Validate enums early (fail fast before any install steps).
 case "${IF_EXISTS}" in
-  skip | fail | uninstall | update) ;;
+  skip | fail | reinstall | update) ;;
   *)
-    echo "⛔ Unknown if_exists value: '${IF_EXISTS}' (expected: skip, fail, uninstall, update)" >&2
+    echo "⛔ Unknown if_exists value: '${IF_EXISTS}' (expected: skip, fail, reinstall, update)" >&2
     exit 1
     ;;
 esac

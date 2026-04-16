@@ -284,7 +284,7 @@ the following reasons:
    For custom prefixes, `export_path` controls whether shell RC modifications are written.
 
 5. **`if_exists` handling:** `skip` (warn + continue), `fail` (exit 1),
-   `uninstall` (remove binary + reinstall), `update` (`pixi self-update
+   `reinstall` (remove binary + reinstall), `update` (`pixi self-update
    --version X.Y.Z` without `v` prefix per CLI docs).
 
 6. **Version match skip:** If the installed version already matches the resolved

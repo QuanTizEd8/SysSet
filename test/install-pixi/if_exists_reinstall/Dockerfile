@@ -1,5 +1,5 @@
 FROM ubuntu:latest
-# Pre-install pixi (latest) so the if_exists_uninstall scenario has an
+# Pre-install pixi (latest) so the if_exists_reinstall scenario has an
 # existing binary to remove and replace with a fresh install.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \

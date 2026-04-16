@@ -244,9 +244,9 @@ Install [Miniforge](https://github.com/conda-forge/miniforge) (conda/mamba) with
 "ghcr.io/quantized8/sysset/install-miniforge:0": {
   "version": "latest",          // conda version string, e.g. "24.7.1"
   "bin_dir": "/opt/conda",
-  "if_exists": "skip",          // "skip" | "fail" | "uninstall" | "update"
-  "preserve_envs": true,        // export/recreate envs when if_exists=uninstall
-  "preserve_config": true,      // keep .condarc on uninstall
+  "if_exists": "skip",          // "skip" | "fail" | "reinstall" | "update"
+  "preserve_envs": true,        // export/recreate envs when if_exists=reinstall
+  "preserve_config": true,      // keep .condarc on reinstall
   "export_path": "auto",
   "symlink": true,              // create /opt/conda symlink when bin_dir differs
   "activate_env": "base",       // env to activate in rc_files

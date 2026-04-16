@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 # Pre-install pixi 0.41.0 so the version_match_idempotency scenario can verify
-# that requesting the same version skips reinstall even when if_exists=uninstall.
+# that requesting the same version skips reinstall even when if_exists=reinstall.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \
  && rm -rf /var/lib/apt/lists/* \

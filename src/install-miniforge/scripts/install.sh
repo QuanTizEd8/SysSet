@@ -13,15 +13,15 @@ __usage__() {
   echo "  --if_exists (string): What to do when conda is already installed at prefix.
   'skip'      — warn and continue to post-install steps (default).
   'fail'      — print an error and exit non-zero.
-  'uninstall' — uninstall then install fresh.
+  'reinstall' — uninstall then install fresh.
   'update'    — update the base conda environment to the resolved version.
   " >&2
-  echo "  --discard_envs: When if_exists is 'uninstall', do NOT export/recreate non-base conda
+  echo "  --discard_envs: When if_exists is 'reinstall', do NOT export/recreate non-base conda
   environments across the reinstall. By default environments are preserved.
   NOTE: the devcontainer-feature.json option is 'preserve_envs' (boolean, default true);
   the CLI flag is inverted: --discard_envs sets preserve_envs=false.
   " >&2
-  echo "  --discard_config: When if_exists is 'uninstall', run conda init --reverse and
+  echo "  --discard_config: When if_exists is 'reinstall', run conda init --reverse and
   delete .condarc and .conda during uninstall. By default config is preserved.
   NOTE: the devcontainer-feature.json option is 'preserve_config' (boolean, default true);
   the CLI flag is inverted: --discard_config sets preserve_config=false.
@@ -629,7 +629,7 @@ else
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
-  [ "${REINSTALL+defined}" ] && echo "⚠️ 'REINSTALL' env var is deprecated; use IF_EXISTS=uninstall." >&2
+  [ "${REINSTALL+defined}" ] && echo "⚠️ 'REINSTALL' env var is deprecated; use IF_EXISTS=reinstall." >&2
   [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
   [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
@@ -738,11 +738,11 @@ if [[ -f "${PREFIX}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
         echo "⏭️ if_exists=skip: existing conda detected; skipping install and continuing to post-install steps." >&2
         ;;
       fail)
-        echo "⛔ if_exists=fail: conda already installed at '$PREFIX'. Remove it first or set if_exists=skip/uninstall." >&2
+        echo "⛔ if_exists=fail: conda already installed at '$PREFIX'. Remove it first or set if_exists=skip/reinstall." >&2
         exit 1
         ;;
-      uninstall)
-        echo "ℹ️ if_exists=uninstall: uninstalling existing conda, then installing fresh." >&2
+      reinstall)
+        echo "ℹ️ if_exists=reinstall: uninstalling existing conda, then installing fresh." >&2
         set_executable_paths --verify
         _env_preserve_dir="/tmp/conda-env-preserve"
         if [[ "$PRESERVE_ENVS" == "true" ]]; then
@@ -761,7 +761,7 @@ if [[ -f "${PREFIX}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
         "$CONDA_EXEC" install --name base --yes "conda=${RESOLVED_CONDA_VERSION}"
         ;;
       *)
-        echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'uninstall', or 'update'." >&2
+        echo "⛔ Invalid value for 'if_exists': '$IF_EXISTS'. Use 'skip', 'fail', 'reinstall', or 'update'." >&2
         exit 1
         ;;
     esac
