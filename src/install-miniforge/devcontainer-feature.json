@@ -45,14 +45,14 @@
          "description": "Create a directory symlink from the canonical conda prefix to $prefix when prefix resolves to a non-default path.\nRoot: creates /opt/conda -> $prefix. Non-root: creates $HOME/miniforge3 -> $prefix.\nEnsures the containerEnv PATH entries always resolve to the conda binaries regardless of the chosen prefix.\nNo-op when prefix already resolves to the canonical path (/opt/conda for root, $HOME/miniforge3 for non-root).",
          "type": "boolean"
       },
-      "rc_files": {
-         "default": "auto",
-         "description": "Shell rc files to write conda initialization to.\n'auto' writes to system-wide rc files when running as root, or to the current user's\n~/.bashrc and $ZDOTDIR/.zshrc when running as non-root.\n'' (empty) skips all conda init writes.\nNewline-separated list of absolute paths: writes only to those files.\n",
+      "shell_activations": {
+         "default": "bash zsh",
+         "description": "Space-separated list of shell names to write conda initialization blocks for.\nFor each listed shell, writes an idempotent conda init block to the appropriate\nsystem-wide (root) or user-scoped (non-root) rc file.\nSupported: 'bash', 'zsh'. Set to '' to skip all activation writes.\nExamples: 'bash', 'zsh', 'bash zsh'.\n",
          "type": "string"
       },
       "activate_env": {
          "default": "base",
-         "description": "Conda environment to activate at shell startup.\n'base' sets auto_activate_base=true in ~/.condarc (the conda-native mechanism).\nAny other name appends a 'conda activate <env>' line to the rc files.\n'' (empty) skips activation setup entirely.\nOnly takes effect when rc_files is non-empty.\n",
+         "description": "Conda environment to activate at shell startup.\n'base' sets auto_activate_base=true in ~/.condarc (the conda-native mechanism).\nAny other name appends a 'conda activate <env>' line to the rc files.\n'' (empty) skips activation setup entirely.\nOnly takes effect when shell_activations is non-empty.\n",
          "type": "string"
       },
       "set_permissions": {

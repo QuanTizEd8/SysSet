@@ -28,20 +28,20 @@
     "activate_bashrc": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "rc_files": "/etc/bash.bashrc", "debug": true }
+            "install-miniforge": { "shell_activations": "bash", "debug": true }
         }
     },
     "activate_multi": {
-        "image": "ubuntu:latest",
+        "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "rc_files": "/root/.bashrc\n/etc/bash.bashrc", "debug": true }
+            "install-miniforge": { "shell_activations": "bash zsh", "debug": true }
         }
     },
     "custom_active_env": {
         "image": "ubuntu:latest",
         "features": {
             "install-miniforge": {
-                "rc_files": "/etc/bash.bashrc",
+                "shell_activations": "bash",
                 "activate_env": "myenv",
                 "debug": true
             }

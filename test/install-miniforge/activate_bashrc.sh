@@ -1,6 +1,6 @@
 #!/bin/bash
-# rc_files=/etc/bash.bashrc: conda init block is written to the specified
-# rc file exactly once using our own idempotency markers.
+# shell_activations=bash: conda init block is written to the system-wide
+# bash rc file exactly once using our own idempotency markers.
 set -e
 
 source dev-container-features-test-lib

@@ -1,5 +1,5 @@
 #!/bin/bash
-# rc_files=/etc/bash.bashrc, activate_env=myenv:
+# shell_activations=bash, activate_env=myenv:
 # 'conda activate myenv' is written inside our idempotency block after the
 # conda init block; 'conda activate base' must not appear.
 set -e

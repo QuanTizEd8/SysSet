@@ -3,17 +3,17 @@ set -euo pipefail
 
 __usage__() {
   echo "Usage:" >&2
-  echo "  --rc_files (string): Shell rc files to write conda initialization to.
-  'auto' (default) writes to system-wide rc files when root, or to the current
-  user's ~/.bashrc and \$ZDOTDIR/.zshrc when non-root.
-  '' (empty) skips all conda init writes.
-  Newline-separated list of absolute paths: writes only to those files.
+  echo "  --shell_activations (string): Space-separated list of shell names to write conda
+  initialization blocks for. For each listed shell, writes an idempotent conda init block
+  to the appropriate system-wide (root) or user-scoped (non-root) rc file.
+  Supported: 'bash', 'zsh'. Set to '' to skip all activation writes.
+  Default: 'bash zsh'.
   " >&2
   echo "  --activate_env (string): Conda environment to activate at shell startup.
   'base' (default) sets auto_activate_base=true in ~/.condarc.
   Any other name appends 'conda activate <env>' to the rc files.
   '' (empty) skips activation setup entirely.
-  Only takes effect when rc_files is non-empty.
+  Only takes effect when shell_activations is non-empty.
   " >&2
   echo "  --prefix (string): Path to the conda installation directory (installation root/prefix).
   " >&2
@@ -119,51 +119,43 @@ _conda_init_snippet() {
 
 add_activation_to_rcfile() {
   echo "↪️ Function entry: add_activation_to_rcfile" >&2
-
-  # Resolve target files.
-  local _target_files
-  if [[ "$RC_FILES" == "auto" ]]; then
-    if [[ "$(id -u)" == "0" ]]; then
-      echo "ℹ️ rc_files=auto, running as root: writing to system-wide rc files." >&2
-      _target_files="$(shell__system_rc_files)"
-    else
-      echo "ℹ️ rc_files=auto, running as non-root: writing to user rc files." >&2
-      _target_files="$(shell__user_rc_files)"
-    fi
-  else
-    # Explicit newline-separated path list.
-    _target_files="$RC_FILES"
-  fi
-
-  if [[ -z "$_target_files" ]]; then
-    echo "ℹ️ No rc file targets resolved; skipping conda init." >&2
+  if [[ -z "$SHELL_ACTIVATIONS" ]]; then
+    echo "ℹ️ shell_activations is empty; skipping conda init." >&2
     echo "↩️ Function exit: add_activation_to_rcfile" >&2
     return 0
   fi
-
-  # Capture conda init snippets once (expensive: spawns conda).
-  # Each snippet is the full file conda wrote, including its own markers.
-  local _bash_snippet _zsh_snippet
-  echo "ℹ️ Capturing conda init snippet for bash..." >&2
-  _bash_snippet="$(_conda_init_snippet bash)"
-  echo "ℹ️ Capturing conda init snippet for zsh..." >&2
-  _zsh_snippet="$(_conda_init_snippet zsh)"
-
-  if [[ -z "$_bash_snippet" && -z "$_zsh_snippet" ]]; then
-    echo "⚠️ conda init produced no output for bash or zsh; skipping rc writes." >&2
-    echo "↩️ Function exit: add_activation_to_rcfile" >&2
-    return 0
-  fi
-
-  # Write to each target file, choosing the right snippet by shell.
-  while IFS= read -r _f; do
-    [[ -z "$_f" ]] && continue
-    local _snippet=""
-    case "$_f" in
-      *.zshrc | *.zprofile) _snippet="$_zsh_snippet" ;;
-      *) _snippet="$_bash_snippet" ;;
+  local _shell
+  for _shell in ${SHELL_ACTIVATIONS}; do
+    local _target_file
+    case "$_shell" in
+      bash)
+        if [[ "$(id -u)" == "0" ]]; then
+          _target_file="$(shell__detect_bashrc)"
+        else
+          _target_file="${HOME}/.bashrc"
+        fi
+        ;;
+      zsh)
+        if [[ "$(id -u)" == "0" ]]; then
+          _target_file="$(shell__detect_zshdir)/zshrc"
+        else
+          local _zdotdir
+          _zdotdir="$(shell__detect_zdotdir --home "${HOME}")"
+          _target_file="${_zdotdir}/.zshrc"
+        fi
+        ;;
+      *)
+        echo "⛔ Unsupported shell for conda activation: '${_shell}' (supported: bash, zsh)" >&2
+        exit 1
+        ;;
     esac
-    [[ -z "$_snippet" ]] && continue
+    echo "ℹ️ Capturing conda init snippet for ${_shell}..." >&2
+    local _snippet
+    _snippet="$(_conda_init_snippet "$_shell")"
+    if [[ -z "$_snippet" ]]; then
+      echo "⚠️ conda init produced no output for '${_shell}'; skipping." >&2
+      continue
+    fi
     # Optionally append conda activate after the conda init block.
     local _content="$_snippet"
     if [[ -n "${ACTIVATE_ENV:-}" && "$ACTIVATE_ENV" != "base" ]]; then
@@ -171,9 +163,9 @@ add_activation_to_rcfile() {
     fi
     # Our marker is distinct from conda's "# >>> conda initialize >>>",
     # so shell__write_block handles idempotency without touching conda's markers.
-    shell__write_block --file "$_f" --marker "conda init (install-miniforge)" --content "$_content"
-  done <<< "$_target_files"
-
+    shell__write_block --file "$_target_file" --marker "conda init (install-miniforge)" \
+      --content "$_content"
+  done
   echo "↩️ Function exit: add_activation_to_rcfile" >&2
 }
 
@@ -545,7 +537,7 @@ ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --skip_installed
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  RC_FILES=""
+  SHELL_ACTIVATIONS=""
   ACTIVATE_ENV=""
   PREFIX=""
   DEBUG=""
@@ -563,17 +555,11 @@ if [ "$#" -gt 0 ]; then
   PRESERVE_CONFIG=""
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --rc_files)
+      --shell_activations)
         shift
-        while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-          if [[ -n "${RC_FILES:-}" ]]; then
-            RC_FILES="${RC_FILES}"$'\n'"$1"
-          else
-            RC_FILES="$1"
-          fi
-          echo "📩 Read argument 'rc_files': '${1}'" >&2
-          shift
-        done
+        SHELL_ACTIVATIONS="$1"
+        echo "📩 Read argument 'shell_activations': '${SHELL_ACTIVATIONS}'" >&2
+        shift
         ;;
       --activate_env)
         shift
@@ -686,7 +672,7 @@ if [ "$#" -gt 0 ]; then
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  [ "${RC_FILES+defined}" ] && echo "📩 Read argument 'rc_files': '${RC_FILES}'" >&2
+  [ "${SHELL_ACTIVATIONS+defined}" ] && echo "📩 Read argument 'shell_activations': '${SHELL_ACTIVATIONS}'" >&2
   [ "${ACTIVATE_ENV+defined}" ] && echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
   [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
@@ -709,9 +695,9 @@ else
   [ "${PRESERVE_CONFIG+defined}" ] && echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
 fi
 [[ "${DEBUG:-}" == true ]] && set -x
-[ -z "${RC_FILES+x}" ] && {
-  echo "ℹ️ Argument 'RC_FILES' set to default value 'auto'." >&2
-  RC_FILES="auto"
+[ -z "${SHELL_ACTIVATIONS+x}" ] && {
+  echo "ℹ️ Argument 'SHELL_ACTIVATIONS' set to default value 'bash zsh'." >&2
+  SHELL_ACTIVATIONS="bash zsh"
 }
 [ -z "${ACTIVATE_ENV-}" ] && {
   echo "ℹ️ Argument 'ACTIVATE_ENV' set to default value 'base'." >&2
@@ -849,7 +835,7 @@ set_executable_paths --verify
 create_symlink
 export_path_main
 
-if [[ -n "${RC_FILES:-}" ]]; then add_activation_to_rcfile; fi
+if [[ -n "${SHELL_ACTIVATIONS:-}" ]]; then add_activation_to_rcfile; fi
 if [[ "$UPDATE_BASE" == true ]]; then
   echo "⚠️ Updating base conda environment."
   "$MAMBA_EXEC" update -n base --all -y
