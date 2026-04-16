@@ -2,7 +2,7 @@
 # Manifest resolution test runner.
 #
 # For each test case under cases/ the script:
-#   1. Runs script/install.sh --dry_run --no_update against the case manifest.
+#   1. Runs script/install.sh --dry_run --update false against the case manifest.
 #   2. Parses the "[dry-run] packages" line from the output.
 #   3. Compares the sorted actual package list to the sorted expected file.
 #
@@ -110,7 +110,7 @@ for case_dir in "$CASES_DIR"/*/; do
   fi
 
   # Run in a subshell so failures are caught without killing the runner.
-  output=$(bash "$INSTALL_SH" --manifest "$manifest" --dry_run --no_update 2>&1) || {
+  output=$(bash "$INSTALL_SH" --manifest "$manifest" --dry_run --update false 2>&1) || {
     echo "FAIL  $test_name (script exited non-zero)"
     echo "--- output ---"
     printf '%s\n' "$output"

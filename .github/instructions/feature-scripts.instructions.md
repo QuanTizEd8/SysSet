@@ -86,10 +86,10 @@ fi
 ## OS Package Dependencies
 
 ```bash
-ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 ```
 
-`--check_installed` skips packages already present (idempotent). Omit `--check_installed` when upgrading is desired.
+`--skip_installed` skips packages already present (idempotent). Omit `--skip_installed` when upgrading is desired.
 
 ## Emoji Log Conventions
 
@@ -124,7 +124,7 @@ _LIB_MYMODULE_LOADED=1
 - `ospkg__install <pkg>...` — install one or more packages
 - `ospkg__update` — refresh package index
 - `ospkg__clean` — clean package caches
-- `ospkg__run [--manifest <file>] [--check_installed] [--keep_cache] [--no_update] [--dry_run]` — full pipeline: update → install from manifest → clean
+- `ospkg__run [--manifest <file>] [--skip_installed] [--keep_cache] [--update false] [--dry_run]` — full pipeline: update → install from manifest → clean
 
 ### `net.sh` (auto-sourced by ospkg.sh)
 

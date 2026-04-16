@@ -464,7 +464,7 @@ trap '__cleanup__' EXIT
 # ── Constants ────────────────────────────────────────────────────────────────
 _MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
 
-ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --skip_installed
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2

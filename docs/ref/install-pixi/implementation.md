@@ -235,7 +235,7 @@ checksums, shell config writes, OS packages, and logging.
 1.  Source _lib/ospkg.sh, _lib/logging.sh, _lib/shell.sh, _lib/github.sh, _lib/checksum.sh
 2.  logging__setup                  — tee to LOGFILE if set
 3.  trap '__cleanup__' EXIT
-4.  ospkg__run --manifest base.yaml --check_installed
+4.  ospkg__run --manifest base.yaml --skip_installed
 5.  Parse CLI args OR read env vars (dual-mode)
 6.  Apply defaults
 7.  [[ DEBUG == true ]] && set -x

@@ -804,7 +804,7 @@ fi
 os__require_root
 
 # Step 2: Install base OS dependencies (curl, ca-certificates).
-ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 # Step 3: Resolve version (may call GitHub API).
 _resolved_version="$(_gh__resolve_version)"

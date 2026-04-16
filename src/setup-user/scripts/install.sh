@@ -141,7 +141,7 @@ USERNAME="${USERNAME:-vscode}"
 # Validation
 # ---------------------------------------------------------------------------
 os__require_root
-ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --skip_installed
 
 if [[ ! "$USER_ID" =~ ^[0-9]+$ ]]; then
   echo "⛔ user_id must be a non-negative integer, got: '${USER_ID}'" >&2
@@ -262,7 +262,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-  ospkg__run --manifest "${_SELF_DIR}/../dependencies/sudo.yaml" --check_installed
+  ospkg__run --manifest "${_SELF_DIR}/../dependencies/sudo.yaml" --skip_installed
   mkdir -p "$SUDOERS_DIR"
   echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
   chmod 0440 "${SUDOERS_DIR}/${USERNAME}"

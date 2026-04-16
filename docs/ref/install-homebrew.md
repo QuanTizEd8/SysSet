@@ -136,7 +136,7 @@ required to build formulae from source:
 | `base-devel` group | Pacman |
 | `devel_basis` pattern | Zypper |
 
-Packages already present on `PATH` (`--check_installed`) are skipped.
+Packages already present on `PATH` (`--skip_installed`) are skipped.
 
 ### Xcode Command Line Tools (macOS)
 

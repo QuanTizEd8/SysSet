@@ -754,13 +754,13 @@ end
 # repos → PM setup → update → install → casks → script → cleanup.
 #
 # Usage: ospkg__run [--manifest <file-or-inline>]
-#                   [--no_update]   [--check_installed]  (legacy)
-#                   [--keep_cache]  [--skip_installed] [--prefer_linuxbrew] (new)
+#                   [--update <bool>] [--skip_installed]
+#                   [--keep_cache]  [--prefer_linuxbrew]
 #                   [--keep_repos] [--lists_max_age <N>] [--dry_run]
 #                   [--interactive]
 ospkg__run() {
-  local _manifest='' _no_update=false _keep_cache=false _keep_repos=false
-  local _lists_max_age=300 _dry_run=false _check_installed=false _interactive=false
+  local _manifest='' _update=true _keep_cache=false _keep_repos=false
+  local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false
   local _prefer_linuxbrew=false
 
   while [[ $# -gt 0 ]]; do
@@ -770,9 +770,10 @@ ospkg__run() {
         _manifest="$1"
         shift
         ;;
-      --no_update)
+      --update)
         shift
-        _no_update=true
+        _update="$1"
+        shift
         ;;
       --keep_cache)
         shift
@@ -791,9 +792,9 @@ ospkg__run() {
         shift
         _dry_run=true
         ;;
-      --check_installed | --skip_installed)
+      --skip_installed)
         shift
-        _check_installed=true
+        _skip_installed=true
         ;;
       --interactive)
         shift
@@ -1122,7 +1123,7 @@ ospkg__run() {
     fi
 
     # Phase: PACKAGE LIST UPDATE.
-    if [[ ${#_Y_PACKAGES[@]} -gt 0 && "$_no_update" == false ]]; then
+    if [[ ${#_Y_PACKAGES[@]} -gt 0 && "$_update" == true ]]; then
       local _update_args=(--lists_max_age "$_lists_max_age")
       [[ "$_yaml_repo_added" == true ]] && _update_args+=(--repo_added)
       if [[ "$_dry_run" == true ]]; then
@@ -1137,9 +1138,9 @@ ospkg__run() {
     elif [[ ${#_Y_PACKAGES[@]} -eq 0 ]]; then
       echo "ℹ️  Package list update skipped (no packages in manifest)." >&2
     else
-      echo "ℹ️  Package list update skipped (--no_update)." >&2
+      echo "ℹ️  Package list update skipped (update=false)." >&2
       if [[ "$_yaml_repo_added" == true ]]; then
-        echo "⚠️  A repository was added but --no_update is set — packages may not be found." >&2
+        echo "⚠️  A repository was added but update=false — packages may not be found." >&2
       fi
     fi
 
@@ -1164,7 +1165,7 @@ ospkg__run() {
         _pkginstall="${_pkgname}"
       fi
 
-      if [[ "$_check_installed" == true ]] && command -v "$_pkgname" > /dev/null 2>&1; then
+      if [[ "$_skip_installed" == true ]] && command -v "$_pkgname" > /dev/null 2>&1; then
         echo "ℹ️  '${_pkgname}' already available in PATH — skipping." >&2
         continue
       fi

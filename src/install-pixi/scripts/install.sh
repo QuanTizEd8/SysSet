@@ -433,7 +433,7 @@ logging__setup
 echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2
 trap '__cleanup__' EXIT
 
-ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 

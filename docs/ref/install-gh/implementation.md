@@ -259,7 +259,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
     that skip/fail make zero system changes when the tool is already present and no specific
     version was requested.
 7.  os__require_root  (must run as root for all subsequent steps)
-8.  ospkg__run --manifest base.yaml --check_installed  (install curl, ca-certificates)
+8.  ospkg__run --manifest base.yaml --skip_installed  (install curl, ca-certificates)
 9.  _resolved_version="$(_gh__resolve_version)"
 10. Export user config env vars:
       ADD_CURRENT_USER_CONFIG, ADD_REMOTE_USER_CONFIG,

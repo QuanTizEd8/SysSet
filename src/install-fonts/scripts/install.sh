@@ -135,7 +135,7 @@ if [[ -z "$FONT_DIR" ]]; then
   FONT_DIR="$(os__font_dir)"
 fi
 
-ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 [[ "${DEBUG:-}" == true ]] && set -x
 

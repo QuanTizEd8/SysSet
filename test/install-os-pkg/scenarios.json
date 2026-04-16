@@ -11,7 +11,7 @@
             }
         }
     },
-    "apt_no_update": {
+    "apt_update_false": {
         "build": {
             "dockerfile": "Dockerfile",
             "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
@@ -98,7 +98,7 @@
             }
         }
     },
-    "apk_no_update": {
+    "apk_update_false": {
         "build": {
             "dockerfile": "Dockerfile",
             "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }
@@ -413,7 +413,7 @@
             }
         }
     },
-    "apt_check_installed": {
+    "apt_skip_installed": {
         "build": {
             "dockerfile": "Dockerfile",
             "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }

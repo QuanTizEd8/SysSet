@@ -76,11 +76,6 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'update': '${UPDATE}'" >&2
         shift
         ;;
-      --no_update)
-        shift
-        UPDATE=false
-        echo "📩 Read argument 'no_update' (alias for update=false): 'false'" >&2
-        ;;
       --lists_max_age)
         shift
         LISTS_MAX_AGE="$1"
@@ -92,7 +87,7 @@ if [ "$#" -gt 0 ]; then
         DRY_RUN=true
         echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
         ;;
-      --skip_installed | --check_installed)
+      --skip_installed)
         shift
         SKIP_INSTALLED=true
         echo "📩 Read argument 'skip_installed': '${SKIP_INSTALLED}'" >&2
@@ -123,19 +118,9 @@ else
   [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
   [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
-  # Back-compat: honour NO_UPDATE env var (old name, inverted).
-  if [ "${NO_UPDATE+defined}" ] && [ -z "${UPDATE:-}" ]; then
-    if [ "${NO_UPDATE:-}" = "true" ]; then UPDATE=false; else UPDATE=true; fi
-    echo "📩 Read argument 'no_update' (env alias): mapping to update='${UPDATE}'" >&2
-  fi
   [ "${LISTS_MAX_AGE+defined}" ] && echo "📩 Read argument 'lists_max_age': '${LISTS_MAX_AGE}'" >&2
   [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
   [ "${SKIP_INSTALLED+defined}" ] && echo "📩 Read argument 'skip_installed': '${SKIP_INSTALLED}'" >&2
-  # Back-compat: honour CHECK_INSTALLED env var (old name).
-  if [ "${CHECK_INSTALLED+defined}" ] && [ -z "${SKIP_INSTALLED:-}" ]; then
-    SKIP_INSTALLED="${CHECK_INSTALLED:-}"
-    echo "📩 Read argument 'check_installed' (env alias): '${SKIP_INSTALLED}'" >&2
-  fi
   [ "${PREFER_LINUXBREW+defined}" ] && echo "📩 Read argument 'prefer_linuxbrew': '${PREFER_LINUXBREW}'" >&2
 fi
 
@@ -220,7 +205,7 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos"
   [[ -n "$LOGFILE" ]] && _HOOK_OPTS+=" --logfile $(printf '%q' "$LOGFILE")"
   [[ "$KEEP_CACHE" == true ]] && _HOOK_OPTS+=" --keep_cache"
-  [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --no_update"
+  [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --update false"
   _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
   [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run"
   [[ "$SKIP_INSTALLED" == true ]] && _HOOK_OPTS+=" --skip_installed"
@@ -239,7 +224,7 @@ fi
 
 _OSPKG_ARGS=()
 [[ -n "$MANIFEST" ]] && _OSPKG_ARGS+=(--manifest "$MANIFEST")
-[[ "$UPDATE" == false ]] && _OSPKG_ARGS+=(--no_update)
+[[ "$UPDATE" == false ]] && _OSPKG_ARGS+=(--update false)
 [[ "$KEEP_CACHE" == true ]] && _OSPKG_ARGS+=(--keep_cache)
 [[ "$KEEP_REPOS" == true ]] && _OSPKG_ARGS+=(--keep_repos)
 _OSPKG_ARGS+=(--lists_max_age "$LISTS_MAX_AGE")

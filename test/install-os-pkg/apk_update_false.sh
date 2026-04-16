@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that the feature can install packages on Alpine when no_update=true,
+# Verifies that the feature can install packages on Alpine when update=false,
 # relying on the package index refreshed in the base image layer.
 set -e
 

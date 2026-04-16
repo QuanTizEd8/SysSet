@@ -421,11 +421,11 @@ packages:
 Call it at the start of the script with `ospkg__run`:
 
 ```bash
-ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 ospkg__clean
 ```
 
-`--check_installed` skips packages whose binary is already in `PATH`, so
+`--skip_installed` skips packages whose binary is already in `PATH`, so
 repeated runs are fast.
 
 ### `ospkg__run` versus `ospkg__install`
@@ -442,7 +442,7 @@ When calling `ospkg__install` after `ospkg__run`, pass `--keep_cache` to
 single cache refresh covers all installs:
 
 ```bash
-ospkg__run --manifest "$_MANIFEST" --check_installed --keep_cache
+ospkg__run --manifest "$_MANIFEST" --skip_installed --keep_cache
 ospkg__install some-extra-package
 ospkg__clean
 ```
@@ -529,12 +529,12 @@ net__fetch_with_retry 3 curl \
 | Option | Default | Description |
 |---|---|---|
 | `--manifest <file-or-inline>` | `""` | Path to a manifest file, or inline content (detected when the value contains a newline). |
-| `--no_update` | false | Skip the package list refresh unconditionally. |
+| `--update false` | false | Skip the package list refresh unconditionally. |
 | `--keep_cache` | false | Skip the cache clean step (useful when more installs follow). |
 | `--keep_repos` | false | Keep repository drop-in files written by `repo` sections. |
 | `--lists_max_age <N>` | 300 | Seconds before a package list refresh is considered necessary. |
 | `--dry_run` | false | Print what would happen without making any changes. Root not required. |
-| `--check_installed` | false | Skip packages whose binary is already in `PATH`. |
+| `--skip_installed` | false | Skip packages whose binary is already in `PATH`. |
 | `--interactive` | false | Allow interactive package manager prompts (disables `DEBIAN_FRONTEND=noninteractive`). |
 
 #### Manifest format overview

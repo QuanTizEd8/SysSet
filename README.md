@@ -152,8 +152,8 @@ Cross-distro package installer (`apt`, `dnf`, `zypper`, `pacman`, `apk`, `brew`)
 "ghcr.io/quantized8/sysset/install-os-pkg:0": {
   "manifest": "dependencies/base.yaml", // file path or inline content
   "lifecycle_hook": "",                  // "" | "onCreate" | "updateContent" | "postCreate"
-  "check_installed": false,             // skip packages already in PATH
-  "no_update": false,                   // skip apt-get update / dnf check-update
+  "skip_installed": false,             // skip packages already in PATH
+  "update": true,                       // run apt-get update / dnf check-update
   "lists_max_age": "300",               // seconds before forcing a package list refresh
   "keep_cache": false,                    // keep package manager cache
   "keep_repos": false,                  // keep added repo files

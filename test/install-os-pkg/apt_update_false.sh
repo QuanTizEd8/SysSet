@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that the feature can install packages when no_update=true, relying
+# Verifies that the feature can install packages when update=false, relying
 # on package lists that were already refreshed in the base image layer.
 set -e
 
