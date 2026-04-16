@@ -23,7 +23,10 @@ Install Node.js and npm in the development container. Two methods are supported,
 | `installer_dir` | string | `"/tmp/node-installer"` | Temp directory for downloads. |
 | `if_exists` | string (enum) | `"skip"` | Behavior when node already exists: `"skip"`, `"fail"`, or `"reinstall"`. |
 | `export_path` | string | `"auto"` | Controls which shell files receive PATH exports. |
-| `users` | string | `""` | Users for group membership (nvm) and per-user shell RC PATH writes. |
+| `add_current_user_config` | boolean | `true` | Include the current user in the resolved user list for group membership and per-user shell RC PATH writes. Root is deferred: only included as a fallback when no other non-root user is resolved. |
+| `add_remote_user_config` | boolean | `true` | Include the devcontainer remoteUser (from `_REMOTE_USER`) in the resolved user list. Ignored when `_REMOTE_USER` is unset or empty. Root is excluded. |
+| `add_container_user_config` | boolean | `true` | Include the devcontainer containerUser (from `_CONTAINER_USER`) in the resolved user list. Ignored when `_CONTAINER_USER` is unset or empty. Root is excluded. |
+| `add_user_config` | string | `""` | Comma-separated list of additional usernames for the resolved user list. Root is accepted here. |
 | `set_permissions` | boolean | `true` | Create nvm group, set group-write/setgid on `nvm_dir`, run installer as user (`method=nvm` only). |
 | `group` | string | `"nvm"` | Group name for nvm directory ownership (`method=nvm`, `set_permissions=true`). |
 | `symlink` | boolean | `true` | For nvm: creates a bridge symlink `/usr/local/share/nvm → nvm_dir` so that `containerEnv.NVM_DIR` and `containerEnv.PATH` stay valid when `nvm_dir` is set to a non-default path. `NVM_SYMLINK_CURRENT=true` is always enabled regardless of this option. For binary: creates symlinks for `node`, `npm`, `npx`, `corepack` in `/usr/local/bin` when `prefix` is not `/usr/local`. Root only. |
@@ -155,10 +158,10 @@ Export the PATH for the devcontainer remote user in addition to system-wide file
 ```jsonc
 {
   "features": {
-    "ghcr.io/quantized8/sysset/install-node:1": {
+    "ghcr.io/quantized8/sysset/install-node:2": {
       "method": "binary",
       "version": "lts/*",
-      "users": "_REMOTE_USER"
+      "add_remote_user_config": true
     }
   }
 }
@@ -341,7 +344,7 @@ The feature sets `NVM_DIR=/usr/local/share/nvm` in `containerEnv`. This means:
 `set_permissions=true` (the default for `method=nvm`) ensures:
 1. A group (`group`, default: `nvm`) is created.
 2. `nvm_dir` is owned by the nvm group with group-write and setgid bits (`g+rws`).
-3. All users listed in `users` (defaulting to the current user `$(id -nu)`) are added to the group.
+3. All resolved users (from `add_current_user_config`, `add_remote_user_config`, `add_container_user_config`, and `add_user_config`) are added to the group.
 4. The nvm installer and `nvm install` are executed as the first resolved user via `su $USER -c "..."` with `umask 0002`, so all installed files are group-writable.
 
 This means non-root container users can freely run `nvm install <version>`, `nvm use <version>`, and `nvm ls` inside the running container without `sudo`.

@@ -1,6 +1,6 @@
 {
    "id": "install-git",
-   "version": "0.1.0",
+   "version": "0.2.0",
    "name": "Git Installer",
    "description": "Install Git in the development container. Two strategies controlled by 'method': 'package' uses the OS package manager (with Ubuntu git-core PPA on Ubuntu when version=latest); 'source' builds from a kernel.org tarball for full version control on any platform. Version is controlled independently by the 'version' option: 'latest', 'stable', or a specific version string.",
    "options": {
@@ -77,25 +77,40 @@
          "default": "",
          "description": "Freeform content to append to the system-level gitconfig (as root: /etc/gitconfig; as non-root: $HOME/.config/git/config). Accepts standard gitconfig format, e.g. '[core]\n  autocrlf = input\n[push]\n  default = simple'. Written after any settings from default_branch and safe_directory. Set to '' to skip."
       },
-      "users": {
+      "add_current_user_config": {
+         "type": "boolean",
+         "default": false,
+         "description": "Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user gitconfig writes.\nRoot is deferred: only included as a fallback when no other non-root user is resolved."
+      },
+      "add_remote_user_config": {
+         "type": "boolean",
+         "default": false,
+         "description": "Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user gitconfig writes.\nIgnored when _REMOTE_USER is unset or empty. Root is excluded from this path."
+      },
+      "add_container_user_config": {
+         "type": "boolean",
+         "default": false,
+         "description": "Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes.\nIgnored when _CONTAINER_USER is unset or empty. Root is excluded from this path."
+      },
+      "add_user_config": {
          "type": "string",
          "default": "",
-         "description": "Controls which users receive per-user gitconfig entries. Comma-separated list of explicit usernames, plus the following special tokens: '_REMOTE_USER' (the devcontainer remoteUser, from the _REMOTE_USER env var), '_CONTAINER_USER' (the devcontainer containerUser, from _CONTAINER_USER), 'all' (current user + _REMOTE_USER + _CONTAINER_USER, deduplicated). Tokens and names can be mixed: '_REMOTE_USER,alice'. As non-root, restricted to the current user only; other names are ignored with a warning. User gitconfig is written only when at least one of user_name, user_email, or user_gitconfig is non-empty."
+         "description": "Comma-separated list of additional usernames to include in the resolved user list for per-user gitconfig writes.\nRoot is accepted here (unlike the auto-detected paths above)."
       },
       "user_name": {
          "type": "string",
          "default": "",
-         "description": "Sets user.name in the per-user gitconfig (~/.gitconfig) for all users specified by the 'users' option. Set to '' to skip writing this setting."
+         "description": "Sets user.name in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting."
       },
       "user_email": {
          "type": "string",
          "default": "",
-         "description": "Sets user.email in the per-user gitconfig (~/.gitconfig) for all users specified by the 'users' option. Set to '' to skip writing this setting."
+         "description": "Sets user.email in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting."
       },
       "user_gitconfig": {
          "type": "string",
          "default": "",
-         "description": "Freeform content to append to the per-user gitconfig (~/.gitconfig) for all users specified by the 'users' option. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip."
+         "description": "Freeform content to append to the per-user gitconfig (~/.gitconfig) for all resolved users. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip."
       },
       "symlink": {
          "type": "boolean",

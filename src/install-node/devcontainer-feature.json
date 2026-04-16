@@ -1,6 +1,6 @@
 {
    "id": "install-node",
-   "version": "1.0.0",
+   "version": "2.0.0",
    "name": "Node.js",
    "description": "Install Node.js and npm in the development container.\n\nTwo methods are supported, selected by the 'method' option:\n\n'nvm' (default) — installs the Node Version Manager (nvm) to 'nvm_dir' and uses it to install the requested Node.js version. Supports Linux (glibc and musl/Alpine), macOS, and any POSIX platform. On Alpine Linux, Node.js is compiled from source automatically when the '-s' flag is used (build dependencies are installed from the apk manifest). Node.js binaries are symlinked to /usr/local/bin (when running as root and symlink=true) for universal PATH availability.\n\n'binary' — downloads the official prebuilt Node.js tarball from nodejs.org/dist and extracts it to 'prefix'. Fast and dependency-free. Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64); NOT compatible with Alpine Linux (musl). Integrity is verified against SHASUMS256.txt via SHA-256.\n\nVersion selection supports nvm-style aliases ('lts/*', '--lts', major number) for both methods, and exact semver strings. The default 'lts/*' installs the latest Active LTS release.",
    "options": {
@@ -59,20 +59,35 @@
          "default": "auto",
          "description": "Controls which shell startup files receive PATH export blocks for the Node.js binary directory.\n'auto' (default) — as root, writes to all system-wide shell startup files: /etc/environment (BASH_ENV and PATH), /etc/profile.d/install-node.sh (login shells), the system-wide bashrc (non-login interactive bash), and the zsh env file (zshenv). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.\n'' (empty string) — skips all PATH writes (e.g. when prefix=/usr/local which is already on PATH, or when using symlinks only).\nA newline-separated list of absolute file paths — writes only to those specific files."
       },
-      "users": {
+      "add_current_user_config": {
+         "type": "boolean",
+         "default": true,
+         "description": "Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nRoot is deferred: only included as a fallback when no other non-root user is resolved."
+      },
+      "add_remote_user_config": {
+         "type": "boolean",
+         "default": true,
+         "description": "Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nIgnored when _REMOTE_USER is unset or empty. Root is excluded from this path."
+      },
+      "add_container_user_config": {
+         "type": "boolean",
+         "default": true,
+         "description": "Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nIgnored when _CONTAINER_USER is unset or empty. Root is excluded from this path."
+      },
+      "add_user_config": {
          "type": "string",
          "default": "",
-         "description": "Comma-separated list of users. Serves two purposes:\n\n1. Group membership (method=nvm, set_permissions=true): all listed users are added to the 'group' group (default: 'nvm'), giving them group-write access to 'nvm_dir' and the ability to run 'nvm install'/'nvm use' without sudo. The nvm installer is run as the first resolved user. When empty, defaults to the current running user (id -nu).\n\n2. Per-user shell RC PATH exports: listed users also receive a PATH export block appended to their personal shell RC files (~/.bashrc, ~/.zshrc, etc.), in addition to any system-wide files written by 'export_path'.\n\nSpecial tokens: '_REMOTE_USER' (devcontainer remoteUser, from $_REMOTE_USER), '_CONTAINER_USER' (devcontainer containerUser, from $_CONTAINER_USER), 'all' (current user + _REMOTE_USER + _CONTAINER_USER, deduplicated). Tokens and names may be mixed, e.g. '_REMOTE_USER,alice'.\nAs non-root, restricted to the current user only; other names are ignored with a warning.\nSet to '' (default) to skip per-user RC writes and use the running user for group membership."
+         "description": "Comma-separated list of additional usernames to include in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nRoot is accepted here (unlike the auto-detected paths above)."
       },
       "set_permissions": {
          "type": "boolean",
          "default": true,
-         "description": "Create a dedicated group (name set by 'group', default 'nvm'), set group-write and setgid bits on 'nvm_dir', add all users listed in 'users' to that group, and run the nvm installer as the first resolved user rather than root.\nThis allows non-root container users to run 'nvm install', 'nvm use', and 'nvm ls' without sudo inside the running container.\nOnly applies when method=nvm and running as root. No-op when method=binary or running as non-root."
+         "description": "Create a dedicated group (name set by 'group', default 'nvm'), set group-write and setgid bits on 'nvm_dir', add all resolved users to that group, and run the nvm installer as the first resolved user rather than root.\nThis allows non-root container users to run 'nvm install', 'nvm use', and 'nvm ls' without sudo inside the running container.\nOnly applies when method=nvm and running as root. No-op when method=binary or running as non-root."
       },
       "group": {
          "type": "string",
          "default": "nvm",
-         "description": "Name of the group created to own 'nvm_dir' when set_permissions=true.\nAll users listed in 'users' are added to this group.\nOnly applies when method=nvm and set_permissions=true."
+         "description": "Name of the group created to own 'nvm_dir' when set_permissions=true.\nAll resolved users are added to this group.\nOnly applies when method=nvm and set_permissions=true."
       },
       "symlink": {
          "type": "boolean",

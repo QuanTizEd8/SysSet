@@ -84,5 +84,15 @@
         "features": {
             "install-homebrew": { "logfile": "/tmp/brew.log", "debug": true }
         }
+    },
+    "shellenv_remote_user": {
+        "remoteUser": "vscode",
+        "build": { "dockerfile": "Dockerfile" },
+        "features": {
+            "install-homebrew": {
+                "add_remote_user_config": true,
+                "debug": true
+            }
+        }
     }
 }

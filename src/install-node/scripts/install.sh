@@ -51,7 +51,10 @@ if [ "$#" -gt 0 ]; then
   INSTALLER_DIR=""
   IF_EXISTS=""
   EXPORT_PATH=""
-  USERS=""
+  ADD_CURRENT_USER_CONFIG=""
+  ADD_REMOTE_USER_CONFIG=""
+  ADD_CONTAINER_USER_CONFIG=""
+  ADD_USER_CONFIG=""
   SET_PERMISSIONS=""
   GROUP=""
   SYMLINK=""
@@ -122,10 +125,28 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
         shift
         ;;
-      --users)
+      --add_current_user_config)
         shift
-        USERS="$1"
-        echo "📩 Read argument 'users': '${USERS}'" >&2
+        ADD_CURRENT_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
+        shift
+        ;;
+      --add_remote_user_config)
+        shift
+        ADD_REMOTE_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+        shift
+        ;;
+      --add_container_user_config)
+        shift
+        ADD_CONTAINER_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
+        shift
+        ;;
+      --add_user_config)
+        shift
+        ADD_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
         shift
         ;;
       --set_permissions)
@@ -194,7 +215,10 @@ else
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${USERS+defined}" ] && echo "📩 Read argument 'users': '${USERS}'" >&2
+  [ "${ADD_CURRENT_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
+  [ "${ADD_REMOTE_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+  [ "${ADD_CONTAINER_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
+  [ "${ADD_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
   [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
   [ "${GROUP+defined}" ] && echo "📩 Read argument 'group': '${GROUP}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
@@ -222,7 +246,10 @@ fi
 [ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/node-installer"
 [ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
 [ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
-[ "${USERS+defined}" ] || USERS=""
+: "${ADD_CURRENT_USER_CONFIG:=true}"
+: "${ADD_REMOTE_USER_CONFIG:=true}"
+: "${ADD_CONTAINER_USER_CONFIG:=true}"
+: "${ADD_USER_CONFIG:=}"
 [ "${SET_PERMISSIONS+defined}" ] || SET_PERMISSIONS="true"
 [ "${GROUP+defined}" ] || GROUP="nvm"
 [ "${SYMLINK+defined}" ] || SYMLINK="true"
@@ -259,16 +286,14 @@ esac
 # Resolve user list
 # =============================================================================
 
-ADD_USER_CONFIG="$USERS"
-# shellcheck disable=SC2034
-users__resolve_list
+mapfile -t _RESOLVED_USERS < <(users__resolve_list)
 
 # _NVM_USER: the user under whom nvm operations are run.
 # When set_permissions=true and running as root, use the first resolved user.
 # Otherwise fall back to the current user.
 _NVM_USER=""
-if [ "$SET_PERMISSIONS" = "true" ] && [ "${#_USERS_ARR[@]}" -gt 0 ] && [ -n "${_USERS_ARR[0]}" ]; then
-  _NVM_USER="${_USERS_ARR[0]}"
+if [ "$SET_PERMISSIONS" = "true" ] && [ "${#_RESOLVED_USERS[@]}" -gt 0 ] && [ -n "${_RESOLVED_USERS[0]}" ]; then
+  _NVM_USER="${_RESOLVED_USERS[0]}"
 else
   _NVM_USER="$(id -nu)"
 fi
@@ -456,7 +481,7 @@ _node_set_permissions() {
   echo "ℹ️ Creating group '${GROUP}' and configuring permissions on '${NVM_DIR}'." >&2
   getent group "$GROUP" > /dev/null 2>&1 || groupadd -r "$GROUP"
 
-  for _u in "${_USERS_ARR[@]}"; do
+  for _u in "${_RESOLVED_USERS[@]}"; do
     [[ -z "$_u" ]] && continue
     id -nG "$_u" 2> /dev/null | grep -qw "$GROUP" || {
       echo "ℹ️ Adding user '${_u}' to group '${GROUP}'." >&2
@@ -465,7 +490,7 @@ _node_set_permissions() {
   done
 
   mkdir -p "$NVM_DIR"
-  chown -R "${_USERS_ARR[0]}:${GROUP}" "$NVM_DIR"
+  chown -R "${_RESOLVED_USERS[0]}:${GROUP}" "$NVM_DIR"
   chmod g+rws "$NVM_DIR"
 
   echo "↩️ Function exit: _node_set_permissions" >&2
@@ -758,7 +783,7 @@ _node_configure_path() {
     _node_write_nvm_rc
 
     # Per-user nvm init snippets
-    for _u in "${_USERS_ARR[@]}"; do
+    for _u in "${_RESOLVED_USERS[@]}"; do
       [[ -z "$_u" ]] && continue
       local _home
       _home="$(shell__resolve_home "$_u")"
@@ -784,7 +809,7 @@ _node_configure_path() {
       shell__sync_block --files "$_sys_files" --marker "$_marker" --content "$_content"
 
       # Per-user
-      for _u in "${_USERS_ARR[@]}"; do
+      for _u in "${_RESOLVED_USERS[@]}"; do
         [[ -z "$_u" ]] && continue
         local _home
         _home="$(shell__resolve_home "$_u")"

@@ -63,8 +63,8 @@ _ospkg_clean_brew() {
 _ospkg_update_cmd() {
   "${_OSPKG_UPDATE[@]}" >&2
   local _rc=$?
-  [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] \
-    && [[ $_rc -eq 100 ]] && return 0
+  [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] &&
+    [[ $_rc -eq 100 ]] && return 0
   return $_rc
 }
 

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Per-user gitconfig: users=_REMOTE_USER with user_name, user_email, and a raw
-# user_gitconfig block. Verifies both parsed keys and verbatim content.
+# Per-user gitconfig: add_remote_user_config=true with user_name, user_email,
+# and a raw user_gitconfig block. Verifies both parsed keys and verbatim content.
 set -e
 
 source dev-container-features-test-lib

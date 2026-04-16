@@ -12,6 +12,8 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 . "$_SELF_DIR/_lib/logging.sh"
 # shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
+# shellcheck source=lib/users.sh
+. "$_SELF_DIR/_lib/users.sh"
 logging__setup
 echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
 trap 'logging__cleanup' EXIT
@@ -109,15 +111,13 @@ export_shellenv_main() {
     echo "ℹ️ Case B: user-scoped shellenv export." >&2
     export_shellenv_for_user "$RESOLVED_INSTALL_USER"
   fi
-  # Additional users
-  if [ -n "${USERS-}" ]; then
-    IFS=',' read -ra _EXTRA_USERS <<< "$USERS"
-    for _u in "${_EXTRA_USERS[@]}"; do
-      [[ -z "$_u" ]] && continue
-      echo "ℹ️ Exporting shellenv for additional user '${_u}'." >&2
-      export_shellenv_for_user "$_u"
-    done
-  fi
+  # Resolved additional users
+  local _u
+  while IFS= read -r _u; do
+    [[ -z "$_u" ]] && continue
+    echo "ℹ️ Exporting shellenv for resolved user '${_u}'." >&2
+    export_shellenv_for_user "$_u"
+  done < <(users__resolve_list)
   echo "↩️ Function exit: export_shellenv_main" >&2
   return 0
 }
@@ -203,7 +203,7 @@ enforce_options() {
 
 # _sync_init_files <marker> [content]
 # Calls shell__sync_block for the relevant init files for RESOLVED_INSTALL_USER
-# (and any extra USERS) plus system-wide files when running as root on Linux.
+# (and any resolved users) plus system-wide files when running as root on Linux.
 # If content is given, writes/updates the block; if absent, removes it.
 _sync_init_files() {
   local _marker="$1"
@@ -225,18 +225,16 @@ _sync_init_files() {
     shell__sync_block --files "$_files" --marker "$_marker"
   fi
 
-  if [ -n "${USERS-}" ]; then
-    IFS=',' read -ra _EXTRA_USERS <<< "$USERS"
-    for _u in "${_EXTRA_USERS[@]}"; do
-      [[ -z "$_u" ]] && continue
-      _files="$(shell__user_init_files --home "$(shell__resolve_home "$_u")")"
-      if [ "$_has_content" = true ]; then
-        shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
-      else
-        shell__sync_block --files "$_files" --marker "$_marker"
-      fi
-    done
-  fi
+  local _u
+  while IFS= read -r _u; do
+    [[ -z "$_u" ]] && continue
+    _files="$(shell__user_init_files --home "$(shell__resolve_home "$_u")")"
+    if [ "$_has_content" = true ]; then
+      shell__sync_block --files "$_files" --marker "$_marker" --content "$_content"
+    else
+      shell__sync_block --files "$_files" --marker "$_marker"
+    fi
+  done < <(users__resolve_list)
   return 0
 }
 
@@ -319,7 +317,10 @@ if [[ "$#" -gt 0 ]]; then
   IF_EXISTS=""
   UPDATE=""
   unset EXPORT_PATH
-  USERS=""
+  ADD_CURRENT_USER_CONFIG=""
+  ADD_REMOTE_USER_CONFIG=""
+  ADD_CONTAINER_USER_CONFIG=""
+  ADD_USER_CONFIG=""
   BREW_GIT_REMOTE=""
   CORE_GIT_REMOTE=""
   NO_INSTALL_FROM_API=""
@@ -357,10 +358,28 @@ if [[ "$#" -gt 0 ]]; then
         echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
         shift
         ;;
-      --users)
+      --add_current_user_config)
         shift
-        USERS="$1"
-        echo "📩 Read argument 'users': '${USERS}'" >&2
+        ADD_CURRENT_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
+        shift
+        ;;
+      --add_remote_user_config)
+        shift
+        ADD_REMOTE_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+        shift
+        ;;
+      --add_container_user_config)
+        shift
+        ADD_CONTAINER_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
+        shift
+        ;;
+      --add_user_config)
+        shift
+        ADD_USER_CONFIG="$1"
+        echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
         shift
         ;;
       --brew_git_remote)
@@ -410,7 +429,10 @@ else
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
   [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${USERS+defined}" ] && echo "📩 Read argument 'users': '${USERS}'" >&2
+  [ "${ADD_CURRENT_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
+  [ "${ADD_REMOTE_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+  [ "${ADD_CONTAINER_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
+  [ "${ADD_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
   [ "${BREW_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
   [ "${CORE_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
   [ "${NO_INSTALL_FROM_API+defined}" ] && echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
@@ -440,10 +462,10 @@ fi
   echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2
   EXPORT_PATH="auto"
 }
-[ -z "${USERS-}" ] && {
-  echo "ℹ️ Argument 'USERS' set to default value ''." >&2
-  USERS=""
-}
+: "${ADD_CURRENT_USER_CONFIG:=false}"
+: "${ADD_REMOTE_USER_CONFIG:=false}"
+: "${ADD_CONTAINER_USER_CONFIG:=false}"
+: "${ADD_USER_CONFIG:=}"
 [ -z "${BREW_GIT_REMOTE-}" ] && {
   echo "ℹ️ Argument 'BREW_GIT_REMOTE' set to default value ''." >&2
   BREW_GIT_REMOTE=""

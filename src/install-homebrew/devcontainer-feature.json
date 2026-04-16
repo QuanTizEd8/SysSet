@@ -1,6 +1,6 @@
 {
   "id": "install-homebrew",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "Install Homebrew",
   "description": "Installs Homebrew on macOS and Linux. Handles Xcode CLT (macOS) / build-tool dependencies (Linux), installs via the official installer, and exports brew shellenv to the appropriate shell startup files.",
   "documentationURL": "https://github.com/quantized8/sysset/tree/main/src/install-homebrew",
@@ -31,10 +31,25 @@
       "default": "auto",
       "description": "Controls which shell startup files receive 'eval \"$(brew shellenv)\"'.\n'auto' writes to all relevant system-wide files (root + Linux) or user-scoped files (macOS / non-root).\n'' (empty) skips all shell-env writes.\nNewline-separated list of absolute paths: writes only to those files.\n"
     },
-    "users": {
+    "add_current_user_config": {
+      "type": "boolean",
+      "default": false,
+      "description": "Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for shellenv exports and init-file writes.\nRoot is deferred: only included as a fallback when no other non-root user is resolved."
+    },
+    "add_remote_user_config": {
+      "type": "boolean",
+      "default": false,
+      "description": "Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for shellenv exports and init-file writes.\nIgnored when _REMOTE_USER is unset or empty. Root is excluded from this path."
+    },
+    "add_container_user_config": {
+      "type": "boolean",
+      "default": false,
+      "description": "Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for shellenv exports and init-file writes.\nIgnored when _CONTAINER_USER is unset or empty. Root is excluded from this path."
+    },
+    "add_user_config": {
       "type": "string",
       "default": "",
-      "description": "Comma-separated list of additional users whose shell startup files should receive 'eval \"$(brew shellenv)\"'.\nOnly applies when export_path is 'auto' or a path list.\n"
+      "description": "Comma-separated list of additional usernames to include in the resolved user list for shellenv exports and init-file writes.\nRoot is accepted here (unlike the auto-detected paths above)."
     },
     "brew_git_remote": {
       "type": "string",

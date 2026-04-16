@@ -80,7 +80,10 @@ framework calls `install.sh` automatically.
 | `if_exists` | string | `"skip"` | What to do when Homebrew is already installed. One of `skip`, `fail`, or `reinstall`. See [If already installed](#if-already-installed). |
 | `update` | boolean | `true` | Run `brew update` after installation to fetch the latest formula index. |
 | `export_path` | string | `"auto"` | Controls which shell startup files receive the shellenv block. See [shellenv export](#shellenv-export). |
-| `users` | string | `""` | Comma-separated list of additional users whose startup files should receive the shellenv block. Applies only when `export_path` is `auto` or a path list. |
+| `add_current_user_config` | boolean | `false` | Include the current user in the resolved user list for shellenv exports and init-file writes. Root is deferred: only included as a fallback when no other non-root user is resolved. |
+| `add_remote_user_config` | boolean | `false` | Include the devcontainer remoteUser (from `_REMOTE_USER`) in the resolved user list for shellenv exports and init-file writes. Ignored when `_REMOTE_USER` is unset or empty. Root is excluded. |
+| `add_container_user_config` | boolean | `false` | Include the devcontainer containerUser (from `_CONTAINER_USER`) in the resolved user list for shellenv exports and init-file writes. Ignored when `_CONTAINER_USER` is unset or empty. Root is excluded. |
+| `add_user_config` | string | `""` | Comma-separated list of additional usernames for shellenv exports and init-file writes. Root is accepted here. |
 | `brew_git_remote` | string | `""` | Override `HOMEBREW_BREW_GIT_REMOTE` — the git remote for the `Homebrew/brew` repository. Useful for mirrors or air-gapped environments. |
 | `core_git_remote` | string | `""` | Override `HOMEBREW_CORE_GIT_REMOTE` — the git remote for the `homebrew-core` tap. Useful for mirrors or air-gapped environments. |
 | `no_install_from_api` | boolean | `false` | Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation. Forces `homebrew-core` to be cloned as a full git repository instead of relying on the JSON API. Slower but useful when the API endpoint is blocked. |
