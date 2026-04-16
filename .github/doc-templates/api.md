@@ -47,9 +47,7 @@ curl -L https://... | bash -s -- --version 1.2.3 --install-path /opt/some-tool`
 
 ### Version Selection
 
-Describe how users can select the version of the tool to install, if applicable.
-If the version selection availability or behavior differs based on the installation method
-or other factors, make sure to clearly explain these differences and any important considerations for users when selecting versions.
+Describe how users can select the version of the tool to install, if applicable. If the version selection availability or behavior differs based on the installation method or other factors, make sure to clearly explain these differences and any important considerations for users when selecting versions.
 
 #### Usage Example
 
