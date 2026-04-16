@@ -19,7 +19,7 @@ check "pandas importable in myenv" /opt/conda/envs/myenv/bin/python -c 'import p
 # --- base env untouched ---
 check "base env still exists" test -d /opt/conda
 
-# --- conda cache cleaned (no_cache_clean=false by default) ---
+# --- conda cache cleaned (keep_cache=false by default) ---
 check "conda pkgs cache is small after clean" bash -c 'du -sh /opt/conda/pkgs 2>/dev/null; true'
 
 reportResults

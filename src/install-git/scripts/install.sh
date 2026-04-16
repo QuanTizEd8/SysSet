@@ -33,7 +33,7 @@ if [ "$#" -gt 0 ]; then
   LOGFILE=""
   MAKE_FLAGS=""
   METHOD=""
-  NO_CLEAN=""
+  KEEP_INSTALLER=""
   NO_FLAGS=""
   PREFIX=""
   SAFE_DIRECTORY=""
@@ -101,10 +101,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'method': '${METHOD}'" >&2
         shift
         ;;
-      --no_clean)
+      --keep_installer)
         shift
-        NO_CLEAN="$1"
-        echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
+        KEEP_INSTALLER="$1"
+        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
         shift
         ;;
       --no_flags)
@@ -194,7 +194,7 @@ else
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${MAKE_FLAGS+defined}" ] && echo "📩 Read argument 'make_flags': '${MAKE_FLAGS}'" >&2
   [ "${METHOD+defined}" ] && echo "📩 Read argument 'method': '${METHOD}'" >&2
-  [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
+  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${NO_FLAGS+defined}" ] && echo "📩 Read argument 'no_flags': '${NO_FLAGS}'" >&2
   [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${SAFE_DIRECTORY+defined}" ] && echo "📩 Read argument 'safe_directory': '${SAFE_DIRECTORY}'" >&2
@@ -220,7 +220,7 @@ fi
 [ -z "${LOGFILE-}" ] && LOGFILE=""
 [ -z "${MAKE_FLAGS-}" ] && MAKE_FLAGS=""
 [ -z "${METHOD-}" ] && METHOD="package"
-[ -z "${NO_CLEAN-}" ] && NO_CLEAN=false
+[ -z "${KEEP_INSTALLER-}" ] && KEEP_INSTALLER=false
 [ -z "${NO_FLAGS-}" ] && NO_FLAGS=""
 [ -z "${PREFIX-}" ] && PREFIX="auto"
 [ -z "${SAFE_DIRECTORY-}" ] && SAFE_DIRECTORY=""
@@ -598,9 +598,9 @@ _git__source_build() {
 }
 
 # _git__source_cleanup
-# Removes the build directory unless NO_CLEAN=true.
+# Removes the build directory unless KEEP_INSTALLER=true.
 _git__source_cleanup() {
-  if [ "${NO_CLEAN}" != "true" ]; then
+  if [ "${KEEP_INSTALLER}" != "true" ]; then
     rm -rf "${INSTALLER_DIR}"
   fi
   return 0

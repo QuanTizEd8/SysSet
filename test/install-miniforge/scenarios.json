@@ -53,7 +53,7 @@
             "install-miniforge": { "logfile": "/tmp/miniforge.log", "debug": true }
         }
     },
-    "no_clean": {
+    "keep_installer": {
         "image": "ubuntu:latest",
         "features": {
             "install-miniforge": { "keep_installer": true, "debug": true }

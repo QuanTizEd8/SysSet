@@ -467,7 +467,7 @@ Steps:
 6. Extract: `tar -xzf`
 7. Call `_git__source_build` → make + make install
 8. Call `_git__source_register` → register with package manager on Debian/Ubuntu (equivs dummy .deb)
-9. Call `_git__source_cleanup` → remove build dir unless `no_clean=true`
+9. Call `_git__source_cleanup` → remove build dir unless `keep_installer=true`
 10. Verify: `"${PREFIX}/bin/git" --version`
 
 ---
@@ -572,10 +572,10 @@ make -s ${_MAKE_FLAGS} ${MAKE_FLAGS} install
 
 ### `_git__source_cleanup`
 
-Removes the build directory unless `NO_CLEAN=true`.
+Removes the build directory unless `KEEP_INSTALLER=true`.
 
 ```bash
-if [ "${NO_CLEAN}" != true ]; then
+if [ "${KEEP_INSTALLER}" != true ]; then
   rm -rf "${INSTALLER_DIR}"
 fi
 ```
@@ -600,7 +600,7 @@ fi
    Section: misc
    Priority: optional
    Standards-Version: 3.9.2
-   
+
    Package: git
    Version: <_RESOLVED_VERSION>-equivs
    Maintainer: install-git-feature

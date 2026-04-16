@@ -56,7 +56,7 @@ check "conda env list shows base" /opt/conda/bin/conda env list
 check "conda info --base returns /opt/conda" bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
 check "conda list for base env succeeds" /opt/conda/bin/conda list -n base
 
-# --- no stray installer artifacts (no_clean=false by default) ---
+# --- no stray installer artifacts (keep_installer=false by default) ---
 check "installer dir cleaned up" bash -c '! test -f /tmp/miniforge-installer/*.sh 2>/dev/null'
 
 reportResults

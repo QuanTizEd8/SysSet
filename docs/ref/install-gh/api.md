@@ -24,7 +24,7 @@
 | `sign_commits` | string | `""` | Pre-configure commit signing in `~/.gitconfig`. `ssh`: sets `gpg.format=ssh` + `commit.gpgsign=true`. `gpg`: sets `commit.gpgsign=true` (default GPG format). `""`: no change. |
 | `git_hostname` | string | `github.com` | Hostname for the credential helper and SSH signing config. Used when `setup_git=true`. For GHES, set to e.g. `git.corp.example.com`. |
 | `installer_dir` | string | `/tmp/gh-install` | Temp directory for archive download and extraction. `method=binary` only. |
-| `no_clean` | boolean | `false` | Keep `installer_dir` after install. `method=binary` only. |
+| `keep_installer` | boolean | `false` | Keep `installer_dir` after install. `method=binary` only. |
 | `debug` | boolean | `false` | Enable `set -x` debug output. |
 | `logfile` | string | `""` | Append install log to this file path. |
 
@@ -217,7 +217,7 @@ Install the binary to a non-default location with a symlink at `/usr/local/bin/g
 "features": {
   "ghcr.io/quantized8/sysset/install-gh:0": {
     "method": "binary",
-    "no_clean": true,
+    "keep_installer": true,
     "installer_dir": "/tmp/gh-debug"
   }
 }

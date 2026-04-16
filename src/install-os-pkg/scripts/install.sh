@@ -65,7 +65,7 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
         shift
         ;;
-      --keep_cache | --no_clean)
+      --keep_cache)
         shift
         KEEP_CACHE=true
         echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
@@ -122,11 +122,6 @@ else
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
   [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
-  # Back-compat: honour NO_CLEAN env var (old name).
-  if [ "${NO_CLEAN+defined}" ] && [ -z "${KEEP_CACHE:-}" ]; then
-    KEEP_CACHE="${NO_CLEAN:-}"
-    echo "📩 Read argument 'no_clean' (env alias): '${KEEP_CACHE}'" >&2
-  fi
   [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
   # Back-compat: honour NO_UPDATE env var (old name, inverted).
   if [ "${NO_UPDATE+defined}" ] && [ -z "${UPDATE:-}" ]; then

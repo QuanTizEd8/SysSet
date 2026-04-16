@@ -288,7 +288,7 @@ echo "========================================" >&2
 # Step 1: Install dependencies
 # ===================================================================
 _PKG_MANIFEST="${_BASE_DIR}/dependencies/base.yaml"
-ospkg__run --manifest "$_PKG_MANIFEST" --check_installed --no_clean
+ospkg__run --manifest "$_PKG_MANIFEST" --check_installed --keep_cache
 
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then

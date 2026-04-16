@@ -134,13 +134,13 @@
             }
         }
     },
-    "no_cache_clean": {
+    "keep_cache": {
         "image": "condaforge/miniforge3",
         "features": {
             "install-conda-env": {
                 "env_name": "cleanenv",
                 "packages": "numpy",
-                "no_cache_clean": true,
+                "keep_cache": true,
                 "debug": true
             }
         }

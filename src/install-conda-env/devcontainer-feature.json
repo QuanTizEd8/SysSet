@@ -64,7 +64,7 @@
          "description": "Conda solver to use. 'auto' prefers mamba if available, falls back to conda.\nUse 'mamba' or 'conda' to force a specific solver.\n",
          "type": "string"
       },
-      "no_cache_clean": {
+      "keep_cache": {
          "default": false,
          "description": "Skip running 'conda clean' after all environments are set up.",
          "type": "boolean"

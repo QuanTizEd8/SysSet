@@ -11,7 +11,7 @@ The `lib/` directory contains reusable POSIX-compliant and Bash-specific files t
 |---|---|
 | `logging.sh` | `logging__setup` · `logging__cleanup` |
 | `os.sh` | `os__require_root` · `os__kernel` · `os__arch` · `os__id` · `os__id_like` · `os__platform` · `os__font_dir` |
-| `ospkg.sh` | `ospkg__detect` · `ospkg__install <pkg>...` · `ospkg__update` · `ospkg__clean` · `ospkg__run [--manifest <f>] [--check_installed] [--no_clean] [--no_update] [--dry_run]` |
+| `ospkg.sh` | `ospkg__detect` · `ospkg__install <pkg>...` · `ospkg__update` · `ospkg__clean` · `ospkg__run [--manifest <f>] [--check_installed] [--keep_cache] [--no_update] [--dry_run]` |
 | `net.sh` | `net__fetch_url_stdout <url>` · `net__fetch_url_file <url> <dest>` · `net__fetch_with_retry <n> <cmd...>` |
 | `git.sh` | `git__clone --url <url> --dir <dir> [--branch <branch>]` |
 | `shell.sh` | `shell__detect_bashrc` · `shell__detect_zshdir` · `shell__resolve_home <user>` · `shell__resolve_omz_theme` · `shell__plugin_names_from_slugs <csv>` · `shell__write_block` · `shell__remove_block` · `shell__export_path` · `shell__export_env` |

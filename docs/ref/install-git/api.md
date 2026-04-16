@@ -12,8 +12,8 @@
 | `version` | string | `"latest"` | `"latest"`: newest package/tag (including RCs for source). `"stable"`: distro package without PPA, or newest stable tag for source. A version string (e.g. `"2.47.2"`): specific version. |
 | `prefix` | string | `"auto"` | Source-build install prefix. `"auto"`: `/usr/local` as root, `$HOME/.local` as non-root. Explicit path validated for writeability. Ignored for `method=package`. |
 | `sysconfdir` | string | `"auto"` | Source-build sysconfdir. `"auto"`: `/etc` as root, `$HOME/.config` as non-root. Ignored for `method=package`. |
-| `installer_dir` | string | `"/tmp/git-build"` | Source-build working directory; removed after success unless `no_clean=true`. Ignored for `method=package`. |
-| `no_clean` | boolean | `false` | Keep `installer_dir` after a successful source build. Ignored for `method=package`. |
+| `installer_dir` | string | `"/tmp/git-build"` | Source-build working directory; removed after success unless `keep_installer=true`. Ignored for `method=package`. |
+| `keep_installer` | boolean | `false` | Keep `installer_dir` after a successful source build. Ignored for `method=package`. |
 | `no_flags` | string | `""` | Space-separated component flags to disable in source build (`perl`, `python`, `tcltk`, `gettext`). Ignored for `method=package`. |
 | `make_flags` | string | `""` | Additional `KEY=VALUE` pairs appended verbatim last to every `make` invocation for source builds. Overrides any computed flag. Ignored for `method=package`. |
 | `symlink` | boolean | `true` | Create `/usr/local/bin/git → ${PREFIX}/bin/git` when `prefix` resolves to a non-`/usr/local` path (source + root only). Ensures `containerEnv` PATH always resolves correctly. |
@@ -360,11 +360,11 @@ The old prefix is derived as `dirname(dirname(command -v git))` — e.g. `/usr/l
 
 ### Source-Only Options
 
-`prefix`, `sysconfdir`, `installer_dir`, `no_clean`, `no_flags`, `make_flags`, `shell_completions`, and `export_path` are silently ignored when `method=package`. `symlink` is also ignored for `method=package` (git lands in `/usr/bin` which is universally on PATH).
+`prefix`, `sysconfdir`, `installer_dir`, `keep_installer`, `no_flags`, `make_flags`, `shell_completions`, and `export_path` are silently ignored when `method=package`. `symlink` is also ignored for `method=package` (git lands in `/usr/bin` which is universally on PATH).
 
 - `prefix="auto"` — resolves to `/usr/local` (root) or `$HOME/.local` (non-root). Explicit paths are validated for writeability; the script exits with a clear error if the path cannot be created.
 - `sysconfdir="auto"` — resolves to `/etc` (root) or `$HOME/.config` (non-root). Controls where git reads its system-level `gitconfig`.
-- `installer_dir` — cleaned after a successful build; set `no_clean=true` to preserve for debugging.
+- `installer_dir` — cleaned after a successful build; set `keep_installer=true` to preserve for debugging.
 
 ### Non-root Source Builds
 

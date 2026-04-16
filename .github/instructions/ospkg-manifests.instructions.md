@@ -168,7 +168,7 @@ JSON is also accepted (and produced by `yq -o=json`). The same schema applies.
 |-----------------|---------------|---------|--------|
 | `--manifest <val>` | `manifest` | `""` | Path or inline manifest content |
 | `--no_update` | `update=false` | `true` | Skip package list refresh |
-| `--keep_cache` / `--no_clean` | `keep_cache` | `false` | Preserve PM cache after install |
+| `--keep_cache` | `keep_cache` | `false` | Preserve PM cache after install |
 | `--keep_repos` | `keep_repos` | `false` | Keep added repo files |
 | `--skip_installed` / `--check_installed` | `skip_installed` | `false` | Skip packages already in PATH |
 | `--prefer_linuxbrew` | `prefer_linuxbrew` | `false` | Use brew on Linux when available |

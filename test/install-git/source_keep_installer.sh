@@ -1,5 +1,5 @@
 #!/bin/bash
-# method=source, version=stable, no_clean=true: build directory preserved.
+# method=source, version=stable, keep_installer=true: build directory preserved.
 # Verifies git is installed and the installer_dir (/tmp/git-build by default)
 # is NOT removed after a successful build.
 set -e

@@ -1,5 +1,5 @@
 #!/bin/bash
-# method=binary, no_clean=true, installer_dir=/tmp/gh-debug:
+# method=binary, keep_installer=true, installer_dir=/tmp/gh-debug:
 # The downloaded archive and checksums file must remain in /tmp/gh-debug after install.
 set -e
 

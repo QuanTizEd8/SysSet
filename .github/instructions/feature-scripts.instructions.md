@@ -124,7 +124,7 @@ _LIB_MYMODULE_LOADED=1
 - `ospkg__install <pkg>...` — install one or more packages
 - `ospkg__update` — refresh package index
 - `ospkg__clean` — clean package caches
-- `ospkg__run [--manifest <file>] [--check_installed] [--no_clean] [--no_update] [--dry_run]` — full pipeline: update → install from manifest → clean
+- `ospkg__run [--manifest <file>] [--check_installed] [--keep_cache] [--no_update] [--dry_run]` — full pipeline: update → install from manifest → clean
 
 ### `net.sh` (auto-sourced by ospkg.sh)
 

@@ -24,7 +24,7 @@
             }
         }
     },
-    "apt_no_clean": {
+    "apt_keep_cache": {
         "build": {
             "dockerfile": "Dockerfile",
             "args": { "GITHUB_TOKEN": "${localEnv:GITHUB_TOKEN}" }

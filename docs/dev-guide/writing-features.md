@@ -388,7 +388,7 @@ echo "✅ my-feature setup complete." >&2
 ### Cleanup
 
 The `logging__cleanup` trap handles log flushing. If the feature installs OS
-packages using `ospkg__run --no_clean`, call `ospkg__clean` explicitly at the
+packages using `ospkg__run --keep_cache`, call `ospkg__clean` explicitly at the
 end before the success message, so the cache is cleared regardless of whether
 earlier steps succeeded:
 
@@ -437,12 +437,12 @@ repeated runs are fast.
   idempotency check (skips already-installed packages on APT/DNF). Use this
   for individual packages installed outside a manifest.
 
-When calling `ospkg__install` after `ospkg__run`, pass `--no_clean` to
+When calling `ospkg__install` after `ospkg__run`, pass `--keep_cache` to
 `ospkg__run` and call `ospkg__clean` once explicitly at the end, so that a
 single cache refresh covers all installs:
 
 ```bash
-ospkg__run --manifest "$_MANIFEST" --check_installed --no_clean
+ospkg__run --manifest "$_MANIFEST" --check_installed --keep_cache
 ospkg__install some-extra-package
 ospkg__clean
 ```
@@ -530,7 +530,7 @@ net__fetch_with_retry 3 curl \
 |---|---|---|
 | `--manifest <file-or-inline>` | `""` | Path to a manifest file, or inline content (detected when the value contains a newline). |
 | `--no_update` | false | Skip the package list refresh unconditionally. |
-| `--no_clean` | false | Skip the cache clean step (useful when more installs follow). |
+| `--keep_cache` | false | Skip the cache clean step (useful when more installs follow). |
 | `--keep_repos` | false | Keep repository drop-in files written by `repo` sections. |
 | `--lists_max_age <N>` | 300 | Seconds before a package list refresh is considered necessary. |
 | `--dry_run` | false | Print what would happen without making any changes. Root not required. |

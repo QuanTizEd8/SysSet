@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that when no_clean=true the feature skips cache cleanup, leaving
+# Verifies that when keep_cache=true the feature skips cache cleanup, leaving
 # /var/lib/apt/lists/ populated after the run.
 set -e
 

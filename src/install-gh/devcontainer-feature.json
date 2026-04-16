@@ -89,7 +89,7 @@
          "default": "/tmp/gh-install",
          "description": "Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here.\nRemoved automatically after a successful install unless keep_installer=true.\nIgnored when method=repos."
       },
-      "no_clean": {
+      "keep_installer": {
          "type": "boolean",
          "default": false,
          "description": "Keep the installer_dir after a successful install when method=binary.\nUseful for debugging or inspecting the extracted archive.\nIgnored when method=repos."

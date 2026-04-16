@@ -17,7 +17,7 @@ __usage__() {
   echo "  --pip_env (string): Conda env to pip-install requirements into (default: each env's own)." >&2
   echo "  --post_env_script (string): Script run after each env create/update; receives env name as \$1." >&2
   echo "  --solver (string): Solver to use: 'auto' (default), 'mamba', or 'conda'." >&2
-  echo "  --no_cache_clean (boolean): Skip 'conda clean' after setup." >&2
+  echo "  --keep_cache (boolean): Skip 'conda clean' after setup." >&2
   echo "  --debug (boolean): Enable debug output." >&2
   echo "  --logfile (string): Log all output to this file in addition to console." >&2
   exit 0
@@ -297,7 +297,7 @@ if [ "$#" -gt 0 ]; then
   ENV_FILES=()
   ENV_NAME=""
   LOGFILE=""
-  NO_CACHE_CLEAN=""
+  KEEP_CACHE=""
   PACKAGES=""
   PIP_ENV=""
   PIP_REQUIREMENTS_FILES=()
@@ -354,10 +354,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
         shift
         ;;
-      --no_cache_clean)
+      --keep_cache)
         shift
-        NO_CACHE_CLEAN=true
-        echo "📩 Read argument 'no_cache_clean': '${NO_CACHE_CLEAN}'" >&2
+        KEEP_CACHE=true
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
         ;;
       --packages)
         shift
@@ -455,7 +455,7 @@ else
   fi
   [ "${ENV_NAME+defined}" ] && echo "📩 Read argument 'env_name': '${ENV_NAME}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-  [ "${NO_CACHE_CLEAN+defined}" ] && echo "📩 Read argument 'no_cache_clean': '${NO_CACHE_CLEAN}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${PACKAGES+defined}" ] && echo "📩 Read argument 'packages': '${PACKAGES}'" >&2
   [ "${PIP_ENV+defined}" ] && echo "📩 Read argument 'pip_env': '${PIP_ENV}'" >&2
   if [ "${PIP_REQUIREMENTS_FILES+defined}" ]; then
@@ -516,9 +516,9 @@ done
   echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
   LOGFILE=""
 }
-[ -z "${NO_CACHE_CLEAN-}" ] && {
-  echo "ℹ️ Argument 'NO_CACHE_CLEAN' set to default value 'false'." >&2
-  NO_CACHE_CLEAN=false
+[ -z "${KEEP_CACHE-}" ] && {
+  echo "ℹ️ Argument 'KEEP_CACHE' set to default value 'false'." >&2
+  KEEP_CACHE=false
 }
 [ -z "${PACKAGES-}" ] && {
   echo "ℹ️ Argument 'PACKAGES' set to default value ''." >&2
@@ -564,7 +564,7 @@ resolve_solver
 apply_channels
 if [[ -n "$ENV_NAME" ]]; then setup_inline_env; fi
 if [[ ${#ENV_FILES[@]} -gt 0 || ${#ENV_DIRS[@]} -gt 0 ]]; then setup_environment; fi
-if [[ "$NO_CACHE_CLEAN" == false ]]; then
+if [[ "$KEEP_CACHE" == false ]]; then
   echo "🧹 Cleaning up conda cache." >&2
   "$SOLVER_EXEC" clean --all -y
 fi

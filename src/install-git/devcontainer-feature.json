@@ -29,9 +29,9 @@
       "installer_dir": {
          "type": "string",
          "default": "/tmp/git-build",
-         "description": "Working directory for the source build: tarball download, extraction, and compilation happen here.\nRemoved after a successful build unless no_clean=true.\nIgnored when method=package."
+         "description": "Working directory for the source build: tarball download, extraction, and compilation happen here.\nRemoved after a successful build unless keep_installer=true.\nIgnored when method=package."
       },
-      "no_clean": {
+      "keep_installer": {
          "type": "boolean",
          "default": false,
          "description": "Keep the source build directory (installer_dir) after a successful install.\nUseful for debugging build failures or inspecting the compiled binaries.\nIgnored when method=package."

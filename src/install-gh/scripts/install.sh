@@ -285,8 +285,8 @@ _gh__install_binary() {
     _gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"
   fi
 
-  # Cleanup (unless no_clean=true).
-  if [ "${NO_CLEAN}" != "true" ]; then
+  # Cleanup (unless keep_installer=true).
+  if [ "${KEEP_INSTALLER}" != "true" ]; then
     echo "🗑 Cleaning up installer directory '${INSTALLER_DIR}'..." >&2
     rm -rf "${INSTALLER_DIR}"
   fi
@@ -583,7 +583,7 @@ if [ "$#" -gt 0 ]; then
   INSTALLER_DIR=""
   LOGFILE=""
   METHOD=""
-  NO_CLEAN=""
+  KEEP_INSTALLER=""
   SETUP_GIT=""
   SIGN_COMMITS=""
   SYMLINK=""
@@ -674,10 +674,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'method': '${METHOD}'" >&2
         shift
         ;;
-      --no_clean)
+      --keep_installer)
         shift
-        NO_CLEAN="$1"
-        echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
+        KEEP_INSTALLER="$1"
+        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
         shift
         ;;
       --setup_git)
@@ -730,7 +730,7 @@ else
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${METHOD+defined}" ] && echo "📩 Read argument 'method': '${METHOD}'" >&2
-  [ "${NO_CLEAN+defined}" ] && echo "📩 Read argument 'no_clean': '${NO_CLEAN}'" >&2
+  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${SETUP_GIT+defined}" ] && echo "📩 Read argument 'setup_git': '${SETUP_GIT}'" >&2
   [ "${SIGN_COMMITS+defined}" ] && echo "📩 Read argument 'sign_commits': '${SIGN_COMMITS}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
@@ -754,7 +754,7 @@ fi
 [ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/gh-install"
 [ -z "${LOGFILE-}" ] && LOGFILE=""
 [ -z "${METHOD-}" ] && METHOD="repos"
-[ -z "${NO_CLEAN-}" ] && NO_CLEAN=false
+[ -z "${KEEP_INSTALLER-}" ] && KEEP_INSTALLER=false
 [ -z "${SETUP_GIT-}" ] && SETUP_GIT=false
 [ -z "${SIGN_COMMITS-}" ] && SIGN_COMMITS=""
 [ -z "${SYMLINK-}" ] && SYMLINK=true

@@ -172,7 +172,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
    install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${PREFIX}/bin/gh"
    ```
 8. If `SHELL_COMPLETIONS` is non-empty, call `_gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"`.
-9. If `NO_CLEAN ≠ true`, `rm -rf "${INSTALLER_DIR}"`.
+9. If `KEEP_INSTALLER ≠ true`, `rm -rf "${INSTALLER_DIR}"`.
 10. Verify: `"${PREFIX}/bin/gh" --version`.
 
 ### `_gh__create_symlink`
@@ -248,7 +248,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 3.  Dual-mode argument parsing (env vars vs --flags)
 4.  Apply defaults: VERSION=latest, METHOD=repos, PREFIX=/usr/local,
     SYMLINK=true, SHELL_COMPLETIONS="bash zsh", IF_EXISTS=skip, INSTALLER_DIR=/tmp/gh-install,
-    NO_CLEAN=false, EXTENSIONS="", GIT_PROTOCOL="", SETUP_GIT=false, SIGN_COMMITS="",
+    KEEP_INSTALLER=false, EXTENSIONS="", GIT_PROTOCOL="", SETUP_GIT=false, SIGN_COMMITS="",
     GIT_HOSTNAME=github.com, ADD_CURRENT_USER_CONFIG=true, ADD_REMOTE_USER_CONFIG=true,
     ADD_CONTAINER_USER_CONFIG=true, ADD_USER_CONFIG=""
 5.  [[ DEBUG == true ]] && set -x

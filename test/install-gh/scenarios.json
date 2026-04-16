@@ -171,12 +171,12 @@
             }
         }
     },
-    "no_clean": {
+    "keep_installer": {
         "image": "ubuntu:latest",
         "features": {
             "install-gh": {
                 "method": "binary",
-                "no_clean": true,
+                "keep_installer": true,
                 "installer_dir": "/tmp/gh-debug",
                 "debug": true
             }

@@ -754,12 +754,12 @@ end
 # repos → PM setup → update → install → casks → script → cleanup.
 #
 # Usage: ospkg__run [--manifest <file-or-inline>]
-#                   [--no_update]   [--no_clean]    [--check_installed]  (legacy)
+#                   [--no_update]   [--check_installed]  (legacy)
 #                   [--keep_cache]  [--skip_installed] [--prefer_linuxbrew] (new)
 #                   [--keep_repos] [--lists_max_age <N>] [--dry_run]
 #                   [--interactive]
 ospkg__run() {
-  local _manifest='' _no_update=false _no_clean=false _keep_repos=false
+  local _manifest='' _no_update=false _keep_cache=false _keep_repos=false
   local _lists_max_age=300 _dry_run=false _check_installed=false _interactive=false
   local _prefer_linuxbrew=false
 
@@ -774,9 +774,9 @@ ospkg__run() {
         shift
         _no_update=true
         ;;
-      --no_clean | --keep_cache)
+      --keep_cache)
         shift
-        _no_clean=true
+        _keep_cache=true
         ;;
       --keep_repos)
         shift
@@ -1259,10 +1259,10 @@ ospkg__run() {
   # ── Cache cleanup ─────────────────────────────────────────────────────────
   if [[ "$_dry_run" == true ]]; then
     echo "🔍 [dry-run] cache clean: would run ${_OSPKG_CLEAN}" >&2
-  elif [[ "$_no_clean" == false ]]; then
+  elif [[ "$_keep_cache" == false ]]; then
     ospkg__clean
   else
-    echo "ℹ️  Cache cleanup skipped (--keep_cache / --no_clean)." >&2
+    echo "ℹ️  Cache cleanup skipped (--keep_cache)." >&2
   fi
 
   return 0

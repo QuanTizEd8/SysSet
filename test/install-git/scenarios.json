@@ -25,7 +25,7 @@
                 "export_path": "/tmp/install-git-path.sh",
                 "symlink": false,
                 "shell_completions": "",
-                "no_clean": true,
+                "keep_installer": true,
                 "debug": true
             }
         }
@@ -101,13 +101,13 @@
             }
         }
     },
-    "source_no_clean": {
+    "source_keep_installer": {
         "image": "ubuntu:24.04",
         "features": {
             "install-git": {
                 "method": "source",
                 "version": "stable",
-                "no_clean": true,
+                "keep_installer": true,
                 "debug": true
             }
         }

@@ -155,7 +155,7 @@ Cross-distro package installer (`apt`, `dnf`, `zypper`, `pacman`, `apk`, `brew`)
   "check_installed": false,             // skip packages already in PATH
   "no_update": false,                   // skip apt-get update / dnf check-update
   "lists_max_age": "300",               // seconds before forcing a package list refresh
-  "no_clean": false,                    // keep package manager cache
+  "keep_cache": false,                    // keep package manager cache
   "keep_repos": false,                  // keep added repo files
   "dry_run": false,                     // print without installing
   "install_self": true                  // write /usr/local/bin/install-os-pkg wrapper
@@ -276,7 +276,7 @@ Create or update conda/mamba environments from YAML files, directory scans, or i
   "pip_requirements_files": "requirements.txt",
   "pip_env": "",
   "post_env_script": "",                                   // called with env name
-  "no_cache_clean": false
+  "keep_cache": false
 }
 ```
 
