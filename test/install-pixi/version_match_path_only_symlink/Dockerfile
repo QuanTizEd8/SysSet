@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 # Pre-install pixi 0.41.0 only on PATH (/usr/bin), not at the feature's
-# requested BIN_DIR, so the version-match shortcut must not treat the requested
+# requested PREFIX, so the version-match shortcut must not treat the requested
 # install target as already satisfied.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates bash \

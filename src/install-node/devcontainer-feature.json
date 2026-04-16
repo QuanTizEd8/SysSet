@@ -2,12 +2,12 @@
    "id": "install-node",
    "version": "1.0.0",
    "name": "Node.js",
-   "description": "Install Node.js and npm in the development container.\n\nTwo methods are supported, selected by the 'method' option:\n\n'nvm' (default) — installs the Node Version Manager (nvm) to 'nvm_dir' and uses it to install the requested Node.js version. Supports Linux (glibc and musl/Alpine), macOS, and any POSIX platform. On Alpine Linux, Node.js is compiled from source automatically when the '-s' flag is used (build dependencies are installed from the apk manifest). Node.js binaries are symlinked to /usr/local/bin (when running as root and symlink=true) for universal PATH availability.\n\n'binary' — downloads the official prebuilt Node.js tarball from nodejs.org/dist and extracts it to 'install_prefix'. Fast and dependency-free. Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64); NOT compatible with Alpine Linux (musl). Integrity is verified against SHASUMS256.txt via SHA-256.\n\nVersion selection supports nvm-style aliases ('lts/*', '--lts', major number) for both methods, and exact semver strings. The default 'lts/*' installs the latest Active LTS release.",
+   "description": "Install Node.js and npm in the development container.\n\nTwo methods are supported, selected by the 'method' option:\n\n'nvm' (default) — installs the Node Version Manager (nvm) to 'nvm_dir' and uses it to install the requested Node.js version. Supports Linux (glibc and musl/Alpine), macOS, and any POSIX platform. On Alpine Linux, Node.js is compiled from source automatically when the '-s' flag is used (build dependencies are installed from the apk manifest). Node.js binaries are symlinked to /usr/local/bin (when running as root and symlink=true) for universal PATH availability.\n\n'binary' — downloads the official prebuilt Node.js tarball from nodejs.org/dist and extracts it to 'prefix'. Fast and dependency-free. Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64); NOT compatible with Alpine Linux (musl). Integrity is verified against SHASUMS256.txt via SHA-256.\n\nVersion selection supports nvm-style aliases ('lts/*', '--lts', major number) for both methods, and exact semver strings. The default 'lts/*' installs the latest Active LTS release.",
    "options": {
       "method": {
          "type": "string",
          "default": "nvm",
-         "description": "Installation method.\n'nvm' (default) — install via nvm (Node Version Manager). Installs nvm itself to 'nvm_dir', then uses it to install the requested Node.js version. Supports all platforms including Alpine (via source compilation with 'nvm install -s'). The nvm shell function is available after sourcing '$nvm_dir/nvm.sh'; node/npm/npx binaries are symlinked to /usr/local/bin.\n'binary' — download and extract the official prebuilt Node.js tarball from nodejs.org/dist to 'install_prefix'. No nvm overhead. Does NOT support Alpine Linux (glibc-only binaries). Exits with a clear error on Alpine; use method=nvm instead.",
+         "description": "Installation method.\n'nvm' (default) — install via nvm (Node Version Manager). Installs nvm itself to 'nvm_dir', then uses it to install the requested Node.js version. Supports all platforms including Alpine (via source compilation with 'nvm install -s'). The nvm shell function is available after sourcing '$nvm_dir/nvm.sh'; node/npm/npx binaries are symlinked to /usr/local/bin.\n'binary' — download and extract the official prebuilt Node.js tarball from nodejs.org/dist to 'prefix'. No nvm overhead. Does NOT support Alpine Linux (glibc-only binaries). Exits with a clear error on Alpine; use method=nvm instead.",
          "enum": ["nvm", "binary"]
       },
       "version": {
@@ -33,10 +33,10 @@
          "default": "/usr/local/share/nvm",
          "description": "Directory where nvm is installed ($NVM_DIR). Only used when method=nvm.\nDefault: '/usr/local/share/nvm' — system-wide location suitable for root installs in containers.\nMay be set to any writable absolute path, e.g. '/opt/nvm' or a user-specific path like '/home/user/.nvm'.\nWhen this differs from '/usr/local/share/nvm' (the containerEnv NVM_DIR value) and symlink=true, a symlink is created from '/usr/local/share/nvm' to the actual nvm_dir, keeping the containerEnv value valid without any extra configuration."
       },
-      "install_prefix": {
+      "prefix": {
          "type": "string",
          "default": "auto",
-         "description": "Installation prefix for method=binary (Node.js binaries land in $install_prefix/bin). Only used when method=binary.\n'auto' (default) — resolves to /usr/local when running as root, or $HOME/.local when running as non-root.\nAn explicit absolute path (e.g. '/opt/node') — used as-is; the script exits with an error if the path is not writable and cannot be created."
+         "description": "Installation prefix for method=binary (Node.js binaries land in $prefix/bin). Only used when method=binary.\n'auto' (default) — resolves to /usr/local when running as root, or $HOME/.local when running as non-root.\nAn explicit absolute path (e.g. '/opt/node') — used as-is; the script exits with an error if the path is not writable and cannot be created."
       },
       "arch": {
          "type": "string",
@@ -57,7 +57,7 @@
       "export_path": {
          "type": "string",
          "default": "auto",
-         "description": "Controls which shell startup files receive PATH export blocks for the Node.js binary directory.\n'auto' (default) — as root, writes to all system-wide shell startup files: /etc/environment (BASH_ENV and PATH), /etc/profile.d/install-node.sh (login shells), the system-wide bashrc (non-login interactive bash), and the zsh env file (zshenv). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.\n'' (empty string) — skips all PATH writes (e.g. when install_prefix=/usr/local which is already on PATH, or when using symlinks only).\nA newline-separated list of absolute file paths — writes only to those specific files."
+         "description": "Controls which shell startup files receive PATH export blocks for the Node.js binary directory.\n'auto' (default) — as root, writes to all system-wide shell startup files: /etc/environment (BASH_ENV and PATH), /etc/profile.d/install-node.sh (login shells), the system-wide bashrc (non-login interactive bash), and the zsh env file (zshenv). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.\n'' (empty string) — skips all PATH writes (e.g. when prefix=/usr/local which is already on PATH, or when using symlinks only).\nA newline-separated list of absolute file paths — writes only to those specific files."
       },
       "users": {
          "type": "string",
@@ -77,7 +77,7 @@
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation (root only).\n\nFor method=nvm:\n  - The feature sets NVM_SYMLINK_CURRENT=true (both in containerEnv and during install), which causes nvm to maintain a '$NVM_DIR/current' symlink always pointing to the active Node.js version. The containerEnv PATH includes '$NVM_DIR/current/bin', so 'nvm use' version switching works automatically for all container processes.\n  - When nvm_dir differs from '/usr/local/share/nvm' (the containerEnv NVM_DIR value), creates a directory symlink /usr/local/share/nvm -> nvm_dir so that both containerEnv.NVM_DIR and the PATH entry remain valid without extra user configuration.\n\nFor method=binary:\n  - Symlinks node, npm, npx, and corepack from $install_prefix/bin/ into /usr/local/bin only when install_prefix resolves to something other than /usr/local (otherwise they are already in /usr/local/bin).\n\nNo-op when running as non-root (cannot write to /usr/local/share or /usr/local/bin)."
+         "description": "Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation (root only).\n\nFor method=nvm:\n  - The feature sets NVM_SYMLINK_CURRENT=true (both in containerEnv and during install), which causes nvm to maintain a '$NVM_DIR/current' symlink always pointing to the active Node.js version. The containerEnv PATH includes '$NVM_DIR/current/bin', so 'nvm use' version switching works automatically for all container processes.\n  - When nvm_dir differs from '/usr/local/share/nvm' (the containerEnv NVM_DIR value), creates a directory symlink /usr/local/share/nvm -> nvm_dir so that both containerEnv.NVM_DIR and the PATH entry remain valid without extra user configuration.\n\nFor method=binary:\n  - Symlinks node, npm, npx, and corepack from $prefix/bin/ into /usr/local/bin only when prefix resolves to something other than /usr/local (otherwise they are already in /usr/local/bin).\n\nNo-op when running as non-root (cannot write to /usr/local/share or /usr/local/bin)."
       },
       "node_gyp_deps": {
          "type": "boolean",

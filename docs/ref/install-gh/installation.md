@@ -264,7 +264,7 @@ installation strategy is **two methods**:
 
 **2. `method=binary` (recommended for exact version pinning on all platforms):** Downloads the pre-built binary
 from GitHub Releases (`github.com/cli/cli/releases`), verifies SHA-256 against `gh_<ver>_checksums.txt`, and
-installs the `gh` binary to a configurable `install_path`. Because the Linux binaries are built with
+installs the `gh` binary to `$prefix/bin/gh`. Because the Linux binaries are built with
 `CGO_ENABLED=0` (confirmed in `.goreleaser.yml`), they are fully static Go executables that run without
 dependencies on any Linux distribution, including Alpine/musl. macOS binaries (zip) are also supported. Shell
 completions from the archive are optionally installed. This method is slightly more maintenance-intensive:

@@ -7,7 +7,7 @@
 Install Node.js and npm in the development container. Two methods are supported, selected by the `method` option:
 
 - **`nvm`** (default) — installs the Node Version Manager (nvm) to `nvm_dir` and uses it to install the requested Node.js version. Supports Linux (glibc and musl/Alpine), macOS, and any POSIX platform.
-- **`binary`** — downloads the official prebuilt Node.js tarball from `nodejs.org/dist` and extracts it to `install_prefix`. Fast and dependency-free. NOT compatible with Alpine Linux (musl).
+- **`binary`** — downloads the official prebuilt Node.js tarball from `nodejs.org/dist` and extracts it to `prefix`. Fast and dependency-free. NOT compatible with Alpine Linux (musl).
 
 ## Options
 
@@ -18,7 +18,7 @@ Install Node.js and npm in the development container. Two methods are supported,
 | `additional_versions` | string | `""` | Comma-separated extra Node.js versions to install via nvm (not set as default). `method=nvm` only. |
 | `nvm_version` | string (proposals) | `"latest"` | nvm version to install (`method=nvm` only). |
 | `nvm_dir` | string | `"/usr/local/share/nvm"` | nvm installation directory (`method=nvm` only). |
-| `install_prefix` | string | `"auto"` | Installation prefix for binaries (`method=binary` only). |
+| `prefix` | string | `"auto"` | Installation prefix for binaries (`method=binary` only). |
 | `arch` | string | `""` | Override CPU architecture for binary selection (`method=binary` only). |
 | `installer_dir` | string | `"/tmp/node-installer"` | Temp directory for downloads. |
 | `if_exists` | string (enum) | `"skip"` | Behavior when node already exists: `"skip"`, `"fail"`, or `"reinstall"`. |
@@ -26,7 +26,7 @@ Install Node.js and npm in the development container. Two methods are supported,
 | `users` | string | `""` | Users for group membership (nvm) and per-user shell RC PATH writes. |
 | `set_permissions` | boolean | `true` | Create nvm group, set group-write/setgid on `nvm_dir`, run installer as user (`method=nvm` only). |
 | `group` | string | `"nvm"` | Group name for nvm directory ownership (`method=nvm`, `set_permissions=true`). |
-| `symlink` | boolean | `true` | For nvm: creates a bridge symlink `/usr/local/share/nvm → nvm_dir` so that `containerEnv.NVM_DIR` and `containerEnv.PATH` stay valid when `nvm_dir` is set to a non-default path. `NVM_SYMLINK_CURRENT=true` is always enabled regardless of this option. For binary: creates symlinks for `node`, `npm`, `npx`, `corepack` in `/usr/local/bin` when `install_prefix` is not `/usr/local`. Root only. |
+| `symlink` | boolean | `true` | For nvm: creates a bridge symlink `/usr/local/share/nvm → nvm_dir` so that `containerEnv.NVM_DIR` and `containerEnv.PATH` stay valid when `nvm_dir` is set to a non-default path. `NVM_SYMLINK_CURRENT=true` is always enabled regardless of this option. For binary: creates symlinks for `node`, `npm`, `npx`, `corepack` in `/usr/local/bin` when `prefix` is not `/usr/local`. Root only. |
 | `node_gyp_deps` | boolean | `true` | Install `make`, `gcc`/`g++`, `python3` for compiling native modules (node-gyp). |
 | `pnpm_version` | string (proposals) | `"none"` | pnpm version to install globally (`"none"` to skip, `"latest"`, or explicit version). |
 | `yarn_version` | string (proposals) | `"none"` | Yarn version to install globally (`"none"` to skip, `"latest"` via corepack, or explicit version). |
@@ -141,7 +141,7 @@ Install the Node.js binary to `/opt/node` with a symlink in `/usr/local/bin`:
     "ghcr.io/quantized8/sysset/install-node:1": {
       "method": "binary",
       "version": "24",
-      "install_prefix": "/opt/node",
+      "prefix": "/opt/node",
       "symlink": true
     }
   }
@@ -297,8 +297,8 @@ Install nvm without installing any Node.js version — useful when a `.nvmrc` or
 - The snippet sources `$NVM_DIR/nvm.sh`, which activates the `nvm` command and sets `PATH` to the currently active version's bin directory via the `current` symlink. This means `nvm use <version>` immediately switches the active version in all new shell sessions — no PATH hardcoding.
 
 **`method=binary`:**
-- When `install_prefix=auto` (→ `/usr/local`): binaries land in `/usr/local/bin`, which is universally on PATH. No PATH writes are needed; `containerEnv.PATH` covers the container.
-- When `install_prefix` is a custom path: `export_path=auto` writes `export PATH="<prefix>/bin:${PATH}"` to the same system-wide files listed above, ensuring availability in all contexts.
+- When `prefix=auto` (→ `/usr/local`): binaries land in `/usr/local/bin`, which is universally on PATH. No PATH writes are needed; `containerEnv.PATH` covers the container.
+- When `prefix` is a custom path: `export_path=auto` writes `export PATH="<prefix>/bin:${PATH}"` to the same system-wide files listed above, ensuring availability in all contexts.
 
 ### NVM_SYMLINK_CURRENT and Version Switching
 
@@ -401,7 +401,7 @@ When using `method=nvm`, the nvm install script is downloaded from a pinned tagg
 | `""` (empty) | Skip all PATH/shell writes. |
 | Newline-separated absolute paths | Write only to the listed files. |
 
-With `method=binary` and `install_prefix=auto` (resolving to `/usr/local`) and `symlink=true`, the binaries already land in `/usr/local/bin` which is universally on PATH. In this case, `export_path=""` is redundant but safe — the `containerEnv.PATH` entry covers all container processes.
+With `method=binary` and `prefix=auto` (resolving to `/usr/local`) and `symlink=true`, the binaries already land in `/usr/local/bin` which is universally on PATH. In this case, `export_path=""` is redundant but safe — the `containerEnv.PATH` entry covers all container processes.
 
 ### Shell Initialization for nvm (Bare-Metal and Non-Container Use)
 

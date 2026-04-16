@@ -142,7 +142,7 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
 - **Spec:**
   1. Fail immediately if on Alpine: `[ "$(os__platform)" = "alpine" ] && echo "⛔ ..." >&2 && return 1`
   2. Build platform string: call `_node_build_platform_string`
-  3. Resolve `install_prefix` if `"auto"`: `/usr/local` (root is guaranteed by `os__require_root` at script entry).
+  3. Resolve `prefix` if `"auto"`: `/usr/local` (root is guaranteed by `os__require_root` at script entry).
   4. Download index.json if not already resolved: if `$_NODE_VERSION` is already set (resolved during the pre-install check — see script structure), skip to step 6. Otherwise, download `https://nodejs.org/dist/index.json` to `${INSTALLER_DIR}/index.json`.
   5. Resolve exact version if not already set: call `_node_resolve_binary_version "${VERSION}" "${INSTALLER_DIR}/index.json"` → stored in `_NODE_VERSION` (e.g. `v24.11.1`).
   6. Build tarball filename: `node-${_NODE_VERSION}-${PLATFORM}.tar.xz`
@@ -150,9 +150,9 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
   8. Download checksums: `net__fetch_url_file "https://nodejs.org/dist/${_NODE_VERSION}/SHASUMS256.txt" "${INSTALLER_DIR}/SHASUMS256.txt"`
   9. Extract expected hash: `_hash=$(grep "  ${TARBALL}$" "${INSTALLER_DIR}/SHASUMS256.txt" | awk '{print $1}')`; exit 1 with error if empty. Note: the format is `{sha256hex}  {filename}` — two spaces between hash and filename.
   10. Verify: `checksum__verify_sha256 "${INSTALLER_DIR}/${TARBALL}" "$_hash"`
-  11. Create prefix: `mkdir -p "${INSTALL_PREFIX}"`
-  12. Extract: `tar -xJf "${INSTALLER_DIR}/${TARBALL}" --strip-components=1 -C "${INSTALL_PREFIX}"`
-  13. Return `_NODE_VERSION` and `INSTALL_PREFIX` to caller. (Cleanup of `$INSTALLER_DIR` is handled by the EXIT trap — do not clean up inline here.)
+  11. Create prefix: `mkdir -p "${PREFIX}"`
+  12. Extract: `tar -xJf "${INSTALLER_DIR}/${TARBALL}" --strip-components=1 -C "${PREFIX}"`
+  13. Return `_NODE_VERSION` and `PREFIX` to caller. (Cleanup of `$INSTALLER_DIR` is handled by the EXIT trap — do not clean up inline here.)
 
 ---
 
@@ -164,8 +164,8 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
   - Only runs when running as root (`id -u` = 0) and `SYMLINK=true`.
   - **`method=nvm` — `current` symlink:** nvm creates and maintains `$NVM_DIR/current -> $NVM_DIR/versions/node/$_NODE_VERSION` automatically when `NVM_SYMLINK_CURRENT=true` is exported before install. The installer does NOT create per-binary symlinks to `/usr/local/bin` for the primary version — `containerEnv.PATH` references `$NVM_DIR/current/bin` directly.
   - **`method=nvm` — NVM_DIR bridge symlink:** If `NVM_DIR` (the actual install dir) differs from `/usr/local/share/nvm` (the `containerEnv.NVM_DIR` value), create: `ln -sf "$NVM_DIR" /usr/local/share/nvm`. This makes `containerEnv.NVM_DIR` and `containerEnv.PATH=/usr/local/share/nvm/current/bin:...` always resolve to the real nvm directory.
-  - **`method=binary` with `INSTALL_PREFIX=/usr/local`:** no-op for binary symlinks (binaries already in `/usr/local/bin`).
-  - **`method=binary` with other prefix:** Source directory is `$INSTALL_PREFIX/bin/`. For each binary in `node npm npx corepack`: if the source file exists, create `ln -sf <src> /usr/local/bin/<binary>`.
+  - **`method=binary` with `PREFIX=/usr/local`:** no-op for binary symlinks (binaries already in `/usr/local/bin`).
+  - **`method=binary` with other prefix:** Source directory is `$PREFIX/bin/`. For each binary in `node npm npx corepack`: if the source file exists, create `ln -sf <src> /usr/local/bin/<binary>`.
   - Log each symlink created.
 
 ---
@@ -177,15 +177,15 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
 - **Spec:**
   - If `EXPORT_PATH=""`: skip all writes immediately (`return 0`).
   - **`method=nvm`:** Call `_node_write_nvm_rc` (see below). Do NOT write a hardcoded versioned bin path — the nvm init snippet (which sources `$NVM_DIR/nvm.sh` and sets `NVM_SYMLINK_CURRENT=true`) is the only correct approach, because version-specific paths become stale after `nvm use`.
-  - **`method=binary` + `INSTALL_PREFIX=/usr/local`:** Skip (binaries already land in `/usr/local/bin`, which is universally on PATH; `containerEnv.PATH` covers container processes).
-  - **`method=binary` + other prefix:** Write `export PATH="${INSTALL_PREFIX}/bin:${PATH}"` using:
+  - **`method=binary` + `PREFIX=/usr/local`:** Skip (binaries already land in `/usr/local/bin`, which is universally on PATH; `containerEnv.PATH` covers container processes).
+  - **`method=binary` + other prefix:** Write `export PATH="${PREFIX}/bin:${PATH}"` using:
     - Determine target file list:
       - If `EXPORT_PATH != "auto"`: use `EXPORT_PATH` directly as the file list.
       - Otherwise: `_files="$(shell__system_path_files --profile_d 'node_path.sh')"`. This automatically includes the BASH_ENV file (covers non-interactive Docker `RUN` steps via `/etc/environment`), `/etc/profile.d/node_path.sh` (login shells), system bashrc (non-login interactive bash), and `<zshdir>/zshenv` (all zsh sessions). Root is guaranteed by `os__require_root` at script entry.
-    - Call `shell__sync_block --files "$_files" --marker "node PATH (install-node)" --content 'export PATH="<INSTALL_PREFIX>/bin:${PATH}"'`.
+    - Call `shell__sync_block --files "$_files" --marker "node PATH (install-node)" --content 'export PATH="<PREFIX>/bin:${PATH}"'`.
   - **Per-user writes (both methods):** After system-wide writes, if `_USERS_ARR` is non-empty (resolved earlier in the script), for each user obtain their home directory via `shell__resolve_home "$u"`. Per-user writes always run regardless of whether `EXPORT_PATH` is `"auto"` or an explicit file list (as long as `EXPORT_PATH ≠ ""`). Then:
     - For `method=nvm`: call `_node_write_nvm_rc` for each user's home directory (writes per-user nvm init snippet).
-    - For `method=binary` with non-`/usr/local` prefix: call `shell__sync_block --files "$(shell__user_path_files --home "$_home")" --marker "node PATH (install-node)" --content 'export PATH="<INSTALL_PREFIX>/bin:${PATH}"'` for each user.
+    - For `method=binary` with non-`/usr/local` prefix: call `shell__sync_block --files "$(shell__user_path_files --home "$_home")" --marker "node PATH (install-node)" --content 'export PATH="<PREFIX>/bin:${PATH}"'` for each user.
   - **`VERSION=none` guard:** when `VERSION=none`, `_NODE_VERSION` is empty. For `method=nvm`, `_node_write_nvm_rc` should still write the nvm init snippet (so that `nvm` is available to users for subsequent `nvm install` calls even when no version was installed now).
 
 ---
@@ -229,7 +229,7 @@ The `install-node` installer script is a pure orchestrator: it parses arguments,
   - Requires npm to be available: `command -v npm >/dev/null || { echo "⛔ npm not found" >&2; return 1; }`
   - **Branching by method:**
     - `method=nvm`: source nvm and run as the nvm user: `su "$_NVM_USER" -c ". '$NVM_DIR/nvm.sh' && npm install -g 'pnpm@${PNPM_VERSION}'"`.
-    - `method=binary`: npm is already on `PATH` (in `$INSTALL_PREFIX/bin` or `/usr/local/bin`); run directly: `npm install -g "pnpm@${PNPM_VERSION}"`.
+    - `method=binary`: npm is already on `PATH` (in `$PREFIX/bin` or `/usr/local/bin`); run directly: `npm install -g "pnpm@${PNPM_VERSION}"`.
   - Verify: `pnpm --version`.
 
 ---
@@ -440,7 +440,7 @@ scripts/install.sh
 
 **Cleanup trap:** Both `rm -rf "$INSTALLER_DIR"` and `nvm clear-cache` (for nvm method) should be registered in the EXIT trap, not called inline. This ensures cleanup happens even if the installer exits with an error. The pattern from other features is: `trap '__cleanup__' EXIT` where `__cleanup__` removes the installer dir and performs method-specific cleanup. `nvm clear-cache` should be guarded with `|| true` since it is non-critical.
 
-**`additional_versions` for `method=binary`:** The binary install method does not support installing multiple Node.js versions side-by-side (there is only one `$INSTALL_PREFIX`). If `ADDITIONAL_VERSIONS` is non-empty and `METHOD=binary`, `_node_install_via_nvm` step 15 emits a warning and skips. The guard should also appear in the script structure's main logic section by only calling the additional_versions logic when `METHOD=nvm`.
+**`additional_versions` for `method=binary`:** The binary install method does not support installing multiple Node.js versions side-by-side (there is only one `$PREFIX`). If `ADDITIONAL_VERSIONS` is non-empty and `METHOD=binary`, `_node_install_via_nvm` step 15 emits a warning and skips. The guard should also appear in the script structure's main logic section by only calling the additional_versions logic when `METHOD=nvm`.
 
 **Alpine version constraints:** The nvm README notes version upper bounds per Alpine version (e.g., Alpine 3.5 supports up to Node v6.9.5). The installer does NOT enforce these limits; if `method=nvm` on Alpine results in a build failure for too-new a version, the user will see the nvm compilation error. A warning can be emitted suggesting the user upgrade their Alpine base image.
 

@@ -1,7 +1,7 @@
 #!/bin/bash
-# bin_dir=/opt/myforge, symlink=true:
+# prefix=/opt/myforge, symlink=true:
 # A symlink /opt/conda -> /opt/myforge must be created so that containerEnv
-# PATH coverage works via /opt/conda/bin even with a custom bin_dir.
+# PATH coverage works via /opt/conda/bin even with a custom prefix.
 set -e
 
 source dev-container-features-test-lib

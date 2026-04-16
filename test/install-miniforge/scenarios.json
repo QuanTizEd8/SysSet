@@ -10,7 +10,7 @@
     "custom_bin_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false, "debug": true }
+            "install-miniforge": { "prefix": "/opt/myforge", "symlink": false, "debug": true }
         }
     },
     "specific_version": {
@@ -108,13 +108,13 @@
     "export_path_custom_dir": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false, "debug": true }
+            "install-miniforge": { "prefix": "/opt/myforge", "symlink": false, "debug": true }
         }
     },
     "export_path_symlink": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": true, "debug": true }
+            "install-miniforge": { "prefix": "/opt/myforge", "symlink": true, "debug": true }
         }
     },
     "export_path_disabled": {
@@ -132,7 +132,7 @@
     "export_path_idempotency": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "bin_dir": "/opt/myforge", "symlink": false, "debug": true }
+            "install-miniforge": { "prefix": "/opt/myforge", "symlink": false, "debug": true }
         }
     },
     "latest_version": {

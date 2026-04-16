@@ -3,7 +3,7 @@
 ## Summary
 
 The installer downloads a pre-built static binary from GitHub Releases, verifies it
-against a `.tar.gz.sha256` sidecar file, extracts it to `BIN_DIR`, and optionally updates
+against a `.tar.gz.sha256` sidecar file, extracts it to `$PREFIX/bin`, and optionally updates
 shell startup files for PATH and completion. It follows the same structural patterns
 as `src/install-miniforge/scripts/install.sh`.
 
@@ -86,17 +86,17 @@ checksums, shell config writes, OS packages, and logging.
 - **Inputs (globals):** `KEEP_INSTALLER`, `ARCHIVE` (path), `SIDECAR` (path), `INSTALLER_DIR`.
 
 ### `resolve_bin_dir`
-- **Responsibility:** Resolves `BIN_DIR` from `"auto"` to a concrete path, storing the result back in `BIN_DIR`.
-  - `"auto"` → `/usr/local/bin` when `$(id -u) = 0`, or `$HOME/.pixi/bin` when non-root.
-  - `""` (empty) → `$HOME/.pixi/bin` (upstream default, regardless of current user).
+- **Responsibility:** Resolves `PREFIX` from `"auto"` to a concrete path, storing the result back in `PREFIX`.
+  - `"auto"` → `/usr/local` when `$(id -u) = 0`, or `$HOME/.pixi` when non-root.
+  - `""` (empty) → `$HOME/.pixi` (upstream default, regardless of current user).
   - Any other value → used as-is.
-- **Inputs (globals):** `BIN_DIR`.
-- **Outputs (globals):** `BIN_DIR` (resolved absolute path).
+- **Inputs (globals):** `PREFIX`.
+- **Outputs (globals):** `PREFIX` (resolved absolute path).
 - **Notes:** Must be called before `check_root_requirement` and before any path-based logic.
 
 ### `check_root_requirement`
-- **Responsibility:** If `BIN_DIR` is under a system prefix (`/opt/`, `/usr/`, `/var/`, `/srv/`, `/snap/`), call `os__require_root`. Otherwise log that root is not required and proceed.
-- **Inputs (globals):** `BIN_DIR`.
+- **Responsibility:** If `PREFIX` is under a system prefix (`/opt/`, `/usr/`, `/var/`, `/srv/`, `/snap/`), call `os__require_root`. Otherwise log that root is not required and proceed.
+- **Inputs (globals):** `PREFIX`.
 
 ### `resolve_pixi_version`
 - **Responsibility:** Resolves `VERSION` to a bare `X.Y.Z` string (no `v` prefix) stored back in `VERSION`.
@@ -144,64 +144,64 @@ checksums, shell config writes, OS packages, and logging.
 
 ### `get_installed_version`
 - **Responsibility:** Prints the currently installed pixi version as a bare semver string, or empty string if not found.
-  - Runs `"$BIN_DIR/pixi" --version 2>/dev/null` and extracts the `X.Y.Z` portion with `awk`/`sed`.
-  - Falls back to `command -v pixi` if `$BIN_DIR/pixi` is absent.
-- **Inputs (globals):** `BIN_DIR`.
+  - Runs `"$PREFIX/bin/pixi" --version 2>/dev/null` and extracts the `X.Y.Z` portion with `awk`/`sed`.
+  - Falls back to `command -v pixi` if `$PREFIX/bin/pixi` is absent.
+- **Inputs (globals):** `PREFIX`.
 - **Outputs:** echoes version string to stdout.
 
 ### `handle_if_exists`
-- **Responsibility:** Implements the `IF_EXISTS` policy when a pixi binary already exists at `$BIN_DIR/pixi`.
+- **Responsibility:** Implements the `IF_EXISTS` policy when a pixi binary already exists at `$PREFIX/bin/pixi`.
   - `skip`      — logs warning, sets `_SKIP_INSTALL=true`, continues to post-install.
   - `fail`      — prints error, exits 1.
-  - `uninstall` — removes `$BIN_DIR/pixi`, then proceeds to download + install.
+  - `uninstall` — removes `$PREFIX/bin/pixi`, then proceeds to download + install.
   - `update`    — runs `update_pixi`, sets `_SKIP_INSTALL=true`, continues to post-install.
   - Version-match idempotency is implemented in `main` **before** calling `handle_if_exists`: if the installed version already matches `VERSION`, the install is skipped entirely without entering `handle_if_exists`.
-- **Inputs (globals):** `BIN_DIR`, `IF_EXISTS`, `VERSION`.
+- **Inputs (globals):** `PREFIX`, `IF_EXISTS`, `VERSION`.
 - **Outputs (globals):** `_SKIP_INSTALL` (boolean string `true`/`false`).
 
 ### `update_pixi`
 - **Responsibility:** Runs `pixi self-update --version "$VERSION"` (no `v` prefix — confirmed from CLI docs).
-  - Finds the pixi binary from `$BIN_DIR/pixi` or, if absent, from PATH.
+  - Finds the pixi binary from `$PREFIX/bin/pixi` or, if absent, from PATH.
   - Exits non-zero if no pixi binary is found.
-- **Inputs (globals):** `BIN_DIR`, `VERSION`.
+- **Inputs (globals):** `PREFIX`, `VERSION`.
 
 ### `install_pixi_binary`
 - **Responsibility:** Extracts the archive and places the binary.
   1. Creates a temporary extraction directory under `INSTALLER_DIR`.
   2. Runs `tar -xzf "$ARCHIVE" -C "$_tmpdir"`.
-  3. Moves `"$_tmpdir/pixi"` to `"$BIN_DIR/pixi"`.
-  4. Sets executable permissions: `chmod 0755 "$BIN_DIR/pixi"`.
+  3. Moves `"$_tmpdir/pixi"` to `"$PREFIX/bin/pixi"`.
+  4. Sets executable permissions: `chmod 0755 "$PREFIX/bin/pixi"`.
   5. Removes the temp extraction directory.
-- **Inputs (globals):** `ARCHIVE`, `BIN_DIR`.
+- **Inputs (globals):** `ARCHIVE`, `PREFIX`.
 
 ### `create_symlink`
-- **Responsibility:** Creates a file symlink `/usr/local/bin/pixi → $BIN_DIR/pixi` when all conditions are met:
+- **Responsibility:** Creates a file symlink `/usr/local/bin/pixi → $PREFIX/bin/pixi` when all conditions are met:
   - `SYMLINK=true`
   - Running as root (`$(id -u) = 0`)
-  - `BIN_DIR ≠ /usr/local/bin`
+  - `PREFIX ≠ /usr/local`
   Uses `ln -sf` (force, so it is idempotent). Logs a no-op notice when any condition is not met.
-- **Inputs (globals):** `SYMLINK`, `BIN_DIR`.
+- **Inputs (globals):** `SYMLINK`, `PREFIX`.
 
 ### `verify_installed_binary`
-- **Responsibility:** Confirms the pixi binary is callable after installation (or after `if_exists=skip/update`). Avoids a hard failure when pixi was found at a path other than `$BIN_DIR`.
-  1. Tries `"$BIN_DIR/pixi" --version 2>/dev/null` first.
+- **Responsibility:** Confirms the pixi binary is callable after installation (or after `if_exists=skip/update`). Avoids a hard failure when pixi was found at a path other than `$PREFIX/bin`.
+  1. Tries `"$PREFIX/bin/pixi" --version 2>/dev/null` first.
   2. Falls back to `command -v pixi` and runs `pixi --version` if step 1 fails.
   3. Exits non-zero with a clear error if both fail.
   Prints the verified version string.
-- **Inputs (globals):** `BIN_DIR`.
+- **Inputs (globals):** `PREFIX`.
 
 ### `export_path_main`
 - **Responsibility:** Writes the PATH export block to shell startup files, mirroring `install-miniforge`'s implementation.
-  - Content: `export PATH="${BIN_DIR}:${PATH}"`
+  - Content: `export PATH="${PREFIX}/bin:${PATH}"`
   - Marker: `"pixi PATH (install-pixi)"`
   - When `EXPORT_PATH=""`: skips with a log message.
-  - When `EXPORT_PATH="auto"` **and** `BIN_DIR="/usr/local/bin"`: skips with an informational message (`/usr/local/bin is already on PATH; skipping PATH write`).
-  - When `EXPORT_PATH="auto"` and `BIN_DIR≠"/usr/local/bin"`:
+  - When `EXPORT_PATH="auto"` **and** `PREFIX="/usr/local"`: skips with an informational message (`/usr/local/bin is already on PATH; skipping PATH write`).
+  - When `EXPORT_PATH="auto"` and `PREFIX≠"/usr/local"`:
     - Root → `shell__system_path_files --profile_d pixi_bin_path.sh`
     - Non-root → `shell__user_path_files`
-  - Otherwise (explicit file list): uses `EXPORT_PATH` as the newline-separated file list regardless of `BIN_DIR`.
-  - Calls `shell__sync_block --files "$_target_files" --marker "..." --content "..."`.
-- **Inputs (globals):** `EXPORT_PATH`, `BIN_DIR`.
+  - Otherwise (explicit file list): uses `EXPORT_PATH` as the newline-separated file list regardless of `PREFIX`.
+  - Calls `shell__sync_block --files "$_target_files" --marker "..." --content ".."`.
+- **Inputs (globals):** `EXPORT_PATH`, `PREFIX`.
 ### `export_pixi_home_main`
 - **Responsibility:** Writes `export PIXI_HOME="$HOME_DIR"` to shell startup files when `HOME_DIR` is non-empty.
   - No-op (with log message) when `HOME_DIR` is empty.
@@ -223,7 +223,7 @@ checksums, shell config writes, OS packages, and logging.
     - `zsh`: root → `"$(shell__detect_zshdir)/zshenv"`; non-root → `~/.zshenv`
     - `fish`, `nushell`, `elvish`: always `~/.config/<shell>/config.<ext>` (no standard system-wide location)
   - Calls `shell__write_block`.
-- **Inputs (globals):** `SHELL_COMPLETION`, `SHELL_TYPE`, `BIN_DIR`.
+- **Inputs (globals):** `SHELL_COMPLETION`, `SHELL_TYPE`, `PREFIX`.
 
 ---
 
@@ -242,10 +242,10 @@ checksums, shell config writes, OS packages, and logging.
 8.  resolve_bin_dir                 — resolve "auto" / "" to concrete path
 9.  check_root_requirement
 10. resolve_pixi_version             — normalise VERSION to bare semver
-11. get_installed_version → _INSTALLED_VER (only when BIN_DIR/pixi exists)
+11. get_installed_version → _INSTALLED_VER (only when PREFIX/bin/pixi exists)
 12. If _INSTALLED_VER == VERSION:
       → log "already installed, skipping" and jump to step 18 (post-install)
-13. If BIN_DIR/pixi exists:
+13. If PREFIX/bin/pixi exists:
       → handle_if_exists             — may exit, set _SKIP_INSTALL, or remove binary
 14. If _SKIP_INSTALL != true:
       a. detect_triple
@@ -253,9 +253,9 @@ checksums, shell config writes, OS packages, and logging.
       c. download_pixi
       d. verify_pixi (or warn if skipped)
       e. install_pixi_binary
-15. verify_installed_binary      — try $BIN_DIR/pixi, fall back to PATH; exit on failure
+15. verify_installed_binary      — try $PREFIX/bin/pixi, fall back to PATH; exit on failure
 16. create_symlink
-17. export_path_main             — no-op when EXPORT_PATH="auto" and BIN_DIR=/usr/local/bin
+17. export_path_main             — no-op when EXPORT_PATH="auto" and PREFIX=/usr/local
 18. export_pixi_home_main        — no-op when HOME_DIR is empty
 19. install_completion
 20. echo "✅ Pixi ${VERSION} installed."
@@ -315,16 +315,16 @@ Linux RISC-V uses `riscv64gc-unknown-linux-gnu` (GNU libc), **not** musl. This i
 the only Linux triple that uses GNU libc; all others use musl. The `detect_triple`
 function must explicitly handle this case by matching `riscv64` from `uname -m`.
 
-### BIN_DIR Auto-Resolution and root vs non-root
+### PREFIX Auto-Resolution and root vs non-root
 
 `resolve_bin_dir` runs immediately after argument defaults are applied and before any
 other path-based logic:
 
 ```bash
-if [ "${BIN_DIR}" = "auto" ]; then
-  [ "$(id -u)" = "0" ] && BIN_DIR="/usr/local/bin" || BIN_DIR="${HOME}/.pixi/bin"
-elif [ -z "${BIN_DIR}" ]; then
-  BIN_DIR="${HOME}/.pixi/bin"
+if [ "${PREFIX}" = "auto" ]; then
+  [ "$(id -u)" = "0" ] && PREFIX="/usr/local" || PREFIX="${HOME}/.pixi"
+elif [ -z "${PREFIX}" ]; then
+  PREFIX="${HOME}/.pixi"
 fi
 ```
 
@@ -335,15 +335,15 @@ This mirrors the `prefix="auto"` pattern in `install-git`. The resolved value fe
 
 `verify_installed_binary` runs after both the install path and the `if_exists=skip/update`
 pass-through paths. It uses a two-step fallback to avoid spurious failures when pixi is
-recognised by PATH but sits at a different location than the resolved `$BIN_DIR`:
+recognised by PATH but sits at a different location than the resolved `$PREFIX`:
 
 ```bash
-if "${BIN_DIR}/pixi" --version > /dev/null 2>&1; then
-  "${BIN_DIR}/pixi" --version
+if "${PREFIX}/bin/pixi" --version > /dev/null 2>&1; then
+  "${PREFIX}/bin/pixi" --version
 elif command -v pixi > /dev/null 2>&1; then
   pixi --version
 else
-  echo "⛔ pixi not found at '${BIN_DIR}/pixi' and not on PATH." >&2
+  echo "⛔ pixi not found at '${PREFIX}/bin/pixi' and not on PATH." >&2
   exit 1
 fi
 ```
@@ -356,32 +356,32 @@ This matches `set_executable_paths --verify` in `install-miniforge`.
 
 The file targeting follows the same root/non-root split as `export_path_main`, using a separate `profile_d` stub (`pixi_home.sh`) so both stubs coexist cleanly under `/etc/profile.d/`.
 
-### PATH Export: skip when BIN_DIR is already on PATH
+### PATH Export: skip when PREFIX is already on PATH
 
-When `EXPORT_PATH="auto"` and `BIN_DIR="/usr/local/bin"`, `export_path_main` skips
+When `EXPORT_PATH="auto"` and `PREFIX="/usr/local"`, `export_path_main` skips
 all writes and logs:
 
 ```
-ℹ️ BIN_DIR is /usr/local/bin which is already on PATH in all container images; skipping PATH write.
+ℹ️ PREFIX is /usr/local; /usr/local/bin is already on PATH in all container images; skipping PATH write.
 ```
 
 This avoids modifying `/etc/profile.d/` and system bashrc/zshenv for a no-op. If the
 user explicitly supplies a file list (non-`auto` value), the write happens regardless —
 they are asking for it explicitly.
 
-### Symlink: root-only, non-standard bin_dir only
+### Symlink: root-only, non-standard prefix only
 
-`create_symlink` creates `/usr/local/bin/pixi → $BIN_DIR/pixi` with `ln -sf` only when:
+`create_symlink` creates `/usr/local/bin/pixi → $PREFIX/bin/pixi` with `ln -sf` only when:
 
 ```bash
-if [ "${SYMLINK}" = "true" ] && [ "$(id -u)" = "0" ] && [ "${BIN_DIR}" != "/usr/local/bin" ]; then
-  ln -sf "${BIN_DIR}/pixi" /usr/local/bin/pixi
+if [ "${SYMLINK}" = "true" ] && [ "$(id -u)" = "0" ] && [ "${PREFIX}" != "/usr/local" ]; then
+  ln -sf "${PREFIX}/bin/pixi" /usr/local/bin/pixi
 fi
 ```
 
 This is directly analogous to install-git's step 8. It is a no-op for the default case
-(`bin_dir=auto` → root → `/usr/local/bin`) since that is the target directory itself.
-It is also a no-op for non-root installs since they cannot write to `/usr/local/bin`.
+(`prefix=auto` → root → `/usr/local`) since that is the standard prefix. It is also a
+no-op for non-root installs since they cannot write to `/usr/local/bin`.
 
 ### Cleanup Safety
 

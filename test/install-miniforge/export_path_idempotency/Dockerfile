@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 # Simulate a prior install-miniforge run that wrote PATH blocks referencing
 # /opt/conda/bin in all four Case-A targets.  The export_path_idempotency
-# scenario then re-runs the feature with bin_dir=/opt/myforge (symlink=false),
+# scenario then re-runs the feature with prefix=/opt/myforge (symlink=false),
 # which must UPDATE the blocks in-place to /opt/myforge/bin without appending
 # a second block (no duplicate markers).
 RUN apt-get update \

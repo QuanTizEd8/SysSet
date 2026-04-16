@@ -1,5 +1,5 @@
 #!/bin/bash
-# method=binary, install_path=/opt/gh/bin, symlink=false:
+# method=binary, prefix=/opt/gh, symlink=false:
 # Binary at /opt/gh/bin/gh; NO symlink should exist at /usr/local/bin/gh.
 set -e
 

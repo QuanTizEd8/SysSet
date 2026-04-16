@@ -13,18 +13,18 @@
       "method": {
          "type": "string",
          "default": "repos",
-         "description": "Installation strategy.\n'repos' (default) — configure and use the official GitHub CLI package repository. On Debian/Ubuntu: adds the official apt repo (cli.github.com/packages) with GPG keyring and installs via apt. On RHEL/Fedora/CentOS/Amazon Linux: adds the official rpm repo and installs via dnf/yum. On SUSE/openSUSE: adds the official rpm repo and installs via zypper. On Alpine: installs via 'apk add github-cli' (community package, no version pinning). On Arch: installs via 'pacman -S github-cli' (community package, no version pinning). On macOS: installs via Homebrew ('brew install gh').\n'binary' — download the pre-built binary archive from github.com/cli/cli/releases; verify SHA-256 against the release checksums file; install the 'gh' binary to install_path. The Linux release binaries are statically linked (CGO_ENABLED=0), so this method works on all Linux distributions including Alpine/musl without any compatibility shim. install_completions controls whether shell completions are also installed.",
+         "description": "Installation strategy.\n'repos' (default) — configure and use the official GitHub CLI package repository. On Debian/Ubuntu: adds the official apt repo (cli.github.com/packages) with GPG keyring and installs via apt. On RHEL/Fedora/CentOS/Amazon Linux: adds the official rpm repo and installs via dnf/yum. On SUSE/openSUSE: adds the official rpm repo and installs via zypper. On Alpine: installs via 'apk add github-cli' (community package, no version pinning). On Arch: installs via 'pacman -S github-cli' (community package, no version pinning). On macOS: installs via Homebrew ('brew install gh').\n'binary' — download the pre-built binary archive from github.com/cli/cli/releases; verify SHA-256 against the release checksums file; install the 'gh' binary to $prefix/bin. The Linux release binaries are statically linked (CGO_ENABLED=0), so this method works on all Linux distributions including Alpine/musl without any compatibility shim. install_completions controls whether shell completions are also installed.",
          "enum": ["repos", "binary"]
       },
-      "install_path": {
+      "prefix": {
          "type": "string",
-         "default": "/usr/local/bin",
-         "description": "Directory where the 'gh' binary is installed when method=binary.\nDefaults to '/usr/local/bin'. Must be writable or creatable by the installer; the directory is created if it does not exist. Ignored when method=repos (the package manager controls the install location, typically /usr/bin)."
+         "default": "/usr/local",
+         "description": "Installation prefix when method=binary. The 'gh' binary is placed at '$prefix/bin/gh'.\nDefaults to '/usr/local'. Must be writable or creatable by the installer; the directory is created if it does not exist. Ignored when method=repos (the package manager controls the install location, typically /usr/bin)."
       },
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create a symlink /usr/local/bin/gh -> install_path/gh when install_path is not /usr/local/bin (method=binary only, root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) resolves to the installed binary regardless of install_path.\nNo-op when install_path is already /usr/local/bin, when method=repos (gh lands in /usr/bin which is always on PATH), or when running as non-root (cannot write to /usr/local/bin)."
+         "description": "Create a symlink /usr/local/bin/gh -> $prefix/bin/gh when prefix is not /usr/local (method=binary only, root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) resolves to the installed binary regardless of prefix.\nNo-op when prefix is already /usr/local, when method=repos (gh lands in /usr/bin which is always on PATH), or when running as non-root (cannot write to /usr/local/bin)."
       },
       "install_completions": {
          "type": "boolean",
@@ -87,7 +87,7 @@
       "installer_dir": {
          "type": "string",
          "default": "/tmp/gh-install",
-         "description": "Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here.\nRemoved automatically after a successful install unless no_clean=true.\nIgnored when method=repos."
+         "description": "Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here.\nRemoved automatically after a successful install unless keep_installer=true.\nIgnored when method=repos."
       },
       "no_clean": {
          "type": "boolean",

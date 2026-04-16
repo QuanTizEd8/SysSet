@@ -271,17 +271,17 @@ the following reasons:
    Special cases: `riscv64` arch → `riscv64gc`; RISC-V platform suffix is
    `unknown-linux-gnu` (not `musl`); macOS `arm64` → `aarch64`.
 
-2. **Devcontainer mode (root):** Default `bin_dir=/usr/local/bin`. Always skip
-   upstream shell-RC modifications (PATH managed by our feature via `containerEnv`
+2. **Devcontainer mode (root):** Default `prefix=/usr/local`. Binary placed at
+   `/usr/local/bin/pixi`. Always skip upstream shell-RC modifications (PATH managed by our feature via `containerEnv`
    or `shell__export_path`).
 
-3. **Standalone mode (non-root/user install):** Default `bin_dir=""` maps to
-   `$HOME/.pixi/bin` by convention. The `export_path` option controls
+3. **Standalone mode (non-root/user install):** Default `prefix=""` maps to
+   `$HOME/.pixi` by convention. Binary placed at `$HOME/.pixi/bin/pixi`. The `export_path` option controls
    whether a PATH block is written to shell RC files.
 
-4. **Auto path export:** When `bin_dir` is explicitly a system directory (e.g. `/usr/local/bin`),
-   `export_path="auto"` is a no-op because the directory is already on `PATH`.
-   For custom directories, `export_path` controls whether shell RC modifications are written.
+4. **Auto path export:** When `prefix` resolves to `/usr/local`, `export_path="auto"` is a no-op
+   because `/usr/local/bin` is already on `PATH`.
+   For custom prefixes, `export_path` controls whether shell RC modifications are written.
 
 5. **`if_exists` handling:** `skip` (warn + continue), `fail` (exit 1),
    `uninstall` (remove binary + reinstall), `update` (`pixi self-update
@@ -368,8 +368,8 @@ other:
   container filesystem; not on the workspace bind-mount; does not require a
   volume mount.
 - **`PIXI_BIN_DIR`** (default `$PIXI_HOME/bin`) — where the pixi binary is
-  placed by the upstream installer. Controlled by the `bin_dir` option. In this
-  feature the default is `/usr/local/bin` (explicitly set), so it is independent
+  placed by the upstream installer. Controlled by the feature's `prefix` option. In this
+  feature the default is `/usr/local/bin` (at `$prefix/bin` with `prefix=/usr/local`), so it is independent
   of `PIXI_HOME` in practice.
 - **`<workspace>/.pixi`** — workspace environments and project-level config.
   Not configurable via any env var; always relative to `pixi.toml`. This is what

@@ -20,7 +20,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-pixi": {
-                "bin_dir": "/opt/pixi-bin",
+                "prefix": "/opt/pixi",
                 "symlink": false,
                 "debug": true
             }
@@ -30,7 +30,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-pixi": {
-                "bin_dir": "/opt/pixi-bin",
+                "prefix": "/opt/pixi",
                 "symlink": true,
                 "debug": true
             }
@@ -96,7 +96,7 @@
         "features": {
             "install-pixi": {
                 "version": "0.41.0",
-                "bin_dir": "/opt/pixi-bin",
+                "prefix": "/opt/pixi",
                 "symlink": true,
                 "debug": true
             }
@@ -115,7 +115,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-pixi": {
-                "bin_dir": "/opt/pixi-bin",
+                "prefix": "/opt/pixi",
                 "export_path": "",
                 "symlink": false,
                 "debug": true

@@ -1,7 +1,7 @@
 #!/bin/bash
 # export_path idempotency: the base image has PATH blocks for /opt/conda/bin
 # already written in all four Case-A files.  The feature runs with
-# bin_dir=/opt/myforge (symlink=false) and must UPDATE each block to reference
+# prefix=/opt/myforge (symlink=false) and must UPDATE each block to reference
 # /opt/myforge/bin without appending a duplicate block.
 set -e
 

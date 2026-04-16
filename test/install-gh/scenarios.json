@@ -54,7 +54,7 @@
         "features": {
             "install-gh": {
                 "method": "binary",
-                "install_path": "/opt/gh/bin",
+                "prefix": "/opt/gh",
                 "symlink": true,
                 "debug": true
             }
@@ -65,7 +65,7 @@
         "features": {
             "install-gh": {
                 "method": "binary",
-                "install_path": "/opt/gh/bin",
+                "prefix": "/opt/gh",
                 "symlink": false,
                 "debug": true
             }

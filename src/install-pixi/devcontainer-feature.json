@@ -15,15 +15,15 @@
             "0.65.0"
          ]
       },
-      "bin_dir": {
+      "prefix": {
          "type": "string",
          "default": "auto",
-         "description": "Directory where the pixi binary will be installed.\n'auto' (default) — resolves to /usr/local/bin when running as root, or $HOME/.pixi/bin when running as non-root.\nAn explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.\nSet to '' to use the upstream default ($HOME/.pixi/bin) regardless of the current user.\n"
+         "description": "Installation prefix for pixi. The 'pixi' binary is placed at '$prefix/bin/pixi'.\n'auto' (default) — resolves to /usr/local when running as root, or $HOME/.pixi when running as non-root.\nAn explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.\nSet to '' to use the upstream default ($HOME/.pixi) regardless of the current user.\n"
       },
       "if_exists": {
          "type": "string",
          "default": "skip",
-         "description": "What to do when a pixi binary already exists at bin_dir.\n'skip'      -- log a warning and continue to post-install steps (default).\n'fail'      -- print an error and exit non-zero.\n'uninstall' -- remove the existing binary, then install fresh.\n'update'    -- run 'pixi self-update --version <resolved>' to update in-place.\n               Only works for installer-managed pixi (not Homebrew/conda/mamba).\nVersion-match: if the installed version already equals the resolved target\nversion, the install is always skipped silently regardless of this setting.\n",
+         "description": "What to do when a pixi binary already exists at $prefix/bin.\n'skip'      -- log a warning and continue to post-install steps (default).\n'fail'      -- print an error and exit non-zero.\n'uninstall' -- remove the existing binary, then install fresh.\n'update'    -- run 'pixi self-update --version <resolved>' to update in-place.\n               Only works for installer-managed pixi (not Homebrew/conda/mamba).\nVersion-match: if the installed version already equals the resolved target\nversion, the install is always skipped silently regardless of this setting.\n",
          "enum": [
             "skip",
             "fail",
@@ -59,7 +59,7 @@
       "export_path": {
          "type": "string",
          "default": "auto",
-         "description": "Controls which shell startup files receive the PATH export for bin_dir.\n'auto'      -- writes to system-wide files (root) or user-scoped files (non-root).\n             No-op when bin_dir resolves to /usr/local/bin (already on PATH everywhere).\n'' (empty)  -- skips all PATH writes.\nNewline-separated list of absolute file paths -- writes only to those files.\n"
+         "description": "Controls which shell startup files receive the PATH export for $prefix/bin.\n'auto'      -- writes to system-wide files (root) or user-scoped files (non-root).\n             No-op when prefix resolves to /usr/local (already on PATH everywhere).\n'' (empty)  -- skips all PATH writes.\nNewline-separated list of absolute file paths -- writes only to those files.\n"
       },
       "export_pixi_home": {
          "type": "string",
@@ -69,7 +69,7 @@
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create a symlink /usr/local/bin/pixi -> $BIN_DIR/pixi when bin_dir resolves to something other than /usr/local/bin (root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) always resolves to the installed binary regardless of the chosen bin_dir.\nNo-op when bin_dir resolves to /usr/local/bin, or when running as non-root (cannot write to /usr/local/bin).\n"
+         "description": "Create a symlink /usr/local/bin/pixi -> $prefix/bin/pixi when prefix resolves to something other than /usr/local (root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) always resolves to the installed binary regardless of the chosen prefix.\nNo-op when prefix resolves to /usr/local, or when running as non-root (cannot write to /usr/local/bin).\n"
       },
       "shell_completion": {
          "type": "boolean",

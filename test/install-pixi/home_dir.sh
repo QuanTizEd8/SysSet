@@ -31,7 +31,7 @@ check "/etc/bashenv has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi
 check "/etc/bash.bashrc has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' /etc/bash.bashrc
 check "/etc/zsh/zshenv has PIXI_HOME marker" grep -Fq 'pixi PIXI_HOME (install-pixi)' /etc/zsh/zshenv
 
-# --- no PATH block written (bin_dir=/usr/local/bin, no-op) ---
+# --- no PATH block written (prefix=/usr/local, no-op) ---
 check "no profile.d pixi_bin_path.sh written" bash -c '! test -f /etc/profile.d/pixi_bin_path.sh'
 
 reportResults

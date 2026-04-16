@@ -168,21 +168,21 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
    - macOS: `unzip -q ... -d "${INSTALLER_DIR}"`
 7. Install binary:
    ```bash
-   mkdir -p "${INSTALL_PATH}"
-   install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${INSTALL_PATH}/gh"
+   mkdir -p "${PREFIX}/bin"
+   install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${PREFIX}/bin/gh"
    ```
 8. If `INSTALL_COMPLETIONS=true`, call `_gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"`.
 9. If `NO_CLEAN ≠ true`, `rm -rf "${INSTALLER_DIR}"`.
-10. Verify: `"${INSTALL_PATH}/gh" --version`.
+10. Verify: `"${PREFIX}/bin/gh" --version`.
 
 ### `_gh__create_symlink`
-**Responsibility:** Create `/usr/local/bin/gh -> INSTALL_PATH/gh` when `method=binary` and
-`INSTALL_PATH ≠ /usr/local/bin`.
-- No-op conditions: `SYMLINK ≠ true`, `METHOD=repos`, `INSTALL_PATH=/usr/local/bin`, or running as
+**Responsibility:** Create `/usr/local/bin/gh -> $PREFIX/bin/gh` when `method=binary` and
+`PREFIX ≠ /usr/local`.
+- No-op conditions: `SYMLINK ≠ true`, `METHOD=repos`, `PREFIX=/usr/local`, or running as
   non-root (cannot write to `/usr/local/bin`).
 - If `/usr/local/bin/gh` already exists as a real file (not a symlink), log an error and exit 1.
 - If it exists as a symlink, remove it first, then re-link.
-- `ln -sf "${INSTALL_PATH}/gh" /usr/local/bin/gh`
+- `ln -sf "${PREFIX}/bin/gh" /usr/local/bin/gh`
 - This is the same pattern as `install-git`'s `symlink` option.
 
 ### `_gh__install_completions`
@@ -246,7 +246,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 1.  Source libs: ospkg.sh → logging.sh → github.sh → checksum.sh → shell.sh → users.sh
 2.  logging__setup + trap EXIT logging__cleanup
 3.  Dual-mode argument parsing (env vars vs --flags)
-4.  Apply defaults: VERSION=latest, METHOD=repos, INSTALL_PATH=/usr/local/bin,
+4.  Apply defaults: VERSION=latest, METHOD=repos, PREFIX=/usr/local,
     SYMLINK=true, INSTALL_COMPLETIONS=true, IF_EXISTS=skip, INSTALLER_DIR=/tmp/gh-install,
     NO_CLEAN=false, EXTENSIONS="", GIT_PROTOCOL="", SETUP_GIT=false, SIGN_COMMITS="",
     GIT_HOSTNAME=github.com, ADD_CURRENT_USER_CONFIG=true, ADD_REMOTE_USER_CONFIG=true,
@@ -271,7 +271,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
       _gh__install_repos
     elif METHOD=binary:
       _gh__install_binary "$_resolved_version"
-13. _gh__create_symlink  (no-op when method=repos or install_path=/usr/local/bin)
+13. _gh__create_symlink  (no-op when method=repos or prefix=/usr/local)
 14. if INSTALL_COMPLETIONS=true:
       if METHOD=binary:  (already called inside _gh__install_binary — no duplicate call needed)
         # completions handled inside _gh__install_binary via --from-archive

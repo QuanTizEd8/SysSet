@@ -152,7 +152,7 @@ Example: `https://nodejs.org/dist/v24.11.1/node-v24.11.1-linux-x64.tar.xz`
 ```bash
 PLATFORM="linux-x64"   # or darwin-arm64, etc.
 VERSION="v24.11.1"
-INSTALL_PREFIX="/usr/local"
+PREFIX="/usr/local"
 
 TARBALL="node-${VERSION}-${PLATFORM}.tar.xz"
 BASE_URL="https://nodejs.org/dist/${VERSION}"
@@ -165,7 +165,7 @@ curl -fsSL  "${BASE_URL}/SHASUMS256.txt" -o SHASUMS256.txt
 grep "${TARBALL}" SHASUMS256.txt | sha256sum --check -
 
 # Extract (strip leading path component: node-v24.11.1-linux-x64/)
-tar -xJf "${TARBALL}" --strip-components=1 -C "${INSTALL_PREFIX}"
+tar -xJf "${TARBALL}" --strip-components=1 -C "${PREFIX}"
 
 # Verify
 node --version   # expects: v24.11.1
@@ -181,7 +181,7 @@ rm -f "${TARBALL}" SHASUMS256.txt
 
 **What gets installed:**
 ```
-$INSTALL_PREFIX/
+$PREFIX/
   bin/
     node
     npm
@@ -196,7 +196,7 @@ $INSTALL_PREFIX/
   share/man/...
 ```
 
-**No need to add to PATH when `INSTALL_PREFIX=/usr/local`** — `/usr/local/bin` is already in PATH in virtually all Linux distributions and macOS.
+**No need to add to PATH when `PREFIX=/usr/local`** — `/usr/local/bin` is already in PATH in virtually all Linux distributions and macOS.
 
 **Idempotency:** No built-in idempotency — extraction overwrites existing files. A pre-check against `node --version` output guards against re-installation.
 

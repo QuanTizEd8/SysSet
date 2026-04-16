@@ -46,7 +46,7 @@ if [ "$#" -gt 0 ]; then
   ADDITIONAL_VERSIONS=""
   NVM_VERSION=""
   NVM_DIR=""
-  INSTALL_PREFIX=""
+  PREFIX=""
   ARCH=""
   INSTALLER_DIR=""
   IF_EXISTS=""
@@ -92,10 +92,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'nvm_dir': '${NVM_DIR}'" >&2
         shift
         ;;
-      --install_prefix)
+      --prefix)
         shift
-        INSTALL_PREFIX="$1"
-        echo "📩 Read argument 'install_prefix': '${INSTALL_PREFIX}'" >&2
+        PREFIX="$1"
+        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
         shift
         ;;
       --arch)
@@ -189,7 +189,7 @@ else
   [ "${ADDITIONAL_VERSIONS+defined}" ] && echo "📩 Read argument 'additional_versions': '${ADDITIONAL_VERSIONS}'" >&2
   [ "${NVM_VERSION+defined}" ] && echo "📩 Read argument 'nvm_version': '${NVM_VERSION}'" >&2
   [ "${NVM_DIR+defined}" ] && echo "📩 Read argument 'nvm_dir': '${NVM_DIR}'" >&2
-  [ "${INSTALL_PREFIX+defined}" ] && echo "📩 Read argument 'install_prefix': '${INSTALL_PREFIX}'" >&2
+  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${ARCH+defined}" ] && echo "📩 Read argument 'arch': '${ARCH}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
@@ -217,7 +217,7 @@ fi
 [ "${ADDITIONAL_VERSIONS+defined}" ] || ADDITIONAL_VERSIONS=""
 [ "${NVM_VERSION+defined}" ] || NVM_VERSION="latest"
 [ "${NVM_DIR+defined}" ] || NVM_DIR="/usr/local/share/nvm"
-[ "${INSTALL_PREFIX+defined}" ] || INSTALL_PREFIX="auto"
+[ "${PREFIX+defined}" ] || PREFIX="auto"
 [ "${ARCH+defined}" ] || ARCH=""
 [ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/node-installer"
 [ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
@@ -608,7 +608,7 @@ _node_install_via_binary() {
   _platform="$(_node_build_platform_string "$_kernel_str" "$_arch_str")"
 
   # Resolve install prefix
-  local _prefix="$INSTALL_PREFIX"
+  local _prefix="$PREFIX"
   if [ "$_prefix" = "auto" ]; then
     _prefix="/usr/local"
   fi
@@ -652,8 +652,8 @@ _node_install_via_binary() {
   mkdir -p "$_prefix"
   tar -xJf "${INSTALLER_DIR}/${_tarball}" --strip-components=1 -C "$_prefix"
 
-  # Update INSTALL_PREFIX with resolved value for use by caller
-  INSTALL_PREFIX="$_prefix"
+  # Update PREFIX with resolved value for use by caller
+  PREFIX="$_prefix"
 
   echo "✅ Node.js ${_NODE_VERSION} extracted to ${_prefix}." >&2
   echo "↩️ Function exit: _node_install_via_binary" >&2
@@ -681,11 +681,11 @@ _node_create_symlinks() {
     # (NVM_SYMLINK_CURRENT=true). No per-binary symlinks are needed.
   elif [ "$METHOD" = "binary" ]; then
     # Binaries already in /usr/local/bin when prefix is /usr/local
-    if [ "$INSTALL_PREFIX" = "/usr/local" ]; then
-      echo "ℹ️ install_prefix=/usr/local — binary symlinks not needed." >&2
+    if [ "$PREFIX" = "/usr/local" ]; then
+      echo "ℹ️ prefix=/usr/local — binary symlinks not needed." >&2
     else
       for _bin in node npm npx corepack; do
-        local _src="${INSTALL_PREFIX}/bin/${_bin}"
+        local _src="${PREFIX}/bin/${_bin}"
         if [ -f "$_src" ]; then
           echo "ℹ️ Symlinking ${_src} → /usr/local/bin/${_bin}" >&2
           ln -sf "$_src" "/usr/local/bin/${_bin}"
@@ -768,10 +768,10 @@ _node_configure_path() {
 
   elif [ "$METHOD" = "binary" ]; then
     # Binaries already on PATH when prefix is /usr/local
-    if [ "$INSTALL_PREFIX" = "/usr/local" ]; then
-      echo "ℹ️ install_prefix=/usr/local — PATH write not needed (already on PATH)." >&2
+    if [ "$PREFIX" = "/usr/local" ]; then
+      echo "ℹ️ prefix=/usr/local — PATH write not needed (already on PATH)." >&2
     else
-      local _content="export PATH=\"${INSTALL_PREFIX}/bin:\${PATH}\""
+      local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
       local _marker="node PATH (install-node)"
 
       # System-wide

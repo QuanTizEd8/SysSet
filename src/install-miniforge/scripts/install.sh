@@ -7,11 +7,10 @@ __usage__() {
   echo "  --activate_env (string): Name of a conda environment to activate.
   Only takes effect when rc_files is set.
   " >&2
-  echo "  --bin_dir (string): Path to the conda installation directory.
-  Corresponds to the BIN_DIR environment variable.
+  echo "  --prefix (string): Path to the conda installation directory (installation root/prefix).
   " >&2
   echo "  --debug (boolean): Enable debug output." >&2
-  echo "  --if_exists (string): What to do when conda is already installed at bin_dir.
+  echo "  --if_exists (string): What to do when conda is already installed at prefix.
   'skip'      — warn and continue to post-install steps (default).
   'fail'      — print an error and exit non-zero.
   'uninstall' — uninstall then install fresh.
@@ -47,15 +46,15 @@ __usage__() {
   echo "  --update_base (boolean): Update the base conda environment via conda update --all.
   Not recommended for production.
   " >&2
-  echo "  --export_path (string): Controls which shell startup files receive the PATH export for \$BIN_DIR/bin.
+  echo "  --export_path (string): Controls which shell startup files receive the PATH export for \$PREFIX/bin.
   'auto' writes to all relevant system-wide files (public install + root)
   or user-scoped files (user install or non-root).
   '' (empty) skips all PATH writes.
   Newline-separated list of absolute paths: writes only to those files.
   " >&2
-  echo "  --symlink (boolean): Create a symlink /opt/conda -> \$BIN_DIR when bin_dir is not /opt/conda.
-  Ensures containerEnv PATH coverage works even with a custom bin_dir.
-  No-op when bin_dir is already /opt/conda.
+  echo "  --symlink (boolean): Create a symlink /opt/conda -> \$PREFIX when prefix is not /opt/conda.
+  Ensures containerEnv PATH coverage works even with a custom prefix.
+  No-op when prefix is already /opt/conda.
   Script default: false (devcontainer-feature.json default: true).
   " >&2
   echo "  --users (string): Comma-separated list of users to add to the conda group (e.g. 'alice,bob').
@@ -81,9 +80,9 @@ __cleanup__() {
       rmdir "$INSTALLER_DIR"
     }
   fi
-  if [ -n "${BIN_DIR-}" ] && [ -d "$BIN_DIR" ]; then
-    find "$BIN_DIR" -follow -type f -name '*.a' -delete 2> /dev/null || true
-    find "$BIN_DIR" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
+  if [ -n "${PREFIX-}" ] && [ -d "$PREFIX" ]; then
+    find "$PREFIX" -follow -type f -name '*.a' -delete 2> /dev/null || true
+    find "$PREFIX" -follow -type f -name '*.pyc' -delete 2> /dev/null || true
   fi
   logging__cleanup
   echo "↩️ Function exit: __cleanup__" >&2
@@ -91,8 +90,8 @@ __cleanup__() {
 
 add_activation_to_rcfile() {
   echo "↪️ Function entry: add_activation_to_rcfile" >&2
-  local conda_script="$BIN_DIR/$_CONDA_INIT_SCRIPT_RELPATH"
-  local mamba_script="$BIN_DIR/$_MAMBA_INIT_SCRIPT_RELPATH"
+  local conda_script="$PREFIX/$_CONDA_INIT_SCRIPT_RELPATH"
+  local mamba_script="$PREFIX/$_MAMBA_INIT_SCRIPT_RELPATH"
   lines=(
     ". '$conda_script'"
     ". '$mamba_script'"
@@ -130,14 +129,14 @@ download_miniforge() {
 check_root_requirement() {
   echo "↪️ Function entry: check_root_requirement" >&2
   local _require
-  case "$BIN_DIR" in
+  case "$PREFIX" in
     /opt/* | /usr/* | /var/* | /srv/* | /snap/*) _require=true ;;
     *) _require=false ;;
   esac
   if [[ "$_require" == true ]]; then
     os__require_root
   else
-    echo "ℹ️ Root not required for bin_dir '$BIN_DIR'. Skipping root check." >&2
+    echo "ℹ️ Root not required for prefix '$PREFIX'. Skipping root check." >&2
   fi
   echo "↩️ Function exit: check_root_requirement" >&2
 }
@@ -153,11 +152,11 @@ get_script_dir() {
 
 install_miniforge() {
   echo "↪️ Function entry: install_miniforge" >&2
-  echo "📦 Installing Miniforge to $BIN_DIR"
+  echo "📦 Installing Miniforge to $PREFIX"
   if [[ "$INTERACTIVE" == true ]]; then
-    /bin/bash "$INSTALLER" -p "$BIN_DIR"
+    /bin/bash "$INSTALLER" -p "$PREFIX"
   else
-    /bin/bash "$INSTALLER" -b -p "$BIN_DIR"
+    /bin/bash "$INSTALLER" -b -p "$PREFIX"
   fi
   echo "Displaying conda info:"
   "$CONDA_EXEC" info
@@ -203,15 +202,15 @@ set_executable_paths() {
     echo "ℹ️ Argument 'verify' set to default value 'false'." >&2
     verify=false
   }
-  CONDA_EXEC="${BIN_DIR}/bin/conda"
-  MAMBA_EXEC="${BIN_DIR}/bin/mamba"
+  CONDA_EXEC="${PREFIX}/bin/conda"
+  MAMBA_EXEC="${PREFIX}/bin/mamba"
   if [[ "$verify" == false ]]; then
     return
   fi
   if [[ ! -f "$CONDA_EXEC" ]]; then
     if command -v conda > /dev/null 2>&1; then
-      BIN_DIR="$(conda info --base)"
-      CONDA_EXEC="${BIN_DIR}/bin/conda"
+      PREFIX="$(conda info --base)"
+      CONDA_EXEC="${PREFIX}/bin/conda"
     else
       echo "⛔ Conda executable not found at '$CONDA_EXEC'." >&2
       exit 1
@@ -293,9 +292,9 @@ set_permissions() {
     [[ -z "$_u" ]] && continue
     id -nG "$_u" | grep -qw "$GROUP" || usermod -a -G "$GROUP" "$_u"
   done
-  chown -R "${_USERS_ARR[0]}:$GROUP" "$BIN_DIR"
-  chmod -R g+r+w "$BIN_DIR"
-  find "$BIN_DIR" -type d -print0 | xargs -n 1 -0 chmod g+s
+  chown -R "${_USERS_ARR[0]}:$GROUP" "$PREFIX"
+  chmod -R g+r+w "$PREFIX"
+  find "$PREFIX" -type d -print0 | xargs -n 1 -0 chmod g+s
   echo "↩️ Function exit: set_permissions" >&2
 }
 
@@ -306,12 +305,12 @@ export_envs() {
   # Get non-base env paths: parse JSON array from 'conda env list --json'.
   # Filter to lines containing '"', extract the quoted value, then keep only
   # absolute paths (starts with '/') to skip the 'envs' key and other JSON tokens,
-  # then exclude the base dir (BIN_DIR itself).
+  # then exclude the base dir (PREFIX itself).
   local env_paths
   env_paths="$("$CONDA_EXEC" env list --json 2> /dev/null |
     grep '"' | sed 's/.*"\(.*\)".*/\1/' |
     grep '^/' |
-    grep -v "^${BIN_DIR}/*$")" || true
+    grep -v "^${PREFIX}/*$")" || true
   if [[ -z "$env_paths" ]]; then
     echo "ℹ️ No non-base environments found to preserve." >&2
     echo "↩️ Function exit: export_envs" >&2
@@ -398,14 +397,14 @@ export_path_main() {
     echo "↩️ Function exit: export_path_main" >&2
     return
   fi
-  local _content="export PATH=\"${BIN_DIR}/bin:\${PATH}\""
+  local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
   local _marker="conda PATH (install-miniforge)"
   local _target_files
   if [ "$EXPORT_PATH" != "auto" ]; then
     _target_files="$EXPORT_PATH"
   else
     local _is_public=true _is_root=false
-    case "$BIN_DIR" in "${HOME}"/*) _is_public=false ;; esac
+    case "$PREFIX" in "${HOME}"/*) _is_public=false ;; esac
     [ "$(id -u)" = "0" ] && _is_root=true
     echo "ℹ️ Platform: '$(os__platform)'; is_public=${_is_public}; is_root=${_is_root}." >&2
     if [ "$_is_public" = true ] && [ "$_is_root" = true ]; then
@@ -429,8 +428,8 @@ create_symlink() {
     echo "↩️ Function exit: create_symlink" >&2
     return
   fi
-  if [ "$BIN_DIR" = "/opt/conda" ]; then
-    echo "ℹ️ bin_dir is already /opt/conda; no symlink needed." >&2
+  if [ "$PREFIX" = "/opt/conda" ]; then
+    echo "ℹ️ prefix is already /opt/conda; no symlink needed." >&2
     echo "↩️ Function exit: create_symlink" >&2
     return
   fi
@@ -439,8 +438,8 @@ create_symlink() {
     exit 1
   fi
   [ -L "/opt/conda" ] && rm -f "/opt/conda"
-  ln -s "$BIN_DIR" /opt/conda
-  echo "✅ Created symlink /opt/conda -> $BIN_DIR." >&2
+  ln -s "$PREFIX" /opt/conda
+  echo "✅ Created symlink /opt/conda -> $PREFIX." >&2
   echo "↩️ Function exit: create_symlink" >&2
 }
 
@@ -471,7 +470,7 @@ if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
   RC_FILES=()
   ACTIVATE_ENV=""
-  BIN_DIR=""
+  PREFIX=""
   DEBUG=""
   IF_EXISTS=""
   GROUP=""
@@ -501,10 +500,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
         shift
         ;;
-      --bin_dir)
+      --prefix)
         shift
-        BIN_DIR="$1"
-        echo "📩 Read argument 'bin_dir': '${BIN_DIR}'" >&2
+        PREFIX="$1"
+        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
         shift
         ;;
       --debug)
@@ -619,7 +618,7 @@ else
     unset _tmp_array
   fi
   [ "${ACTIVATE_ENV+defined}" ] && echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
-  [ "${BIN_DIR+defined}" ] && echo "📩 Read argument 'bin_dir': '${BIN_DIR}'" >&2
+  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${DOWNLOAD+defined}" ] && echo "📩 Read argument 'download (deprecated)': '${DOWNLOAD}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
@@ -648,9 +647,9 @@ fi
   echo "ℹ️ Argument 'ACTIVATE_ENV' set to default value 'base'." >&2
   ACTIVATE_ENV="base"
 }
-[ -z "${BIN_DIR-}" ] && {
-  echo "ℹ️ Argument 'BIN_DIR' set to default value '/opt/conda'." >&2
-  BIN_DIR="/opt/conda"
+[ -z "${PREFIX-}" ] && {
+  echo "ℹ️ Argument 'PREFIX' set to default value '/opt/conda'." >&2
+  PREFIX="/opt/conda"
 }
 [ -z "${DEBUG-}" ] && {
   echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
@@ -726,11 +725,11 @@ else
   echo "⚠️ Checksum file not found. Skipping verification." >&2
 fi
 
-if [[ -f "${BIN_DIR}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
-  echo "⚠️ Conda installation found at '$BIN_DIR'." >&2
+if [[ -f "${PREFIX}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
+  echo "⚠️ Conda installation found at '$PREFIX'." >&2
   # Version-match idempotency: if installed conda version already matches the
   # resolved version, skip silently regardless of if_exists.
-  _installed_ver="$("${BIN_DIR}/bin/conda" --version 2> /dev/null | awk '{print $NF}')" || true
+  _installed_ver="$("${PREFIX}/bin/conda" --version 2> /dev/null | awk '{print $NF}')" || true
   if [[ -n "$_installed_ver" && "$_installed_ver" == "$RESOLVED_CONDA_VERSION" ]]; then
     echo "ℹ️ Installed conda version '${_installed_ver}' matches resolved version '${RESOLVED_CONDA_VERSION}'. Skipping install and continuing to post-install steps." >&2
   else
@@ -739,7 +738,7 @@ if [[ -f "${BIN_DIR}/bin/conda" ]] || command -v conda > /dev/null 2>&1; then
         echo "⏭️ if_exists=skip: existing conda detected; skipping install and continuing to post-install steps." >&2
         ;;
       fail)
-        echo "⛔ if_exists=fail: conda already installed at '$BIN_DIR'. Remove it first or set if_exists=skip/uninstall." >&2
+        echo "⛔ if_exists=fail: conda already installed at '$PREFIX'. Remove it first or set if_exists=skip/uninstall." >&2
         exit 1
         ;;
       uninstall)

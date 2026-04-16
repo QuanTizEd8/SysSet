@@ -10,16 +10,16 @@ Install Pixi, the open-source, cross-platform package and project manager for co
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `version` | string | `"latest"` | Version of Pixi to install (e.g. `"0.67.0"`). Accepts `"latest"` (resolved via GitHub Releases API) or any `"X.Y.Z"`, `"X.Y"`, or `"vX.Y.Z"` / `"vX.Y"` string. If the installed version already matches the resolved version, the install is always skipped silently. |
-| `bin_dir` | string | `"auto"` | Directory where the pixi binary will be installed. `"auto"` resolves to `/usr/local/bin` (root) or `$HOME/.pixi/bin` (non-root). Set to `""` to use the pixi default (`$HOME/.pixi/bin`) regardless of the current user. |
-| `if_exists` | string | `"skip"` | What to do when a pixi binary is already found at `bin_dir`. One of: `"skip"` (warn and continue), `"fail"` (exit non-zero), `"uninstall"` (remove then install fresh), `"update"` (run `pixi self-update --version <resolved_version>`). Version-match: if installed version equals resolved target, always skips silently. |
+| `prefix` | string | `"auto"` | Installation prefix for the pixi binary. The binary is placed at `$prefix/bin/pixi`. `"auto"` resolves to `/usr/local` (root) or `$HOME/.pixi` (non-root). Set to `""` to use the pixi default (`$HOME/.pixi`) regardless of the current user. |
+| `if_exists` | string | `"skip"` | What to do when a pixi binary is already found at `$prefix/bin/pixi`. One of: `"skip"` (warn and continue), `"fail"` (exit non-zero), `"uninstall"` (remove then install fresh), `"update"` (run `pixi self-update --version <resolved_version>`). Version-match: if installed version equals resolved target, always skips silently. |
 | `installer_dir` | string | `"/tmp/pixi-installer"` | Directory to download the `.tar.gz` archive and `.tar.gz.sha256` sidecar to. Removed after installation unless `keep_installer` is `true`. |
 | `arch` | string | `""` | Override CPU architecture for release asset selection. Accepted: `"x86_64"`, `"aarch64"`, `"riscv64"`. When empty, auto-detected from `uname -m`. Useful for cross-arch image builds only. |
 | `home_dir` | string | `""` | Set `PIXI_HOME` — where pixi stores global environments (`pixi global install`) and configuration. When empty, uses the pixi default (`$HOME/.pixi`), which is already on the container's case-sensitive ext4 filesystem. `PIXI_HOME` is a runtime variable read on every pixi invocation; use `export_pixi_home` to write it to shell startup files. |
 | `download_url` | string | `""` | Override the binary download URL. Checksum verification is skipped with a warning when this is set. Useful for air-gapped environments, internal mirrors, or custom builds. |
 | `netrc` | string | `""` | Path to a `.netrc` file for authenticating downloads. Passed to `curl`/`wget` via `--netrc-file`. Use when downloading from a private mirror that requires credentials. |
-| `export_path` | string | `"auto"` | Controls which shell startup files receive the `PATH` export for `bin_dir`. `"auto"` = system-wide (root) or user-scoped (non-root); no-op when `bin_dir` resolves to `/usr/local/bin`. `""` = skip. Newline-separated absolute paths = write only those files. |
+| `export_path` | string | `"auto"` | Controls which shell startup files receive the `PATH` export for `$prefix/bin`. `"auto"` = system-wide (root) or user-scoped (non-root); no-op when `prefix` resolves to `/usr/local`. `""` = skip. Newline-separated absolute paths = write only those files. |
 | `export_pixi_home` | string | `"auto"` | Controls which shell startup files receive `export PIXI_HOME=<home_dir>`. No-op when `home_dir` is empty. `"auto"` = system-wide (root) or user-scoped (non-root). `""` = skip. Newline-separated absolute paths = write only those files. `PIXI_HOME` is read on every pixi invocation; skipping this when `home_dir` is set will cause pixi to ignore the custom home at runtime. |
-| `symlink` | boolean | `true` | Create a symlink `/usr/local/bin/pixi → $BIN_DIR/pixi` when `bin_dir` resolves to something other than `/usr/local/bin` (root only). Ensures the `containerEnv` PATH entry (`/usr/local/bin`) always resolves to the installed binary regardless of the chosen `bin_dir`. No-op when `bin_dir` resolves to `/usr/local/bin`, or when running as non-root (cannot write to `/usr/local/bin`). |
+| `symlink` | boolean | `true` | Create a symlink `/usr/local/bin/pixi → $PREFIX/bin/pixi` when `prefix` resolves to something other than `/usr/local` (root only). Ensures the `containerEnv` PATH entry (`/usr/local/bin`) always resolves to the installed binary regardless of the chosen `prefix`. No-op when `prefix` resolves to `/usr/local`, or when running as non-root (cannot write to `/usr/local/bin`). |
 | `shell_completion` | boolean | `false` | Write an idempotent `eval "$(pixi completion --shell <shell>)"` block to the appropriate shell config file. |
 | `shell_type` | string | `"bash"` | Shell to configure completion for. Only used when `shell_completion` is `true`. One of: `"bash"`, `"zsh"`, `"fish"`, `"nushell"`, `"elvish"`. |
 | `keep_installer` | boolean | `false` | Keep the downloaded `.tar.gz` archive and `.tar.gz.sha256` sidecar after installation. |
@@ -33,7 +33,7 @@ Install Pixi, the open-source, cross-platform package and project manager for co
 The feature sets `PATH=/usr/local/bin:${PATH}` in `containerEnv`.
 This ensures the devcontainer runtime always has `/usr/local/bin` on `PATH` — the
 location where the pixi binary is installed by default (root) and where the `symlink`
-option places the symlink when a custom `bin_dir` is used.
+option places the symlink when a custom `prefix` is used.
 
 ---
 
@@ -108,13 +108,13 @@ bash install-pixi/install.sh --version 0.67.0
 
 ### Custom Binary Directory with PATH Export
 
-Install to `/opt/pixi/bin` (requires root) and write a PATH export to all system-wide shell startup files:
+Install to `/opt/pixi` (requires root) and write a PATH export to all system-wide shell startup files:
 
 ```jsonc
 {
   "features": {
     "ghcr.io/quantized8/sysset/install-pixi:1": {
-      "bin_dir": "/opt/pixi/bin",
+      "prefix": "/opt/pixi",
       "export_path": "auto"
     }
   }
@@ -123,7 +123,7 @@ Install to `/opt/pixi/bin` (requires root) and write a PATH export to all system
 
 Standalone:
 ```bash
-bash install-pixi/install.sh --bin_dir /opt/pixi/bin --export_path auto
+bash install-pixi/install.sh --prefix /opt/pixi --export_path auto
 ```
 
 ---
@@ -267,11 +267,11 @@ Keep the `.tar.gz` and `.tar.gz.sha256` sidecar in `installer_dir` after install
 2. If `version` is a string like `"0.67.0"` or `"v0.67.0"`, the `v` prefix is stripped and the version is used as-is.
 3. Before downloading, the installer checks whether an existing pixi binary reports the same version. If it does, the install is **always skipped silently** regardless of `if_exists`.
 
-### `bin_dir` — Empty String Behavior
+### `prefix` — Empty String Behavior
 
-When `bin_dir` is set to `""`, the binary is installed to `$HOME/.pixi/bin` — the same default used by the official upstream installer. This is appropriate for non-root user installs. In this case, `export_path="auto"` will write the PATH export to user-scoped shell files (`~/.bash_profile`, `~/.bashrc`, `~/.zshenv`).
+When `prefix` is set to `""`, the binary is installed to `$HOME/.pixi/bin` (prefix resolves to `$HOME/.pixi`) — the same default used by the official upstream installer. This is appropriate for non-root user installs. In this case, `export_path="auto"` will write the PATH export to user-scoped shell files (`~/.bash_profile`, `~/.bashrc`, `~/.zshenv`).
 
-When `bin_dir` is a system directory (e.g. `/usr/local/bin`, `/opt/pixi/bin`, `/usr/bin`), the installer requires root privileges.
+When `prefix` is a system path (e.g. `/usr/local`, `/opt/pixi`, `/usr`), the installer requires root privileges.
 
 ### `if_exists` — `"update"` Caveats
 
@@ -288,7 +288,7 @@ When `bin_dir` is a system directory (e.g. `/usr/local/bin`, `/opt/pixi/bin`, `/
 | `""` (empty) | No writes |
 | Newline-separated list | Only those files |
 
-For the default `bin_dir="/usr/local/bin"` in devcontainer images, `/usr/local/bin` is already on `PATH` via the image's `/etc/environment` or `/etc/profile`, so `export_path=""` or `export_path="auto"` both work. Setting `export_path=""` is a safe micro-optimization.
+For the default `prefix="/usr/local"` in devcontainer images, `/usr/local/bin` is already on `PATH` via the image's `/etc/environment` or `/etc/profile`, so `export_path=""` or `export_path="auto"` both work. Setting `export_path=""` is a safe micro-optimization.
 
 ### `shell_completion` — Supported Shells
 

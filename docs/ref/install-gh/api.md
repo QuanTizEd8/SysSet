@@ -10,8 +10,8 @@
 |---|---|---|---|
 | `version` | string | `latest` | Version of gh to install. `latest`: newest release. A semver string (e.g. `2.89.0`): exact version on `method=binary` and `method=repos` on Debian/Ubuntu (apt). On macOS (Homebrew), Alpine, Arch, and RHEL-family (dnf/yum/zypper), version pinning is not supported — a warning is logged and the latest available package is installed instead. |
 | `method` | enum | `repos` | `repos`: official package repos (apt/dnf/apk/pacman/brew). `binary`: pre-built binary from GitHub Releases. |
-| `install_path` | string | `/usr/local/bin` | Directory where the `gh` binary is installed. `method=binary` only. |
-| `symlink` | boolean | `true` | Create `/usr/local/bin/gh → install_path/gh` when `install_path ≠ /usr/local/bin` (root + `method=binary` only). |
+| `prefix` | string | `/usr/local` | Installation prefix for the `gh` binary (`method=binary` only). The binary is placed at `$prefix/bin/gh`. |
+| `symlink` | boolean | `true` | Create `/usr/local/bin/gh → $prefix/bin/gh` when `prefix ≠ /usr/local` (root + `method=binary` only). |
 | `install_completions` | boolean | `true` | Install bash and zsh completions. Applies to both methods: `method=binary` reads from the archive; `method=repos` generates via `gh completion -s bash/zsh`. |
 | `if_exists` | enum | `skip` | Action when `gh` is already in PATH: `skip` (default) or `fail`. If the installed version already matches the target version, always skips silently. |
 | `extensions` | string | `""` | Comma-separated `gh extension install` arguments (owner/repo slugs, https:// URLs, or local paths). |
@@ -85,13 +85,13 @@ Install an exact version via apt (Debian/Ubuntu only; not supported on Alpine/Ar
 
 ### Custom Binary Install Path
 
-Install the binary to a non-default location (e.g. a user-writable `~/.local/bin`).
+Install the binary to a non-default location (e.g. a user-writable `~/.local`).
 
 ```jsonc
 "features": {
   "ghcr.io/quantized8/sysset/install-gh:0": {
     "method": "binary",
-    "install_path": "/home/vscode/.local/bin"
+    "prefix": "/home/vscode/.local"
   }
 }
 ```
@@ -203,7 +203,7 @@ Install the binary to a non-default location with a symlink at `/usr/local/bin/g
 "features": {
   "ghcr.io/quantized8/sysset/install-gh:0": {
     "method": "binary",
-    "install_path": "/opt/gh/bin",
+    "prefix": "/opt/gh",
     "symlink": true
   }
 }
@@ -325,7 +325,7 @@ For SSH signing to show commits as **Verified** on GitHub, the user's public key
 
 ### Troubleshooting
 
-- **`gh` not found after install with `method=binary`:** Ensure `install_path` is on `$PATH`. The `containerEnv.PATH` entry in the feature adds `/usr/local/bin` automatically; if using a custom `install_path`, either move to `/usr/local/bin` (default) or enable `symlink=true` so `/usr/local/bin/gh` points to the binary.
+- **`gh` not found after install with `method=binary`:** Ensure `$prefix/bin` is on `$PATH`. The `containerEnv.PATH` entry in the feature adds `/usr/local/bin` automatically; if using a custom `prefix`, either use `/usr/local` (default) or enable `symlink=true` so `/usr/local/bin/gh` points to the binary.
 - **Version not found with `method=repos` on Alpine/Arch:** Version pinning is not supported via `apk`/`pacman`. Use `method=binary` for an exact version on these platforms.
 - **GPG key issues on Debian/Ubuntu:** If the apt keyring download (`cli.github.com/packages/githubcli-archive-keyring.gpg`) fails due to network restrictions, use `method=binary` instead.
 - **Extension install fails:** `gh extension install` requires network access to `github.com`. Ensure the container has internet access at feature install time.

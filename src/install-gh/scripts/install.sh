@@ -276,9 +276,9 @@ _gh__install_binary() {
   esac
 
   # Install binary.
-  mkdir -p "${INSTALL_PATH}"
-  install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${INSTALL_PATH}/gh"
-  echo "✅ gh binary installed to '${INSTALL_PATH}/gh'" >&2
+  mkdir -p "${PREFIX}/bin"
+  install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${PREFIX}/bin/gh"
+  echo "✅ gh binary installed to '${PREFIX}/bin/gh'" >&2
 
   # Install completions from archive (if requested).
   if [ "${INSTALL_COMPLETIONS}" = "true" ]; then
@@ -292,12 +292,12 @@ _gh__install_binary() {
   fi
 
   # Verify.
-  "${INSTALL_PATH}/gh" --version > /dev/null
+  "${PREFIX}/bin/gh" --version > /dev/null
   echo "↩️ Function exit: _gh__install_binary" >&2
   return 0
 }
 
-# _gh__create_symlink — create /usr/local/bin/gh -> INSTALL_PATH/gh (binary method only).
+# _gh__create_symlink — create /usr/local/bin/gh -> PREFIX/bin/gh (binary method only).
 _gh__create_symlink() {
   echo "↪️ Function entry: _gh__create_symlink" >&2
   if [ "${SYMLINK}" != "true" ]; then
@@ -310,8 +310,8 @@ _gh__create_symlink() {
     echo "↩️ Function exit: _gh__create_symlink" >&2
     return 0
   fi
-  if [ "${INSTALL_PATH}" = "/usr/local/bin" ]; then
-    echo "ℹ️ install_path is already /usr/local/bin; no symlink needed." >&2
+  if [ "${PREFIX}" = "/usr/local" ]; then
+    echo "ℹ️ prefix is already /usr/local; no symlink needed." >&2
     echo "↩️ Function exit: _gh__create_symlink" >&2
     return 0
   fi
@@ -324,8 +324,8 @@ _gh__create_symlink() {
     echo "⛔ /usr/local/bin/gh exists as a regular file — cannot create symlink." >&2
     exit 1
   fi
-  ln -sf "${INSTALL_PATH}/gh" /usr/local/bin/gh
-  echo "✅ Created symlink /usr/local/bin/gh -> ${INSTALL_PATH}/gh" >&2
+  ln -sf "${PREFIX}/bin/gh" /usr/local/bin/gh
+  echo "✅ Created symlink /usr/local/bin/gh -> ${PREFIX}/bin/gh" >&2
   echo "↩️ Function exit: _gh__create_symlink" >&2
   return 0
 }
@@ -562,7 +562,7 @@ if [ "$#" -gt 0 ]; then
   GIT_PROTOCOL=""
   IF_EXISTS=""
   INSTALL_COMPLETIONS=""
-  INSTALL_PATH=""
+  PREFIX=""
   INSTALLER_DIR=""
   LOGFILE=""
   METHOD=""
@@ -633,10 +633,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'install_completions': '${INSTALL_COMPLETIONS}'" >&2
         shift
         ;;
-      --install_path)
+      --prefix)
         shift
-        INSTALL_PATH="$1"
-        echo "📩 Read argument 'install_path': '${INSTALL_PATH}'" >&2
+        PREFIX="$1"
+        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
         shift
         ;;
       --installer_dir)
@@ -709,7 +709,7 @@ else
   [ "${GIT_PROTOCOL+defined}" ] && echo "📩 Read argument 'git_protocol': '${GIT_PROTOCOL}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
   [ "${INSTALL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'install_completions': '${INSTALL_COMPLETIONS}'" >&2
-  [ "${INSTALL_PATH+defined}" ] && echo "📩 Read argument 'install_path': '${INSTALL_PATH}'" >&2
+  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${METHOD+defined}" ] && echo "📩 Read argument 'method': '${METHOD}'" >&2
@@ -733,7 +733,7 @@ fi
 [ -z "${GIT_PROTOCOL-}" ] && GIT_PROTOCOL=""
 [ -z "${IF_EXISTS-}" ] && IF_EXISTS="skip"
 [ -z "${INSTALL_COMPLETIONS-}" ] && INSTALL_COMPLETIONS=true
-[ -z "${INSTALL_PATH-}" ] && INSTALL_PATH="/usr/local/bin"
+[ -z "${PREFIX-}" ] && PREFIX="/usr/local"
 [ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/gh-install"
 [ -z "${LOGFILE-}" ] && LOGFILE=""
 [ -z "${METHOD-}" ] && METHOD="repos"
@@ -808,7 +808,7 @@ else
   _gh__install_binary "${_resolved_version}"
 fi
 
-# Step 7: Create /usr/local/bin symlink (binary method, non-default install_path).
+# Step 7: Create /usr/local/bin symlink (binary method, non-default prefix).
 _gh__create_symlink
 
 # Step 8: Install completions for repos method (binary method handles them internally).

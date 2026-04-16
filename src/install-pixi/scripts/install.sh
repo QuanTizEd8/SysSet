@@ -12,8 +12,8 @@ Usage: install.sh [--option value ...]
 
 Options:
   --version (string)          Version to install, e.g. '0.67.0'. Default: 'latest'.
-  --bin_dir (string)          Binary install directory. Default: 'auto'
-                              (root: /usr/local/bin, non-root: $HOME/.pixi/bin).
+  --prefix (string)          Installation prefix. The 'pixi' binary is placed at '$prefix/bin/pixi'. Default: 'auto'
+                              (root: /usr/local, non-root: $HOME/.pixi).
   --if_exists (string)        Action when pixi already exists: skip | fail | uninstall | update.
                               Default: 'skip'. Version-match always skips silently.
   --installer_dir (string)    Download directory for .tar.gz + .tar.gz.sha256. Default: '/tmp/pixi-installer'.
@@ -23,7 +23,7 @@ Options:
   --netrc (string)            Path to .netrc file for authenticated downloads. Default: ''.
   --export_path (string)      Shell startup files for PATH export. Default: 'auto'.
   --export_pixi_home (string) Shell startup files for PIXI_HOME export. Default: 'auto'.
-  --symlink (boolean)         Create /usr/local/bin/pixi symlink (root + non-default bin_dir). Default: 'true'.
+  --symlink (boolean)         Create /usr/local/bin/pixi symlink (root + non-default prefix). Default: 'true'.
   --shell_completion (boolean) Write completion eval block. Default: 'false'.
   --shell_type (string)       Shell for completion: bash | zsh | fish | nushell | elvish. Default: 'bash'.
   --keep_installer (boolean)  Keep downloaded archive after install. Default: 'false'.
@@ -56,32 +56,32 @@ __cleanup__() {
 
 resolve_bin_dir() {
   echo "↪️ Function entry: resolve_bin_dir" >&2
-  case "${BIN_DIR}" in
+  case "${PREFIX}" in
     auto)
       if [ "$(id -u)" = "0" ]; then
-        BIN_DIR="/usr/local/bin"
+        PREFIX="/usr/local"
       else
-        BIN_DIR="${HOME}/.pixi/bin"
+        PREFIX="${HOME}/.pixi"
       fi
       ;;
     "")
-      BIN_DIR="${HOME}/.pixi/bin"
+      PREFIX="${HOME}/.pixi"
       ;;
     *) ;; # explicit value: use as-is
   esac
-  echo "ℹ️ Resolved bin_dir to '${BIN_DIR}'" >&2
+  echo "ℹ️ Resolved prefix to '${PREFIX}'" >&2
   echo "↩️ Function exit: resolve_bin_dir" >&2
   return 0
 }
 
 check_root_requirement() {
   echo "↪️ Function entry: check_root_requirement" >&2
-  case "${BIN_DIR}" in
+  case "${PREFIX}" in
     /opt/* | /usr/* | /var/* | /srv/* | /snap/*)
       os__require_root
       ;;
     *)
-      echo "ℹ️ Root not required for bin_dir '${BIN_DIR}'." >&2
+      echo "ℹ️ Root not required for prefix '${PREFIX}'." >&2
       ;;
   esac
   echo "↩️ Function exit: check_root_requirement" >&2
@@ -192,7 +192,7 @@ verify_pixi() {
 
 # get_installed_version — prints bare semver (no v prefix) to stdout, or empty string.
 get_installed_version() {
-  local _bin="${BIN_DIR}/pixi"
+  local _bin="${PREFIX}/bin/pixi"
   if [ -x "${_bin}" ]; then
     "${_bin}" --version 2> /dev/null | awk '{print $NF}' | sed 's/^v//' || true
     return 0
@@ -217,8 +217,8 @@ handle_if_exists() {
       exit 1
       ;;
     uninstall)
-      echo "🗑 Removing existing pixi binary at '${BIN_DIR}/pixi'..." >&2
-      rm -f "${BIN_DIR}/pixi"
+      echo "🗑 Removing existing pixi binary at '${PREFIX}/bin/pixi'..." >&2
+      rm -f "${PREFIX}/bin/pixi"
       _SKIP_INSTALL=false
       ;;
     update)
@@ -233,8 +233,8 @@ handle_if_exists() {
 update_pixi() {
   echo "↪️ Function entry: update_pixi" >&2
   local _pixi_bin
-  if [ -x "${BIN_DIR}/pixi" ]; then
-    _pixi_bin="${BIN_DIR}/pixi"
+  if [ -x "${PREFIX}/bin/pixi" ]; then
+    _pixi_bin="${PREFIX}/bin/pixi"
   elif command -v pixi > /dev/null 2>&1; then
     _pixi_bin="$(command -v pixi)"
   else
@@ -250,13 +250,13 @@ update_pixi() {
 install_pixi_binary() {
   echo "↪️ Function entry: install_pixi_binary" >&2
   local _tmpdir="${INSTALLER_DIR}/_extract"
-  mkdir -p "${BIN_DIR}" "${_tmpdir}"
-  echo "📦 Extracting archive to '${BIN_DIR}/pixi'..." >&2
+  mkdir -p "${PREFIX}/bin" "${_tmpdir}"
+  echo "📦 Extracting archive to '${PREFIX}/bin/pixi'..." >&2
   tar -xzf "${ARCHIVE}" -C "${_tmpdir}"
-  mv "${_tmpdir}/pixi" "${BIN_DIR}/pixi"
-  chmod 0755 "${BIN_DIR}/pixi"
+  mv "${_tmpdir}/pixi" "${PREFIX}/bin/pixi"
+  chmod 0755 "${PREFIX}/bin/pixi"
   rm -rf "${_tmpdir}"
-  echo "✅ pixi binary installed to '${BIN_DIR}/pixi'" >&2
+  echo "✅ pixi binary installed to '${PREFIX}/bin/pixi'" >&2
   echo "↩️ Function exit: install_pixi_binary" >&2
   return 0
 }
@@ -273,13 +273,13 @@ create_symlink() {
     echo "↩️ Function exit: create_symlink" >&2
     return 0
   fi
-  if [ "${BIN_DIR}" = "/usr/local/bin" ]; then
-    echo "ℹ️ bin_dir is already /usr/local/bin; no symlink needed." >&2
+  if [ "${PREFIX}" = "/usr/local" ]; then
+    echo "ℹ️ prefix is already /usr/local; no symlink needed." >&2
     echo "↩️ Function exit: create_symlink" >&2
     return 0
   fi
-  ln -sf "${BIN_DIR}/pixi" /usr/local/bin/pixi
-  echo "✅ Created symlink /usr/local/bin/pixi -> ${BIN_DIR}/pixi" >&2
+  ln -sf "${PREFIX}/bin/pixi" /usr/local/bin/pixi
+  echo "✅ Created symlink /usr/local/bin/pixi -> ${PREFIX}/bin/pixi" >&2
   echo "↩️ Function exit: create_symlink" >&2
   return 0
 }
@@ -287,12 +287,12 @@ create_symlink() {
 verify_installed_binary() {
   echo "↪️ Function entry: verify_installed_binary" >&2
   local _ver=""
-  if "${BIN_DIR}/pixi" --version > /dev/null 2>&1; then
-    _ver="$("${BIN_DIR}/pixi" --version 2> /dev/null)"
+  if "${PREFIX}/bin/pixi" --version > /dev/null 2>&1; then
+    _ver="$("${PREFIX}/bin/pixi" --version 2> /dev/null)"
   elif command -v pixi > /dev/null 2>&1; then
     _ver="$(pixi --version 2> /dev/null)"
   else
-    echo "⛔ pixi not found at '${BIN_DIR}/pixi' and not on PATH." >&2
+    echo "⛔ pixi not found at '${PREFIX}/bin/pixi' and not on PATH." >&2
     exit 1
   fi
   echo "ℹ️ Verified pixi: ${_ver}" >&2
@@ -307,12 +307,12 @@ export_path_main() {
     echo "↩️ Function exit: export_path_main" >&2
     return 0
   fi
-  if [ "${EXPORT_PATH}" = "auto" ] && [ "${BIN_DIR}" = "/usr/local/bin" ]; then
-    echo "ℹ️ BIN_DIR is /usr/local/bin which is already on PATH in all container images; skipping PATH write." >&2
+  if [ "${EXPORT_PATH}" = "auto" ] && [ "${PREFIX}" = "/usr/local" ]; then
+    echo "ℹ️ PREFIX is /usr/local which is already on PATH in all container images; skipping PATH write." >&2
     echo "↩️ Function exit: export_path_main" >&2
     return 0
   fi
-  local _content="export PATH=\"${BIN_DIR}:\${PATH}\""
+  local _content="export PATH=\"${PREFIX}/bin:\${PATH}\""
   local _marker="pixi PATH (install-pixi)"
   local _target_files
   if [ "${EXPORT_PATH}" != "auto" ]; then
@@ -437,7 +437,7 @@ ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --check_installed
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
   ARCH=""
-  BIN_DIR=""
+  PREFIX=""
   DEBUG=""
   DOWNLOAD_URL=""
   EXPORT_PATH="auto"
@@ -460,10 +460,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'arch': '${ARCH}'" >&2
         shift
         ;;
-      --bin_dir)
+      --prefix)
         shift
-        BIN_DIR="$1"
-        echo "📩 Read argument 'bin_dir': '${BIN_DIR}'" >&2
+        PREFIX="$1"
+        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
         shift
         ;;
       --debug)
@@ -564,7 +564,7 @@ if [ "$#" -gt 0 ]; then
 else
   echo "ℹ️ Script called with no arguments. Reading environment variables." >&2
   [ "${ARCH+defined}" ] && echo "📩 Read argument 'arch': '${ARCH}'" >&2
-  [ "${BIN_DIR+defined}" ] && echo "📩 Read argument 'bin_dir': '${BIN_DIR}'" >&2
+  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${DOWNLOAD_URL+defined}" ] && echo "📩 Read argument 'download_url': '${DOWNLOAD_URL}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
@@ -585,7 +585,7 @@ fi
 
 # Apply defaults.
 [ -z "${ARCH-}" ] && ARCH=""
-[ -z "${BIN_DIR-}" ] && BIN_DIR="auto"
+[ -z "${PREFIX-}" ] && PREFIX="auto"
 [ -z "${DEBUG-}" ] && DEBUG=false
 [ -z "${DOWNLOAD_URL-}" ] && DOWNLOAD_URL=""
 # EXPORT_PATH and EXPORT_PIXI_HOME: test for unset (not empty) so explicit "" is honoured.
@@ -625,17 +625,17 @@ check_root_requirement
 resolve_pixi_version
 
 # Version-match idempotency check: only compare against the requested install
-# target (BIN_DIR/pixi).  A pixi reachable only via PATH at a different location
+# target (PREFIX/bin/pixi).  A pixi reachable only via PATH at a different location
 # does NOT satisfy the target — we still need to install there.
 _INSTALLED_VER=""
-if [ -x "${BIN_DIR}/pixi" ]; then
+if [ -x "${PREFIX}/bin/pixi" ]; then
   _INSTALLED_VER="$(get_installed_version)"
 fi
 _SKIP_INSTALL=false
 if [ -n "${_INSTALLED_VER}" ] && [ "${_INSTALLED_VER}" = "${VERSION}" ]; then
   echo "ℹ️ Installed pixi version '${_INSTALLED_VER}' matches '${VERSION}'. Skipping install." >&2
   _SKIP_INSTALL=true
-elif [ -x "${BIN_DIR}/pixi" ]; then
+elif [ -x "${PREFIX}/bin/pixi" ]; then
   # A different version is already at the requested install target: apply policy.
   handle_if_exists
 fi
