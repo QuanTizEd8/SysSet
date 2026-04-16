@@ -1,7 +1,6 @@
 #!/bin/bash
-# rc_files="/root/.bashrc :: /etc/bash.bashrc":
-# activation lines are appended to both rc files, verifying the ' :: ' array
-# separator is correctly parsed from the env-var-mode input.
+# rc_files="/root/.bashrc\n/etc/bash.bashrc": conda init block is written
+# to both rc files, verifying the newline separator is correctly parsed.
 set -e
 
 source dev-container-features-test-lib
@@ -18,18 +17,16 @@ cat /root/.bashrc 2> /dev/null || echo "(missing)"
 echo "=== /etc/bash.bashrc ==="
 cat /etc/bash.bashrc 2> /dev/null || echo "(missing)"
 
-# --- conda.sh sourced in /root/.bashrc ---
-check "conda.sh sourced in /root/.bashrc" grep -Fq ". '/opt/conda/etc/profile.d/conda.sh'" /root/.bashrc
-check "mamba.sh sourced in /root/.bashrc" grep -Fq ". '/opt/conda/etc/profile.d/mamba.sh'" /root/.bashrc
-check "conda activate base in /root/.bashrc" grep -Fq "conda activate base" /root/.bashrc
+# --- our idempotency block markers are present in /root/.bashrc ---
+check "miniforge begin marker in /root/.bashrc" grep -Fq "# >>> conda init (install-miniforge) >>>" /root/.bashrc
+check "conda initialize begin marker in /root/.bashrc" grep -Fq "# >>> conda initialize >>>" /root/.bashrc
 
-# --- conda.sh sourced in /etc/bash.bashrc ---
-check "conda.sh sourced in /etc/bash.bashrc" grep -Fq ". '/opt/conda/etc/profile.d/conda.sh'" /etc/bash.bashrc
-check "mamba.sh sourced in /etc/bash.bashrc" grep -Fq ". '/opt/conda/etc/profile.d/mamba.sh'" /etc/bash.bashrc
-check "conda activate base in /etc/bash.bashrc" grep -Fq "conda activate base" /etc/bash.bashrc
+# --- our idempotency block markers are present in /etc/bash.bashrc ---
+check "miniforge begin marker in /etc/bash.bashrc" grep -Fq "# >>> conda init (install-miniforge) >>>" /etc/bash.bashrc
+check "conda initialize begin marker in /etc/bash.bashrc" grep -Fq "# >>> conda initialize >>>" /etc/bash.bashrc
 
-# --- neither file has duplicated lines ---
-check "no dup conda.sh line in /root/.bashrc" bash -c '[ "$(grep -Fc ". '"'"'/opt/conda/etc/profile.d/conda.sh'"'"'" /root/.bashrc)" -eq 1 ]'
-check "no dup conda.sh line in /etc/bash.bashrc" bash -c '[ "$(grep -Fc ". '"'"'/opt/conda/etc/profile.d/conda.sh'"'"'" /etc/bash.bashrc)" -eq 1 ]'
+# --- neither file has duplicated markers ---
+check "no dup miniforge marker in /root/.bashrc" bash -c '[ "$(grep -Fc "# >>> conda init (install-miniforge) >>>" /root/.bashrc)" -eq 1 ]'
+check "no dup miniforge marker in /etc/bash.bashrc" bash -c '[ "$(grep -Fc "# >>> conda init (install-miniforge) >>>" /etc/bash.bashrc)" -eq 1 ]'
 
 reportResults

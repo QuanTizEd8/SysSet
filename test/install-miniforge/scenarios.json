@@ -34,7 +34,7 @@
     "activate_multi": {
         "image": "ubuntu:latest",
         "features": {
-            "install-miniforge": { "rc_files": "/root/.bashrc :: /etc/bash.bashrc", "debug": true }
+            "install-miniforge": { "rc_files": "/root/.bashrc\n/etc/bash.bashrc", "debug": true }
         }
     },
     "custom_active_env": {

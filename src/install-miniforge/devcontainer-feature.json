@@ -46,13 +46,13 @@
          "type": "boolean"
       },
       "rc_files": {
-         "default": "",
-         "description": "Paths to shell configuration files to append conda initialization to.",
+         "default": "auto",
+         "description": "Shell rc files to write conda initialization to.\n'auto' writes to system-wide rc files when running as root, or to the current user's\n~/.bashrc and $ZDOTDIR/.zshrc when running as non-root.\n'' (empty) skips all conda init writes.\nNewline-separated list of absolute paths: writes only to those files.\n",
          "type": "string"
       },
       "activate_env": {
          "default": "base",
-         "description": "Name of a conda environment to activate.\nAdds `conda activate <env>` to the shell configuration files\nspecified in `rc_files`.\nOnly takes effect when `rc_files` is set.\n",
+         "description": "Conda environment to activate at shell startup.\n'base' sets auto_activate_base=true in ~/.condarc (the conda-native mechanism).\nAny other name appends a 'conda activate <env>' line to the rc files.\n'' (empty) skips activation setup entirely.\nOnly takes effect when rc_files is non-empty.\n",
          "type": "string"
       },
       "set_permissions": {
