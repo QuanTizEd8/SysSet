@@ -76,3 +76,10 @@ Use object form (named steps) rather than a plain string — it makes CI logs re
 ## Further Reading
 
 - `docs/dev-guide/writing-features.md` — feature anatomy, options, scripts, full library reference
+
+
+## Key References
+
+- [JSON Schema for devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainerFeature.schema.json)
+- [Full JSON Schema for devcontainer.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.schema.json)
+- [Core JSON Schema for devcontainer.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.base.schema.json)
