@@ -357,6 +357,53 @@ shell__user_init_files() {
   return 0
 }
 
+# shell__user_rc_files [--home <dir>] [--zdotdir <dir>]
+# Prints user-scoped interactive shell rc file paths.
+# One absolute path per line:
+#   <home>/.bashrc    — bash interactive (non-login)
+#   <zdotdir>/.zshrc  — zsh interactive
+# Intended for initializers that must only run in interactive shells
+# (e.g. conda init, shell prompt setup). Does NOT include login files
+# (.bash_profile, .zprofile) — use shell__user_init_files for those.
+# Default home: $HOME
+# Default zdotdir: auto-detected via shell__detect_zdotdir
+shell__user_rc_files() {
+  local _home="${HOME:-}" _zdotdir=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --home)
+        shift
+        _home="$1"
+        shift
+        ;;
+      --zdotdir)
+        shift
+        _zdotdir="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  [[ -z "$_zdotdir" ]] && _zdotdir="$(shell__detect_zdotdir --home "$_home")"
+  echo "${_home}/.bashrc"
+  echo "${_zdotdir}/.zshrc"
+  return 0
+}
+
+# shell__system_rc_files
+# Prints system-wide interactive shell rc file paths.
+# One absolute path per line:
+#   <global bashrc>           — bash interactive (distro-specific path)
+#   <global zshdir>/zshrc     — zsh interactive
+# Intended for system-wide conda init or similar interactive-only setup
+# when no per-user targets are resolved (e.g. running as root with no
+# resolved users). Does NOT include login files or PATH-export files.
+shell__system_rc_files() {
+  shell__detect_bashrc
+  echo "$(shell__detect_zshdir)/zshrc"
+  return 0
+}
+
 # shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>
 # Given an owner/repo theme slug and the ZSH_CUSTOM directory, prints the
 # ZSH_THEME value that oh-my-zsh expects (e.g. "powerlevel10k/powerlevel10k").

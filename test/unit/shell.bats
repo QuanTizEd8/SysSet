@@ -552,3 +552,92 @@ ${_home}/.bashrc
 ${_home}/.config/zsh/.zprofile
 ${_home}/.config/zsh/.zshrc"
 }
+
+# ---------------------------------------------------------------------------
+# shell__user_rc_files
+# ---------------------------------------------------------------------------
+
+@test "shell__user_rc_files returns .bashrc and .zshrc only" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeRC1"
+  mkdir -p "$_home"
+  run shell__user_rc_files --home "$_home"
+  assert_output "${_home}/.bashrc
+${_home}/.zshrc"
+}
+
+@test "shell__user_rc_files does not include login file" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeRC2"
+  mkdir -p "$_home"
+  touch "${_home}/.bash_profile"
+  run shell__user_rc_files --home "$_home"
+  # Must NOT contain .bash_profile
+  refute_output --partial ".bash_profile"
+  assert_output --partial ".bashrc"
+}
+
+@test "shell__user_rc_files uses explicit --zdotdir for .zshrc" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeRCZ"
+  local _zd="${BATS_TEST_TMPDIR}/zdotRCZ"
+  mkdir -p "$_home" "$_zd"
+  run shell__user_rc_files --home "$_home" --zdotdir "$_zd"
+  assert_output "${_home}/.bashrc
+${_zd}/.zshrc"
+}
+
+@test "shell__user_rc_files auto-detects zdotdir from .zshenv" {
+  reload_lib shell.sh
+  local _home="${BATS_TEST_TMPDIR}/homeRCZA"
+  mkdir -p "$_home"
+  printf 'ZDOTDIR="$HOME/.config/zsh"\n' > "${_home}/.zshenv"
+  shell__detect_zshdir() { echo "${BATS_TEST_TMPDIR}/no_etc_zsh"; }
+  export -f shell__detect_zshdir
+  run shell__user_rc_files --home "$_home"
+  assert_output "${_home}/.bashrc
+${_home}/.config/zsh/.zshrc"
+}
+
+# ---------------------------------------------------------------------------
+# shell__system_rc_files
+# ---------------------------------------------------------------------------
+
+@test "shell__system_rc_files returns system bashrc and zshrc" {
+  reload_lib shell.sh
+  strings() { echo "/etc/bash.bashrc"; }
+  export -f strings
+  _OS__ID="ubuntu"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
+  run shell__system_rc_files
+  assert_output "/etc/bash.bashrc
+/etc/zsh/zshrc"
+  assert_success
+}
+
+@test "shell__system_rc_files uses distro-correct bashrc for fedora" {
+  reload_lib shell.sh
+  strings() { :; }
+  export -f strings
+  _OS__ID="fedora"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
+  run shell__system_rc_files
+  assert_output "/etc/bashrc
+/etc/zshrc"
+  assert_success
+}
+
+@test "shell__system_rc_files uses /etc/zsh/zshrc for debian-family" {
+  reload_lib shell.sh
+  strings() { echo "/etc/bash.bashrc"; }
+  export -f strings
+  _OS__ID="debian"
+  _OS__ID_LIKE=""
+  _OS__RELEASE_LOADED=1
+  run shell__system_rc_files
+  assert_output "/etc/bash.bashrc
+/etc/zsh/zshrc"
+  assert_success
+}
