@@ -1,5 +1,5 @@
 #!/bin/bash
-# shell_completion=true, shell_type=bash (root):
+# shell_completions=bash (root):
 # Verifies pixi shell completion eval block is written to the system-wide bashrc.
 # Checks /etc/bash.bashrc (Debian/Ubuntu), /etc/bashrc (RHEL), /etc/bash/bashrc (Alpine).
 set -e

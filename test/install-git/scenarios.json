@@ -24,7 +24,7 @@
                 "prefix": "/opt/git",
                 "export_path": "/tmp/install-git-path.sh",
                 "symlink": false,
-                "install_completions": false,
+                "shell_completions": "",
                 "no_clean": true,
                 "debug": true
             }

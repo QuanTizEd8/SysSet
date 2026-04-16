@@ -126,8 +126,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-pixi": {
-                "shell_completion": true,
-                "shell_type": "bash",
+                "shell_completions": "bash",
                 "debug": true
             }
         }
@@ -136,8 +135,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-pixi": {
-                "shell_completion": true,
-                "shell_type": "zsh",
+                "shell_completions": "zsh",
                 "debug": true
             }
         }

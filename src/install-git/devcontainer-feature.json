@@ -51,10 +51,10 @@
          "default": "auto",
          "description": "Controls PATH and MANPATH export for source builds.\n'auto' (default) — writes idempotent export blocks to all system-wide shell startup files: the BASH_ENV file (non-login non-interactive bash, registered in /etc/environment), /etc/profile.d/install-git.sh (login shells), the system-wide bashrc (non-login interactive bash), and <zshdir>/zshenv (all zsh). This covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.\n'' (empty string) — skips all PATH/MANPATH writes.\nA newline-separated list of absolute file paths — writes only to those files.\nIgnored when method=package (git lands in /usr/bin which is universally on PATH)."
       },
-      "install_completions": {
-         "type": "boolean",
-         "default": true,
-         "description": "Install bash and zsh completion scripts for source builds.\nAs root: copies git-completion.bash to /etc/bash_completion.d/git and git-completion.zsh to <zshdir>/completions/_git (where <zshdir> is detected by shell__detect_zshdir).\nAs non-root: copies to $HOME/.local/share/bash-completion/completions/git (bash) and $HOME/.zfunc/_git (zsh).\nThe source files are taken from $PREFIX/share/git-core/contrib/completion/ which is populated by make install.\nIgnored when method=package (completions are installed by the package manager)."
+      "shell_completions": {
+         "type": "string",
+         "default": "bash zsh",
+         "description": "Space-separated list of shell names to install completion scripts for after a source build.\nSupported shells: 'bash', 'zsh'.\nAs root: copies git-completion.bash to /etc/bash_completion.d/git and git-completion.zsh to <zshdir>/completions/_git (where <zshdir> is detected by shell__detect_zshdir).\nAs non-root: copies to $HOME/.local/share/bash-completion/completions/git (bash) and $HOME/.zfunc/_git (zsh).\nThe source files are taken from $PREFIX/share/git-core/contrib/completion/ which is populated by make install.\nSet to '' to skip all completion writes.\nIgnored when method=package (completions are installed by the package manager).\nExamples: 'bash zsh', 'bash', 'zsh', ''.\n"
       },
       "if_exists": {
          "type": "string",

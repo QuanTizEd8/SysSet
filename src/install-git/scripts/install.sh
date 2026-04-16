@@ -28,7 +28,7 @@ if [ "$#" -gt 0 ]; then
   DEFAULT_BRANCH=""
   EXPORT_PATH="auto"
   IF_EXISTS=""
-  INSTALL_COMPLETIONS=""
+  SHELL_COMPLETIONS=""
   INSTALLER_DIR=""
   LOGFILE=""
   MAKE_FLAGS=""
@@ -71,10 +71,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
         shift
         ;;
-      --install_completions)
+      --shell_completions)
         shift
-        INSTALL_COMPLETIONS="$1"
-        echo "📩 Read argument 'install_completions': '${INSTALL_COMPLETIONS}'" >&2
+        SHELL_COMPLETIONS="$1"
+        echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
         shift
         ;;
       --installer_dir)
@@ -189,7 +189,7 @@ else
   [ "${DEFAULT_BRANCH+defined}" ] && echo "📩 Read argument 'default_branch': '${DEFAULT_BRANCH}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-  [ "${INSTALL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'install_completions': '${INSTALL_COMPLETIONS}'" >&2
+  [ "${SHELL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${MAKE_FLAGS+defined}" ] && echo "📩 Read argument 'make_flags': '${MAKE_FLAGS}'" >&2
@@ -215,7 +215,7 @@ fi
 [ -z "${DEFAULT_BRANCH-}" ] && DEFAULT_BRANCH="main"
 [ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
 [ -z "${IF_EXISTS-}" ] && IF_EXISTS="skip"
-[ -z "${INSTALL_COMPLETIONS-}" ] && INSTALL_COMPLETIONS=true
+[ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS="bash zsh"
 [ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/git-build"
 [ -z "${LOGFILE-}" ] && LOGFILE=""
 [ -z "${MAKE_FLAGS-}" ] && MAKE_FLAGS=""
@@ -853,22 +853,43 @@ case "${METHOD}" in
 esac
 
 # 5. Shell completions (source build only).
-if [ "${METHOD}" = "source" ] && [ "${INSTALL_COMPLETIONS}" = "true" ]; then
+if [ "${METHOD}" = "source" ] && [ -n "${SHELL_COMPLETIONS}" ]; then
   _comp_src="${PREFIX}/share/git-core/contrib/completion"
   if [ ! -d "${_comp_src}" ]; then
     echo "ℹ️  Completion scripts not found at '${_comp_src}' — skipping." >&2
-  elif [ "$(id -u)" = "0" ]; then
-    mkdir -p /etc/bash_completion.d
-    cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
-    _zshdir="$(shell__detect_zshdir)"
-    mkdir -p "${_zshdir}/completions"
-    cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"
   else
-    mkdir -p "${HOME}/.local/share/bash-completion/completions"
-    cp "${_comp_src}/git-completion.bash" \
-      "${HOME}/.local/share/bash-completion/completions/git"
-    mkdir -p "${HOME}/.zfunc"
-    cp "${_comp_src}/git-completion.zsh" "${HOME}/.zfunc/_git"
+    for _shell in ${SHELL_COMPLETIONS}; do
+      case "${_shell}" in
+        bash)
+          if [ "$(id -u)" = "0" ]; then
+            mkdir -p /etc/bash_completion.d
+            cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
+            echo "✅ Bash completion written to /etc/bash_completion.d/git" >&2
+          else
+            mkdir -p "${HOME}/.local/share/bash-completion/completions"
+            cp "${_comp_src}/git-completion.bash" \
+              "${HOME}/.local/share/bash-completion/completions/git"
+            echo "✅ Bash completion written to ${HOME}/.local/share/bash-completion/completions/git" >&2
+          fi
+          ;;
+        zsh)
+          if [ "$(id -u)" = "0" ]; then
+            _zshdir="$(shell__detect_zshdir)"
+            mkdir -p "${_zshdir}/completions"
+            cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"
+            echo "✅ Zsh completion written to ${_zshdir}/completions/_git" >&2
+          else
+            mkdir -p "${HOME}/.zfunc"
+            cp "${_comp_src}/git-completion.zsh" "${HOME}/.zfunc/_git"
+            echo "✅ Zsh completion written to ${HOME}/.zfunc/_git" >&2
+          fi
+          ;;
+        *)
+          echo "⛔ Unsupported shell: '${_shell}' (expected: bash, zsh)" >&2
+          exit 1
+          ;;
+      esac
+    done
   fi
 fi
 

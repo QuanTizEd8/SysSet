@@ -24,8 +24,8 @@ Options:
   --export_path (string)      Shell startup files for PATH export. Default: 'auto'.
   --export_pixi_home (string) Shell startup files for PIXI_HOME export. Default: 'auto'.
   --symlink (boolean)         Create /usr/local/bin/pixi symlink (root + non-default prefix). Default: 'true'.
-  --shell_completion (boolean) Write completion eval block. Default: 'false'.
-  --shell_type (string)       Shell for completion: bash | zsh | fish | nushell | elvish. Default: 'bash'.
+  --shell_completions (string) Space-separated shells to write completion eval blocks for.
+                              Supported: bash zsh fish nushell elvish. Default: '' (skip).
   --keep_installer (boolean)  Keep downloaded archive after install. Default: 'false'.
   --debug (boolean)           Enable set -x. Default: 'false'.
   --logfile (string)          Tee all output to this file. Default: ''.
@@ -366,47 +366,50 @@ export_pixi_home_main() {
 
 install_completion() {
   echo "↪️ Function entry: install_completion" >&2
-  if [ "${SHELL_COMPLETION}" != "true" ]; then
-    echo "ℹ️ shell_completion=false; skipping completion install." >&2
+  if [ -z "${SHELL_COMPLETIONS}" ]; then
+    echo "ℹ️ shell_completions is empty; skipping completion install." >&2
     echo "↩️ Function exit: install_completion" >&2
     return 0
   fi
-  local _content="eval \"\$(pixi completion --shell ${SHELL_TYPE})\""
   local _marker="pixi completion (install-pixi)"
-  local _target_file
-  case "${SHELL_TYPE}" in
-    bash)
-      if [ "$(id -u)" = "0" ]; then
-        _target_file="$(shell__detect_bashrc)"
-      else
-        _target_file="${HOME}/.bashrc"
-      fi
-      ;;
-    zsh)
-      if [ "$(id -u)" = "0" ]; then
-        _target_file="$(shell__detect_zshdir)/zshenv"
-      else
-        _target_file="${HOME}/.zshenv"
-      fi
-      ;;
-    fish)
-      _target_file="${HOME}/.config/fish/config.fish"
-      ;;
-    nushell)
-      _target_file="${HOME}/.config/nushell/config.nu"
-      ;;
-    elvish)
-      _target_file="${HOME}/.config/elvish/rc.elv"
-      ;;
-    *)
-      echo "⛔ Unsupported shell: '${SHELL_TYPE}'" >&2
-      exit 1
-      ;;
-  esac
-  mkdir -p "$(dirname "${_target_file}")"
-  [ -f "${_target_file}" ] || touch "${_target_file}"
-  shell__write_block --file "${_target_file}" --marker "${_marker}" --content "${_content}"
-  echo "✅ Shell completion for '${SHELL_TYPE}' written to '${_target_file}'" >&2
+  local _shell
+  for _shell in ${SHELL_COMPLETIONS}; do
+    local _content="eval \"\$(pixi completion --shell ${_shell})\""
+    local _target_file
+    case "${_shell}" in
+      bash)
+        if [ "$(id -u)" = "0" ]; then
+          _target_file="$(shell__detect_bashrc)"
+        else
+          _target_file="${HOME}/.bashrc"
+        fi
+        ;;
+      zsh)
+        if [ "$(id -u)" = "0" ]; then
+          _target_file="$(shell__detect_zshdir)/zshenv"
+        else
+          _target_file="${HOME}/.zshenv"
+        fi
+        ;;
+      fish)
+        _target_file="${HOME}/.config/fish/config.fish"
+        ;;
+      nushell)
+        _target_file="${HOME}/.config/nushell/config.nu"
+        ;;
+      elvish)
+        _target_file="${HOME}/.config/elvish/rc.elv"
+        ;;
+      *)
+        echo "⛔ Unsupported shell: '${_shell}' (expected: bash, zsh, fish, nushell, elvish)" >&2
+        exit 1
+        ;;
+    esac
+    mkdir -p "$(dirname "${_target_file}")"
+    [ -f "${_target_file}" ] || touch "${_target_file}"
+    shell__write_block --file "${_target_file}" --marker "${_marker}" --content "${_content}"
+    echo "✅ Shell completion for '${_shell}' written to '${_target_file}'" >&2
+  done
   echo "↩️ Function exit: install_completion" >&2
   return 0
 }
@@ -448,8 +451,7 @@ if [ "$#" -gt 0 ]; then
   KEEP_INSTALLER=""
   LOGFILE=""
   NETRC=""
-  SHELL_COMPLETION=""
-  SHELL_TYPE=""
+  SHELL_COMPLETIONS=""
   SYMLINK=""
   VERSION=""
   while [ "$#" -gt 0 ]; do
@@ -526,16 +528,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'netrc': '${NETRC}'" >&2
         shift
         ;;
-      --shell_completion)
+      --shell_completions)
         shift
-        SHELL_COMPLETION="$1"
-        echo "📩 Read argument 'shell_completion': '${SHELL_COMPLETION}'" >&2
-        shift
-        ;;
-      --shell_type)
-        shift
-        SHELL_TYPE="$1"
-        echo "📩 Read argument 'shell_type': '${SHELL_TYPE}'" >&2
+        SHELL_COMPLETIONS="$1"
+        echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
         shift
         ;;
       --symlink)
@@ -575,8 +571,7 @@ else
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${NETRC+defined}" ] && echo "📩 Read argument 'netrc': '${NETRC}'" >&2
-  [ "${SHELL_COMPLETION+defined}" ] && echo "📩 Read argument 'shell_completion': '${SHELL_COMPLETION}'" >&2
-  [ "${SHELL_TYPE+defined}" ] && echo "📩 Read argument 'shell_type': '${SHELL_TYPE}'" >&2
+  [ "${SHELL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
 fi
@@ -597,8 +592,7 @@ fi
 [ -z "${KEEP_INSTALLER-}" ] && KEEP_INSTALLER=false
 [ -z "${LOGFILE-}" ] && LOGFILE=""
 [ -z "${NETRC-}" ] && NETRC=""
-[ -z "${SHELL_COMPLETION-}" ] && SHELL_COMPLETION=false
-[ -z "${SHELL_TYPE-}" ] && SHELL_TYPE="bash"
+[ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS=""
 [ -z "${SYMLINK-}" ] && SYMLINK=true
 [ -z "${VERSION-}" ] && VERSION="latest"
 
@@ -610,14 +604,6 @@ case "${IF_EXISTS}" in
     exit 1
     ;;
 esac
-case "${SHELL_TYPE}" in
-  bash | zsh | fish | nushell | elvish) ;;
-  *)
-    echo "⛔ Unknown shell_type: '${SHELL_TYPE}' (expected: bash, zsh, fish, nushell, elvish)" >&2
-    exit 1
-    ;;
-esac
-
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 resolve_bin_dir

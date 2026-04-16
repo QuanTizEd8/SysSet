@@ -17,7 +17,7 @@
 | `no_flags` | string | `""` | Space-separated component flags to disable in source build (`perl`, `python`, `tcltk`, `gettext`). Ignored for `method=package`. |
 | `make_flags` | string | `""` | Additional `KEY=VALUE` pairs appended verbatim last to every `make` invocation for source builds. Overrides any computed flag. Ignored for `method=package`. |
 | `symlink` | boolean | `true` | Create `/usr/local/bin/git → ${PREFIX}/bin/git` when `prefix` resolves to a non-`/usr/local` path (source + root only). Ensures `containerEnv` PATH always resolves correctly. |
-| `install_completions` | boolean | `true` | Install bash/zsh completion scripts to system completion dirs after a source build. Ignored for `method=package`. |
+| `shell_completions` | string | `"bash zsh"` | Space-separated list of shell names to install completions for after a source build. Supported: `"bash"`, `"zsh"`. Copies completion scripts from `$PREFIX/share/git-core/contrib/completion/` to system completion dirs (root) or user dirs (non-root). Set to `""` to skip. Ignored for `method=package`. |
 | `export_path` | string | `"auto"` | PATH/MANPATH export target files after a source build. `"auto"`: all system-wide startup files. `""`: skip. Newline-separated paths: explicit targets. Ignored for `method=package`. |
 | `if_exists` | enum | `"skip"` | When `git` is already in PATH: `"skip"` exits silently; `"fail"` exits non-zero; `"reinstall"` detects and tears down then reinstalls; `"update"` upgrades in place or tears down and reinstalls on a method switch. Version match always short-circuits to skip. |
 | `default_branch` | string | `"main"` | Sets `init.defaultBranch` in the system-level gitconfig. Set to `""` to skip. |
@@ -360,7 +360,7 @@ The old prefix is derived as `dirname(dirname(command -v git))` — e.g. `/usr/l
 
 ### Source-Only Options
 
-`prefix`, `sysconfdir`, `installer_dir`, `no_clean`, `no_flags`, `make_flags`, `install_completions`, and `export_path` are silently ignored when `method=package`. `symlink` is also ignored for `method=package` (git lands in `/usr/bin` which is universally on PATH).
+`prefix`, `sysconfdir`, `installer_dir`, `no_clean`, `no_flags`, `make_flags`, `shell_completions`, and `export_path` are silently ignored when `method=package`. `symlink` is also ignored for `method=package` (git lands in `/usr/bin` which is universally on PATH).
 
 - `prefix="auto"` — resolves to `/usr/local` (root) or `$HOME/.local` (non-root). Explicit paths are validated for writeability; the script exits with a clear error if the path cannot be created.
 - `sysconfdir="auto"` — resolves to `/etc` (root) or `$HOME/.config` (non-root). Controls where git reads its system-level `gitconfig`.
@@ -398,9 +398,9 @@ For `method=source` with a **custom prefix** (e.g. `prefix=/opt/git`), the binar
 - `prefix` resolves to `/usr/local`
 - running as non-root (cannot write to `/usr/local/bin`; use `export_path` instead)
 
-### Shell Completions (`install_completions`)
+### Shell Completions (`shell_completions`)
 
-For `method=source`, `git make install` places bash and zsh completion scripts under `$PREFIX/share/git-core/contrib/completion/` but does not install them to the system completion directories. With `install_completions=true` (the default), the installer copies them:
+For `method=source`, `git make install` places bash and zsh completion scripts under `$PREFIX/share/git-core/contrib/completion/` but does not install them to the system completion directories. With `shell_completions="bash zsh"` (the default), the installer copies each listed shell's completion file:
 
 | Shell | Source | Root destination | Non-root destination |
 |---|---|---|---|
@@ -409,7 +409,7 @@ For `method=source`, `git make install` places bash and zsh completion scripts u
 
 `<zshdir>` is detected by `shell__detect_zshdir`: `/etc/zsh` on Debian/Ubuntu/Alpine, `/etc` on RHEL/Fedora/macOS. The `completions/` subdirectory is in zsh's `$fpath` on all supported platforms, so `_git` is picked up automatically by `compinit`.
 
-Set `install_completions=false` to skip this step (e.g. in minimal containers where neither bash-completion nor zsh is present).
+Set `shell_completions=""` to skip this step (e.g. in minimal containers where neither bash-completion nor zsh is present).
 
 Ignored when `method=package` — the package manager installs completions alongside the binary.
 

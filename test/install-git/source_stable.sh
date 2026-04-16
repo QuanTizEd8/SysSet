@@ -30,7 +30,7 @@ check "profile.d exports /usr/local/bin" grep -Fq 'export PATH="/usr/local/bin:$
 check "bashrc has PATH marker" grep -Fq 'git PATH (install-git)' /etc/bash.bashrc
 check "zshenv has PATH marker" grep -Fq 'git PATH (install-git)' /etc/zsh/zshenv
 
-# --- shell completions (install_completions=true default) ---
+# --- shell completions (shell_completions="bash zsh" default) ---
 check "bash completion installed" test -f /etc/bash_completion.d/git
 check "zsh completion installed in detected zshdir" test -f /etc/zsh/completions/_git
 

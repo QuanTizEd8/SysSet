@@ -171,7 +171,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
    mkdir -p "${PREFIX}/bin"
    install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${PREFIX}/bin/gh"
    ```
-8. If `INSTALL_COMPLETIONS=true`, call `_gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"`.
+8. If `SHELL_COMPLETIONS` is non-empty, call `_gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"`.
 9. If `NO_CLEAN ≠ true`, `rm -rf "${INSTALLER_DIR}"`.
 10. Verify: `"${PREFIX}/bin/gh" --version`.
 
@@ -186,15 +186,15 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 - This is the same pattern as `install-git`'s `symlink` option.
 
 ### `_gh__install_completions`
-**Responsibility:** Install bash and zsh completions for any method.
+**Responsibility:** Install completions for each shell listed in `SHELL_COMPLETIONS`. No-op when empty.
 - Called after gh is installed, regardless of method.
-- For `method=binary`: input `$1` = extracted archive directory; reads completion files from
-  `share/bash-completion/completions/gh` and `share/zsh/site-functions/_gh`.
-- For `method=repos`: no archive dir; runs `gh completion -s bash` and `gh completion -s zsh` to
-  generate completion content on the fly.
-- Destination logic (same for both):
+- Iterates over each shell name in `SHELL_COMPLETIONS` (space-separated).
+- For `method=binary`: reads completion content from the extracted archive directory.
+- For `method=repos`: generates content on the fly via `gh completion -s <shell>`.
+- Destination logic (per shell):
   - As root: bash → `/etc/bash_completion.d/gh`; zsh → `<zshdir>/completions/_gh` (via `shell__detect_zshdir`)
   - As non-root: bash → `$HOME/.local/share/bash-completion/completions/gh`; zsh → `$HOME/.zfunc/_gh`
+- Exits with an error for any unrecognised shell name (e.g. `fish` — not supported by `gh`).
 
 ### `_gh__install_extensions`
 **Responsibility:** Install one or more gh CLI extensions for all resolved users.
@@ -247,7 +247,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 2.  logging__setup + trap EXIT logging__cleanup
 3.  Dual-mode argument parsing (env vars vs --flags)
 4.  Apply defaults: VERSION=latest, METHOD=repos, PREFIX=/usr/local,
-    SYMLINK=true, INSTALL_COMPLETIONS=true, IF_EXISTS=skip, INSTALLER_DIR=/tmp/gh-install,
+    SYMLINK=true, SHELL_COMPLETIONS="bash zsh", IF_EXISTS=skip, INSTALLER_DIR=/tmp/gh-install,
     NO_CLEAN=false, EXTENSIONS="", GIT_PROTOCOL="", SETUP_GIT=false, SIGN_COMMITS="",
     GIT_HOSTNAME=github.com, ADD_CURRENT_USER_CONFIG=true, ADD_REMOTE_USER_CONFIG=true,
     ADD_CONTAINER_USER_CONFIG=true, ADD_USER_CONFIG=""
@@ -272,7 +272,7 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
     elif METHOD=binary:
       _gh__install_binary "$_resolved_version"
 13. _gh__create_symlink  (no-op when method=repos or prefix=/usr/local)
-14. if INSTALL_COMPLETIONS=true:
+14. if SHELL_COMPLETIONS is non-empty:
       if METHOD=binary:  (already called inside _gh__install_binary — no duplicate call needed)
         # completions handled inside _gh__install_binary via --from-archive
       elif METHOD=repos:

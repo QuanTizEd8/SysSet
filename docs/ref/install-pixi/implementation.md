@@ -215,15 +215,15 @@ checksums, shell config writes, OS packages, and logging.
   - Calls `shell__sync_block --files "$_target_files" --marker "..." --content ".."`.
 - **Inputs (globals):** `EXPORT_PIXI_HOME`, `HOME_DIR`.
 ### `install_completion`
-- **Responsibility:** Writes an idempotent `eval "$(pixi completion --shell <shell>)"` block if `SHELL_COMPLETION=true`.
-  - Content: `eval "$(pixi completion --shell ${SHELL_TYPE})"`
+- **Responsibility:** Iterates over each shell name in `SHELL_COMPLETIONS` and writes an idempotent `eval "$(pixi completion --shell <shell>)"` block. No-op when `SHELL_COMPLETIONS` is empty.
+  - Content (per shell): `eval "$(pixi completion --shell ${_shell})"`
   - Marker: `"pixi completion (install-pixi)"`
-  - Target file selection by `SHELL_TYPE`:
+  - Target file selection per shell:
     - `bash`: root → `shell__detect_bashrc`; non-root → `~/.bashrc`
     - `zsh`: root → `"$(shell__detect_zshdir)/zshenv"`; non-root → `~/.zshenv`
     - `fish`, `nushell`, `elvish`: always `~/.config/<shell>/config.<ext>` (no standard system-wide location)
-  - Calls `shell__write_block`.
-- **Inputs (globals):** `SHELL_COMPLETION`, `SHELL_TYPE`, `PREFIX`.
+  - Calls `shell__write_block` for each shell.
+- **Inputs (globals):** `SHELL_COMPLETIONS`, `PREFIX`.
 
 ---
 
@@ -269,9 +269,12 @@ options are read from `--flag value` pairs. When invoked with no arguments
 (devcontainer feature mode), options are read from identically-named environment
 variables set by the devcontainer CLI from `devcontainer-feature.json`.
 
-Boolean CLI flags (`--debug`, `--keep_installer`, `--shell_completion`) require
+Boolean CLI flags (`--debug`, `--keep_installer`) require
 an explicit value of `true` or `false` (e.g. `--debug true`). Omitting the flag
-is equivalent to the default value (`false` for all three).
+is equivalent to the default value (`false` for both).
+
+String flags such as `--shell_completions` accept a space-separated list of shell names
+(e.g. `--shell_completions "bash zsh"`) or an empty string to skip all completions.
 
 ### Default Value Logic
 

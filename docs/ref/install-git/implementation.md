@@ -702,19 +702,38 @@ case "$METHOD" in
 esac
 
 # Post-install: shell completions (source build only).
-if [ "${METHOD}" = "source" ] && [ "${INSTALL_COMPLETIONS}" = "true" ]; then
+if [ "${METHOD}" = "source" ] && [ -n "${SHELL_COMPLETIONS}" ]; then
   _comp_src="${PREFIX}/share/git-core/contrib/completion"
-  if [ "$(id -u)" = "0" ]; then
-    mkdir -p /etc/bash_completion.d
-    cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
-    _zshdir="$(shell__detect_zshdir)"
-    mkdir -p "${_zshdir}/completions"
-    cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"
+  if [ ! -d "${_comp_src}" ]; then
+    echo "ℹ️  Completion scripts not found at '${_comp_src}' — skipping." >&2
   else
-    mkdir -p "${HOME}/.local/share/bash-completion/completions"
-    cp "${_comp_src}/git-completion.bash" "${HOME}/.local/share/bash-completion/completions/git"
-    mkdir -p "${HOME}/.zfunc"
-    cp "${_comp_src}/git-completion.zsh" "${HOME}/.zfunc/_git"
+    for _shell in ${SHELL_COMPLETIONS}; do
+      case "${_shell}" in
+        bash)
+          if [ "$(id -u)" = "0" ]; then
+            mkdir -p /etc/bash_completion.d
+            cp "${_comp_src}/git-completion.bash" /etc/bash_completion.d/git
+          else
+            mkdir -p "${HOME}/.local/share/bash-completion/completions"
+            cp "${_comp_src}/git-completion.bash" "${HOME}/.local/share/bash-completion/completions/git"
+          fi
+          ;;
+        zsh)
+          if [ "$(id -u)" = "0" ]; then
+            _zshdir="$(shell__detect_zshdir)"
+            mkdir -p "${_zshdir}/completions"
+            cp "${_comp_src}/git-completion.zsh" "${_zshdir}/completions/_git"
+          else
+            mkdir -p "${HOME}/.zfunc"
+            cp "${_comp_src}/git-completion.zsh" "${HOME}/.zfunc/_git"
+          fi
+          ;;
+        *)
+          echo "⛔ Unsupported shell: '${_shell}' (expected: bash, zsh)" >&2
+          exit 1
+          ;;
+      esac
+    done
   fi
 fi
 

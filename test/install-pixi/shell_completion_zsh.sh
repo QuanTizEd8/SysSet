@@ -1,5 +1,5 @@
 #!/bin/bash
-# shell_completion=true, shell_type=zsh (root):
+# shell_completions=zsh (root):
 # Verifies pixi shell completion eval block is written to the system-wide zshenv.
 # Checks both /etc/zsh/zshenv (Debian/Ubuntu default) and /etc/zshenv (RHEL/Alpine fallback).
 set -e

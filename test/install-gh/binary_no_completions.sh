@@ -1,5 +1,5 @@
 #!/bin/bash
-# method=binary, install_completions=false:
+# method=binary, shell_completions="" (no completions):
 # gh is installed but bash and zsh completion files must NOT be written.
 set -e
 

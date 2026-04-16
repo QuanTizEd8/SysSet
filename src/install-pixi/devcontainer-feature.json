@@ -71,22 +71,10 @@
          "default": true,
          "description": "Create a symlink /usr/local/bin/pixi -> $prefix/bin/pixi when prefix resolves to something other than /usr/local (root only).\nEnsures the containerEnv PATH entry (/usr/local/bin) always resolves to the installed binary regardless of the chosen prefix.\nNo-op when prefix resolves to /usr/local, or when running as non-root (cannot write to /usr/local/bin).\n"
       },
-      "shell_completion": {
-         "type": "boolean",
-         "default": false,
-         "description": "Enable shell completion for pixi.\nWhen true, writes an idempotent 'eval $(pixi completion --shell <shell>)' block\nto the appropriate system-wide (root) or user-scoped (non-root) shell config file.\n"
-      },
-      "shell_type": {
+      "shell_completions": {
          "type": "string",
-         "default": "bash",
-         "description": "Shell to configure completion for.\nOnly used when shell_completion is true.\n",
-         "enum": [
-            "bash",
-            "zsh",
-            "fish",
-            "nushell",
-            "elvish"
-         ]
+         "default": "",
+         "description": "Space-separated list of shell names to write pixi completion eval blocks for.\nFor each listed shell, writes an idempotent 'eval \"$(pixi completion --shell <shell>)\"' block\nto the appropriate system-wide (root) or user-scoped (non-root) shell config file.\nSupported shells: 'bash', 'zsh', 'fish', 'nushell', 'elvish'.\nSet to '' (the default) to skip all completion writes.\nExamples: 'bash', 'zsh', 'bash zsh'.\n"
       },
       "keep_installer": {
          "type": "boolean",

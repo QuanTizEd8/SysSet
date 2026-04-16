@@ -76,7 +76,7 @@
         "features": {
             "install-gh": {
                 "method": "binary",
-                "install_completions": false,
+                "shell_completions": "",
                 "debug": true
             }
         }
@@ -85,7 +85,7 @@
         "image": "ubuntu:latest",
         "features": {
             "install-gh": {
-                "install_completions": false,
+                "shell_completions": "",
                 "debug": true
             }
         }

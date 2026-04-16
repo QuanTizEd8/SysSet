@@ -66,7 +66,7 @@ exits 0 (apt is idempotent).
   is **not recommended** as of November 2025 due to broken deprecated API usage in versions 2.45.x/2.46.x.
   Always use the official GitHub CLI repository.
 
-#### RPM (dnf4 / dnf5 / yum / zypper)  
+#### RPM (dnf4 / dnf5 / yum / zypper)
 Supported distros: RHEL, CentOS, Fedora, Amazon Linux 2, openSUSE, SUSE.
 
 **dnf4 (Fedora < 41, RHEL, CentOS):**

@@ -281,7 +281,7 @@ _gh__install_binary() {
   echo "✅ gh binary installed to '${PREFIX}/bin/gh'" >&2
 
   # Install completions from archive (if requested).
-  if [ "${INSTALL_COMPLETIONS}" = "true" ]; then
+  if [ -n "${SHELL_COMPLETIONS}" ]; then
     _gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"
   fi
 
@@ -330,62 +330,79 @@ _gh__create_symlink() {
   return 0
 }
 
-# _gh__install_completions — install bash/zsh completions.
+# _gh__install_completions — install completions for shells listed in SHELL_COMPLETIONS.
 # Usage: _gh__install_completions --from-archive <dir>
 #        _gh__install_completions --from-command
 _gh__install_completions() {
   echo "↪️ Function entry: _gh__install_completions" >&2
+  if [ -z "${SHELL_COMPLETIONS}" ]; then
+    echo "ℹ️ shell_completions is empty; skipping completion install." >&2
+    echo "↩️ Function exit: _gh__install_completions" >&2
+    return 0
+  fi
   local _mode="$1"
   local _archive_dir="${2:-}"
-
-  local _bash_content _zsh_content
-  if [ "${_mode}" = "--from-archive" ]; then
-    _bash_content="$(cat "${_archive_dir}/share/bash-completion/completions/gh" 2> /dev/null)" || {
-      echo "⚠️ bash completion file not found in archive; skipping bash completion." >&2
-      _bash_content=""
-    }
-    _zsh_content="$(cat "${_archive_dir}/share/zsh/site-functions/_gh" 2> /dev/null)" || {
-      echo "⚠️ zsh completion file not found in archive; skipping zsh completion." >&2
-      _zsh_content=""
-    }
-  else
-    _bash_content="$(gh completion -s bash 2> /dev/null)" || {
-      echo "⚠️ gh completion -s bash failed; skipping bash completion." >&2
-      _bash_content=""
-    }
-    _zsh_content="$(gh completion -s zsh 2> /dev/null)" || {
-      echo "⚠️ gh completion -s zsh failed; skipping zsh completion." >&2
-      _zsh_content=""
-    }
-  fi
-
-  if [ "$(id -u)" = "0" ]; then
-    # Root: write to system-wide locations.
-    if [ -n "${_bash_content}" ]; then
-      mkdir -p /etc/bash_completion.d
-      printf '%s\n' "${_bash_content}" > /etc/bash_completion.d/gh
-      echo "✅ Bash completion written to /etc/bash_completion.d/gh" >&2
-    fi
-    if [ -n "${_zsh_content}" ]; then
-      local _zshdir
-      _zshdir="$(shell__detect_zshdir)"
-      mkdir -p "${_zshdir}/completions"
-      printf '%s\n' "${_zsh_content}" > "${_zshdir}/completions/_gh"
-      echo "✅ Zsh completion written to ${_zshdir}/completions/_gh" >&2
-    fi
-  else
-    # Non-root: write to user-specific locations.
-    if [ -n "${_bash_content}" ]; then
-      mkdir -p "${HOME}/.local/share/bash-completion/completions"
-      printf '%s\n' "${_bash_content}" > "${HOME}/.local/share/bash-completion/completions/gh"
-      echo "✅ Bash completion written to ${HOME}/.local/share/bash-completion/completions/gh" >&2
-    fi
-    if [ -n "${_zsh_content}" ]; then
-      mkdir -p "${HOME}/.zfunc"
-      printf '%s\n' "${_zsh_content}" > "${HOME}/.zfunc/_gh"
-      echo "✅ Zsh completion written to ${HOME}/.zfunc/_gh" >&2
-    fi
-  fi
+  local _shell
+  for _shell in ${SHELL_COMPLETIONS}; do
+    case "${_shell}" in
+      bash)
+        local _bash_content
+        if [ "${_mode}" = "--from-archive" ]; then
+          _bash_content="$(cat "${_archive_dir}/share/bash-completion/completions/gh" 2> /dev/null)" || {
+            echo "⚠️ bash completion file not found in archive; skipping bash completion." >&2
+            _bash_content=""
+          }
+        else
+          _bash_content="$(gh completion -s bash 2> /dev/null)" || {
+            echo "⚠️ gh completion -s bash failed; skipping bash completion." >&2
+            _bash_content=""
+          }
+        fi
+        if [ -n "${_bash_content}" ]; then
+          if [ "$(id -u)" = "0" ]; then
+            mkdir -p /etc/bash_completion.d
+            printf '%s\n' "${_bash_content}" > /etc/bash_completion.d/gh
+            echo "✅ Bash completion written to /etc/bash_completion.d/gh" >&2
+          else
+            mkdir -p "${HOME}/.local/share/bash-completion/completions"
+            printf '%s\n' "${_bash_content}" > "${HOME}/.local/share/bash-completion/completions/gh"
+            echo "✅ Bash completion written to ${HOME}/.local/share/bash-completion/completions/gh" >&2
+          fi
+        fi
+        ;;
+      zsh)
+        local _zsh_content
+        if [ "${_mode}" = "--from-archive" ]; then
+          _zsh_content="$(cat "${_archive_dir}/share/zsh/site-functions/_gh" 2> /dev/null)" || {
+            echo "⚠️ zsh completion file not found in archive; skipping zsh completion." >&2
+            _zsh_content=""
+          }
+        else
+          _zsh_content="$(gh completion -s zsh 2> /dev/null)" || {
+            echo "⚠️ gh completion -s zsh failed; skipping zsh completion." >&2
+            _zsh_content=""
+          }
+        fi
+        if [ -n "${_zsh_content}" ]; then
+          if [ "$(id -u)" = "0" ]; then
+            local _zshdir
+            _zshdir="$(shell__detect_zshdir)"
+            mkdir -p "${_zshdir}/completions"
+            printf '%s\n' "${_zsh_content}" > "${_zshdir}/completions/_gh"
+            echo "✅ Zsh completion written to ${_zshdir}/completions/_gh" >&2
+          else
+            mkdir -p "${HOME}/.zfunc"
+            printf '%s\n' "${_zsh_content}" > "${HOME}/.zfunc/_gh"
+            echo "✅ Zsh completion written to ${HOME}/.zfunc/_gh" >&2
+          fi
+        fi
+        ;;
+      *)
+        echo "⛔ Unsupported shell: '${_shell}' (expected: bash, zsh)" >&2
+        exit 1
+        ;;
+    esac
+  done
   echo "↩️ Function exit: _gh__install_completions" >&2
   return 0
 }
@@ -561,7 +578,7 @@ if [ "$#" -gt 0 ]; then
   GIT_HOSTNAME=""
   GIT_PROTOCOL=""
   IF_EXISTS=""
-  INSTALL_COMPLETIONS=""
+  SHELL_COMPLETIONS=""
   PREFIX=""
   INSTALLER_DIR=""
   LOGFILE=""
@@ -627,10 +644,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
         shift
         ;;
-      --install_completions)
+      --shell_completions)
         shift
-        INSTALL_COMPLETIONS="$1"
-        echo "📩 Read argument 'install_completions': '${INSTALL_COMPLETIONS}'" >&2
+        SHELL_COMPLETIONS="$1"
+        echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
         shift
         ;;
       --prefix)
@@ -708,7 +725,7 @@ else
   [ "${GIT_HOSTNAME+defined}" ] && echo "📩 Read argument 'git_hostname': '${GIT_HOSTNAME}'" >&2
   [ "${GIT_PROTOCOL+defined}" ] && echo "📩 Read argument 'git_protocol': '${GIT_PROTOCOL}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-  [ "${INSTALL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'install_completions': '${INSTALL_COMPLETIONS}'" >&2
+  [ "${SHELL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
   [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
@@ -732,7 +749,7 @@ fi
 [ -z "${GIT_HOSTNAME-}" ] && GIT_HOSTNAME="github.com"
 [ -z "${GIT_PROTOCOL-}" ] && GIT_PROTOCOL=""
 [ -z "${IF_EXISTS-}" ] && IF_EXISTS="skip"
-[ -z "${INSTALL_COMPLETIONS-}" ] && INSTALL_COMPLETIONS=true
+[ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS="bash zsh"
 [ -z "${PREFIX-}" ] && PREFIX="/usr/local"
 [ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/gh-install"
 [ -z "${LOGFILE-}" ] && LOGFILE=""
@@ -812,7 +829,7 @@ fi
 _gh__create_symlink
 
 # Step 8: Install completions for repos method (binary method handles them internally).
-if [ "${INSTALL_COMPLETIONS}" = "true" ] && [ "${METHOD}" = "repos" ]; then
+if [ -n "${SHELL_COMPLETIONS}" ] && [ "${METHOD}" = "repos" ]; then
   _gh__install_completions --from-command
 fi
 

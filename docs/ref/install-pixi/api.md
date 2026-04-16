@@ -20,8 +20,7 @@ Install Pixi, the open-source, cross-platform package and project manager for co
 | `export_path` | string | `"auto"` | Controls which shell startup files receive the `PATH` export for `$prefix/bin`. `"auto"` = system-wide (root) or user-scoped (non-root); no-op when `prefix` resolves to `/usr/local`. `""` = skip. Newline-separated absolute paths = write only those files. |
 | `export_pixi_home` | string | `"auto"` | Controls which shell startup files receive `export PIXI_HOME=<home_dir>`. No-op when `home_dir` is empty. `"auto"` = system-wide (root) or user-scoped (non-root). `""` = skip. Newline-separated absolute paths = write only those files. `PIXI_HOME` is read on every pixi invocation; skipping this when `home_dir` is set will cause pixi to ignore the custom home at runtime. |
 | `symlink` | boolean | `true` | Create a symlink `/usr/local/bin/pixi → $PREFIX/bin/pixi` when `prefix` resolves to something other than `/usr/local` (root only). Ensures the `containerEnv` PATH entry (`/usr/local/bin`) always resolves to the installed binary regardless of the chosen `prefix`. No-op when `prefix` resolves to `/usr/local`, or when running as non-root (cannot write to `/usr/local/bin`). |
-| `shell_completion` | boolean | `false` | Write an idempotent `eval "$(pixi completion --shell <shell>)"` block to the appropriate shell config file. |
-| `shell_type` | string | `"bash"` | Shell to configure completion for. Only used when `shell_completion` is `true`. One of: `"bash"`, `"zsh"`, `"fish"`, `"nushell"`, `"elvish"`. |
+| `shell_completions` | string | `""` | Space-separated list of shell names to write pixi completion eval blocks for. Supported shells: `"bash"`, `"zsh"`, `"fish"`, `"nushell"`, `"elvish"`. For each listed shell, writes an idempotent `eval "$(pixi completion --shell <shell>)"` block to the appropriate config file. Set to `""` (the default) to skip all completion writes. |
 | `keep_installer` | boolean | `false` | Keep the downloaded `.tar.gz` archive and `.tar.gz.sha256` sidecar after installation. |
 | `debug` | boolean | `false` | Enable debug output (`set -x`). |
 | `logfile` | string | `""` | Log all output (stdout + stderr) to this file in addition to the console. |
@@ -168,14 +167,13 @@ Note: `PIXI_HOME` is read by pixi on every invocation, so it must be exported to
 
 ---
 
-### Shell Completion (Zsh)
+### Shell Completion (`shell_completions`)
 
 ```jsonc
 {
   "features": {
     "ghcr.io/quantized8/sysset/install-pixi:1": {
-      "shell_completion": true,
-      "shell_type": "zsh"
+      "shell_completions": "bash zsh"
     }
   }
 }
@@ -183,10 +181,10 @@ Note: `PIXI_HOME` is read by pixi on every invocation, so it must be exported to
 
 Standalone:
 ```bash
-bash install-pixi/install.sh --shell_completion true --shell_type zsh
+bash install-pixi/install.sh --shell_completions "bash zsh"
 ```
 
-This writes the following idempotent block to the system-wide zshenv (root) or `~/.zshenv` (non-root):
+This writes the following idempotent block to each listed shell's config file:
 
 ```zsh
 # >>> pixi completion >>>
@@ -290,9 +288,9 @@ When `prefix` is a system path (e.g. `/usr/local`, `/opt/pixi`, `/usr`), the ins
 
 For the default `prefix="/usr/local"` in devcontainer images, `/usr/local/bin` is already on `PATH` via the image's `/etc/environment` or `/etc/profile`, so `export_path=""` or `export_path="auto"` both work. Setting `export_path=""` is a safe micro-optimization.
 
-### `shell_completion` — Supported Shells
+### `shell_completions` — Supported Shells
 
-| `shell_type` value | Completion file target (root) | Completion file target (non-root) |
+| shell name | Completion file target (root) | Completion file target (non-root) |
 |---|---|---|
 | `bash` | global bashrc | `~/.bashrc` |
 | `zsh` | global zshenv | `~/.zshenv` |
