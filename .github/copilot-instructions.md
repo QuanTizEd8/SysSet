@@ -1,67 +1,55 @@
 # SysSet — System Setup
 
-**SysSet** is a project developing system setup tools that must work seamlessly on both macOS and various Linux distributions, both in containers and on bare-metal machines. These tools are distributed as both [**devcontainer features**](https://containers.dev/implementors/features/) (published to GHCR) and **standalone/bundled installers** (published to GitHub Releases). They provide users with a seamless experience for installing and configuring essential software in their environments, with rich configuration options that cater to a wide range of use cases and requirements. These tools must be robust, reliable, consistently designed, and thoroughly tested, with comprehensive documentation.
+**SysSet** is a project developing system setup tools (a.k.a features) that must work seamlessly on both macOS and various Linux distributions, both in containers and on bare-metal machines. These tools are distributed as both [**devcontainer features**](https://containers.dev/implementors/features/) (published to GHCR) and **standalone/bundled installers** (published to GitHub Releases). They provide users with a seamless experience for installing and configuring essential software in their environments, with rich configuration options that cater to a wide range of use cases and requirements. These tools must be robust, reliable, consistently designed, and thoroughly tested, with comprehensive documentation.
 
+## Workspace Layout
 
-## Critical: Generated Files — Never Edit Directly
+The workspace is a git repository with following key directories and files:
 
-These files are **auto-generated** and **git-ignored**.
-Any edits made to them are overwritten on the next sync run:
-
-| Generated path | Actual source |
-|---|---|
-| `src/*/install.sh` | `bootstrap.sh` (repo root) |
-| `src/**/scripts/_lib/` | `lib/` (repo root) |
-
-Regenerate with: `bash sync-lib.sh`
-
-A lefthook pre-commit hook runs `sync-lib.sh` automatically when `lib/` files or `bootstrap.sh` change.
-
-## Repository Layout
-
-```
-src/<feature>/
-  devcontainer-feature.json     Metadata, options, lifecycle commands
-  scripts/install.sh            Main installer (bash ≥4.0)
-  scripts/_lib/                 ← generated; never edit
-  dependencies/base.yaml         ospkg manifest: OS packages pre-installed
-  files/                        Static files copied into the container (optional)
-  install.sh                    ← generated; never edit
-
-lib/                            Shared bash library (canonical source)
-  logging.sh  os.sh  ospkg.sh  net.sh  git.sh  shell.sh
-
-test/<feature>/
-  scenarios.json                devcontainer-cli test definitions
-  <scenario>.sh                 Per-scenario assertion scripts
-  <scenario>/                   Build context for that scenario (only when needed)
-    Dockerfile                  Only when extra image instructions are needed
-    <other files>               Any files needed at build time
-
-test/unit/
-  *.bats                        bats unit tests — one file per lib/ module
-  helpers/
-    common.bash                 reload_lib() helper and bats library loading
-    stubs.bash                  create_fake_bin() / prepend_fake_bin_path()
-  setup_suite.bash              bash ≥4 guard (auto-discovered by bats)
-  bats/                         ← git submodules; never edit
-    bats-core/  bats-support/  bats-assert/  bats-file/
-
-bootstrap.sh                    Ensures bash exists, then exec's scripts/install.sh
-sync-lib.sh                     Distributes lib/ and bootstrap.sh into every feature
-lefthook.yml                    Pre-commit: sync-lib, shfmt format-check, shellcheck lint
-Makefile                        Developer targets: format, format-check, lint, sync
-.editorconfig                   shfmt style config (2-space, case-indent, etc.)
-.shellcheckrc                   shellcheck defaults (shell=bash, external-sources=true)
-```
-
+- `bootstrap.sh`: A thin POSIX-compliant shim that ensures bash is available, then exec's `scripts/install.sh`. This is the canonical source for the install script's entry point, and is copied into each feature's `src/*/install.sh` by `sync-lib.sh`.
+- `sync-lib.sh`: Distributes `lib/` and `bootstrap.sh` into every feature.
+- `Makefile`: Developer targets: format, format-check, lint, sync.
+- `.editorconfig`: shfmt style config (2-space, case-indent, etc.).
+- `.shellcheckrc`: shellcheck defaults (shell=bash, external-sources=true).
+- `lefthook.yml`: A lefthook pre-commit hook that runs `sync-lib.sh` and `make format` automatically.
+- `.local/scratch/`: Git-ignored scratch space for temporary files that is wiped periodically; use it for short-term storage during your work.
+- `lib/`: Shared library containing common functions for feature scripts (canonical source); its contents are copied into every feature's `scripts/_lib/` by `sync-lib.sh`, which are then sourced by the feature scripts.
+- `src/`: Source code of all features.
+  - `src/*/`: Per-feature directory, where `*` is the feature name/ID (e.g. `install-shell`).
+    - `src/*/devcontainer-feature.json`: Metadata and option definitions for the feature, consumed by the devcontainer CLI to install the feature into devcontainer images.
+    - `src/*/install.sh`: Auto-generated and git-ignored copy of `bootstrap.sh` for each feature; **NEVER EDIT THIS FILE DIRECTLY!** It is overwritten by `sync-lib.sh` on every run.
+    - `src/*/scripts/`: Main feature scripts.
+      - `src/*/scripts/_lib/`: Auto-generated and git-ignored copies of `lib/` for each feature; **NEVER EDIT THESE FILES DIRECTLY!** They are overwritten by `sync-lib.sh` on every run.
+      - `src/*/scripts/install.sh`: Main installer script and entry point for the feature (bash ≥4.0); orchestrates and implement the installation using functionalities in the shared library.
+      - `src/*/scripts/*.sh`: Any additional feature-specific helper scripts; sourced by the main installer.
+    - `src/*/dependencies/`: Dependency manifests for the feature.
+      - `src/*/dependencies/*.yaml`: Feature dependencies, i.e. lists of OS packages required by the feature, represented as platform-aware manifests that are consumed by `lib/ospkg.sh`.
+      - `src/*/dependencies/base.yaml`: Manifest for always-required dependencies; all other manifests are optional and only used when specific options are set.
+    - `src/*/files/`: Artifacts used by the feature (e.g. config files, templates, static assets) to generate files in the target system; these are copied as-is (or with variable substitution) into the container or target machine, and are not executed directly by the installer.
+- `docs/`: Documentation.
+  - `docs/dev-guide/`: Developer guide
+    - `docs/dev-guide/writing-features.md` — feature anatomy, options, scripts, full library reference
+    - `docs/dev-guide/testing.md` — test structure, writing scenarios, running locally
+    - `docs/dev-guide/repo-structure.md` — annotated directory tree, sync mechanism
+    - `docs/dev-guide/publishing.md` — versioning, release, GHCR, containers.dev index
+- `test/`: Test suite for features.
+  - `test/dist/`: Tests for the distributed bundled/standalone installers.
+  - `test/unit/`: Tests for the shared library (`lib/`).
+    - `test/unit/bats/`: Git submodule of Bats testing framework; **NEVER EDIT THESE FILES!**
+    - `test/unit/helpers/`: Helper scripts for unit tests.
+    - `test/unit/setup_suite.bash`: bash ≥4 guard (auto-discovered by bats)
+    - `test/unit/*.bats`: Unit tests for `lib/` modules, organized by module (one file per module, e.g. `os.bats`, `shell.bats`).
+  - `test/<feature>/`: One directory per feature, with test scenarios for that feature.
+    - `test/<feature>/scenarios.json`: devcontainer-cli test definitions.
+    - `test/<feature>/<scenario>.sh`: Per-scenario assertion scripts.
+    - `test/<feature>/<scenario>/`: Per-scenario build context (if needed), e.g. Dockerfile or other files needed at build time.
 
 ## Key Commands
 
 | Task | Command |
 |------|---------|
-| Sync generated files | `bash sync-lib.sh` |
-| Verify generated files up to date | `bash sync-lib.sh --check` |
+| Sync auto-generated files | `bash sync-lib.sh` |
+| Verify auto-generated files are up to date | `bash sync-lib.sh --check` |
 | Format all shell files | `make format` |
 | Check formatting (CI-style, no writes) | `make format-check` |
 | Lint all shell files | `make lint` |
@@ -93,19 +81,6 @@ Always run `bash sync-lib.sh` before running feature tests locally.
 
 When implementing a new feature or editing an existing one, abstract any reusable logic into `lib/` rather than copy-pasting it across scripts. A function belongs in `lib/` when it is (or could be) called from more than one feature, or when it encapsulates a non-trivial detail that is easy to get wrong (e.g. SHA-256 verification, GitHub API pagination, user deduplication).
 
-| Module | Key API |
-|---|---|
-| `logging.sh` | `logging__setup` · `logging__cleanup` |
-| `os.sh` | `os__require_root` · `os__kernel` · `os__arch` · `os__id` · `os__id_like` · `os__platform` · `os__font_dir` |
-| `ospkg.sh` | `ospkg__detect` · `ospkg__install <pkg>...` · `ospkg__update` · `ospkg__clean` · `ospkg__run [--manifest <f>] [--check_installed] [--no_clean] [--no_update] [--dry_run]` |
-| `net.sh` | `net__fetch_url_stdout <url>` · `net__fetch_url_file <url> <dest>` · `net__fetch_with_retry <n> <cmd...>` |
-| `git.sh` | `git__clone --url <url> --dir <dir> [--branch <branch>]` |
-| `shell.sh` | `shell__detect_bashrc` · `shell__detect_zshdir` · `shell__resolve_home <user>` · `shell__resolve_omz_theme` · `shell__plugin_names_from_slugs <csv>` · `shell__write_block` · `shell__remove_block` · `shell__export_path` · `shell__export_env` |
-| `github.sh` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` · `github__latest_tag <owner/repo>` · `github__release_tags <owner/repo> [--per_page <n>]` · `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` |
-| `checksum.sh` | `checksum__verify_sha256 <file> <expected_hash>` · `checksum__verify_sha256_sidecar <file> <sha256_file>` |
-| `users.sh` | `users__resolve_list` · `users__set_login_shell <shell_path> <username>...` |
-
-`ospkg.sh` internally sources `os.sh` and `net.sh`, so sourcing `ospkg.sh` first is sufficient for most features. Source `github.sh`, `checksum.sh`, `shell.sh`, `git.sh`, and `users.sh` explicitly when needed.
 
 ## Code Style
 
@@ -119,43 +94,10 @@ All shell scripts are formatted with **shfmt** and linted with **shellcheck**.
 - `*.bats` files use `shell_variant = bats` in `.editorconfig` and are formatted by shfmt.
 - `--apply-ignore` excludes generated `_lib/` copies and `install.sh` stubs automatically.
 
-## CI
 
-Three workflow files form the pipeline:
 
-- **`cicd.yaml`** — Orchestrator. Defines all event triggers (push, tag, PR, manual). Runs a `detect` job that computes changed-file flags, then calls `ci.yaml` (reusable CI) and conditionally `cd.yaml` (reusable CD) for releases.
-- **`ci.yaml`** — Reusable CI. All lint, validation, unit, feature, and dist test jobs. Also callable standalone via `workflow_dispatch`.
-- **`cd.yaml`** — Reusable CD. Publishes features to GHCR and creates a GitHub Release. Callable standalone via `workflow_dispatch` with a `tag` input.
-
-`detect` in `cicd.yaml` maps changed paths to specific jobs:
-
-| Changed path | Jobs triggered |
-|---|---|
-| `*.sh`, `*.bash`, `*.bats` | `lint` |
-| `src/**/devcontainer-feature.json` | `validate` |
-| `lib/**`, `test/unit/**` | `unit-native`, `unit-linux` |
-| `src/<f>/` or `test/<f>/` | `test-features` (matrix), `test-macos` if macOS scenarios exist |
-| `install-os-pkg` in changed list | `test-os-pkg` (6-distro matrix) |
-| `get.sh`, `sysset.sh`, `build-artifacts.sh`, `src/**`, `lib/**`, `test/dist/**` | `test-dist-*` |
-
-On `workflow_dispatch` or `v*` tag push, all jobs run. CD runs only when `is_release=true` AND CI passes.
-
-## Dev Container
-
-`.devcontainer/devcontainer.json` uses `mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm` with docker-in-docker.
-The `_src → ../src` symlink allows the devcontainer CLI (which only looks inside `.devcontainer/`) to find features during local development.
-
-## Further Reading
-
-- `docs/dev-guide/writing-features.md` — feature anatomy, options, scripts, full library reference
-- `docs/dev-guide/testing.md` — test structure, writing scenarios, running locally
-- `docs/dev-guide/repo-structure.md` — annotated directory tree, sync mechanism
-- `docs/dev-guide/publishing.md` — versioning, release, GHCR, containers.dev index
 
 ## Key References
 
-- [JSON Schema for devcontainer-feature.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainerFeature.schema.json)
-- [Full JSON Schema for devcontainer.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.schema.json)
-- [Core JSON Schema for devcontainer.json](https://raw.githubusercontent.com/devcontainers/spec/refs/heads/main/schemas/devContainer.base.schema.json)
 - [devcontainer CLI Repository](https://github.com/devcontainers/cli)
 - [devcontainer GitHub Organization](https://github.com/devcontainers)

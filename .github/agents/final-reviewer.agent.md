@@ -12,7 +12,6 @@ You are given a feature name and a summary of what was done. Your job is to inde
 
 ## Constraints
 
-- DO NOT fix anything. Only report discrepancies.
 - DO NOT trust summaries. Read every file yourself.
 - DO NOT skip any check. Execute every verification step even if "it should be fine."
 - DO NOT approve with caveats. Either everything passes or you report what doesn't.
@@ -22,21 +21,6 @@ You are given a feature name and a summary of what was done. Your job is to inde
 
 Execute ALL of the following checks. Do not skip any.
 
-### Check 1 — Sync State
-
-```bash
-bash sync-lib.sh --check
-```
-
-If this fails, report it immediately — it means generated files are stale.
-
-### Check 2 — Formatting
-
-```bash
-make format-check
-```
-
-Report any files that fail the format check.
 
 ### Check 3 — Linting
 
