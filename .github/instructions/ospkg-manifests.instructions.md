@@ -1,6 +1,6 @@
 ---
 description: "Use when writing or editing ospkg manifest files (YAML/JSON). Covers YAML schema, when clauses, PM-specific blocks, inline setup, package objects, groups, casks."
-applyTo: "src/**/dependencies/*.yaml, **/*.pkgmanifest.yaml, **/*.pkgmanifest.json"
+applyTo: "src/**/dependencies/*.yaml"
 ---
 
 # ospkg Manifest Format
