@@ -19,11 +19,6 @@
          "description": "Comma-separated GitHub slugs (owner/repo or owner/repo@tag). Without a tag, the latest release is used; with a tag that specific release is used. All font and archive assets from the release are installed, deduplicated by PostScript name.",
          "type": "string"
       },
-      "font_dir": {
-         "default": "",
-         "description": "Font installation directory. Leave empty to auto-detect: root/container -> /usr/share/fonts; Linux user -> $XDG_DATA_HOME/fonts; macOS user -> ~/Library/Fonts.",
-         "type": "string"
-      },
       "p10k_fonts": {
          "default": false,
          "description": "Also install the four Powerlevel10k-specific MesloLGS NF fonts from romkatv/powerlevel10k-media.",
@@ -33,6 +28,11 @@
          "default": false,
          "description": "When a font with the same PostScript name is already installed, overwrite it instead of skipping. Default is to skip and log.",
          "type": "boolean"
+      },
+      "font_dir": {
+         "default": "",
+         "description": "Font installation directory. Leave empty to auto-detect: root/container -> /usr/share/fonts; Linux user -> $XDG_DATA_HOME/fonts; macOS user -> ~/Library/Fonts.",
+         "type": "string"
       },
       "debug": {
          "default": false,
