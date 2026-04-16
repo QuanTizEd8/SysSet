@@ -13,16 +13,31 @@ _NET__LIB_LOADED=1
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
 
-# net__fetch_with_retry <max-attempts> <delay> <cmd...>
-# Runs <cmd> up to <max-attempts> times with a <delay>-second pause between
-# failures.  Does NOT require ospkg.sh.
+# net__fetch_with_retry [--retries N] [--delay N] <cmd...>
+# Runs <cmd> up to N times with a <delay>-second pause between failures.
+# --retries defaults to 60; --delay defaults to 5s.  Does NOT require ospkg.sh.
 # Prefer net__fetch_url_stdout / net__fetch_url_file for curl/wget downloads;
 # those handle tool detection, --compressed, and smart transient-only retries
 # automatically.  Use this function only for commands that are not curl/wget.
 net__fetch_with_retry() {
-  local _max="$1"
-  local _delay="$2"
-  shift 2
+  local _max=60 _delay=5
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --retries)
+        _max="$2"
+        shift 2
+        ;;
+      --delay)
+        _delay="$2"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *) break ;;
+    esac
+  done
   local _i=1
   while [ "$_i" -le "$_max" ]; do
     "$@" && return 0
@@ -83,7 +98,7 @@ _NET_HDR_EOF_
     done << _NET_HDR_EOF_
 $_hdrs
 _NET_HDR_EOF_
-    net__fetch_with_retry "$_max" "$_delay" wget "$@" "$_url"
+    net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
   fi
   return 0
 }
@@ -139,7 +154,7 @@ _NET_HDR_EOF_
     done << _NET_HDR_EOF_
 $_hdrs
 _NET_HDR_EOF_
-    net__fetch_with_retry "$_max" "$_delay" wget "$@" "$_url"
+    net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
   fi
   return 0
 }

@@ -12,7 +12,7 @@ The `lib/` directory contains reusable POSIX-compliant and Bash-specific files t
 | `logging.sh` | `logging__setup` · `logging__cleanup` |
 | `os.sh` | `os__require_root` · `os__kernel` · `os__arch` · `os__id` · `os__id_like` · `os__platform` · `os__font_dir` |
 | `ospkg.sh` | `ospkg__detect` · `ospkg__install <pkg>...` · `ospkg__update` · `ospkg__clean` · `ospkg__run [--manifest <f>] [--skip_installed] [--keep_cache] [--update false] [--dry_run]` |
-| `net.sh` | `net__fetch_url_stdout <url>` · `net__fetch_url_file <url> <dest>` · `net__fetch_with_retry <n> <cmd...>` |
+| `net.sh` | `net__fetch_url_stdout <url>` · `net__fetch_url_file <url> <dest>` · `net__fetch_with_retry [--retries N] [--delay N] <cmd...>` |
 | `git.sh` | `git__clone --url <url> --dir <dir> [--branch <branch>]` |
 | `shell.sh` | `shell__detect_bashrc` · `shell__detect_zshdir` · `shell__resolve_home <user>` · `shell__resolve_omz_theme` · `shell__plugin_names_from_slugs <csv>` · `shell__write_block` · `shell__remove_block` · `shell__export_path` · `shell__export_env` |
 | `github.sh` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` · `github__latest_tag <owner/repo>` · `github__release_tags <owner/repo> [--per_page <n>]` · `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` |

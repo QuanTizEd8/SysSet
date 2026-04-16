@@ -58,6 +58,16 @@ _ospkg_clean_brew() {
   return 0
 }
 
+# _ospkg_update_cmd: wraps _OSPKG_UPDATE for use with net__fetch_with_retry.
+# Normalises dnf/yum exit code 100 ("updates available") to 0.
+_ospkg_update_cmd() {
+  "${_OSPKG_UPDATE[@]}" >&2
+  local _rc=$?
+  [[ "$_OSPKG_PKG_MNGR" == "dnf" || "$_OSPKG_PKG_MNGR" == "yum" ]] \
+    && [[ $_rc -eq 100 ]] && return 0
+  return $_rc
+}
+
 # ── Private: key / repo helpers ──────────────────────────────────────────────
 _ospkg_ensure_gpg() {
   command -v gpg > /dev/null 2>&1 && return 0
@@ -472,11 +482,7 @@ ospkg__update() {
 
   if [[ "$_skip" == false ]]; then
     echo "🔄 Updating package lists." >&2
-    if [[ "$_OSPKG_PKG_MNGR" = "dnf" || "$_OSPKG_PKG_MNGR" = "yum" ]]; then
-      "${_OSPKG_UPDATE[@]}" >&2 || [[ $? -eq 100 ]]
-    else
-      "${_OSPKG_UPDATE[@]}" >&2
-    fi
+    net__fetch_with_retry _ospkg_update_cmd
     echo "✅ Package lists updated." >&2
   fi
   return 0
@@ -490,7 +496,7 @@ ospkg__install() {
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
     echo "📲 Installing packages:" >&2
     printf '  - %s\n' "$@" >&2
-    _ospkg_brew_run install "$@" >&2
+    net__fetch_with_retry _ospkg_brew_run install "$@" >&2
     return 0
   fi
   if [[ "$_OSPKG_PKG_MNGR" = "apt-get" ]]; then
@@ -509,7 +515,7 @@ ospkg__install() {
   fi
   echo "📲 Installing packages:" >&2
   printf '  - %s\n' "$@" >&2
-  "${_OSPKG_INSTALL[@]}" "$@" >&2
+  net__fetch_with_retry "${_OSPKG_INSTALL[@]}" "$@" >&2
   return 0
 }
 

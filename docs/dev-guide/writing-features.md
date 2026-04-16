@@ -489,7 +489,7 @@ for `net__ensure_fetch_tool` and `net__ensure_ca_certs`).
 
 | Function | Signature | Description |
 |---|---|---|
-| `net__fetch_with_retry` | `net__fetch_with_retry <max-attempts> <cmd...>` | Runs `<cmd>` up to `<max-attempts>` times with a 3-second pause between failures. Does **not** require `ospkg.sh`. |
+| `net__fetch_with_retry` | `net__fetch_with_retry [--retries N] [--delay N] <cmd...>` | Runs `<cmd>` up to N times (default 60) with a delay between failures (default 5s). Does **not** require `ospkg.sh`. |
 | `net__ensure_ca_certs` | `net__ensure_ca_certs` | Ensures CA certificates are present; installs `ca-certificates` via `ospkg__install` if not. Idempotent. |
 | `net__ensure_fetch_tool` | `net__ensure_fetch_tool` | Sets `_NET_FETCH_TOOL` to `curl` or `wget`; installs `curl` if neither is found. Calls `net__ensure_ca_certs` automatically. Idempotent. |
 | `net__fetch_url_stdout` | `net__fetch_url_stdout <url>` | Downloads `<url>` to stdout with retries. Calls `net__ensure_fetch_tool` automatically. |
@@ -508,7 +508,7 @@ directly and call the tool yourself inside `net__fetch_with_retry`:
 
 ```bash
 net__ensure_fetch_tool
-net__fetch_with_retry 3 curl \
+net__fetch_with_retry curl \
   --compressed -fsSLo /tmp/tool.bin \
   "https://example.com/tool-$(uname -m)"
 ```

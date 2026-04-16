@@ -130,7 +130,7 @@ _LIB_MYMODULE_LOADED=1
 
 - `net__fetch_url_stdout <url>` — fetch URL to stdout; auto-selects curl/wget; 3 retries
 - `net__fetch_url_file <url> <dest>` — fetch URL to file
-- `net__fetch_with_retry <max-attempts> <cmd...>` — generic retry wrapper; 3-second pause between attempts
+- `net__fetch_with_retry [--retries N] [--delay N] <cmd...>` — generic retry wrapper; defaults to 60 retries × 5s delay
 
 ### `os.sh` (auto-sourced by ospkg.sh)
 

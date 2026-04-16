@@ -24,7 +24,7 @@ setup() {
     return 0
   }
   export -f _passing_cmd
-  run net__fetch_with_retry 3 0 _passing_cmd
+  run net__fetch_with_retry --retries 3 --delay 0 _passing_cmd
   assert_success
 }
 
@@ -45,7 +45,7 @@ printf '%s' "$n" > "$counter_file"
 EOF
   chmod +x "${BATS_TEST_TMPDIR}/bin/_retry_cmd"
   prepend_fake_bin_path
-  run net__fetch_with_retry 3 0 _retry_cmd
+  run net__fetch_with_retry --retries 3 --delay 0 _retry_cmd
   assert_success
 }
 
@@ -61,7 +61,7 @@ EOF
   # Override sleep to a no-op so the test is fast.
   sleep() { :; }
   export -f sleep
-  run net__fetch_with_retry 2 0 _always_fail
+  run net__fetch_with_retry --retries 2 --delay 0 _always_fail
   assert_failure
   assert_output --partial "Failed after 2"
 }
@@ -169,7 +169,21 @@ EOF
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
   net__fetch_with_retry() {
-    echo "retry=$1 delay=$2 tool=$3"
+    local _r _d
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --retries)
+          _r="$2"
+          shift 2
+          ;;
+        --delay)
+          _d="$2"
+          shift 2
+          ;;
+        *) break ;;
+      esac
+    done
+    echo "retry=${_r} delay=${_d} tool=$1"
     return 0
   }
   export -f net__fetch_with_retry
@@ -199,7 +213,21 @@ EOF
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
   net__fetch_with_retry() {
-    echo "retry=$1 delay=$2 tool=$3"
+    local _r _d
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --retries)
+          _r="$2"
+          shift 2
+          ;;
+        --delay)
+          _d="$2"
+          shift 2
+          ;;
+        *) break ;;
+      esac
+    done
+    echo "retry=${_r} delay=${_d} tool=$1"
     return 0
   }
   export -f net__fetch_with_retry
@@ -227,7 +255,21 @@ EOF
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
   net__fetch_with_retry() {
-    echo "retry=$1 delay=$2 tool=$3"
+    local _r _d
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --retries)
+          _r="$2"
+          shift 2
+          ;;
+        --delay)
+          _d="$2"
+          shift 2
+          ;;
+        *) break ;;
+      esac
+    done
+    echo "retry=${_r} delay=${_d} tool=$1"
     return 0
   }
   export -f net__fetch_with_retry
@@ -253,7 +295,21 @@ EOF
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
   net__fetch_with_retry() {
-    echo "retry=$1 delay=$2 tool=$3"
+    local _r _d
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --retries)
+          _r="$2"
+          shift 2
+          ;;
+        --delay)
+          _d="$2"
+          shift 2
+          ;;
+        *) break ;;
+      esac
+    done
+    echo "retry=${_r} delay=${_d} tool=$1"
     return 0
   }
   export -f net__fetch_with_retry
@@ -279,7 +335,21 @@ EOF
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
   net__fetch_with_retry() {
-    echo "retry=$1 delay=$2 tool=$3"
+    local _r _d
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --retries)
+          _r="$2"
+          shift 2
+          ;;
+        --delay)
+          _d="$2"
+          shift 2
+          ;;
+        *) break ;;
+      esac
+    done
+    echo "retry=${_r} delay=${_d} tool=$1"
     return 0
   }
   export -f net__fetch_with_retry
@@ -305,7 +375,21 @@ EOF
   _NET_FETCH_TOOL=wget
   _NET_CA_CERTS_OK=true
   net__fetch_with_retry() {
-    echo "retry=$1 delay=$2 tool=$3"
+    local _r _d
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --retries)
+          _r="$2"
+          shift 2
+          ;;
+        --delay)
+          _d="$2"
+          shift 2
+          ;;
+        *) break ;;
+      esac
+    done
+    echo "retry=${_r} delay=${_d} tool=$1"
     return 0
   }
   export -f net__fetch_with_retry
