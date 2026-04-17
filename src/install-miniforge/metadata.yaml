@@ -159,3 +159,8 @@ installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/install-shell
 #   - ghcr.io/quantized8/sysset/setup-user
+dependencies:
+  base:
+    packages:
+      - ca-certificates
+      - curl

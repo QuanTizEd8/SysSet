@@ -1,6 +1,0 @@
-# Base dependencies for the install-miniforge devcontainer feature.
-# Installed unconditionally before downloading/installing Miniforge.
-# bash is guaranteed by bootstrap.sh before this script runs.
-packages:
-  - ca-certificates
-  - curl
