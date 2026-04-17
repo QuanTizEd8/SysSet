@@ -97,9 +97,18 @@ if [[ -z "$FONT_DIR" ]]; then
 fi
 
 _FONT_ARGS=(--font_dir "$FONT_DIR")
-[ -n "$NERD_FONTS" ] && _FONT_ARGS+=(--nerd_fonts "$NERD_FONTS")
-[ -n "$FONT_URLS" ] && _FONT_ARGS+=(--font_urls "$FONT_URLS")
-[ -n "$GH_RELEASE_FONTS" ] && _FONT_ARGS+=(--gh_release_fonts "$GH_RELEASE_FONTS")
+[ "${#NERD_FONTS[@]}" -gt 0 ] && _FONT_ARGS+=(--nerd_fonts "$(
+  IFS=','
+  echo "${NERD_FONTS[*]}"
+)")
+[ "${#FONT_URLS[@]}" -gt 0 ] && _FONT_ARGS+=(--font_urls "$(
+  IFS=','
+  echo "${FONT_URLS[*]}"
+)")
+[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ] && _FONT_ARGS+=(--gh_release_fonts "$(
+  IFS=','
+  echo "${GH_RELEASE_FONTS[*]}"
+)")
 [[ "$P10K_FONTS" == true ]] && _FONT_ARGS+=(--p10k_fonts)
 [[ "$OVERWRITE" == true ]] && _FONT_ARGS+=(--overwrite)
 [[ "$DEBUG" == true ]] && _FONT_ARGS+=(--debug)
