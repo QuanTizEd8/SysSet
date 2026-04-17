@@ -1,6 +1,11 @@
 id: install-conda-env
 name: Conda Environment
 version: 0.1.0
+# This feature uses bash arrays for multi-value CLI options (channels,
+# env_files, env_dirs, pip_requirements_files), which cannot be expressed
+# as a standard devcontainer string option.  The argparse block is kept
+# hand-written; sync-lib.sh skips argparse generation for this feature.
+x_custom_argparse: true
 description: Create or update conda environments in the development container.
 options:
   conda_dir:
