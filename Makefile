@@ -1,4 +1,4 @@
-.PHONY: format format-check lint sync test-unit gen-docs gen-docs-check docs docs-serve
+.PHONY: format format-check lint sync sync-check test-unit gen-docs gen-docs-check docs docs-serve
 
 # Apply shfmt formatting to all tracked shell files.
 # test/unit/bats/** is excluded via .editorconfig ignore = true.
@@ -33,9 +33,17 @@ else
 	git ls-files -- '*.sh' '*.bash' | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
 endif
 
-# Sync generated _lib/ copies and install.sh stubs from canonical sources.
+# Sync generated artifacts from canonical sources:
+#   metadata.yaml  → devcontainer-feature.json  (via scripts/sync-metadata.py)
+#   lib/           → each feature's scripts/_lib/
+#   bootstrap.sh   → each feature's install.sh
 sync:
 	bash sync-lib.sh
+
+# Verify all generated artifacts are up to date (CI-style, no writes).
+# Exits non-zero if any file is missing or stale.
+sync-check:
+	bash sync-lib.sh --check
 
 # Run lib/ unit tests via bats-core (requires git submodules to be initialised).
 test-unit:
