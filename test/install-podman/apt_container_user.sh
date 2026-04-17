@@ -1,7 +1,7 @@
 #!/bin/bash
-# Verifies that add_container_user_config=true configures the user injected via
+# Verifies that add_container_user=true configures the user injected via
 # _CONTAINER_USER (set by the devcontainer CLI from the containerUser field).
-# add_remote_user_config and add_current_user_config are both off so only
+# add_remote_user and add_current_user are both off so only
 # the containerUser path is exercised.
 set -e
 

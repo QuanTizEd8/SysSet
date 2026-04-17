@@ -69,22 +69,22 @@
          "description": "Branch or tag of the ohmybash/ohmybash repository to clone.",
          "type": "string"
       },
-      "add_current_user_config": {
+      "add_current_user": {
          "default": true,
          "description": "Whether to add configuration for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root.",
          "type": "boolean"
       },
-      "add_container_user_config": {
+      "add_container_user": {
          "default": true,
          "description": "Whether to add configuration for the `containerUser` set in the devcontainer.json file, which becomes the `_CONTAINER_USER` environment variable set by the devcontainer tooling. No effect when `_CONTAINER_USER` is not set.",
          "type": "boolean"
       },
-      "add_remote_user_config": {
+      "add_remote_user": {
          "default": true,
          "description": "Whether to add configuration for the `remoteUser` set in the devcontainer.json file, which becomes the `_REMOTE_USER` environment variable set by the devcontainer tooling. No effect when `_REMOTE_USER` is not set.",
          "type": "boolean"
       },
-      "add_user_config": {
+      "add_users": {
          "default": "",
          "description": "Comma-separated list of usernames to add configuration for, in addition to the users specified by the other `add_*_user_config` options.",
          "type": "string"

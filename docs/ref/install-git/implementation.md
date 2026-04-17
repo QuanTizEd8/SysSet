@@ -169,7 +169,7 @@ fi
 
 ### 8. `users__resolve_list` — **REUSED from `lib/users.sh`**
 
-**Responsibility:** Expands env-var-driven user lists (via `ADD_USER_CONFIG`, `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`, `ADD_CURRENT_USER_CONFIG`) into a deduplicated, newline-separated list of concrete usernames on stdout. Used by `_git__write_user_gitconfig` to enumerate per-user gitconfig targets.
+**Responsibility:** Expands env-var-driven user lists (via `ADD_USERS`, `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, `ADD_CURRENT_USER`) into a deduplicated, newline-separated list of concrete usernames on stdout. Used by `_git__write_user_gitconfig` to enumerate per-user gitconfig targets.
 
 ---
 
@@ -648,10 +648,10 @@ fi
 **User resolution:**
 - Parses `USERS` to set the `users__resolve_list` env vars:
   - Split `USERS` by comma; for each token:
-    - `_REMOTE_USER` → `ADD_REMOTE_USER_CONFIG=true`
-    - `_CONTAINER_USER` → `ADD_CONTAINER_USER_CONFIG=true`
-    - `all` → `ADD_CURRENT_USER_CONFIG=true`, `ADD_REMOTE_USER_CONFIG=true`, `ADD_CONTAINER_USER_CONFIG=true`
-    - anything else → append to `ADD_USER_CONFIG` (comma-separated)
+    - `_REMOTE_USER` → `ADD_REMOTE_USER=true`
+    - `_CONTAINER_USER` → `ADD_CONTAINER_USER=true`
+    - `all` → `ADD_CURRENT_USER=true`, `ADD_REMOTE_USER=true`, `ADD_CONTAINER_USER=true`
+    - anything else → append to `ADD_USERS` (comma-separated)
   - Any env var not explicitly set → `false` (suppress implicit injection)
 - Calls `users__resolve_list` (reads those env vars, returns one username per line).
 - As non-root: filter the resolved list to `"$(id -un)"` only; warn and skip any other names.

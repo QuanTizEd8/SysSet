@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that add_remote_user_config=true configures the user identified by
+# Verifies that add_remote_user=true configures the user identified by
 # the remoteUser field (injected as _REMOTE_USER by the devcontainer CLI).
 set -e
 

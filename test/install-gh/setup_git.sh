@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup_git=true + add_remote_user_config=true (vscode user, default git_hostname=github.com).
+# setup_git=true + add_remote_user=true (vscode user, default git_hostname=github.com).
 # Verifies gh auth setup-git wrote the credential helper lines to ~/.gitconfig.
 set -e
 

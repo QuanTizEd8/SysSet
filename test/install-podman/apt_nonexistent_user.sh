@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that install.sh does not abort when add_user_config names a user
+# Verifies that install.sh does not abort when add_users names a user
 # that does not exist. The script should skip that user with a warning and
 # still successfully install the shared infrastructure.
 set -e

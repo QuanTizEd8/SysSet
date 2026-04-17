@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellenv_remote_user: add_remote_user_config=true with remoteUser="vscode".
+# shellenv_remote_user: add_remote_user=true with remoteUser="vscode".
 # Verifies that per-user shellenv blocks are written to vscode's init files
 # AND that system-wide blocks are still present (root installs Case A).
 set -e

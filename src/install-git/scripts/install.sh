@@ -43,10 +43,10 @@ if [ "$#" -gt 0 ]; then
   USER_EMAIL=""
   USER_GITCONFIG=""
   USER_NAME=""
-  ADD_CURRENT_USER_CONFIG=""
-  ADD_REMOTE_USER_CONFIG=""
-  ADD_CONTAINER_USER_CONFIG=""
-  ADD_USER_CONFIG=""
+  ADD_CURRENT_USER=""
+  ADD_REMOTE_USER=""
+  ADD_CONTAINER_USER=""
+  ADD_USERS=""
   VERSION=""
   while [ "$#" -gt 0 ]; do
     case $1 in
@@ -164,28 +164,28 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'user_name': '${USER_NAME}'" >&2
         shift
         ;;
-      --add_current_user_config)
+      --add_current_user)
         shift
-        ADD_CURRENT_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
-        shift
-        ;;
-      --add_remote_user_config)
-        shift
-        ADD_REMOTE_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+        ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
         shift
         ;;
-      --add_container_user_config)
+      --add_remote_user)
         shift
-        ADD_CONTAINER_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
+        ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
         shift
         ;;
-      --add_user_config)
+      --add_container_user)
         shift
-        ADD_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS="$1"
+        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
         shift
         ;;
       --version)
@@ -225,10 +225,10 @@ else
   [ "${USER_EMAIL+defined}" ] && echo "📩 Read argument 'user_email': '${USER_EMAIL}'" >&2
   [ "${USER_GITCONFIG+defined}" ] && echo "📩 Read argument 'user_gitconfig': '${USER_GITCONFIG}'" >&2
   [ "${USER_NAME+defined}" ] && echo "📩 Read argument 'user_name': '${USER_NAME}'" >&2
-  [ "${ADD_CURRENT_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
-  [ "${ADD_REMOTE_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
-  [ "${ADD_CONTAINER_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
-  [ "${ADD_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
 fi
 
@@ -254,10 +254,10 @@ fi
 [ -z "${USER_EMAIL-}" ] && USER_EMAIL=""
 [ -z "${USER_GITCONFIG-}" ] && USER_GITCONFIG=""
 [ -z "${USER_NAME-}" ] && USER_NAME=""
-: "${ADD_CURRENT_USER_CONFIG:=false}"
-: "${ADD_REMOTE_USER_CONFIG:=false}"
-: "${ADD_CONTAINER_USER_CONFIG:=false}"
-: "${ADD_USER_CONFIG:=}"
+: "${ADD_CURRENT_USER:=true}"
+: "${ADD_REMOTE_USER:=true}"
+: "${ADD_CONTAINER_USER:=true}"
+: "${ADD_USERS:=}"
 [ -z "${VERSION-}" ] && VERSION="latest"
 
 # Validate enum options early (fail fast before any install steps).
@@ -919,7 +919,7 @@ fi
 if [ -n "${DEFAULT_BRANCH}${SAFE_DIRECTORY}${SYSTEM_GITCONFIG}" ]; then
   _git__write_system_gitconfig
 fi
-if { [ "${ADD_CURRENT_USER_CONFIG}" = "true" ] || [ "${ADD_REMOTE_USER_CONFIG}" = "true" ] || [ "${ADD_CONTAINER_USER_CONFIG}" = "true" ] || [ -n "${ADD_USER_CONFIG}" ]; } && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; then
+if { [ "${ADD_CURRENT_USER}" = "true" ] || [ "${ADD_REMOTE_USER}" = "true" ] || [ "${ADD_CONTAINER_USER}" = "true" ] || [ -n "${ADD_USERS}" ]; } && [ -n "${USER_NAME}${USER_EMAIL}${USER_GITCONFIG}" ]; then
   _git__write_user_gitconfig
 fi
 

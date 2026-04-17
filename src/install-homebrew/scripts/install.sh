@@ -292,14 +292,21 @@ detect_install_user() {
   else
     # Linux: Homebrew's installer refuses root in container environments where
     # /.dockerenv is absent (Docker BuildKit + cgroup v2 on modern GHA runners).
-    # Create a dedicated 'linuxbrew' user and run the installer as that user.
+    # Prefer an existing non-root user; fall back to creating a dedicated
+    # 'linuxbrew' user only when no real user is available.
     if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
       echo "ℹ️ Linux root: using SUDO_USER='${SUDO_USER}' as install_user." >&2
       echo "$SUDO_USER"
+    elif [ -n "${_REMOTE_USER-}" ] && [ "$_REMOTE_USER" != "root" ]; then
+      echo "ℹ️ Linux root: using _REMOTE_USER='${_REMOTE_USER}' as install_user." >&2
+      echo "$_REMOTE_USER"
     else
       if ! id linuxbrew &> /dev/null; then
         echo "ℹ️ Linux root: creating 'linuxbrew' user for Homebrew installation." >&2
         useradd --create-home --shell /bin/bash linuxbrew
+        # Ubuntu 22.04+ creates home directories with mode 750; make it
+        # world-traversable so other users can access the brew binary.
+        chmod 755 /home/linuxbrew
       else
         echo "ℹ️ Linux root: 'linuxbrew' user already exists." >&2
       fi
@@ -317,10 +324,11 @@ if [[ "$#" -gt 0 ]]; then
   IF_EXISTS=""
   UPDATE=""
   unset EXPORT_PATH
-  ADD_CURRENT_USER_CONFIG=""
-  ADD_REMOTE_USER_CONFIG=""
-  ADD_CONTAINER_USER_CONFIG=""
-  ADD_USER_CONFIG=""
+  ADD_CURRENT_USER=""
+  ADD_REMOTE_USER=""
+  ADD_CONTAINER_USER=""
+  ADD_USERS=""
+  WRITE_GROUP=""
   BREW_GIT_REMOTE=""
   CORE_GIT_REMOTE=""
   NO_INSTALL_FROM_API=""
@@ -358,28 +366,34 @@ if [[ "$#" -gt 0 ]]; then
         echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
         shift
         ;;
-      --add_current_user_config)
+      --add_current_user)
         shift
-        ADD_CURRENT_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
-        shift
-        ;;
-      --add_remote_user_config)
-        shift
-        ADD_REMOTE_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+        ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
         shift
         ;;
-      --add_container_user_config)
+      --add_remote_user)
         shift
-        ADD_CONTAINER_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
+        ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
         shift
         ;;
-      --add_user_config)
+      --add_container_user)
         shift
-        ADD_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS="$1"
+        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+        shift
+        ;;
+      --write_group)
+        shift
+        WRITE_GROUP="$1"
+        echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
         shift
         ;;
       --brew_git_remote)
@@ -429,10 +443,11 @@ else
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
   [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${ADD_CURRENT_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
-  [ "${ADD_REMOTE_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
-  [ "${ADD_CONTAINER_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
-  [ "${ADD_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+  [ "${WRITE_GROUP+defined}" ] && echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
   [ "${BREW_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
   [ "${CORE_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
   [ "${NO_INSTALL_FROM_API+defined}" ] && echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
@@ -462,10 +477,14 @@ fi
   echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2
   EXPORT_PATH="auto"
 }
-: "${ADD_CURRENT_USER_CONFIG:=false}"
-: "${ADD_REMOTE_USER_CONFIG:=false}"
-: "${ADD_CONTAINER_USER_CONFIG:=false}"
-: "${ADD_USER_CONFIG:=}"
+: "${ADD_CURRENT_USER:=true}"
+: "${ADD_REMOTE_USER:=true}"
+: "${ADD_CONTAINER_USER:=true}"
+: "${ADD_USERS:=}"
+[ -z "${WRITE_GROUP+x}" ] && {
+  echo "ℹ️ Argument 'WRITE_GROUP' set to default value 'brew'." >&2
+  WRITE_GROUP="brew"
+}
 [ -z "${BREW_GIT_REMOTE-}" ] && {
   echo "ℹ️ Argument 'BREW_GIT_REMOTE' set to default value ''." >&2
   BREW_GIT_REMOTE=""
@@ -562,6 +581,13 @@ export_shellenv_main
 # ── Step 6: brew doctor (warn only) ──────────────────────────────────────────
 echo "ℹ️ Running 'brew doctor' (warnings only)." >&2
 _brew_run_as_install_user "$_BREW_EXEC" doctor 2>&1 || true
+
+# ── Step 7: Write-permission group ───────────────────────────────────────────
+if [[ -n "${WRITE_GROUP:-}" ]] && [[ "$(os__kernel)" = "Linux" ]]; then
+  export ADD_CURRENT_USER ADD_REMOTE_USER ADD_CONTAINER_USER ADD_USERS
+  mapfile -t _write_users < <(users__resolve_list)
+  users__set_write_permissions "$PREFIX" "$RESOLVED_INSTALL_USER" "$WRITE_GROUP" "${_write_users[@]}"
+fi
 
 echo "✅ Homebrew installation complete." >&2
 echo "↩️ Script exit: Homebrew Installation Devcontainer Feature Installer" >&2

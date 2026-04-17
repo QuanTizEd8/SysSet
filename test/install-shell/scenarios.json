@@ -37,7 +37,7 @@
         "features": {
             "install-shell": {
                 "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting",
-                "add_current_user_config": true,
+                "add_current_user": true,
                 "debug": true
             }
         }
@@ -47,7 +47,7 @@
         "features": {
             "install-shell": {
                 "set_user_shells": "zsh",
-                "add_user_config": "root",
+                "add_users": "root",
                 "debug": true
             }
         }
@@ -58,7 +58,7 @@
             "install-shell": {
                 "ohmyzsh_theme": "romkatv/powerlevel10k",
                 "starship_shells": "",
-                "add_user_config": "root",
+                "add_users": "root",
                 "debug": true
             }
         }
@@ -171,35 +171,35 @@
             }
         }
     },
-    "apt_remote_user_config": {
+    "apt_remote_user": {
         "image": "mcr.microsoft.com/devcontainers/base:debian",
         "remoteUser": "vscode",
         "features": {
             "install-shell": {
-                "add_remote_user_config": true,
+                "add_remote_user": true,
                 "debug": true
             }
         }
     },
-    "apt_container_user_config": {
+    "apt_container_user": {
         "image": "mcr.microsoft.com/devcontainers/base:debian",
         "containerUser": "vscode",
         "features": {
             "install-shell": {
-                "add_container_user_config": true,
+                "add_container_user": true,
                 "debug": true
             }
         }
     },
-    "apt_add_user_config": {
+    "apt_add_users": {
         "build": {
             "dockerfile": "Dockerfile"
         },
         "features": {
             "install-shell": {
-                "add_user_config": "devuser",
-                "add_container_user_config": false,
-                "add_remote_user_config": false,
+                "add_users": "devuser",
+                "add_container_user": false,
+                "add_remote_user": false,
                 "debug": true
             }
         }

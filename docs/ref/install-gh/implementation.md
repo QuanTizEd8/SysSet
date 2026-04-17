@@ -40,7 +40,7 @@ library functions are required.
 ### `users__resolve_list`
 - **Reuse** from `lib/users.sh`.
 - Used by `_gh__install_extensions` to build a deduplicated list of usernames from the feature's
-  `ADD_CURRENT_USER_CONFIG`, `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`, and `ADD_USER_CONFIG`
+  `ADD_CURRENT_USER`, `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, and `ADD_USERS`
   env vars (set to `true`/`false`/`<username>` depending on the option values).
 
 ---
@@ -197,10 +197,10 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 **Responsibility:** Install one or more gh CLI extensions for all resolved users.
 1. Split `EXTENSIONS` on `,` into an array. Each entry is passed verbatim to `gh extension install`
    (accepts owner/repo slugs, full https:// URLs, or local paths).
-2. Call `users__resolve_list` with the four env vars (`ADD_CURRENT_USER_CONFIG`,
-   `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`, `ADD_USER_CONFIG`) populated from
-   the corresponding feature options (`add_current_user_config`, `add_remote_user_config`,
-   `add_container_user_config`, `add_user_config`). These same env vars are also used by
+2. Call `users__resolve_list` with the four env vars (`ADD_CURRENT_USER`,
+   `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, `ADD_USERS`) populated from
+   the corresponding feature options (`add_current_user`, `add_remote_user`,
+   `add_container_user`, `add_users`). These same env vars are also used by
    `_gh__configure_user`; both functions share the same resolved user set.
 3. `users__resolve_list` auto-deduplicates; root is excluded from auto-detected paths when other
    non-root users are present.
@@ -246,8 +246,8 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 4.  Apply defaults: VERSION=latest, METHOD=repos, PREFIX=/usr/local,
     SYMLINK=true, SHELL_COMPLETIONS="bash zsh", IF_EXISTS=skip, INSTALLER_DIR=/tmp/gh-install,
     KEEP_INSTALLER=false, EXTENSIONS="", GIT_PROTOCOL="", SETUP_GIT=false, SIGN_COMMITS="",
-    GIT_HOSTNAME=github.com, ADD_CURRENT_USER_CONFIG=true, ADD_REMOTE_USER_CONFIG=true,
-    ADD_CONTAINER_USER_CONFIG=true, ADD_USER_CONFIG=""
+    GIT_HOSTNAME=github.com, ADD_CURRENT_USER=true, ADD_REMOTE_USER=true,
+    ADD_CONTAINER_USER=true, ADD_USERS=""
 5.  [[ DEBUG == true ]] && set -x
 6.  EARLY-EXIT (no-mutation): if VERSION=latest AND gh is already in PATH:
       if IF_EXISTS=skip:  print info, exit 0  (no deps installed, no API call)
@@ -259,8 +259,8 @@ Accepts the resolved version string as `$1` (already resolved by the orchestrato
 8.  ospkg__run --manifest base.yaml --skip_installed  (install curl, ca-certificates)
 9.  _resolved_version="$(_gh__resolve_version)"
 10. Export user config env vars:
-      ADD_CURRENT_USER_CONFIG, ADD_REMOTE_USER_CONFIG,
-      ADD_CONTAINER_USER_CONFIG, ADD_USER_CONFIG
+      ADD_CURRENT_USER, ADD_REMOTE_USER,
+      ADD_CONTAINER_USER, ADD_USERS
       (from the corresponding feature options, so users__resolve_list picks them up)
 11. _gh__check_existing "$_resolved_version"  (handles version-pinned case: may exit 0 or 1
       based on IF_EXISTS, or always exit 0 when installed version matches target)

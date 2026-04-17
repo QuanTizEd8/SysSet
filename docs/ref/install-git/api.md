@@ -21,10 +21,10 @@ Install Git in the development container. Two strategies controlled by 'method':
 | `default_branch` | string | `"main"` | Sets init.defaultBranch in the system-level gitconfig (/etc/gitconfig as root, $HOME/.config/git/config as non-root). Applies to all newly initialised repositories. Set to '' to skip writing this setting. |
 | `safe_directory` | string | `"*"` | Sets safe.directory in the system-level gitconfig. Use '*' (default) to trust all directories (useful in containers where the working directory may be owned by a different UID), a specific absolute path, or a newline-separated list of paths. Set to '' to skip writing this setting. |
 | `system_gitconfig` | string | `""` | Freeform content to append to the system-level gitconfig (as root: /etc/gitconfig; as non-root: $HOME/.config/git/config). Accepts standard gitconfig format, e.g. '[core] autocrlf = input [push] default = simple'. Written after any settings from default_branch and safe_directory. Set to '' to skip. |
-| `add_current_user_config` | boolean | `false` | Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user gitconfig writes. Root is deferred: only included as a fallback when no other non-root user is resolved. |
-| `add_remote_user_config` | boolean | `false` | Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user gitconfig writes. Ignored when _REMOTE_USER is unset or empty. Root is excluded from this path. |
-| `add_container_user_config` | boolean | `false` | Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes. Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path. |
-| `add_user_config` | string | `""` | Comma-separated list of additional usernames to include in the resolved user list for per-user gitconfig writes. Root is accepted here (unlike the auto-detected paths above). |
+| `add_current_user` | boolean | `false` | Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user gitconfig writes. Root is deferred: only included as a fallback when no other non-root user is resolved. |
+| `add_remote_user` | boolean | `false` | Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user gitconfig writes. Ignored when _REMOTE_USER is unset or empty. Root is excluded from this path. |
+| `add_container_user` | boolean | `false` | Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes. Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path. |
+| `add_users` | string | `""` | Comma-separated list of additional usernames to include in the resolved user list for per-user gitconfig writes. Root is accepted here (unlike the auto-detected paths above). |
 | `user_name` | string | `""` | Sets user.name in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting. |
 | `user_email` | string | `""` | Sets user.email in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting. |
 | `user_gitconfig` | string | `""` | Freeform content to append to the per-user gitconfig (~/.gitconfig) for all resolved users. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip. |
@@ -52,10 +52,10 @@ Install Git in the development container. Two strategies controlled by 'method':
 | `default_branch` | string | `"main"` | Sets `init.defaultBranch` in the system-level gitconfig. Set to `""` to skip. |
 | `safe_directory` | string | `""` | Sets `safe.directory` in the system-level gitconfig. `"*"` trusts all directories. Set to `""` to skip. |
 | `system_gitconfig` | string | `""` | Freeform content appended to the system-level gitconfig after `default_branch`/`safe_directory`. |
-| `add_current_user_config` | boolean | `false` | Include the current user in the resolved user list for per-user gitconfig writes. Root is deferred: only included as a fallback when no other non-root user is resolved. |
-| `add_remote_user_config` | boolean | `false` | Include the devcontainer remoteUser (from `_REMOTE_USER`) in the resolved user list for per-user gitconfig writes. Ignored when `_REMOTE_USER` is unset or empty. Root is excluded. |
-| `add_container_user_config` | boolean | `false` | Include the devcontainer containerUser (from `_CONTAINER_USER`) in the resolved user list for per-user gitconfig writes. Ignored when `_CONTAINER_USER` is unset or empty. Root is excluded. |
-| `add_user_config` | string | `""` | Comma-separated list of additional usernames for the resolved user list for per-user gitconfig writes. Root is accepted here. |
+| `add_current_user` | boolean | `false` | Include the current user in the resolved user list for per-user gitconfig writes. Root is deferred: only included as a fallback when no other non-root user is resolved. |
+| `add_remote_user` | boolean | `false` | Include the devcontainer remoteUser (from `_REMOTE_USER`) in the resolved user list for per-user gitconfig writes. Ignored when `_REMOTE_USER` is unset or empty. Root is excluded. |
+| `add_container_user` | boolean | `false` | Include the devcontainer containerUser (from `_CONTAINER_USER`) in the resolved user list for per-user gitconfig writes. Ignored when `_CONTAINER_USER` is unset or empty. Root is excluded. |
+| `add_users` | string | `""` | Comma-separated list of additional usernames for the resolved user list for per-user gitconfig writes. Root is accepted here. |
 | `user_name` | string | `""` | Sets `user.name` in `~/.gitconfig` for each resolved user. Set to `""` to skip. |
 | `user_email` | string | `""` | Sets `user.email` in `~/.gitconfig` for each resolved user. Set to `""` to skip. |
 | `user_gitconfig` | string | `""` | Freeform content appended to `~/.gitconfig` for each resolved user after `user_name`/`user_email`. |
@@ -233,7 +233,7 @@ Trusts all directories (essential when the UID inside the container differs from
     "ghcr.io/quantized8/sysset/install-git": {
       "safe_directory": "*",
       "default_branch": "main",
-      "add_remote_user_config": true,
+      "add_remote_user": true,
       "user_name": "Dev User",
       "user_email": "dev@example.com"
     }
@@ -486,7 +486,7 @@ Written to `/etc/gitconfig` (as root) or `$HOME/.config/git/config` (as non-root
 
 #### Per-user gitconfig
 
-Written to `~/.gitconfig` for each resolved user. The user list is built from the four `add_*_user_config` options: `add_current_user_config`, `add_remote_user_config`, `add_container_user_config` (booleans), and `add_user_config` (comma-separated explicit usernames). As non-root, only the current user is ever written to; any extra names are ignored with a warning.
+Written to `~/.gitconfig` for each resolved user. The user list is built from the four `add_*_user_config` options: `add_current_user`, `add_remote_user`, `add_container_user` (booleans), and `add_users` (comma-separated explicit usernames). As non-root, only the current user is ever written to; any extra names are ignored with a warning.
 
 Per-user settings are only written when at least one of `user_name`, `user_email`, or `user_gitconfig` is non-empty, **and** at least one of the user-config options resolves to a user.
 
@@ -506,7 +506,7 @@ For a typical devcontainer with `remoteUser: "vscode"` that needs all repositori
     "ghcr.io/quantized8/sysset/install-git": {
       "safe_directory": "*",
       "default_branch": "main",
-      "add_remote_user_config": true,
+      "add_remote_user": true,
       "user_name": "Dev User",
       "user_email": "dev@example.com"
     }

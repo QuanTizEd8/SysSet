@@ -34,22 +34,22 @@
     "entrypoint": "/usr/local/share/install-podman/entrypoint",
 
     "options": {
-        "add_current_user_config": {
+        "add_current_user": {
             "type": "boolean",
             "default": true,
             "description": "Whether to configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root."
         },
-        "add_remote_user_config": {
+        "add_remote_user": {
             "type": "boolean",
             "default": true,
             "description": "Whether to configure Podman for the `_REMOTE_USER` set by the devcontainer tooling. No effect when running standalone."
         },
-        "add_container_user_config": {
+        "add_container_user": {
             "type": "boolean",
             "default": true,
             "description": "Whether to configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone."
         },
-        "add_user_config": {
+        "add_users": {
             "type": "string",
             "default": "",
             "description": "Comma-separated list of additional usernames to register subuid/subgid ranges and write Podman storage config for."

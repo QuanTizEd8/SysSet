@@ -64,7 +64,7 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-git": {
-                "add_remote_user_config": true,
+                "add_remote_user": true,
                 "user_name": "Dev User",
                 "user_email": "dev@example.com",
                 "user_gitconfig": "[pull]\n  rebase = false",

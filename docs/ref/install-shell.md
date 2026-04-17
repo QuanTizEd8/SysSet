@@ -56,8 +56,8 @@ With the defaults above, the feature will:
       "ohmyzsh_theme": "romkatv/powerlevel10k",
       "ohmyzsh_plugins": "zsh-users/zsh-syntax-highlighting,zsh-users/zsh-autosuggestions",
       "set_user_shells": "zsh",
-      "add_user_config": "root",
-      "add_current_user_config": true
+      "add_users": "root",
+      "add_current_user": true
     }
   }
 }
@@ -114,10 +114,10 @@ custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
 | `ohmybash_custom_dir` | string | `""` | `OSH_CUSTOM` directory. Leave empty to default to `${XDG_CONFIG_HOME}/bash/custom` (e.g. `~/.config/bash/custom`) — per-user, with named themes/plugins symlinked from the system install. Accepts the same three forms as `ohmyzsh_custom_dir`. |
 | `ohmyzsh_branch` | string | `"master"` | Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone. |
 | `ohmybash_branch` | string | `"master"` | Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone. |
-| `add_current_user_config` | boolean | `true` | Configure the current non-root user's dotfiles. |
-| `add_container_user_config` | boolean | `true` | Configure the `containerUser` from devcontainer.json. |
-| `add_remote_user_config` | boolean | `true` | Configure the `remoteUser` from devcontainer.json. |
-| `add_user_config` | string | `""` | Comma-separated list of additional usernames to configure. |
+| `add_current_user` | boolean | `true` | Configure the current non-root user's dotfiles. |
+| `add_container_user` | boolean | `true` | Configure the `containerUser` from devcontainer.json. |
+| `add_remote_user` | boolean | `true` | Configure the `remoteUser` from devcontainer.json. |
+| `add_users` | string | `""` | Comma-separated list of additional usernames to configure. |
 | `user_config_mode` | string | `"overwrite"` | How to handle existing dotfiles: `overwrite`, `augment`, or `skip` (see below). |
 | `set_user_shells` | string | `"none"` | Set the default login shell via `chsh`: `zsh`, `bash`, or `none`. Applies to all configured users. |
 | `debug` | boolean | `false` | Enable `set -x` trace output. |
@@ -185,8 +185,8 @@ and their purposes.
 ### Step 6 — Resolve user list
 
 Builds a deduplicated list of users to configure from the
-`add_current_user_config`,
-`add_container_user_config`, `add_remote_user_config`, and `add_user_config`
+`add_current_user`,
+`add_container_user`, `add_remote_user`, and `add_users`
 options. Users that do not exist on the system are skipped with a warning.
 
 ### Step 7 — Configure users

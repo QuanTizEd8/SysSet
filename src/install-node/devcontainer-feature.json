@@ -60,22 +60,22 @@
          "default": "auto",
          "description": "Controls which shell startup files receive PATH export blocks for the Node.js binary directory.\n'auto' (default) — as root, writes to all system-wide shell startup files: /etc/environment (BASH_ENV and PATH), /etc/profile.d/install-node.sh (login shells), the system-wide bashrc (non-login interactive bash), and the zsh env file (zshenv). Covers login, interactive, non-interactive, Docker RUN, SSH exec, and PAM invocation scenarios.\n'' (empty string) — skips all PATH writes (e.g. when prefix=/usr/local which is already on PATH, or when using symlinks only).\nA newline-separated list of absolute file paths — writes only to those specific files."
       },
-      "add_current_user_config": {
+      "add_current_user": {
          "type": "boolean",
          "default": true,
          "description": "Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nRoot is deferred: only included as a fallback when no other non-root user is resolved."
       },
-      "add_remote_user_config": {
+      "add_remote_user": {
          "type": "boolean",
          "default": true,
          "description": "Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nIgnored when _REMOTE_USER is unset or empty. Root is excluded from this path."
       },
-      "add_container_user_config": {
+      "add_container_user": {
          "type": "boolean",
          "default": true,
          "description": "Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nIgnored when _CONTAINER_USER is unset or empty. Root is excluded from this path."
       },
-      "add_user_config": {
+      "add_users": {
          "type": "string",
          "default": "",
          "description": "Comma-separated list of additional usernames to include in the resolved user list.\nResolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.\nRoot is accepted here (unlike the auto-detected paths above)."

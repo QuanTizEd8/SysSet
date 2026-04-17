@@ -34,7 +34,7 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
 {
   "features": {
     "ghcr.io/quantized8/sysset/install-podman:0": {
-      "add_user_config": "root"
+      "add_users": "root"
     }
   }
 }
@@ -46,7 +46,7 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
 {
   "features": {
     "ghcr.io/quantized8/sysset/install-podman:0": {
-      "add_user_config": "myuser"
+      "add_users": "myuser"
     }
   }
 }
@@ -58,10 +58,10 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `add_current_user_config` | boolean | `true` | Configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root. |
-| `add_remote_user_config` | boolean | `true` | Configure Podman for `remoteUser` as set by the devcontainer tooling. No effect when running standalone. |
-| `add_container_user_config` | boolean | `true` | Configure Podman for `containerUser` as set by the devcontainer tooling. No effect when running standalone. |
-| `add_user_config` | string | `""` | Comma-separated list of additional usernames to configure. |
+| `add_current_user` | boolean | `true` | Configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root. |
+| `add_remote_user` | boolean | `true` | Configure Podman for `remoteUser` as set by the devcontainer tooling. No effect when running standalone. |
+| `add_container_user` | boolean | `true` | Configure Podman for `containerUser` as set by the devcontainer tooling. No effect when running standalone. |
+| `add_users` | string | `""` | Comma-separated list of additional usernames to configure. |
 
 ---
 
@@ -161,7 +161,7 @@ Debian/Ubuntu hosts the host sysctl
 
 Occurs when running Podman as **root**. Root Podman defaults to the `systemd`
 cgroup manager, which requires a running systemd. Either use
-`add_user_config: "root"` so the feature writes the corrective
+`add_users: "root"` so the feature writes the corrective
 `containers.conf`, or run as a non-root user.
 
 ### `newuidmap: write to uid_map failed: Operation not permitted`
@@ -355,19 +355,19 @@ The feature can configure Podman for multiple users (subuid/subgid + per-user
 | Option | Resolved to |
 |---|---|
 | `add_root_user_config` | literal `root` |
-| `add_current_user_config` | `$SUDO_USER` if set and non-root, else `$(whoami)`, skipped if root |
-| `add_remote_user_config` | `$_REMOTE_USER` if set (devcontainer tooling) |
-| `add_container_user_config` | `$_CONTAINER_USER` if set (devcontainer tooling) |
-| `add_user_config` | comma-separated explicit list |
+| `add_current_user` | `$SUDO_USER` if set and non-root, else `$(whoami)`, skipped if root |
+| `add_remote_user` | `$_REMOTE_USER` if set (devcontainer tooling) |
+| `add_container_user` | `$_CONTAINER_USER` if set (devcontainer tooling) |
+| `add_users` | comma-separated explicit list |
 
 Deduplication uses POSIX sh's `case` pattern matching against a
 space-separated accumulator string — no `sort`, `uniq`, or arrays required.
 
-`add_current_user_config` deliberately does not fall back to `_REMOTE_USER`.
+`add_current_user` deliberately does not fall back to `_REMOTE_USER`.
 Its purpose is standalone `sudo ./install.sh` invocations where `SUDO_USER`
 identifies the invoking non-root user. In a devcontainer context (where the
 script runs as root with no `SUDO_USER`), it is a no-op — `_REMOTE_USER` is
-handled separately by `add_remote_user_config`.
+handled separately by `add_remote_user`.
 
 ### Subuid/subgid range allocation
 

@@ -77,22 +77,22 @@
          "default": "",
          "description": "Freeform content to append to the system-level gitconfig (as root: /etc/gitconfig; as non-root: $HOME/.config/git/config). Accepts standard gitconfig format, e.g. '[core]\n  autocrlf = input\n[push]\n  default = simple'. Written after any settings from default_branch and safe_directory. Set to '' to skip."
       },
-      "add_current_user_config": {
+      "add_current_user": {
          "type": "boolean",
-         "default": false,
+         "default": true,
          "description": "Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user gitconfig writes.\nRoot is deferred: only included as a fallback when no other non-root user is resolved."
       },
-      "add_remote_user_config": {
+      "add_remote_user": {
          "type": "boolean",
-         "default": false,
+         "default": true,
          "description": "Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user gitconfig writes.\nIgnored when _REMOTE_USER is unset or empty. Root is excluded from this path."
       },
-      "add_container_user_config": {
+      "add_container_user": {
          "type": "boolean",
-         "default": false,
+         "default": true,
          "description": "Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes.\nIgnored when _CONTAINER_USER is unset or empty. Root is excluded from this path."
       },
-      "add_user_config": {
+      "add_users": {
          "type": "string",
          "default": "",
          "description": "Comma-separated list of additional usernames to include in the resolved user list for per-user gitconfig writes.\nRoot is accepted here (unlike the auto-detected paths above)."

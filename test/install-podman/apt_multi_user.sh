@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that multiple users given via add_user_config are each configured
+# Verifies that multiple users given via add_users are each configured
 # with their own subuid/subgid entry and storage.conf, and that their subuid
 # ranges are non-overlapping.
 set -e

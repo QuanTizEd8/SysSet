@@ -1,6 +1,6 @@
 #!/bin/bash
-# add_user_config="testuser" + setup_git=true + all other add_*_user_config=false.
-# Verifies that the feature targets exactly the user named in add_user_config,
+# add_users="testuser" + setup_git=true + all other add_*_user=false.
+# Verifies that the feature targets exactly the user named in add_users,
 # writing the gh credential helper to /home/testuser/.gitconfig.
 set -e
 

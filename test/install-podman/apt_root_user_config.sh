@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that add_user_config="root" causes root to receive a subuid/subgid
+# Verifies that add_users="root" causes root to receive a subuid/subgid
 # entry and a per-user storage.conf.
 set -e
 
@@ -8,8 +8,8 @@ source dev-container-features-test-lib
 _GRAPH_ROOT="/var/lib/containers/storage"
 
 # No remoteUser is set so this test runs as root, allowing access to /root/.
-# With add_user_config="root" and all other user options at their defaults
-# (add_current_user_config skips root, _REMOTE_USER/_CONTAINER_USER unset),
+# With add_users="root" and all other user options at their defaults
+# (add_current_user skips root, _REMOTE_USER/_CONTAINER_USER unset),
 # only root should be configured.
 
 # --- root is configured ---

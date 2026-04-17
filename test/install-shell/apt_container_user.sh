@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that add_container_user_config=true configures the user identified by
+# Verifies that add_container_user=true configures the user identified by
 # the containerUser field (injected as _CONTAINER_USER by the devcontainer CLI).
 set -e
 

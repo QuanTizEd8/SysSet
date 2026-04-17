@@ -11,8 +11,8 @@
 #   _CONTAINER_USER    — the containerUser from devcontainer.json
 #
 # Feature options (injected as environment variables by the tooling):
-#   ADD_CURRENT_USER_CONFIG, ADD_REMOTE_USER_CONFIG, ADD_CONTAINER_USER_CONFIG,
-#   ADD_USER_CONFIG, DEBUG, LOGFILE
+#   ADD_CURRENT_USER, ADD_REMOTE_USER, ADD_CONTAINER_USER,
+#   ADD_USERS, DEBUG, LOGFILE
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"

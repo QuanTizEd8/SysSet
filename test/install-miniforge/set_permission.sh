@@ -1,5 +1,5 @@
 #!/bin/bash
-# set_permissions=true: after installation the
+# write_group="conda" (default): after installation the
 # 'conda' group is created, the running user is added to it, and the conda
 # directory is group-owned with group-write and setgid bits.
 set -e

@@ -40,24 +40,24 @@
       "extensions": {
          "type": "string",
          "default": "",
-         "description": "Comma-separated list of GitHub CLI extensions to install after gh itself is installed. Each entry is passed verbatim to 'gh extension install', so any argument that command accepts is valid: a GitHub repository slug ('owner/repo'), a full https:// URL, or a local directory path. Example: 'dlvhdr/gh-dash,github/gh-copilot'. Extensions are installed for the users resolved by the add_*_user_config and add_user_config options. Set to '' to skip extension installation."
+         "description": "Comma-separated list of GitHub CLI extensions to install after gh itself is installed. Each entry is passed verbatim to 'gh extension install', so any argument that command accepts is valid: a GitHub repository slug ('owner/repo'), a full https:// URL, or a local directory path. Example: 'dlvhdr/gh-dash,github/gh-copilot'. Extensions are installed for the users resolved by the add_*_user_config and add_users options. Set to '' to skip extension installation."
       },
-      "add_current_user_config": {
+      "add_current_user": {
          "type": "boolean",
          "default": true,
          "description": "Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the current non-root user (SUDO_USER if run via sudo, otherwise the result of whoami).\nNo effect when the current user is root and other non-root users are also being targeted.\nOnly applies when at least one of 'extensions', 'git_protocol', 'setup_git', or 'sign_commits' is active."
       },
-      "add_remote_user_config": {
+      "add_remote_user": {
          "type": "boolean",
          "default": true,
          "description": "Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the devcontainer remoteUser (the _REMOTE_USER environment variable set by the devcontainer tooling).\nNo effect when _REMOTE_USER is not set.\nOnly applies when at least one of 'extensions', 'git_protocol', 'setup_git', or 'sign_commits' is active."
       },
-      "add_container_user_config": {
+      "add_container_user": {
          "type": "boolean",
          "default": true,
          "description": "Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the devcontainer containerUser (the _CONTAINER_USER environment variable set by the devcontainer tooling).\nNo effect when _CONTAINER_USER is not set.\nOnly applies when at least one of 'extensions', 'git_protocol', 'setup_git', or 'sign_commits' is active."
       },
-      "add_user_config": {
+      "add_users": {
          "type": "string",
          "default": "",
          "description": "Comma-separated list of additional usernames to apply per-user git configuration and install extensions for (e.g. 'alice,bob'). Each user must already exist. Root is accepted here if explicitly listed. Only applies when at least one of 'extensions', 'git_protocol', 'setup_git', or 'sign_commits' is active."
@@ -65,7 +65,7 @@
       "git_protocol": {
          "type": "string",
          "default": "",
-         "description": "Set the default git protocol in gh's per-user config (~/.config/gh/config.yml) by running 'gh config set git_protocol <value>' for each resolved user.\n'https' — use HTTPS for git clone and push operations (gh's built-in default).\n'ssh' — use SSH for git clone and push.\n'' (empty, default) — leave the config key unset; gh uses its own default (https).\nApplied for all users resolved by the add_*_user_config / add_user_config options.",
+         "description": "Set the default git protocol in gh's per-user config (~/.config/gh/config.yml) by running 'gh config set git_protocol <value>' for each resolved user.\n'https' — use HTTPS for git clone and push operations (gh's built-in default).\n'ssh' — use SSH for git clone and push.\n'' (empty, default) — leave the config key unset; gh uses its own default (https).\nApplied for all users resolved by the add_*_user_config / add_users options.",
          "proposals": ["", "https", "ssh"]
       },
       "setup_git": {

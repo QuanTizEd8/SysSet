@@ -2,7 +2,7 @@
 # Default options with remoteUser="vscode".
 # Verifies packages, setuid binaries, vscode user configuration,
 # system containers.conf, and the startup entrypoint.
-# Root should NOT be configured (add_user_config does not include root by default).
+# Root should NOT be configured (add_users does not include root by default).
 set -e
 
 source dev-container-features-test-lib

@@ -66,10 +66,10 @@ Oh My Bash options:
   --ohmybash_plugins <string>      Comma-separated custom plugin slugs
 
 User configuration:
-  --add_current_user_config <bool> Configure current user (default: true)
-  --add_container_user_config <bool>  Configure containerUser (default: true)
-  --add_remote_user_config <bool>  Configure remoteUser (default: true)
-  --add_user_config <string>       Comma-separated additional usernames
+  --add_current_user <bool> Configure current user (default: true)
+  --add_container_user <bool>  Configure containerUser (default: true)
+  --add_remote_user <bool>  Configure remoteUser (default: true)
+  --add_users <string>       Comma-separated additional usernames
   --user_config_mode <string>      overwrite | augment | skip (default: overwrite)
   --set_user_shells <string>       zsh | bash | none (default: none)
 
@@ -101,10 +101,10 @@ if [ "$#" -gt 0 ]; then
   OHMYBASH_BRANCH=""
   OHMYBASH_THEME=""
   OHMYBASH_PLUGINS=""
-  ADD_CURRENT_USER_CONFIG=""
-  ADD_CONTAINER_USER_CONFIG=""
-  ADD_REMOTE_USER_CONFIG=""
-  ADD_USER_CONFIG=""
+  ADD_CURRENT_USER=""
+  ADD_CONTAINER_USER=""
+  ADD_REMOTE_USER=""
+  ADD_USERS=""
   USER_CONFIG_MODE=""
   SET_USER_SHELLS=""
   DEBUG=""
@@ -193,24 +193,24 @@ if [ "$#" -gt 0 ]; then
         OHMYBASH_PLUGINS="$1"
         shift
         ;;
-      --add_current_user_config)
+      --add_current_user)
         shift
-        ADD_CURRENT_USER_CONFIG="$1"
-        shift
-        ;;
-      --add_container_user_config)
-        shift
-        ADD_CONTAINER_USER_CONFIG="$1"
+        ADD_CURRENT_USER="$1"
         shift
         ;;
-      --add_remote_user_config)
+      --add_container_user)
         shift
-        ADD_REMOTE_USER_CONFIG="$1"
+        ADD_CONTAINER_USER="$1"
         shift
         ;;
-      --add_user_config)
+      --add_remote_user)
         shift
-        ADD_USER_CONFIG="$1"
+        ADD_REMOTE_USER="$1"
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS="$1"
         shift
         ;;
       --user_config_mode)
@@ -264,10 +264,10 @@ fi
 : "${OHMYBASH_BRANCH:=master}"
 : "${OHMYBASH_THEME:=}"
 : "${OHMYBASH_PLUGINS:=}"
-: "${ADD_CURRENT_USER_CONFIG:=true}"
-: "${ADD_CONTAINER_USER_CONFIG:=true}"
-: "${ADD_REMOTE_USER_CONFIG:=true}"
-: "${ADD_USER_CONFIG:=}"
+: "${ADD_CURRENT_USER:=true}"
+: "${ADD_CONTAINER_USER:=true}"
+: "${ADD_REMOTE_USER:=true}"
+: "${ADD_USERS:=}"
 : "${USER_CONFIG_MODE:=overwrite}"
 : "${SET_USER_SHELLS:=none}"
 : "${DEBUG:=false}"

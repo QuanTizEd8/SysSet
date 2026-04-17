@@ -13,51 +13,51 @@ setup() {
 # users__resolve_list
 # ---------------------------------------------------------------------------
 
-@test "users__resolve_list includes SUDO_USER when ADD_CURRENT_USER_CONFIG=true" {
-  ADD_CURRENT_USER_CONFIG=true \
+@test "users__resolve_list includes SUDO_USER when ADD_CURRENT_USER=true" {
+  ADD_CURRENT_USER=true \
     SUDO_USER=alice \
-    ADD_REMOTE_USER_CONFIG=false \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="" \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="" \
     run users__resolve_list
   assert_output "alice"
 }
 
-@test "users__resolve_list includes _REMOTE_USER when ADD_REMOTE_USER_CONFIG=true" {
-  ADD_CURRENT_USER_CONFIG=false \
+@test "users__resolve_list includes _REMOTE_USER when ADD_REMOTE_USER=true" {
+  ADD_CURRENT_USER=false \
     _REMOTE_USER=bob \
-    ADD_REMOTE_USER_CONFIG=true \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="" \
+    ADD_REMOTE_USER=true \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="" \
     run users__resolve_list
   assert_output "bob"
 }
 
-@test "users__resolve_list includes _CONTAINER_USER when ADD_CONTAINER_USER_CONFIG=true" {
-  ADD_CURRENT_USER_CONFIG=false \
-    ADD_REMOTE_USER_CONFIG=false \
+@test "users__resolve_list includes _CONTAINER_USER when ADD_CONTAINER_USER=true" {
+  ADD_CURRENT_USER=false \
+    ADD_REMOTE_USER=false \
     _CONTAINER_USER=carol \
-    ADD_CONTAINER_USER_CONFIG=true \
-    ADD_USER_CONFIG="" \
+    ADD_CONTAINER_USER=true \
+    ADD_USERS="" \
     run users__resolve_list
   assert_output "carol"
 }
 
-@test "users__resolve_list includes extra users from ADD_USER_CONFIG" {
-  ADD_CURRENT_USER_CONFIG=false \
-    ADD_REMOTE_USER_CONFIG=false \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="dave,eve" \
+@test "users__resolve_list includes extra users from ADD_USERS" {
+  ADD_CURRENT_USER=false \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="dave,eve" \
     run users__resolve_list
   assert_output "dave
 eve"
 }
 
 @test "users__resolve_list deduplicates users" {
-  ADD_CURRENT_USER_CONFIG=false \
-    ADD_REMOTE_USER_CONFIG=false \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="alice,alice,bob" \
+  ADD_CURRENT_USER=false \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="alice,alice,bob" \
     run users__resolve_list
   assert_output "alice
 bob"
@@ -67,11 +67,11 @@ bob"
   # When the build user is root and no other non-root users are auto-detected,
   # root is included so the feature has a target to configure (e.g. plain
   # container images or standalone macOS use with no remoteUser).
-  ADD_CURRENT_USER_CONFIG=true \
+  ADD_CURRENT_USER=true \
     SUDO_USER=root \
-    ADD_REMOTE_USER_CONFIG=false \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="" \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="" \
     run users__resolve_list
   assert_output "root"
   assert_success
@@ -80,44 +80,44 @@ bob"
 @test "users__resolve_list excludes root when a non-root user is also detected" {
   # Root must not be added when a non-root remoteUser / containerUser is present;
   # the build runs as root but the target for configuration is the named user.
-  ADD_CURRENT_USER_CONFIG=true \
+  ADD_CURRENT_USER=true \
     SUDO_USER=root \
-    ADD_REMOTE_USER_CONFIG=true \
+    ADD_REMOTE_USER=true \
     _REMOTE_USER=alice \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="" \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="" \
     run users__resolve_list
   assert_output "alice"
   assert_success
 }
 
-@test "users__resolve_list allows root when explicitly in ADD_USER_CONFIG" {
-  # Explicitly listing root in ADD_USER_CONFIG is a deliberate override
+@test "users__resolve_list allows root when explicitly in ADD_USERS" {
+  # Explicitly listing root in ADD_USERS is a deliberate override
   # (used by install-podman to configure rootless Podman for the root user).
-  ADD_CURRENT_USER_CONFIG=false \
-    ADD_REMOTE_USER_CONFIG=false \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="root,alice" \
+  ADD_CURRENT_USER=false \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="root,alice" \
     run users__resolve_list
   assert_output "root
 alice"
 }
 
 @test "users__resolve_list returns empty output when all sources are disabled" {
-  ADD_CURRENT_USER_CONFIG=false \
-    ADD_REMOTE_USER_CONFIG=false \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG="" \
+  ADD_CURRENT_USER=false \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS="" \
     run users__resolve_list
   assert_output ""
   assert_success
 }
 
-@test "users__resolve_list trims spaces around names in ADD_USER_CONFIG" {
-  ADD_CURRENT_USER_CONFIG=false \
-    ADD_REMOTE_USER_CONFIG=false \
-    ADD_CONTAINER_USER_CONFIG=false \
-    ADD_USER_CONFIG=" alice , bob " \
+@test "users__resolve_list trims spaces around names in ADD_USERS" {
+  ADD_CURRENT_USER=false \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS=" alice , bob " \
     run users__resolve_list
   assert_output "alice
 bob"

@@ -95,9 +95,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-gh": {
-                "add_remote_user_config": true,
-                "add_current_user_config": false,
-                "add_container_user_config": false,
+                "add_remote_user": true,
+                "add_current_user": false,
+                "add_container_user": false,
                 "git_protocol": "https",
                 "debug": true
             }
@@ -108,9 +108,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-gh": {
-                "add_remote_user_config": true,
-                "add_current_user_config": false,
-                "add_container_user_config": false,
+                "add_remote_user": true,
+                "add_current_user": false,
+                "add_container_user": false,
                 "setup_git": true,
                 "debug": true
             }
@@ -121,9 +121,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-gh": {
-                "add_remote_user_config": true,
-                "add_current_user_config": false,
-                "add_container_user_config": false,
+                "add_remote_user": true,
+                "add_current_user": false,
+                "add_container_user": false,
                 "sign_commits": "ssh",
                 "debug": true
             }
@@ -134,9 +134,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-gh": {
-                "add_remote_user_config": true,
-                "add_current_user_config": false,
-                "add_container_user_config": false,
+                "add_remote_user": true,
+                "add_current_user": false,
+                "add_container_user": false,
                 "sign_commits": "gpg",
                 "debug": true
             }
@@ -208,23 +208,23 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-gh": {
-                "add_remote_user_config": true,
-                "add_current_user_config": false,
-                "add_container_user_config": false,
+                "add_remote_user": true,
+                "add_current_user": false,
+                "add_container_user": false,
                 "setup_git": true,
                 "git_hostname": "git.corp.example.com",
                 "debug": true
             }
         }
     },
-    "add_user_config": {
+    "add_users": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-gh": {
-                "add_user_config": "testuser",
-                "add_current_user_config": false,
-                "add_remote_user_config": false,
-                "add_container_user_config": false,
+                "add_users": "testuser",
+                "add_current_user": false,
+                "add_remote_user": false,
+                "add_container_user": false,
                 "setup_git": true,
                 "debug": true
             }
@@ -235,9 +235,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-gh": {
-                "add_remote_user_config": true,
-                "add_current_user_config": false,
-                "add_container_user_config": false,
+                "add_remote_user": true,
+                "add_current_user": false,
+                "add_container_user": false,
                 "extensions": "github/gh-copilot",
                 "logfile": "/tmp/gh-ext-install.log",
                 "debug": true

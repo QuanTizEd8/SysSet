@@ -28,7 +28,7 @@ check "system custom themes dir at custom OMZ path" test -d "${_SYS_CUSTOM}/them
 check "system custom plugins dir at custom OMZ path" test -d "${_SYS_CUSTOM}/plugins"
 check "default plugin cloned at custom OMZ path" test -d "${_SYS_CUSTOM}/plugins/zsh-syntax-highlighting/.git"
 
-# Root user configured (via add_container_user_config, _CONTAINER_USER=root)
+# Root user configured (via add_container_user, _CONTAINER_USER=root)
 check "root .zshenv exists" test -f "${_HOME}/.zshenv"
 check "root ZDOTDIR/.zshrc exists" test -f "${_ZDOTDIR}/.zshrc"
 check "root .bashrc exists" test -f "${_HOME}/.bashrc"

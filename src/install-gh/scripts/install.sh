@@ -557,10 +557,10 @@ trap 'logging__cleanup' EXIT
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  ADD_CONTAINER_USER_CONFIG=""
-  ADD_CURRENT_USER_CONFIG=""
-  ADD_REMOTE_USER_CONFIG=""
-  ADD_USER_CONFIG=""
+  ADD_CONTAINER_USER=""
+  ADD_CURRENT_USER=""
+  ADD_REMOTE_USER=""
+  ADD_USERS=""
   DEBUG=""
   EXTENSIONS=""
   GIT_HOSTNAME=""
@@ -578,28 +578,28 @@ if [ "$#" -gt 0 ]; then
   VERSION=""
   while [ "$#" -gt 0 ]; do
     case $1 in
-      --add_container_user_config)
+      --add_container_user)
         shift
-        ADD_CONTAINER_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
-        shift
-        ;;
-      --add_current_user_config)
-        shift
-        ADD_CURRENT_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
         shift
         ;;
-      --add_remote_user_config)
+      --add_current_user)
         shift
-        ADD_REMOTE_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+        ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
         shift
         ;;
-      --add_user_config)
+      --add_remote_user)
         shift
-        ADD_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+        ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS="$1"
+        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
         shift
         ;;
       --debug)
@@ -704,10 +704,10 @@ if [ "$#" -gt 0 ]; then
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  [ "${ADD_CONTAINER_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
-  [ "${ADD_CURRENT_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
-  [ "${ADD_REMOTE_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
-  [ "${ADD_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${EXTENSIONS+defined}" ] && echo "📩 Read argument 'extensions': '${EXTENSIONS}'" >&2
   [ "${GIT_HOSTNAME+defined}" ] && echo "📩 Read argument 'git_hostname': '${GIT_HOSTNAME}'" >&2
@@ -728,10 +728,10 @@ fi
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ "${ADD_CONTAINER_USER_CONFIG+defined}" ] || ADD_CONTAINER_USER_CONFIG=true
-[ "${ADD_CURRENT_USER_CONFIG+defined}" ] || ADD_CURRENT_USER_CONFIG=true
-[ "${ADD_REMOTE_USER_CONFIG+defined}" ] || ADD_REMOTE_USER_CONFIG=true
-[ -z "${ADD_USER_CONFIG-}" ] && ADD_USER_CONFIG=""
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
+[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
+[ -z "${ADD_USERS-}" ] && ADD_USERS=""
 [ -z "${DEBUG-}" ] && DEBUG=false
 [ -z "${EXTENSIONS-}" ] && EXTENSIONS=""
 [ -z "${GIT_HOSTNAME-}" ] && GIT_HOSTNAME="github.com"
@@ -805,10 +805,10 @@ ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 _resolved_version="$(_gh__resolve_version)"
 
 # Step 4: Export user config env vars so users__resolve_list picks them up.
-export ADD_CURRENT_USER_CONFIG
-export ADD_REMOTE_USER_CONFIG
-export ADD_CONTAINER_USER_CONFIG
-export ADD_USER_CONFIG
+export ADD_CURRENT_USER
+export ADD_REMOTE_USER
+export ADD_CONTAINER_USER
+export ADD_USERS
 
 # Step 5: Check existing installation; may exit 0 or 1.
 _gh__check_existing "${_resolved_version}"

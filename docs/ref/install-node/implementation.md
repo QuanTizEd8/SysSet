@@ -384,7 +384,7 @@ scripts/install.sh
   │   ├── case "$METHOD" in nvm|binary) ;; *) echo "⛔ Unknown method: '$METHOD'"; exit 1 ;; esac
   │   └── case "$IF_EXISTS" in skip|fail|reinstall) ;; *) echo "⛔ Unknown if_exists: '$IF_EXISTS'"; exit 1 ;; esac
   ├── Resolve user list
-  │   ├── ADD_USER_CONFIG="$USERS"
+  │   ├── ADD_USERS="$USERS"
   │   ├── users__resolve_list  → sets _USERS_ARR
   │   └── (strips duplicates and normalizes usernames)
   ├── === Helper function definitions ===  ← ALL functions defined here, before any calls

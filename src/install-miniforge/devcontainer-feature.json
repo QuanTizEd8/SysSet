@@ -55,19 +55,29 @@
          "description": "Conda environment to activate at shell startup.\n'base' sets auto_activate_base=true in ~/.condarc (the conda-native mechanism).\nAny other name appends a 'conda activate <env>' line to the rc files.\n'' (empty) skips activation setup entirely.\nOnly takes effect when shell_activations is non-empty.\n",
          "type": "string"
       },
-      "set_permissions": {
-         "default": false,
-         "description": "Set permissions for the conda installation directory.\nCreates the conda group, adds all users listed in `users` to it,\nand applies group ownership and group-write bits to the conda directory.\n",
-         "type": "boolean"
-      },
-      "group": {
+      "write_group": {
          "default": "conda",
-         "description": "Name of a user group to give access to conda.\nOnly applies when `set_permissions` is true.\n",
+         "description": "OS group for shared write access to the conda prefix.\nNon-empty — create this group (if absent), add all resolved users to it, and apply group-write bits on the prefix so group members can install packages.\n'' (empty) — skip group setup; only the install owner has write access.\n",
          "type": "string"
       },
-      "users": {
+      "add_current_user": {
+         "default": true,
+         "description": "Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user config writes and write-permission group membership.\nRoot is deferred: only included as a fallback when no other non-root user is resolved.",
+         "type": "boolean"
+      },
+      "add_remote_user": {
+         "default": true,
+         "description": "Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user config writes and write-permission group membership.\nIgnored when _REMOTE_USER is unset or empty. Root is excluded from this path.",
+         "type": "boolean"
+      },
+      "add_container_user": {
+         "default": true,
+         "description": "Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user config writes and write-permission group membership.\nIgnored when _CONTAINER_USER is unset or empty. Root is excluded from this path.",
+         "type": "boolean"
+      },
+      "add_users": {
          "default": "",
-         "description": "Comma-separated list of users to add to the conda group (e.g. 'alice,bob').\nEach user must already exist.\nOnly applies when `set_permissions` is true.\nIf empty, defaults to the user running the script.\n",
+         "description": "Comma-separated list of additional usernames to include in the resolved user list for per-user config writes and write-permission group membership.\nRoot is accepted here (unlike the auto-detected paths above).",
          "type": "string"
       },
       "interactive": {

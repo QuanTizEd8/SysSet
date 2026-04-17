@@ -1,5 +1,5 @@
 #!/bin/bash
-# sign_commits=gpg + add_remote_user_config=true (vscode user).
+# sign_commits=gpg + add_remote_user=true (vscode user).
 # Verifies ~/.gitconfig has commit.gpgsign=true and does NOT have gpg.format set
 # (GPG is the git default; unsetting gpg.format is correct to avoid SSH override).
 set -e

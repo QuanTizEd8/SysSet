@@ -1,5 +1,5 @@
 #!/bin/bash
-# Per-user gitconfig: add_remote_user_config=true with user_name, user_email,
+# Per-user gitconfig: add_remote_user=true with user_name, user_email,
 # and a raw user_gitconfig block. Verifies both parsed keys and verbatim content.
 set -e
 

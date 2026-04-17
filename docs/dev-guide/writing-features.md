@@ -651,8 +651,8 @@ checksum__verify_sha256_sidecar /tmp/tool.bin /tmp/tool.bin.sha256
 ### `users.sh`
 
 Source explicitly. Reads the standard devcontainer user-config env vars
-(`ADD_CURRENT_USER_CONFIG`, `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`,
-`ADD_USER_CONFIG`).
+(`ADD_CURRENT_USER`, `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`,
+`ADD_USERS`).
 
 <!-- START lib-users-table MARKER -->
 | Function | Signature | Description |

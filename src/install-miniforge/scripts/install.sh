@@ -34,8 +34,9 @@ __usage__() {
   NOTE: the devcontainer-feature.json option is 'preserve_config' (boolean, default true);
   the CLI flag is inverted: --discard_config sets preserve_config=false.
   " >&2
-  echo "  --group (string): Name of a user group to give access to conda.
-  Only applies when set_permissions is true.
+  echo "  --write_group (string): OS group for shared write access to the conda prefix.
+  Non-empty: create group, add resolved users, apply group-write bits.
+  '' (empty): skip group setup. Default: 'conda'.
   " >&2
   echo "  --installer_dir (string): Directory to download the installer to.
   " >&2
@@ -47,9 +48,21 @@ __usage__() {
   echo "  --version (string): Version of conda to install (e.g. '24.7.1').
   Defaults to 'latest'.
   " >&2
-  echo "  --set_permissions (boolean): Set permissions for the conda installation directory.
-  Adds users to the conda group and sets group-write bits.
-  Only applies when set_permissions is true.
+  echo "  --write_group (string): OS group for shared write access to the conda prefix.
+  Non-empty: create group, add resolved users to it, apply group-write bits.
+  '' (empty): skip group setup (only install owner has write access).
+  Default: 'conda'.
+  " >&2
+  echo "  --add_current_user (boolean): Include the current user in the resolved user list.
+  Default: true.
+  " >&2
+  echo "  --add_remote_user (boolean): Include _REMOTE_USER in the resolved user list.
+  Default: true.
+  " >&2
+  echo "  --add_container_user (boolean): Include _CONTAINER_USER in the resolved user list.
+  Default: true.
+  " >&2
+  echo "  --add_users (string): Comma-separated list of extra usernames.
   " >&2
   echo "  --update_base (boolean): Update the base conda environment via conda update --all.
   Not recommended for production.
@@ -64,10 +77,6 @@ __usage__() {
   Ensures containerEnv PATH coverage works even with a custom prefix.
   No-op when prefix is already /opt/conda.
   Script default: false (devcontainer-feature.json default: true).
-  " >&2
-  echo "  --users (string): Comma-separated list of users to add to the conda group (e.g. 'alice,bob').
-  Only applies when set_permissions is true.
-  Defaults to the user running the script.
   " >&2
   exit 0
 }
@@ -338,20 +347,6 @@ resolve_miniforge_version() {
   echo "↩️ Function exit: resolve_miniforge_version" >&2
 }
 
-set_permissions() {
-  echo "↪️ Function entry: set_permissions" >&2
-  echo "🔐 Setting permissions for conda directory."
-  getent group "$GROUP" > /dev/null || groupadd -r "$GROUP"
-  for _u in "${_USERS_ARR[@]}"; do
-    [[ -z "$_u" ]] && continue
-    id -nG "$_u" | grep -qw "$GROUP" || usermod -a -G "$GROUP" "$_u"
-  done
-  chown -R "${_USERS_ARR[0]}:$GROUP" "$PREFIX"
-  chmod -R g+r+w "$PREFIX"
-  find "$PREFIX" -type d -print0 | xargs -n 1 -0 chmod g+s
-  echo "↩️ Function exit: set_permissions" >&2
-}
-
 export_envs() {
   echo "↪️ Function entry: export_envs" >&2
   local tmpdir="$1"
@@ -427,7 +422,8 @@ uninstall_miniforge() {
   if [[ "$PRESERVE_CONFIG" != "true" ]]; then
     rm -f "$HOME/.condarc"
     rm -rf "$HOME/.conda"
-    for _u in "${_USERS_ARR[@]}"; do
+    mapfile -t _uninstall_users < <(users__resolve_list)
+    for _u in "${_uninstall_users[@]}"; do
       [[ -z "$_u" ]] && continue
       user_home=$(getent passwd "$_u" | cut -d: -f6)
       rm -rf "$user_home/.condarc"
@@ -520,15 +516,17 @@ if [ "$#" -gt 0 ]; then
   PREFIX=""
   DEBUG=""
   IF_EXISTS=""
-  GROUP=""
   INSTALLER_DIR=""
   INTERACTIVE=""
   LOGFILE=""
   VERSION=""
   KEEP_INSTALLER=""
-  SET_PERMISSIONS=""
+  WRITE_GROUP=""
+  ADD_CURRENT_USER=""
+  ADD_REMOTE_USER=""
+  ADD_CONTAINER_USER=""
+  ADD_USERS=""
   UPDATE_BASE=""
-  USERS=""
   PRESERVE_ENVS=""
   PRESERVE_CONFIG=""
   while [[ $# -gt 0 ]]; do
@@ -560,12 +558,6 @@ if [ "$#" -gt 0 ]; then
         shift
         IF_EXISTS="$1"
         echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-        shift
-        ;;
-      --group)
-        shift
-        GROUP="$1"
-        echo "📩 Read argument 'group': '${GROUP}'" >&2
         shift
         ;;
       --install)
@@ -600,10 +592,35 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'version': '${VERSION}'" >&2
         shift
         ;;
-      --set_permissions)
+      --write_group)
         shift
-        SET_PERMISSIONS=true
-        echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
+        WRITE_GROUP="$1"
+        echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
+        shift
+        ;;
+      --add_current_user)
+        shift
+        ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+        shift
+        ;;
+      --add_remote_user)
+        shift
+        ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+        shift
+        ;;
+      --add_container_user)
+        shift
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS="$1"
+        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+        shift
         ;;
       --update_base)
         shift
@@ -620,12 +637,6 @@ if [ "$#" -gt 0 ]; then
         shift
         SYMLINK=true
         echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
-        ;;
-      --users)
-        shift
-        USERS="$1"
-        echo "📩 Read argument 'users': '${USERS}'" >&2
-        shift
         ;;
       --discard_envs)
         shift
@@ -656,19 +667,20 @@ else
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${DOWNLOAD+defined}" ] && echo "📩 Read argument 'download (deprecated)': '${DOWNLOAD}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-  [ "${GROUP+defined}" ] && echo "📩 Read argument 'group': '${GROUP}'" >&2
-  [ "${INSTALL+defined}" ] && echo "⚠️ 'INSTALL' env var is deprecated; use IF_EXISTS." >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
   [ "${REINSTALL+defined}" ] && echo "⚠️ 'REINSTALL' env var is deprecated; use IF_EXISTS=reinstall." >&2
-  [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
+  [ "${WRITE_GROUP+defined}" ] && echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
   [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
-  [ "${USERS+defined}" ] && echo "📩 Read argument 'users': '${USERS}'" >&2
   [ "${PRESERVE_ENVS+defined}" ] && echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2
   [ "${PRESERVE_CONFIG+defined}" ] && echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
 fi
@@ -697,9 +709,9 @@ fi
   echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2
   IF_EXISTS="skip"
 }
-[ -z "${GROUP-}" ] && {
-  echo "ℹ️ Argument 'GROUP' set to default value 'conda'." >&2
-  GROUP="conda"
+[ -z "${WRITE_GROUP+x}" ] && {
+  echo "ℹ️ Argument 'WRITE_GROUP' set to default value 'conda'." >&2
+  WRITE_GROUP="conda"
 }
 [ -z "${INSTALLER_DIR-}" ] && {
   echo "ℹ️ Argument 'INSTALLER_DIR' set to default value '/tmp/miniforge-installer'." >&2
@@ -721,10 +733,19 @@ fi
   echo "ℹ️ Argument 'VERSION' set to default value 'latest'." >&2
   VERSION="latest"
 }
-[ -z "${SET_PERMISSIONS-}" ] && {
-  echo "ℹ️ Argument 'SET_PERMISSIONS' set to default value 'false'." >&2
-  SET_PERMISSIONS=false
+[ -z "${ADD_CURRENT_USER+x}" ] && {
+  echo "ℹ️ Argument 'ADD_CURRENT_USER' set to default value 'true'." >&2
+  ADD_CURRENT_USER=true
 }
+[ -z "${ADD_REMOTE_USER+x}" ] && {
+  echo "ℹ️ Argument 'ADD_REMOTE_USER' set to default value 'true'." >&2
+  ADD_REMOTE_USER=true
+}
+[ -z "${ADD_CONTAINER_USER+x}" ] && {
+  echo "ℹ️ Argument 'ADD_CONTAINER_USER' set to default value 'true'." >&2
+  ADD_CONTAINER_USER=true
+}
+[ -z "${ADD_USERS-}" ] && ADD_USERS=""
 [ -z "${UPDATE_BASE-}" ] && {
   echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2
   UPDATE_BASE=false
@@ -737,11 +758,6 @@ fi
   echo "ℹ️ Argument 'SYMLINK' set to default value 'false'." >&2
   SYMLINK=false
 }
-[ -z "${USERS-}" ] && {
-  echo "ℹ️ Argument 'USERS' set to default value '$(id -nu)'." >&2
-  USERS="$(id -nu)"
-}
-IFS=',' read -ra _USERS_ARR <<< "$USERS"
 [ -z "${PRESERVE_ENVS-}" ] && {
   echo "ℹ️ Argument 'PRESERVE_ENVS' set to default value 'true'." >&2
   PRESERVE_ENVS="true"
@@ -819,7 +835,11 @@ if [[ "$UPDATE_BASE" == true ]]; then
   "$MAMBA_EXEC" update -n base --all -y
 fi
 
-if [[ "$SET_PERMISSIONS" == true ]]; then set_permissions; fi
+if [[ -n "${WRITE_GROUP:-}" ]]; then
+  export ADD_CURRENT_USER ADD_REMOTE_USER ADD_CONTAINER_USER ADD_USERS
+  mapfile -t _write_users < <(users__resolve_list)
+  users__set_write_permissions "$PREFIX" "$(id -nu)" "$WRITE_GROUP" "${_write_users[@]}"
+fi
 
 echo "✅ Conda installation complete."
 echo "↩️ Script exit: Miniforge Installation Devcontainer Feature Installer" >&2

@@ -51,10 +51,10 @@ if [ "$#" -gt 0 ]; then
   INSTALLER_DIR=""
   IF_EXISTS=""
   EXPORT_PATH=""
-  ADD_CURRENT_USER_CONFIG=""
-  ADD_REMOTE_USER_CONFIG=""
-  ADD_CONTAINER_USER_CONFIG=""
-  ADD_USER_CONFIG=""
+  ADD_CURRENT_USER=""
+  ADD_REMOTE_USER=""
+  ADD_CONTAINER_USER=""
+  ADD_USERS=""
   SET_PERMISSIONS=""
   GROUP=""
   SYMLINK=""
@@ -125,28 +125,28 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
         shift
         ;;
-      --add_current_user_config)
+      --add_current_user)
         shift
-        ADD_CURRENT_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
-        shift
-        ;;
-      --add_remote_user_config)
-        shift
-        ADD_REMOTE_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
+        ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
         shift
         ;;
-      --add_container_user_config)
+      --add_remote_user)
         shift
-        ADD_CONTAINER_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
+        ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
         shift
         ;;
-      --add_user_config)
+      --add_container_user)
         shift
-        ADD_USER_CONFIG="$1"
-        echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS="$1"
+        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
         shift
         ;;
       --set_permissions)
@@ -215,10 +215,10 @@ else
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
   [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${ADD_CURRENT_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_current_user_config': '${ADD_CURRENT_USER_CONFIG}'" >&2
-  [ "${ADD_REMOTE_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_remote_user_config': '${ADD_REMOTE_USER_CONFIG}'" >&2
-  [ "${ADD_CONTAINER_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_container_user_config': '${ADD_CONTAINER_USER_CONFIG}'" >&2
-  [ "${ADD_USER_CONFIG+defined}" ] && echo "📩 Read argument 'add_user_config': '${ADD_USER_CONFIG}'" >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
   [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
   [ "${GROUP+defined}" ] && echo "📩 Read argument 'group': '${GROUP}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
@@ -246,10 +246,10 @@ fi
 [ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/node-installer"
 [ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
 [ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
-: "${ADD_CURRENT_USER_CONFIG:=true}"
-: "${ADD_REMOTE_USER_CONFIG:=true}"
-: "${ADD_CONTAINER_USER_CONFIG:=true}"
-: "${ADD_USER_CONFIG:=}"
+: "${ADD_CURRENT_USER:=true}"
+: "${ADD_REMOTE_USER:=true}"
+: "${ADD_CONTAINER_USER:=true}"
+: "${ADD_USERS:=}"
 [ "${SET_PERMISSIONS+defined}" ] || SET_PERMISSIONS="true"
 [ "${GROUP+defined}" ] || GROUP="nvm"
 [ "${SYMLINK+defined}" ] || SYMLINK="true"

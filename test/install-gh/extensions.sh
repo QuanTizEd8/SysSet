@@ -1,5 +1,5 @@
 #!/bin/bash
-# extensions="github/gh-copilot" with add_remote_user_config=true (vscode user).
+# extensions="github/gh-copilot" with add_remote_user=true (vscode user).
 # Verifies that the extensions option is parsed and that _gh__install_extensions
 # is invoked, confirmed by the "Installing gh extension" line in the install log.
 # (The actual extension install is non-fatal; we assert the attempt was made.)

@@ -90,7 +90,7 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-homebrew": {
-                "add_remote_user_config": true,
+                "add_remote_user": true,
                 "debug": true
             }
         }

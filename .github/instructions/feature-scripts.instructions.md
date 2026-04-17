@@ -181,9 +181,9 @@ Source explicitly: `. "$_SELF_DIR/_lib/checksum.sh"`. Works with `sha256sum` (Li
 
 ### `users.sh`
 
-Source explicitly: `. "$_SELF_DIR/_lib/users.sh"`. Reads the standard devcontainer user env vars (`ADD_CURRENT_USER_CONFIG`, `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`, `ADD_USER_CONFIG`).
+Source explicitly: `. "$_SELF_DIR/_lib/users.sh"`. Reads the standard devcontainer user env vars (`ADD_CURRENT_USER`, `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, `ADD_USERS`).
 
-- `users__resolve_list` — prints one deduplicated username per line; root is excluded from auto-detected paths (CURRENT, REMOTE, CONTAINER) but **allowed** when explicitly listed in `ADD_USER_CONFIG`; collect with `mapfile -t _USERS < <(users__resolve_list)` in bash or iterate with a `while read` loop in sh
+- `users__resolve_list` — prints one deduplicated username per line; root is excluded from auto-detected paths (CURRENT, REMOTE, CONTAINER) but **allowed** when explicitly listed in `ADD_USERS`; collect with `mapfile -t _USERS < <(users__resolve_list)` in bash or iterate with a `while read` loop in sh
 - `users__set_login_shell <shell_path> <username>...` — registers `<shell_path>` in `/etc/shells`, patches Alpine PAM if needed, and calls `chsh -s` for each user; skips users already on that shell; warns (does not abort) on `chsh` failure
 
 ## Further Reading

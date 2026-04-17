@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup_git=true + git_hostname=git.corp.example.com + add_remote_user_config=true (vscode user).
+# setup_git=true + git_hostname=git.corp.example.com + add_remote_user=true (vscode user).
 # Verifies gh auth setup-git wrote the credential helper for the custom GHES hostname.
 set -e
 

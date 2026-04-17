@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that add_user_config with an explicit username configures that user.
+# Verifies that add_users with an explicit username configures that user.
 set -e
 
 source dev-container-features-test-lib
@@ -14,7 +14,7 @@ check "devuser zshtheme file written" test -f "${_ZDOTDIR}/zshtheme"
 check ".zshenv sets ZDOTDIR" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
 check "devuser HOME owned by devuser" bash -c '[ "$(stat -c %U /home/devuser)" = "devuser" ]'
 
-# Root should NOT be configured (add_container_user_config and add_remote_user_config are false)
+# Root should NOT be configured (add_container_user and add_remote_user are false)
 check "root ZDOTDIR/.zshrc NOT configured" bash -c '! test -f /root/.config/zsh/.zshrc'
 
 reportResults

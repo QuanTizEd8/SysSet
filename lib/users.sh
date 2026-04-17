@@ -16,13 +16,13 @@ _USERS__LIB_LOADED=1
 # running as root should not override a named container user. When the build
 # user IS root and no other users are found, root is included as a fallback
 # (e.g. plain container images, standalone macOS use). Root is always
-# accepted in ADD_USER_CONFIG.
+# accepted in ADD_USERS.
 #
 # Env vars consumed (all optional):
-#   ADD_CURRENT_USER_CONFIG   — "true" to include SUDO_USER / whoami (default: true)
-#   ADD_REMOTE_USER_CONFIG    — "true" to include _REMOTE_USER (default: true)
-#   ADD_CONTAINER_USER_CONFIG — "true" to include _CONTAINER_USER (default: true)
-#   ADD_USER_CONFIG           — comma-separated extra usernames; root allowed here
+#   ADD_CURRENT_USER   — "true" to include SUDO_USER / whoami (default: true)
+#   ADD_REMOTE_USER    — "true" to include _REMOTE_USER (default: true)
+#   ADD_CONTAINER_USER — "true" to include _CONTAINER_USER (default: true)
+#   ADD_USERS          — comma-separated extra usernames; root allowed here
 #
 # Stdout: one username per line.
 #
@@ -53,7 +53,7 @@ users__resolve_list() {
   # with no remoteUser or a standalone macOS install), root is the intended
   # target and should be included.
   local _root_queued=false
-  if [ "${ADD_CURRENT_USER_CONFIG:-true}" = "true" ]; then
+  if [ "${ADD_CURRENT_USER:-true}" = "true" ]; then
     local _cur="${SUDO_USER:-$(whoami)}"
     if [ "$_cur" != "root" ]; then
       _users_add "$_cur"
@@ -62,20 +62,20 @@ users__resolve_list() {
     fi
   fi
 
-  if [ "${ADD_REMOTE_USER_CONFIG:-true}" = "true" ] && [ -n "${_REMOTE_USER:-}" ]; then
+  if [ "${ADD_REMOTE_USER:-true}" = "true" ] && [ -n "${_REMOTE_USER:-}" ]; then
     [ "${_REMOTE_USER}" != "root" ] && _users_add "${_REMOTE_USER}"
   fi
 
-  if [ "${ADD_CONTAINER_USER_CONFIG:-true}" = "true" ] && [ -n "${_CONTAINER_USER:-}" ]; then
+  if [ "${ADD_CONTAINER_USER:-true}" = "true" ] && [ -n "${_CONTAINER_USER:-}" ]; then
     [ "${_CONTAINER_USER}" != "root" ] && _users_add "${_CONTAINER_USER}"
   fi
 
-  # ADD_USER_CONFIG: explicit override list — root is allowed if deliberately
+  # ADD_USERS: explicit override list — root is allowed if deliberately
   # specified (e.g. configuring Podman rootless for the root user).
-  if [ -n "${ADD_USER_CONFIG:-}" ]; then
+  if [ -n "${ADD_USERS:-}" ]; then
     local _old_ifs="$IFS"
     IFS=','
-    for _extra in ${ADD_USER_CONFIG}; do
+    for _extra in ${ADD_USERS}; do
       # Trim leading/trailing spaces.
       _extra="${_extra#"${_extra%%[! ]*}"}"
       _extra="${_extra%"${_extra##*[! ]}"}"
@@ -95,6 +95,40 @@ users__resolve_list() {
   for _name in $_out; do
     printf '%s\n' "$_name"
   done
+  return 0
+}
+
+# @brief users__set_write_permissions <prefix> <owner> <group> [<user>...]
+#   Create OS group, add listed users to it, then apply group-write bits on
+#   a shared installation prefix so group members can install packages.
+#
+#   Sets the setgid bit on all subdirectories so new files inherit the group.
+#   No-op on platforms that lack groupadd/usermod (e.g. macOS — log a warning).
+#
+# Args:
+#   <prefix>    Absolute path to the installation directory.
+#   <owner>     Username of the primary file owner (chown target).
+#   <group>     OS group name to create (if absent) and use.
+#   [<user>...] Additional users to add to the group.
+users__set_write_permissions() {
+  local _prefix="$1"
+  local _owner="$2"
+  local _group="$3"
+  shift 3
+  if ! command -v groupadd > /dev/null 2>&1; then
+    echo "⚠️  groupadd not found — skipping write-permission setup." >&2
+    return 0
+  fi
+  echo "🔐 Setting write permissions on '${_prefix}' (owner: '${_owner}', group: '${_group}')." >&2
+  getent group "$_group" > /dev/null 2>&1 || groupadd -r "$_group"
+  local _u
+  for _u in "$@"; do
+    [ -z "$_u" ] && continue
+    id -nG "$_u" 2> /dev/null | grep -qw "$_group" || usermod -a -G "$_group" "$_u"
+  done
+  chown -R "${_owner}:${_group}" "$_prefix"
+  chmod -R g+rwX "$_prefix"
+  find "$_prefix" -type d -print0 | xargs -0 chmod g+s
   return 0
 }
 

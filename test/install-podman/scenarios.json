@@ -12,7 +12,7 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_user_config": "root",
+                "add_users": "root",
                 "debug": true
             }
         }
@@ -22,9 +22,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_remote_user_config": true,
-                "add_container_user_config": false,
-                "add_current_user_config": false,
+                "add_remote_user": true,
+                "add_container_user": false,
+                "add_current_user": false,
                 "debug": true
             }
         }
@@ -34,9 +34,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_container_user_config": true,
-                "add_remote_user_config": false,
-                "add_current_user_config": false,
+                "add_container_user": true,
+                "add_remote_user": false,
+                "add_current_user": false,
                 "debug": true
             }
         }
@@ -45,10 +45,10 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_user_config": "devuser",
-                "add_remote_user_config": false,
-                "add_container_user_config": false,
-                "add_current_user_config": false,
+                "add_users": "devuser",
+                "add_remote_user": false,
+                "add_container_user": false,
+                "add_current_user": false,
                 "debug": true
             }
         }
@@ -57,10 +57,10 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_user_config": "alice,bob",
-                "add_remote_user_config": false,
-                "add_container_user_config": false,
-                "add_current_user_config": false,
+                "add_users": "alice,bob",
+                "add_remote_user": false,
+                "add_container_user": false,
+                "add_current_user": false,
                 "debug": true
             }
         }
@@ -69,9 +69,9 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_remote_user_config": false,
-                "add_container_user_config": false,
-                "add_current_user_config": false,
+                "add_remote_user": false,
+                "add_container_user": false,
+                "add_current_user": false,
                 "debug": true
             }
         }
@@ -80,10 +80,10 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_user_config": "ghost",
-                "add_remote_user_config": false,
-                "add_container_user_config": false,
-                "add_current_user_config": false,
+                "add_users": "ghost",
+                "add_remote_user": false,
+                "add_container_user": false,
+                "add_current_user": false,
                 "debug": true
             }
         }

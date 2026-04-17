@@ -1,5 +1,5 @@
 #!/bin/bash
-# set_permissions=true, users="testuser1,testuser2":
+# write_group="conda", add_users="testuser1,testuser2":
 # both named users are added to the conda group; the conda directory is
 # group-owned and has group-write and setgid bits set.
 set -e

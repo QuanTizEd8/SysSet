@@ -1,5 +1,5 @@
 #!/bin/bash
-# sign_commits=ssh + add_remote_user_config=true (vscode user).
+# sign_commits=ssh + add_remote_user=true (vscode user).
 # Verifies ~/.gitconfig has gpg.format=ssh and commit.gpgsign=true.
 set -e
 

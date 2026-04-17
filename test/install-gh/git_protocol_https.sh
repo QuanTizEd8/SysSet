@@ -1,5 +1,5 @@
 #!/bin/bash
-# git_protocol=https + add_remote_user_config=true (vscode user).
+# git_protocol=https + add_remote_user=true (vscode user).
 # Verifies gh config file under /home/vscode contains git_protocol: https.
 set -e
 
