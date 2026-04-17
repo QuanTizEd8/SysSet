@@ -2,7 +2,7 @@
    "id": "install-os-pkg",
    "version": "0.3.0",
    "name": "OS Package Installer",
-   "description": "Install packages from the operating system's native package manager (apt, apk, dnf, zypper, pacman, brew).",
+   "description": "Install packages from the operating system's native package manager using a YAML or JSON manifest file. Supports APT (Debian/Ubuntu), APK (Alpine), DNF/YUM (Fedora/RHEL/CentOS), microdnf, Zypper (openSUSE), Pacman (Arch Linux), and Homebrew (macOS, Linuxbrew).",
    "options": {
       "debug": {
          "default": false,

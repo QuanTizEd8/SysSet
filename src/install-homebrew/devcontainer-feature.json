@@ -2,7 +2,7 @@
   "id": "install-homebrew",
   "version": "0.2.0",
   "name": "Install Homebrew",
-  "description": "Installs Homebrew on macOS and Linux. Handles Xcode CLT (macOS) / build-tool dependencies (Linux), installs via the official installer, and exports brew shellenv to the appropriate shell startup files.",
+  "description": "Installs Homebrew on macOS and Linux. On macOS, ensures Xcode Command Line Tools are present before running the official installer. On Linux, installs required build dependencies (git, curl, gcc, make, etc.) via the OS package manager first. After installation, writes an eval \"$(brew shellenv)\" block to the appropriate shell startup files so brew and any tools it installs are on PATH in subsequent shell sessions.",
   "documentationURL": "https://github.com/quantized8/sysset/tree/main/src/install-homebrew",
   "options": {
     "install_user": {

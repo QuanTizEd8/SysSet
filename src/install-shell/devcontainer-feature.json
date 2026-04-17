@@ -2,7 +2,7 @@
    "id": "install-shell",
    "version": "0.1.0",
    "name": "Install Shell",
-   "description": "Install Bash and Zsh shells, add plugins and themes, and set up robust configuration files.",
+   "description": "Install and configure Bash and Zsh with shell frameworks (Oh My Zsh, Oh My Bash) and the Starship prompt. Deploys a layered set of system-wide and per-user configuration files that work correctly across all shell invocation modes — login, interactive, non-interactive, scripts, cron, devcontainer exec, CI runners, and VS Code tasks.",
    "options": {
       "install_zsh": {
          "type": "boolean",
@@ -32,11 +32,11 @@
       "ohmyzsh_plugins": {
          "type": "string",
          "default": "git,zsh-users/zsh-syntax-highlighting",
-         "description": "Comma-separated list of Oh My Zsh custom plugins to install, each as a `owner/repo` GitHub slug.\nThe repository is cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.\nSet to an empty string to install no custom plugins.\nIgnored if Oh My Zsh is not available or being installed.\n"
+         "description": "Comma-separated list of Oh My Zsh custom plugins to install, each as an `owner/repo` GitHub slug.\nThe repository is cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.\nPlain names without a `/` (e.g. `git`) are treated as built-in Oh My Zsh plugins and are not cloned.\nSet to an empty string to install no custom plugins.\nIgnored if Oh My Zsh is not available or being installed.\n"
       },
       "ohmybash_plugins": {
          "default": "git",
-         "description": "Comma-separated list of Oh My Bash custom plugins to install, each as a `owner/repo` GitHub slug.\nThe repository is cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.\nSet to an empty string to install no custom plugins.\nIgnored if Oh My Bash is not available or being installed.\n",
+         "description": "Comma-separated list of Oh My Bash custom plugins to install, each as an `owner/repo` GitHub slug.\nThe repository is cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.\nPlain names without a `/` (e.g. `git`) are treated as built-in Oh My Bash plugins and are not cloned.\nSet to an empty string to install no custom plugins.\nIgnored if Oh My Bash is not available or being installed.\n",
          "type": "string"
       },
       "ohmyzsh_theme": {

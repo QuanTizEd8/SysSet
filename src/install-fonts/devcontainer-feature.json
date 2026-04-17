@@ -2,7 +2,7 @@
    "id": "install-fonts",
    "version": "0.1.0",
    "name": "Install Fonts",
-   "description": "Install fonts from multiple sources: Nerd Fonts by name, arbitrary direct URLs, and GitHub release assets. Can be used inside a devcontainer or run directly on a host machine.",
+   "description": "Install fonts from multiple sources: Nerd Fonts by name, arbitrary direct URLs (individual font files or archives), and GitHub release assets. Can be used inside a devcontainer (runs as root at image build time) or run directly on a host machine (macOS or Linux) via CLI flags.",
    "options": {
       "nerd_fonts": {
          "default": "Meslo,JetBrainsMono",

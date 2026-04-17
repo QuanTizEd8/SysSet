@@ -2,7 +2,7 @@
    "id": "setup-user",
    "version": "0.1.0",
    "name": "User Setup",
-   "description": "Create and configure a user account for the development container.",
+   "description": "Create and configure a user account for the development container. Creates a primary group, places the user at the requested UID/GID, creates a home directory (populated from /etc/skel), sets the login shell, and optionally grants passwordless sudo access and membership in supplementary groups.\n\nWorks on Debian/Ubuntu (APT), Alpine (APK), Fedora/RHEL (DNF), and any image where useradd/groupadd are available.",
    "options": {
       "username": {
          "default": "vscode",
@@ -11,12 +11,12 @@
       },
       "user_id": {
          "default": "1000",
-         "description": "UID to assign to the user.",
+         "description": "UID to assign to the user. Must be a non-negative integer.",
          "type": "string"
       },
       "group_id": {
          "default": "1000",
-         "description": "GID to assign to the user's primary group.",
+         "description": "GID to assign to the user's primary group. Must be a non-negative integer.",
          "type": "string"
       },
       "group_name": {

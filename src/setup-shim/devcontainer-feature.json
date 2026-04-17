@@ -2,7 +2,7 @@
    "id": "setup-shim",
    "version": "0.1.0",
    "name": "Shim Setup",
-   "description": "Install shim wrapper scripts to a dedicated directory prepended to PATH, ensuring they take priority over any existing binaries.",
+   "description": "Install lightweight wrapper scripts (shims) into a dedicated directory prepended to PATH, ensuring they always take priority over any real binary of the same name. Each shim can be individually enabled or disabled.",
    "containerEnv": {
       "PATH": "/usr/local/share/setup-shim/bin:$PATH"
    },
