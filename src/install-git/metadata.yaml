@@ -53,10 +53,11 @@ options:
       Useful for debugging build failures or inspecting the compiled binaries.
       Ignored when method=package.
   no_flags:
-    type: string
+    type: array
     default: ''
     description: |-
-      Space-separated list of components to exclude from the source build (case-insensitive). Available values: 'perl', 'python', 'tcltk', 'gettext'. Each value maps to the corresponding NO_<FLAG>=YesPlease make variable.
+      Components to exclude from the source build (case-insensitive).
+      Available values: 'perl', 'python', 'tcltk', 'gettext'. Each value maps to the corresponding NO_<FLAG>=YesPlease make variable.
       'perl' — disables Perl scripts (git-svn, git-send-email, git-archimport, git-cvsimport, gitweb) and removes the Perl runtime requirement.
       'python' — disables Python scripts (git-p4) and removes the Python runtime requirement.
       'tcltk' — disables Tcl/Tk GUI tools (gitk, git-gui) and removes the Tcl/Tk requirement.
@@ -77,10 +78,10 @@ options:
       A newline-separated list of absolute file paths — writes only to those files.
       Ignored when method=package (git lands in /usr/bin which is universally on PATH).
   shell_completions:
-    type: string
-    default: bash zsh
+    type: array
+    default: "bash\nzsh"
     description: |
-      Space-separated list of shell names to install completion scripts for after a source build.
+      Shell names to install completion scripts for after a source build.
       Supported shells: 'bash', 'zsh'.
       As root: copies git-completion.bash to /etc/bash_completion.d/git and git-completion.zsh to <zshdir>/completions/_git (where <zshdir> is detected by shell__detect_zshdir).
       As non-root: copies to $HOME/.local/share/bash-completion/completions/git (bash) and $HOME/.zfunc/_git (zsh).
@@ -138,10 +139,10 @@ options:
       Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes.
       Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path.
   add_users:
-    type: string
+    type: array
     default: ''
     description: |-
-      Comma-separated list of additional usernames to include in the resolved user list for per-user gitconfig writes.
+      Additional usernames to include in the resolved user list for per-user gitconfig writes.
       Root is accepted here (unlike the auto-detected paths above).
   user_name:
     type: string

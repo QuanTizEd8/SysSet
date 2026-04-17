@@ -8,28 +8,26 @@ description: >-
   or from arbitrary URLs to individual font files or archives.
 options:
   nerd_fonts:
-    default: Meslo,JetBrainsMono
+    default: "Meslo\nJetBrainsMono"
     description: >-
-      Comma-separated [Nerd Fonts](https://www.nerdfonts.com/) archive names to
-      install (e.g. `Meslo,FiraCode,Hack`). Set to empty string to skip Nerd
-      Font downloads.
-    type: string
+      [Nerd Fonts](https://www.nerdfonts.com/) archive names to install
+      (e.g. `Meslo`, `FiraCode`, `Hack`). Leave empty to skip Nerd Font downloads.
+    type: array
   font_urls:
     default: ''
     description: >-
-      Comma-separated direct URLs to download. Font files (`.ttf`, `.otf`,
-      `.woff`, `.woff2`) and archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`)
-      are installed under a namespaced path derived from the URL. Fonts are
-      deduplicated by PostScript name.
-    type: string
+      Direct URLs to download. Font files (`.ttf`, `.otf`, `.woff`, `.woff2`)
+      and archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) are installed under a
+      namespaced path derived from the URL. Fonts are deduplicated by PostScript name.
+    type: array
   gh_release_fonts:
     default: ''
     description: >-
-      Comma-separated GitHub slugs in `owner/repo` or `owner/repo@tag` form.
-      All font and archive assets from the release are installed under
-      `gh/<owner>/<repo>/<tag>/<id>/`. Without a tag, the latest release is
-      used. Fonts are deduplicated by PostScript name.
-    type: string
+      GitHub slugs in `owner/repo` or `owner/repo@tag` form. All font and
+      archive assets from the release are installed under
+      `gh/<owner>/<repo>/<tag>/<id>/`. Without a tag, the latest release is used.
+      Fonts are deduplicated by PostScript name.
+    type: array
   p10k_fonts:
     default: false
     description: >-

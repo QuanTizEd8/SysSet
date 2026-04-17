@@ -72,10 +72,10 @@ options:
       Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for shellenv exports and init-file writes.
       Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path.
   add_users:
-    type: string
+    type: array
     default: ''
     description: |-
-      Comma-separated list of additional usernames to include in the resolved user list for shellenv exports and init-file writes.
+      Additional usernames to include in the resolved user list for shellenv exports and init-file writes.
       Root is accepted here (unlike the auto-detected paths above).
   write_group:
     type: string

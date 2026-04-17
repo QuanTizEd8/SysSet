@@ -55,10 +55,10 @@ options:
     - '20'
     - '18'
   additional_versions:
-    type: string
+    type: array
     default: ''
     description: |-
-      Comma-separated list of additional Node.js versions to install via nvm alongside the primary 'version', without setting them as the nvm default.
+      Additional Node.js versions to install via nvm alongside the primary 'version', without setting them as the nvm default.
       Only applies when method=nvm. Uses the same version syntax as 'version' (major number, exact semver, or LTS alias).
       Useful for testing across multiple Node.js versions in a single container or satisfying .nvmrc lookups for sub-projects.
     proposals:
@@ -158,10 +158,10 @@ options:
       Resolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.
       Ignored when _CONTAINER_USER is unset or empty. Root is excluded from this path.
   add_users:
-    type: string
+    type: array
     default: ''
     description: |-
-      Comma-separated list of additional usernames to include in the resolved user list.
+      Additional usernames to include in the resolved user list.
       Resolved users are added to the nvm group (when set_permissions=true) and receive per-user shell RC PATH exports.
       Root is accepted here (unlike the auto-detected paths above).
   set_permissions:

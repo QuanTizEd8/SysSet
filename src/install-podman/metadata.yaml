@@ -46,9 +46,10 @@ options:
     default: true
     description: Whether to configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone.
   add_users:
-    type: string
+    type: array
     default: ''
-    description: Comma-separated list of additional usernames to register subuid/subgid ranges and write Podman storage config for.
+    description: |-
+      Additional usernames to register subuid/subgid ranges and write Podman storage config for.
   debug:
     type: boolean
     default: false

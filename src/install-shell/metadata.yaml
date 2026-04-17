@@ -26,31 +26,31 @@ options:
     default: true
     description: Install the [Starship](https://starship.rs/) prompt binary to `/usr/local/bin`.
   starship_shells:
-    type: string
+    type: array
     default: zsh
     description: |
-      Comma-separated list of shells to activate the Starship prompt in (`zsh`, `bash`, or both).
+      Shells to activate the Starship prompt in (`zsh`, `bash`, or both).
       Leave empty to install the binary without activating it in any shell.
       Ignored if `install_starship` is `false` and `starship` is not already on PATH.
       When a shell's framework theme (`ohmyzsh_theme` / `ohmybash_theme`) is also set, the framework still loads but Starship owns the prompt (`ZSH_THEME` / `OSH_THEME` is forced to empty with a warning).
   ohmyzsh_plugins:
-    type: string
-    default: git,zsh-users/zsh-syntax-highlighting
+    type: array
+    default: "git\nzsh-users/zsh-syntax-highlighting"
     description: |
-      Comma-separated list of Oh My Zsh custom plugins to install, each as an `owner/repo` GitHub slug.
-      The repository is cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.
+      Oh My Zsh plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
+      Custom plugins are cloned into `<ohmyzsh_custom_dir>/plugins/<repo>`.
       Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Zsh plugins and are not cloned.
       Set to an empty string to install no custom plugins.
       Ignored if Oh My Zsh is not available or being installed.
   ohmybash_plugins:
     default: git
     description: |
-      Comma-separated list of Oh My Bash custom plugins to install, each as an `owner/repo` GitHub slug.
-      The repository is cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.
+      Oh My Bash plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
+      Custom plugins are cloned into `<ohmybash_install_dir>/custom/plugins/<repo>`.
       Plain names without a `/` (e.g. `git`) are treated as built-in Oh My Bash plugins and are not cloned.
       Set to an empty string to install no custom plugins.
       Ignored if Oh My Bash is not available or being installed.
-    type: string
+    type: array
   ohmyzsh_theme:
     default: ''
     description: |
@@ -104,8 +104,9 @@ options:
     type: boolean
   add_users:
     default: ''
-    description: Comma-separated list of usernames to add configuration for, in addition to the users specified by the other `add_*_user_config` options.
-    type: string
+    description: |-
+      Usernames to add shell configuration for, in addition to the users specified by the other `add_*_user_config` options.
+    type: array
   set_user_shells:
     type: string
     default: zsh

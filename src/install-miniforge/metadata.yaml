@@ -80,14 +80,14 @@ options:
       No-op when $prefix is already the chosen target path.
     type: boolean
   shell_activations:
-    default: bash zsh
+    default: "bash\nzsh"
     description: |
-      Space-separated list of shell names to write conda initialization blocks for.
+      Shell names to write conda initialization blocks for.
       For each listed shell, writes an idempotent conda init block to the appropriate
       system-wide (root) or user-scoped (non-root) rc file.
       Supported: 'bash', 'zsh'. Set to '' to skip all activation writes.
       Examples: 'bash', 'zsh', 'bash zsh'.
-    type: string
+    type: array
   activate_env:
     default: base
     description: |
@@ -125,9 +125,9 @@ options:
   add_users:
     default: ''
     description: |-
-      Comma-separated list of additional usernames to include in the resolved user list for per-user config writes and write-permission group membership.
+      Additional usernames to include in the resolved user list for per-user config writes and write-permission group membership.
       Root is accepted here (unlike the auto-detected paths above).
-    type: string
+    type: array
   interactive:
     default: false
     description: |

@@ -115,10 +115,10 @@ options:
       Ensures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.
       No-op when $prefix/bin/pixi is already the chosen target path.
   shell_completions:
-    type: string
+    type: array
     default: ''
     description: |
-      Space-separated list of shell names to write pixi completion eval blocks for.
+      Shell names to write pixi completion eval blocks for.
       For each listed shell, writes an idempotent 'eval "$(pixi completion --shell <shell>)"' block
       to the appropriate system-wide (root) or user-scoped (non-root) shell config file.
       Supported shells: 'bash', 'zsh', 'fish', 'nushell', 'elvish'.

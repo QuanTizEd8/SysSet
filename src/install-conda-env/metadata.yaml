@@ -1,11 +1,6 @@
 id: install-conda-env
 name: Conda Environment
 version: 0.1.0
-# This feature uses bash arrays for multi-value CLI options (channels,
-# env_files, env_dirs, pip_requirements_files), which cannot be expressed
-# as a standard devcontainer string option.  The argparse block is kept
-# hand-written; sync-lib.sh skips argparse generation for this feature.
-x_custom_argparse: true
 description: Create or update conda environments in the development container.
 options:
   conda_dir:
@@ -18,14 +13,12 @@ options:
     default: ''
     description: |
       Paths to conda environment YAML files to create or update.
-      Separate multiple paths with ' :: '.
-    type: string
+    type: array
   env_dirs:
     default: ''
     description: |
       Paths to directories to scan for conda environment YAML files.
-      Separate multiple paths with ' :: '.
-    type: string
+    type: array
   env_name:
     default: ''
     description: |
@@ -48,8 +41,7 @@ options:
     default: ''
     description: |
       Conda channels to add to the configuration.
-      Separate multiple channels with ' :: '.
-    type: string
+    type: array
   strict_channel_priority:
     default: false
     description: Set channel_priority to strict in the conda configuration.
@@ -58,10 +50,9 @@ options:
     default: ''
     description: |
       Paths to pip requirements files to install.
-      Separate multiple paths with ' :: '.
       By default, packages are installed into the same environment as each env file.
       Use 'pip_env' to override the target environment.
-    type: string
+    type: array
   pip_env:
     default: ''
     description: |

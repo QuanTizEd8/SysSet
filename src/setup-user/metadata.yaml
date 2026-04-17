@@ -40,8 +40,9 @@ options:
     type: boolean
   extra_groups:
     default: ''
-    description: Comma-separated list of supplementary groups to add the user to. Groups must already exist.
-    type: string
+    description: |-
+      Supplementary groups to add the user to. Groups must already exist.
+    type: array
   replace_existing:
     default: true
     description: When true, any user or group occupying the requested UID/GID is removed first (home directories are preserved). When false, a conflict causes the script to fail unless the user is already correctly configured.
