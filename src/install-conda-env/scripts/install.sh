@@ -558,7 +558,7 @@ if [[ -n "$ENV_NAME" ]] && [[ -z "$PACKAGES" ]] && [[ -z "$PYTHON_VERSION" ]]; t
   echo "⛔ 'env_name' requires at least one of 'packages' or 'python_version' to be set." >&2
   exit 1
 fi
-ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --skip_installed
+
 discover_conda
 resolve_solver
 apply_channels
