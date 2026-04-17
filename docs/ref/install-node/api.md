@@ -1,7 +1,42 @@
 # API Reference — install-node
 
 <!-- START devcontainer-feature.json MARKER -->
-<!-- This section will be automatically generated from devcontainer-feature.json, containing the feature description and options table. Do not rewrite manually. -->
+Install Node.js and npm in the development container.
+
+Two methods are supported, selected by the 'method' option:
+
+'nvm' (default) — installs the Node Version Manager (nvm) to 'nvm_dir' and uses it to install the requested Node.js version. Supports Linux (glibc and musl/Alpine), macOS, and any POSIX platform. On Alpine Linux, Node.js is compiled from source automatically when the '-s' flag is used (build dependencies are installed from the apk manifest). Node.js binaries are symlinked to /usr/local/bin (when running as root and symlink=true) for universal PATH availability.
+
+'binary' — downloads the official prebuilt Node.js tarball from nodejs.org/dist and extracts it to 'prefix'. Fast and dependency-free. Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64); NOT compatible with Alpine Linux (musl). Integrity is verified against SHASUMS256.txt via SHA-256.
+
+Version selection supports nvm-style aliases ('lts/*', '--lts', major number) for both methods, and exact semver strings. The default 'lts/*' installs the latest Active LTS release.
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `method` | string (enum) | `"nvm"` | Installation method. |
+| `version` | string (proposals) | `"lts/*"` | Version of Node.js to install. |
+| `additional_versions` | string (proposals) | `""` | Comma-separated list of additional Node.js versions to install via nvm alongside the primary 'version', without setting them as the nvm default. |
+| `nvm_version` | string (proposals) | `"latest"` | Version of nvm to install. Only used when method=nvm. |
+| `nvm_dir` | string (proposals) | `"auto"` | Directory where nvm is installed ($NVM_DIR). Only used when method=nvm. |
+| `prefix` | string | `"auto"` | Installation prefix for method=binary (Node.js binaries land in $prefix/bin). Only used when method=binary. |
+| `arch` | string | `""` | Override the CPU architecture used when selecting a prebuilt binary (method=binary only). |
+| `installer_dir` | string | `"/tmp/node-installer"` | Temporary directory for downloading the Node.js tarball and checksum sidecar (method=binary) or the nvm install script (method=nvm). |
+| `if_exists` | string (enum) | `"skip"` | What to do when a 'node' binary is already found in PATH before installation begins. |
+| `export_path` | string | `"auto"` | Controls which shell startup files receive PATH export blocks for the Node.js binary directory. |
+| `add_current_user_config` | boolean | `true` | Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list. |
+| `add_remote_user_config` | boolean | `true` | Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list. |
+| `add_container_user_config` | boolean | `true` | Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list. |
+| `add_user_config` | string | `""` | Comma-separated list of additional usernames to include in the resolved user list. |
+| `set_permissions` | boolean | `true` | Create a dedicated group (name set by 'group', default 'nvm'), set group-write and setgid bits on 'nvm_dir', add all resolved users to that group, and run the nvm installer as the first resolved user rather than root. |
+| `group` | string | `"nvm"` | Name of the group created to own 'nvm_dir' when set_permissions=true. |
+| `symlink` | boolean | `true` | Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation. |
+| `node_gyp_deps` | boolean | `true` | Install OS build dependencies required to compile native Node.js modules via node-gyp: 'make', 'gcc'/'g++', and 'python3'. |
+| `pnpm_version` | string (proposals) | `"none"` | Version of pnpm to install globally via 'npm install -g pnpm@VERSION' after Node.js is installed. |
+| `yarn_version` | string (proposals) | `"none"` | Version of Yarn to install globally after Node.js is installed. |
+| `debug` | boolean | `false` | Enable debug output (set -x). |
+| `logfile` | string | `""` | Append install log to this file path. |
 <!-- END devcontainer-feature.json MARKER -->
 
 Install Node.js and npm in the development container. Two methods are supported, selected by the `method` option:
