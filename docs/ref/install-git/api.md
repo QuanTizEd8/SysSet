@@ -1,7 +1,36 @@
 # API Reference — install-git
 
 <!-- START devcontainer-feature.json MARKER -->
-<!-- This section will be automatically generated from devcontainer-feature.json, containing the feature description and options table. Do not rewrite manually. -->
+Install Git in the development container. Two strategies controlled by 'method': 'package' uses the OS package manager (with Ubuntu git-core PPA on Ubuntu when version=latest); 'source' builds from a kernel.org tarball for full version control on any platform. Version is controlled independently by the 'version' option: 'latest', 'stable', or a specific version string.
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `method` | string (enum) | `"package"` | Installation strategy. |
+| `version` | string (proposals) | `"latest"` | Version of git to install. |
+| `prefix` | string | `"auto"` | Installation prefix for source builds (passed as prefix= to make install). |
+| `sysconfdir` | string | `"auto"` | System configuration directory for source builds (passed as sysconfdir= to make). Git reads <sysconfdir>/gitconfig as its system-level config file. |
+| `installer_dir` | string | `"/tmp/git-build"` | Working directory for the source build: tarball download, extraction, and compilation happen here. |
+| `keep_installer` | boolean | `false` | Keep the source build directory (installer_dir) after a successful install. |
+| `no_flags` | string | `""` | Space-separated list of components to exclude from the source build (case-insensitive). Available values: 'perl', 'python', 'tcltk', 'gettext'. Each value maps to the corresponding NO_<FLAG>=YesPlease make variable. |
+| `make_flags` | string | `""` | Additional flags appended verbatim last to the make invocation for source builds (space-separated KEY=VALUE pairs, e.g. 'NO_CURL=YesPlease OPENSSL_SHA256=YesPlease'). Appended after all computed flags including no_flags, so last-position values take effect. No validation — unknown flags are silently ignored by make. Silently ignored when method=package. |
+| `export_path` | string | `"auto"` | Controls PATH and MANPATH export for source builds. |
+| `shell_completions` | string | `"bash zsh"` | Space-separated list of shell names to install completion scripts for after a source build. |
+| `if_exists` | string (enum) | `"update"` | What to do when git is already present in PATH before installation begins. |
+| `default_branch` | string | `"main"` | Sets init.defaultBranch in the system-level gitconfig (/etc/gitconfig as root, $HOME/.config/git/config as non-root). Applies to all newly initialised repositories. Set to '' to skip writing this setting. |
+| `safe_directory` | string | `"*"` | Sets safe.directory in the system-level gitconfig. Use '*' (default) to trust all directories (useful in containers where the working directory may be owned by a different UID), a specific absolute path, or a newline-separated list of paths. Set to '' to skip writing this setting. |
+| `system_gitconfig` | string | `""` | Freeform content to append to the system-level gitconfig (as root: /etc/gitconfig; as non-root: $HOME/.config/git/config). Accepts standard gitconfig format, e.g. '[core] |
+| `add_current_user_config` | boolean | `false` | Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user gitconfig writes. |
+| `add_remote_user_config` | boolean | `false` | Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user gitconfig writes. |
+| `add_container_user_config` | boolean | `false` | Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes. |
+| `add_user_config` | string | `""` | Comma-separated list of additional usernames to include in the resolved user list for per-user gitconfig writes. |
+| `user_name` | string | `""` | Sets user.name in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting. |
+| `user_email` | string | `""` | Sets user.email in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting. |
+| `user_gitconfig` | string | `""` | Freeform content to append to the per-user gitconfig (~/.gitconfig) for all resolved users. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip. |
+| `symlink` | boolean | `true` | Create a symlink from the canonical bin directory to $prefix/bin/git when prefix resolves to a non-default path (source builds only). |
+| `debug` | boolean | `false` | Enable debug output (set -x). |
+| `logfile` | string | `""` | Append install log to this file path. |
 <!-- END devcontainer-feature.json MARKER -->
 
 ## Options
