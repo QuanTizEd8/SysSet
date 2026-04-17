@@ -380,7 +380,10 @@ _stub_urls() {
 
 @test "github__pick_release_asset fails when asset list is empty" {
   _stub_arch_kernel "x86_64" "Linux"
-  github__release_asset_urls() { printf ''; return 0; }
+  github__release_asset_urls() {
+    printf ''
+    return 0
+  }
   export -f github__release_asset_urls
   run github__pick_release_asset "owner/repo"
   assert_failure
@@ -567,7 +570,10 @@ https://example.com/tool-linux-amd64-v2.tar.gz"
   github__release_asset_urls() {
     # Capture the arguments and echo back the tag value found.
     while [ "$#" -gt 0 ]; do
-      [ "$1" = "--tag" ] && { printf 'TAG=%s\n' "$2"; return 0; }
+      [ "$1" = "--tag" ] && {
+        printf 'TAG=%s\n' "$2"
+        return 0
+      }
       shift
     done
     printf 'NO_TAG\n'
