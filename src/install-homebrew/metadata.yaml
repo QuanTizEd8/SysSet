@@ -111,3 +111,41 @@ options:
     type: string
     default: ''
     description: Append install log to this file path.
+dependencies:
+  base:
+    # Build tools required by Homebrew on Linux.
+    # ref: https://docs.brew.sh/Homebrew-on-Linux#requirements
+    #
+    # Not needed on macOS — Xcode Command Line Tools provide these, and the
+    # installer checks / installs CLT directly in the script.
+
+    # Common packages — same name on all package managers
+    packages:
+      - git
+      - curl
+      - file
+      - gzip
+
+    # Build tools — names differ by ecosystem
+    apt:
+      packages:
+        - build-essential
+        - procps
+    dnf:
+      packages:
+        - procps-ng
+    zypper:
+      packages:
+        - procps
+    pacman:
+      packages:
+        - procps-ng
+
+    # Package groups for build toolchains
+    groups:
+      - name: development-tools
+        when: {pm: dnf}
+      - name: base-devel
+        when: {pm: pacman}
+      - name: devel_basis
+        when: {pm: zypper}
