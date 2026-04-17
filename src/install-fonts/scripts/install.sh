@@ -112,9 +112,6 @@ _ensure_install_dir() {
   fi
 }
 
-# extract_archive: thin alias kept for readability at call sites.
-extract_archive() { file__extract_archive "$@"; }
-
 # Helper: url_to_namespace <url>
 # Returns: url/<host>/<path-without-filename>
 # e.g. https://example.com/fonts/MyFont.tar.xz → url/example.com/fonts
@@ -267,25 +264,6 @@ if [[ -z "$FONT_DIR" ]]; then
   FONT_DIR="$(os__font_dir)"
 fi
 
-_FONT_ARGS=(--font_dir "$FONT_DIR")
-[ "${#NERD_FONTS[@]}" -gt 0 ] && _FONT_ARGS+=(--nerd_fonts "$(
-  IFS=','
-  echo "${NERD_FONTS[*]}"
-)")
-[ "${#FONT_URLS[@]}" -gt 0 ] && _FONT_ARGS+=(--font_urls "$(
-  IFS=','
-  echo "${FONT_URLS[*]}"
-)")
-[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ] && _FONT_ARGS+=(--gh_release_fonts "$(
-  IFS=','
-  echo "${GH_RELEASE_FONTS[*]}"
-)")
-[[ "$P10K_FONTS" == true ]] && _FONT_ARGS+=(--p10k_fonts)
-[[ "$OVERWRITE" == true ]] && _FONT_ARGS+=(--overwrite)
-[[ "$DEBUG" == true ]] && _FONT_ARGS+=(--debug)
-
-bash "$_SELF_DIR/install_fonts.sh" "${_FONT_ARGS[@]}"
-
 # Sources are processed in priority order: p10k → nerd → gh → url.
 # Fonts are deduplicated by PostScript name. Archives are extracted to a temp
 # directory; only font files passing the deduplication check are copied to the
@@ -340,17 +318,15 @@ fi
 # ---------------------------------------------------------------------------
 # Step 2 — Nerd Fonts from official releases
 # ---------------------------------------------------------------------------
-if [[ -n "$NERD_FONTS" ]]; then
-  IFS=',' read -r -a _FONT_LIST <<< "$NERD_FONTS"
-  for _font_name in "${_FONT_LIST[@]}"; do
-    _font_name="${_font_name// /}"
+if [[ "${#NERD_FONTS[@]}" -gt 0 ]]; then
+  for _font_name in "${NERD_FONTS[@]}"; do
     [[ -z "$_font_name" ]] && continue
 
     echo "ℹ️  Downloading Nerd Font '${_font_name}'..." >&2
     _ARCHIVE="$(mktemp)"
     _TMPDIR="$(mktemp -d)"
     if net__fetch_url_file "${_NF_BASE_URL}/${_font_name}.tar.xz" "$_ARCHIVE"; then
-      if extract_archive "$_ARCHIVE" "$_TMPDIR" "${_font_name}.tar.xz"; then
+      if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "${_font_name}.tar.xz"; then
         install_archive_contents "$_TMPDIR" "nerd/${_font_name}"
         echo "✅ Nerd Font '${_font_name}' processed." >&2
       fi
@@ -365,10 +341,8 @@ fi
 # ---------------------------------------------------------------------------
 # Step 3 — GitHub release fonts
 # ---------------------------------------------------------------------------
-if [[ -n "$GH_RELEASE_FONTS" ]]; then
-  IFS=',' read -r -a _SLUG_LIST <<< "$GH_RELEASE_FONTS"
-  for _slug in "${_SLUG_LIST[@]}"; do
-    _slug="${_slug// /}"
+if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
+  for _slug in "${GH_RELEASE_FONTS[@]}"; do
     [[ -z "$_slug" ]] && continue
 
     _repo_path="${_slug%@*}"
@@ -432,7 +406,7 @@ if [[ -n "$GH_RELEASE_FONTS" ]]; then
       case "$_asset_basename" in
         *.tar.xz | *.tar.gz | *.tgz | *.zip)
           _TMPDIR="$(mktemp -d)"
-          if extract_archive "$_ARCHIVE" "$_TMPDIR" "$_asset_basename"; then
+          if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "$_asset_basename"; then
             install_archive_contents "$_TMPDIR" "$_NS"
           fi
           rm -rf "$_TMPDIR"
@@ -450,10 +424,8 @@ fi
 # ---------------------------------------------------------------------------
 # Step 4 — Direct URL fonts
 # ---------------------------------------------------------------------------
-if [[ -n "$FONT_URLS" ]]; then
-  IFS=',' read -r -a _URL_LIST <<< "$FONT_URLS"
-  for _url in "${_URL_LIST[@]}"; do
-    _url="${_url// /}"
+if [[ "${#FONT_URLS[@]}" -gt 0 ]]; then
+  for _url in "${FONT_URLS[@]}"; do
     [[ -z "$_url" ]] && continue
 
     _NS="$(url_to_namespace "$_url")"
@@ -468,7 +440,7 @@ if [[ -n "$FONT_URLS" ]]; then
         _ARCHIVE="$(mktemp)"
         _TMPDIR="$(mktemp -d)"
         if net__fetch_url_file "$_url" "$_ARCHIVE"; then
-          if extract_archive "$_ARCHIVE" "$_TMPDIR" "$_basename"; then
+          if file__extract_archive "$_ARCHIVE" "$_TMPDIR" "$_basename"; then
             install_archive_contents "$_TMPDIR" "$_NS"
             echo "✅ Font archive '${_basename}' processed." >&2
           fi
