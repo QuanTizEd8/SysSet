@@ -1,0 +1,34 @@
+name: sysset-website
+dependencies:
+  - conda-forge::sphinx ==9.1.0
+  - conda-forge::pydata-sphinx-theme ==0.16.1
+  - conda-forge::myst-nb ==1.4.0
+  - conda-forge::sphinx-design ==0.7.0
+  - conda-forge::sphinx-external-toc ==1.1.0
+  - conda-forge::ablog ==0.11.13
+  - conda-forge::sphinx-copybutton ==0.5.2
+  - conda-forge::sphinxext-opengraph ==0.13.0
+  - conda-forge::sphinxcontrib-bibtex ==2.6.5
+  - conda-forge::sphinx-togglebutton ==0.3.2
+  - conda-forge::sphinxcontrib-mermaid ==2.0.1
+  - conda-forge::sphinx-thebe ==0.3.1
+  - conda-forge::myst-parser ==5.0.0
+  - conda-forge::linkify-it-py ==2.1.0
+  - conda-forge::librsvg ==2.62.1
+  - conda-forge::libffi ==3.5.2
+  - conda-forge::cairo ==1.18.4
+  - conda-forge::intersphinx-registry ==0.2603.16
+  - pip
+  - pip:
+      - jsonschema-autodoc ==0.1.0
+      - pygments-git ==1.9.0
+      - sphinx-autobuild ==2025.8.25
+      - sphinx-last-updated-by-git ==0.3.8
+      - sphinx-notfound-page ==1.1.0
+      - sphinx-tippy ==0.4.3
+      - sphinxcontrib-svg2pdfconverter [CairoSVG] ==2.1.0
+variables:
+  SPHINX_BUILDER: dirhtml
+  SPHINX_BUILD_OPTIONS: --verbose --show-traceback --keep-going --color --nitpicky
+    --jobs auto
+  WEBSITE_TAR_FILEPATH: docs/website/.build/website.tar
