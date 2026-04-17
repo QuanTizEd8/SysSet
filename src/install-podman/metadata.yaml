@@ -8,11 +8,26 @@ keywords:
 - containers
 - rootless
 - oci
+# Privileged mode is required for rootless Podman inside a container.
+# Podman needs to: create user namespaces (blocked by default seccomp),
+# run setuid newuidmap/newgidmap (blocked by nosuid root mount), mount
+# procfs in child namespaces (blocked by Docker's /proc masks), and
+# access /dev/net/tun for networking.  These requirements collectively
+# amount to near-privileged access, so using targeted capAdd/securityOpt
+# offers no meaningful security benefit over privileged: true.
+# This is the same approach used by the docker-in-docker feature.
 privileged: true
+# Named volume for Podman's image/container storage.  The volume is
+# backed by the host's real filesystem (ext4/xfs/btrfs), NOT the
+# container's overlayfs root.  This lets Podman use the native kernel
+# overlay driver on the volume — avoiding the overlay-on-overlay problem
+# and the fuse-overlayfs noexec issue in nested user namespaces.
 mounts:
 - source: podman-storage-devcontainer-${devcontainerId}
   target: /var/lib/containers/storage
   type: volume
+# Mark / as rshared so bind-mount propagation works inside rootless
+# Podman's user namespace (avoids "not a shared mount" warnings).
 entrypoint: /usr/local/share/install-podman/entrypoint
 options:
   add_current_user:

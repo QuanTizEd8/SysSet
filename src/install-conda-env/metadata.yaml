@@ -87,3 +87,7 @@ options:
     default: ''
     description: Log all output (stdout + stderr) to this file in addition to console.
     type: string
+# installsAfter:
+#   - ghcr.io/quantized8/sysset/install-miniforge
+#   - ghcr.io/quantized8/sysset/install-shell
+#   - ghcr.io/quantized8/sysset/setup-user
