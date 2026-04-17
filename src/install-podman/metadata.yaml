@@ -57,3 +57,22 @@ options:
     type: string
     default: ''
     description: Log all output (stdout + stderr) to this file in addition to console.
+dependencies:
+  base:
+    packages:
+      - podman
+      - ca-certificates
+      # rootless networking — passt is the new default on Fedora; slirp4netns still required on Debian/Ubuntu
+      - passt
+      - slirp4netns
+
+    # UID/GID mapping tools — package name varies by distro
+    apt:
+      packages:
+        - uidmap
+    dnf:
+      packages:
+        - shadow-utils
+    apk:
+      packages:
+        - shadow-uidmap
