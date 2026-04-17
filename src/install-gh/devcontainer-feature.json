@@ -24,7 +24,7 @@
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create a symlink from the canonical bin directory to $prefix/bin/gh when prefix resolves to a non-default path (method=binary only).\nRoot: creates /usr/local/bin/gh -> $prefix/bin/gh. Non-root: creates $HOME/.local/bin/gh -> $prefix/bin/gh.\nEnsures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.\nNo-op when prefix already resolves to the canonical path (/usr/local for root, $HOME/.local for non-root), or when method=repos (gh lands in /usr/bin which is always on PATH)."
+         "description": "Create a symlink from the canonical bin directory to $prefix/bin/gh when prefix resolves to a non-default path (method=binary only).\nThe symlink location is determined by whether $prefix falls under any user's home directory (as listed in /etc/passwd):\n  System-wide (prefix is not under any user home): creates /usr/local/bin/gh -> $prefix/bin/gh.\n  User-scoped  (prefix is under a user home):        creates $HOME/.local/bin/gh -> $prefix/bin/gh.\nEnsures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.\nNo-op when $prefix/bin/gh is already the chosen target path, or when method=repos (gh lands in /usr/bin which is always on PATH)."
       },
       "shell_completions": {
          "type": "string",

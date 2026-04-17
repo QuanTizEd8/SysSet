@@ -42,7 +42,7 @@
       },
       "symlink": {
          "default": true,
-         "description": "Create a directory symlink from the canonical conda prefix to $prefix when prefix resolves to a non-default path.\nRoot: creates /opt/conda -> $prefix. Non-root: creates $HOME/miniforge3 -> $prefix.\nEnsures the containerEnv PATH entries always resolve to the conda binaries regardless of the chosen prefix.\nNo-op when prefix already resolves to the canonical path (/opt/conda for root, $HOME/miniforge3 for non-root).",
+         "description": "Create a directory symlink from the canonical conda prefix to $prefix when prefix resolves to a non-default path.\nThe symlink location is determined by whether $prefix falls under any user's home directory (as listed in /etc/passwd):\n  System-wide (prefix is not under any user home): creates /opt/conda -> $prefix.\n  User-scoped  (prefix is under a user home):        creates $HOME/miniforge3 -> $prefix.\nEnsures the containerEnv PATH entries always resolve to the conda binaries regardless of the chosen prefix.\nNo-op when $prefix is already the chosen target path.",
          "type": "boolean"
       },
       "shell_activations": {

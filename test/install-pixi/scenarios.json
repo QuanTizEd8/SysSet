@@ -168,5 +168,15 @@
                 "debug": true
             }
         }
+    },
+    "symlink_user_home_prefix": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-pixi": {
+                "prefix": "/root/pixi",
+                "symlink": true,
+                "debug": true
+            }
+        }
     }
 }

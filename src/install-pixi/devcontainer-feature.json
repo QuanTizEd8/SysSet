@@ -69,7 +69,7 @@
       "symlink": {
          "type": "boolean",
          "default": true,
-         "description": "Create a symlink from the canonical bin directory to $prefix/bin/pixi when prefix resolves to a non-default path.\nRoot: creates /usr/local/bin/pixi -> $prefix/bin/pixi. Non-root: creates $HOME/.pixi/bin/pixi -> $prefix/bin/pixi.\nEnsures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.\nNo-op when prefix already resolves to the canonical path (/usr/local for root, $HOME/.pixi for non-root)."
+         "description": "Create a symlink from the canonical bin directory to $prefix/bin/pixi when prefix resolves to a non-default path.\nThe symlink location is determined by whether $prefix falls under any user's home directory (as listed in /etc/passwd):\n  System-wide (prefix is not under any user home): creates /usr/local/bin/pixi -> $prefix/bin/pixi.\n  User-scoped  (prefix is under a user home):        creates $HOME/.pixi/bin/pixi -> $prefix/bin/pixi.\nEnsures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.\nNo-op when $prefix/bin/pixi is already the chosen target path."
       },
       "shell_completions": {
          "type": "string",

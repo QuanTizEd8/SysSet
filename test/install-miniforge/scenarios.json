@@ -185,5 +185,11 @@
         "features": {
             "install-miniforge": { "prefix": "/opt/myforge", "symlink": true, "debug": true }
         }
+    },
+    "symlink_user_home_prefix": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-miniforge": { "prefix": "/root/myforge", "symlink": true, "debug": true }
+        }
     }
 }

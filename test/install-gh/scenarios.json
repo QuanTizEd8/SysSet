@@ -243,5 +243,16 @@
                 "debug": true
             }
         }
+    },
+    "binary_symlink_user_home_prefix": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-gh": {
+                "method": "binary",
+                "prefix": "/root/gh",
+                "symlink": true,
+                "debug": true
+            }
+        }
     }
 }
