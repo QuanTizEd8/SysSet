@@ -1,7 +1,7 @@
 #!/bin/bash
 # prefix=/opt/myforge, symlink=true, running as non-root (vscode).
-# Verifies miniforge is installed at /opt/myforge and a symlink is created at
-# $HOME/miniforge3 -> /opt/myforge.
+# The installer runs as root (devcontainer build), so the system-wide symlink
+# /opt/conda -> /opt/myforge is created. No user-scoped symlink is expected.
 set -e
 
 source dev-container-features-test-lib
@@ -10,14 +10,12 @@ source dev-container-features-test-lib
 check "conda binary at /opt/myforge/bin/conda" test -f /opt/myforge/bin/conda
 check "conda binary is executable" test -x /opt/myforge/bin/conda
 
-# --- symlink $HOME/miniforge3 → /opt/myforge ---
-check "\$HOME/miniforge3 exists" test -e /home/vscode/miniforge3
-check "\$HOME/miniforge3 is a symlink" test -L /home/vscode/miniforge3
-check "symlink target is /opt/myforge" bash -c '[ "$(readlink /home/vscode/miniforge3)" = "/opt/myforge" ]'
-check "conda reachable via symlink" test -f /home/vscode/miniforge3/bin/conda
+# --- system-wide symlink created (installer runs as root) ---
+check "/opt/conda symlink exists" test -L /opt/conda
+check "symlink target is /opt/myforge" bash -c '[ "$(readlink /opt/conda)" = "/opt/myforge" ]'
+check "conda reachable via symlink" test -f /opt/conda/bin/conda
 
-# --- no system-wide symlink created (non-root cannot write /opt/conda) ---
-check "no /opt/conda symlink created" bash -c '! test -L /opt/conda'
-check "no /opt/conda directory created" bash -c '! test -e /opt/conda'
+# --- no user-scoped symlink created ---
+check "no \$HOME/miniforge3 symlink" bash -c '! test -e /home/vscode/miniforge3'
 
 reportResults

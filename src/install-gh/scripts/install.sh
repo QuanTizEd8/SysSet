@@ -310,28 +310,10 @@ _gh__create_symlink() {
     echo "↩️ Function exit: _gh__create_symlink" >&2
     return 0
   fi
-  if [ "$(id -u)" = "0" ]; then
-    if [ "${PREFIX}" = "/usr/local" ]; then
-      echo "ℹ️ prefix is already /usr/local; no symlink needed." >&2
-      echo "↩️ Function exit: _gh__create_symlink" >&2
-      return 0
-    fi
-    if [ -e "/usr/local/bin/gh" ] && [ ! -L "/usr/local/bin/gh" ]; then
-      echo "⛔ /usr/local/bin/gh exists as a regular file — cannot create symlink." >&2
-      exit 1
-    fi
-    ln -sf "${PREFIX}/bin/gh" /usr/local/bin/gh
-    echo "✅ Created symlink /usr/local/bin/gh -> ${PREFIX}/bin/gh" >&2
-  else
-    if [ "${PREFIX}" = "${HOME}/.local" ]; then
-      echo "ℹ️ prefix is already ${HOME}/.local; no symlink needed." >&2
-      echo "↩️ Function exit: _gh__create_symlink" >&2
-      return 0
-    fi
-    mkdir -p "${HOME}/.local/bin"
-    ln -sf "${PREFIX}/bin/gh" "${HOME}/.local/bin/gh"
-    echo "✅ Created symlink ${HOME}/.local/bin/gh -> ${PREFIX}/bin/gh" >&2
-  fi
+  shell__create_symlink \
+    --src "${PREFIX}/bin/gh" \
+    --system-target "/usr/local/bin/gh" \
+    --user-target "${HOME}/.local/bin/gh"
   echo "↩️ Function exit: _gh__create_symlink" >&2
   return 0
 }

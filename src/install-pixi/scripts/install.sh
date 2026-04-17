@@ -268,24 +268,10 @@ create_symlink() {
     echo "↩️ Function exit: create_symlink" >&2
     return 0
   fi
-  if [ "$(id -u)" = "0" ]; then
-    if [ "${PREFIX}" = "/usr/local" ]; then
-      echo "ℹ️ prefix is already /usr/local; no symlink needed." >&2
-      echo "↩️ Function exit: create_symlink" >&2
-      return 0
-    fi
-    ln -sf "${PREFIX}/bin/pixi" /usr/local/bin/pixi
-    echo "✅ Created symlink /usr/local/bin/pixi -> ${PREFIX}/bin/pixi" >&2
-  else
-    if [ "${PREFIX}" = "${HOME}/.pixi" ]; then
-      echo "ℹ️ prefix is already ${HOME}/.pixi; no symlink needed." >&2
-      echo "↩️ Function exit: create_symlink" >&2
-      return 0
-    fi
-    mkdir -p "${HOME}/.pixi/bin"
-    ln -sf "${PREFIX}/bin/pixi" "${HOME}/.pixi/bin/pixi"
-    echo "✅ Created symlink ${HOME}/.pixi/bin/pixi -> ${PREFIX}/bin/pixi" >&2
-  fi
+  shell__create_symlink \
+    --src "${PREFIX}/bin/pixi" \
+    --system-target "/usr/local/bin/pixi" \
+    --user-target "${HOME}/.pixi/bin/pixi"
   echo "↩️ Function exit: create_symlink" >&2
   return 0
 }

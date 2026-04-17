@@ -509,3 +509,76 @@ shell__ensure_bashenv() {
   echo "$_bashenv_path"
   return 0
 }
+
+# @brief shell__create_symlink --src <s> --system-target <t> --user-target <t> — Create a symlink, choosing system-wide or user-scoped location based on the src path.
+#
+# If <src> is under any user's home directory (as listed in /etc/passwd),
+# places the symlink at <user-target>; otherwise at <system-target>. If src
+# equals the chosen target, no symlink is needed and the function returns
+# without error.
+#
+# Errors if the chosen target path is a real file or directory (not a symlink).
+# Creates parent directories of the target as needed.
+#
+# Args:
+#   --src <s>            The path the symlink will point to.
+#   --system-target <t>  Symlink path for system-wide installations.
+#   --user-target <t>    Symlink path for user-scoped installations.
+shell__create_symlink() {
+  local _src="" _system_target="" _user_target=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --src)
+        shift
+        _src="$1"
+        shift
+        ;;
+      --system-target)
+        shift
+        _system_target="$1"
+        shift
+        ;;
+      --user-target)
+        shift
+        _user_target="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  # Choose symlink target by checking if src is under any home dir in /etc/passwd.
+  # getent is tried first (glibc systems); falls back to /etc/passwd directly
+  # (Alpine/musl, macOS). Both always contain users created by useradd/adduser.
+  # Allow tests (and callers) to override the passwd path via _SHELL_PASSWD_FILE.
+  local _target="$_system_target"
+  local _passwd_entries
+  if [[ -n "${_SHELL_PASSWD_FILE:-}" ]]; then
+    _passwd_entries="$(grep -v '^#' "$_SHELL_PASSWD_FILE")"
+  else
+    _passwd_entries="$(getent passwd 2> /dev/null || grep -v '^#' /etc/passwd)"
+  fi
+  local _home_dir
+  while IFS=: read -r _ _ _ _ _ _home_dir _; do
+    [[ -z "$_home_dir" ]] && continue
+    if [[ "$_src" == "${_home_dir}/"* || "$_src" == "$_home_dir" ]]; then
+      _target="$_user_target"
+      break
+    fi
+  done <<< "$_passwd_entries"
+  # If src and target are the same path, no symlink is needed.
+  if [[ "$_src" == "$_target" ]]; then
+    echo "ℹ️ src and target are identical ('${_target}'); no symlink needed." >&2
+    return 0
+  fi
+  # Guard: refuse to clobber a real file or directory.
+  if [[ -e "$_target" && ! -L "$_target" ]]; then
+    echo "⛔ '${_target}' exists as a real file or directory; cannot create symlink." >&2
+    return 1
+  fi
+  # Remove stale symlink before recreating.
+  [[ -L "$_target" ]] && rm -f "$_target"
+  mkdir -p "$(dirname "$_target")"
+  ln -s "$_src" "$_target"
+  echo "✅ Created symlink '${_target}' -> '${_src}'." >&2
+  return 0
+}

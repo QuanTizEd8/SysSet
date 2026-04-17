@@ -480,36 +480,14 @@ create_symlink() {
   if [[ "$SYMLINK" != true ]]; then
     echo "ℹ️ symlink=false; skipping symlink creation." >&2
     echo "↩️ Function exit: create_symlink" >&2
-    return
+    return 0
   fi
-  if [ "$(id -u)" = "0" ]; then
-    if [ "$PREFIX" = "/opt/conda" ]; then
-      echo "ℹ️ prefix is already /opt/conda; no symlink needed." >&2
-      echo "↩️ Function exit: create_symlink" >&2
-      return
-    fi
-    if [ -d "/opt/conda" ] && [ ! -L "/opt/conda" ]; then
-      echo "⛔ /opt/conda exists as a real directory; cannot create symlink. Disable symlink or remove the directory." >&2
-      exit 1
-    fi
-    [ -L "/opt/conda" ] && rm -f "/opt/conda"
-    ln -s "$PREFIX" /opt/conda
-    echo "✅ Created symlink /opt/conda -> $PREFIX." >&2
-  else
-    if [ "$PREFIX" = "${HOME}/miniforge3" ]; then
-      echo "ℹ️ prefix is already ${HOME}/miniforge3; no symlink needed." >&2
-      echo "↩️ Function exit: create_symlink" >&2
-      return
-    fi
-    if [ -d "${HOME}/miniforge3" ] && [ ! -L "${HOME}/miniforge3" ]; then
-      echo "⛔ ${HOME}/miniforge3 exists as a real directory; cannot create symlink. Disable symlink or remove the directory." >&2
-      exit 1
-    fi
-    [ -L "${HOME}/miniforge3" ] && rm -f "${HOME}/miniforge3"
-    ln -s "$PREFIX" "${HOME}/miniforge3"
-    echo "✅ Created symlink ${HOME}/miniforge3 -> $PREFIX." >&2
-  fi
+  shell__create_symlink \
+    --src "$PREFIX" \
+    --system-target "/opt/conda" \
+    --user-target "${HOME}/miniforge3"
   echo "↩️ Function exit: create_symlink" >&2
+  return 0
 }
 
 readonly _CONDA_INIT_SCRIPT_RELPATH="etc/profile.d/conda.sh"
