@@ -462,22 +462,30 @@ feature. Source them from `$_SELF_DIR/_lib/<file>.sh`.
 
 Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
 
+<!-- START lib-os-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `os__require_root` | `os__require_root` | Exits 1 with a message if the current user is not root. |
-| `os__kernel` | `os__kernel` | Prints the kernel name (`Linux` or `Darwin`). Cached after first call. Use instead of `uname -s`. |
-| `os__arch` | `os__arch` | Prints the CPU architecture (e.g. `x86_64`, `aarch64`, `arm64`). Cached after first call. Use instead of `uname -m`. |
+| `os__kernel` | `os__kernel` | Prints the kernel name (`Linux` or `Darwin`). Cached; use instead of `uname -s`. |
+| `os__arch` | `os__arch` | Prints the CPU architecture (e.g. `x86_64`, `aarch64`). Cached; use instead of `uname -m`. |
 | `os__id` | `os__id` | Prints the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`). |
-| `os__id_like` | `os__id_like` | Prints the `ID_LIKE` field from `/etc/os-release`. |
-| `os__platform` | `os__platform` | Prints a canonical platform tag: `debian` \| `alpine` \| `rhel` \| `macos`. |
-| `os__font_dir` | `os__font_dir` | Prints the appropriate font directory for the current user: `/usr/share/fonts` (root), `~/Library/Fonts` (macOS non-root), `${XDG_DATA_HOME:-~/.local/share}/fonts` (Linux non-root). |
+| `os__id_like` | `os__id_like` | Prints the `ID_LIKE` field from `/etc/os-release` (space-separated distro family list). |
+| `os__platform` | `os__platform` | Prints a canonical platform tag: `debian` | `alpine` | `rhel` | `macos`. |
+| `os__require_root` | `os__require_root` | Exits 1 with an error message if the current user is not root. |
+| `os__font_dir` | `os__font_dir` | Print the font directory for the current user. |
+| `os__is_container` | `os__is_container` | Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise. |
+| `os__codename` | `os__codename` | Prints `VERSION_CODENAME` from `/etc/os-release` (e.g. `jammy`, `bookworm`). Empty string if absent or on macOS. |
+<!-- END lib-os-table MARKER -->
 
 ### `logging.sh`
 
+<!-- START lib-logging-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `logging__setup` | `logging__setup` | Redirects stdout+stderr through `tee` into a temp file. Sets the global `_LOGFILE_TMP`. Saves original stdout as fd 3, stderr as fd 4. Does **not** install an EXIT trap — caller is responsible. |
-| `logging__cleanup` | `logging__cleanup` | Restores original fds, flushes the temp log to `$LOGFILE` (if set), and deletes the temp file. No-op if `logging__setup` was never called. |
+| `logging__setup` | `logging__setup` | Redirect stdout+stderr through `tee` into a temp log file; save original fds. |
+| `logging__mask_secret` | `logging__mask_secret <value>` | Register a secret value to be redacted when `logging__cleanup` writes to `$LOGFILE`. |
+| `logging__tmpdir` | `logging__tmpdir <name>` | Return (and create if needed) a named subdirectory of `_SYSSET_TMPDIR`. Lazy-initialises `_SYSSET_TMPDIR` if needed. Idempotent. |
+| `logging__cleanup` | `logging__cleanup` | Restore original fds, flush the temp log to `$LOGFILE` if set, and delete `_SYSSET_TMPDIR`. |
+<!-- END lib-logging-table MARKER -->
 
 `$LOGFILE` is a user-visible option (type string, default `""`). When set,
 `logging__cleanup` appends the full session log to that file.
@@ -487,13 +495,13 @@ Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
 Auto-loaded by `ospkg.sh`. Can also be sourced standalone (requires `ospkg.sh`
 for `net__ensure_fetch_tool` and `net__ensure_ca_certs`).
 
+<!-- START lib-net-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `net__fetch_with_retry` | `net__fetch_with_retry [--retries N] [--delay N] <cmd...>` | Runs `<cmd>` up to N times (default 60) with a delay between failures (default 5s). Does **not** require `ospkg.sh`. |
-| `net__ensure_ca_certs` | `net__ensure_ca_certs` | Ensures CA certificates are present; installs `ca-certificates` via `ospkg__install` if not. Idempotent. |
-| `net__ensure_fetch_tool` | `net__ensure_fetch_tool` | Sets `_NET_FETCH_TOOL` to `curl` or `wget`; installs `curl` if neither is found. Calls `net__ensure_ca_certs` automatically. Idempotent. |
-| `net__fetch_url_stdout` | `net__fetch_url_stdout <url>` | Downloads `<url>` to stdout with retries. Calls `net__ensure_fetch_tool` automatically. |
-| `net__fetch_url_file` | `net__fetch_url_file <url> <dest>` | Downloads `<url>` to a file with retries. Calls `net__ensure_fetch_tool` automatically. |
+| `net__fetch_with_retry` | `net__fetch_with_retry [--retries N] [--delay N] <cmd...>` | Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay). |
+| `net__fetch_url_stdout` | `net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]...` | Download `<url>` to stdout with retries. Auto-detects curl/wget. |
+| `net__fetch_url_file` | `net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]...` | Download `<url>` to `<dest>` with retries. Auto-detects curl/wget. |
+<!-- END lib-net-table MARKER -->
 
 Typical download pattern:
 
@@ -515,14 +523,16 @@ net__fetch_with_retry curl \
 
 ### `ospkg.sh`
 
+<!-- START lib-ospkg-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `ospkg__detect` | `ospkg__detect` | Detects the package manager and populates internal state. Idempotent. Called automatically by all other `ospkg::*` functions. |
-| `ospkg__update` | `ospkg__update [--force] [--lists_max_age N] [--repo_added]` | Refreshes the package index. Skips when lists are fresh (within `<N>` seconds). `--repo_added` forces a refresh unconditionally. |
-| `ospkg__install` | `ospkg__install <pkg>...` | Installs packages with an idempotency check on APT and DNF. |
-| `ospkg__clean` | `ospkg__clean` | Removes the package manager cache to reduce image layer size. |
-| `ospkg__run` | `ospkg__run [options]` | Full pipeline: detect → root check → parse manifest → prescript → keys → repos → update → install → script → remove repos → clean. See options below. |
-| `ospkg__parse_manifest_yaml` | `ospkg__parse_manifest_yaml <json-file>` | Parses a YAML/JSON manifest (pre-converted to JSON by `yq`) and emits normalized records for the pipeline. |
+| `ospkg__detect` | `ospkg__detect` | Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions. |
+| `ospkg__update` | `ospkg__update [--force] [--lists_max_age N] [--repo_added]` | Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds). |
+| `ospkg__install` | `ospkg__install <pkg>...` | Install one or more packages. Skips if all are already installed (APT, DNF/YUM). |
+| `ospkg__clean` | `ospkg__clean` | Remove the package manager cache to reduce image layer size. |
+| `ospkg__parse_manifest_yaml` | `ospkg__parse_manifest_yaml <json-file>` | Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout. |
+| `ospkg__run` | `ospkg__run [--manifest <f>] [--update <bool>] [--keep_cache] [--keep_repos] [--dry_run] [--skip_installed] [--interactive]` | Run the full installation pipeline from a manifest. |
+<!-- END lib-ospkg-table MARKER -->
 
 `ospkg__run` options:
 
@@ -558,34 +568,49 @@ manifest format, all selector keys, and examples.
 
 ### `shell.sh`
 
+<!-- START lib-shell-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `shell__detect_bashrc` | `shell__detect_bashrc` | Prints the system-wide bashrc path for the current distro (`/etc/bash.bashrc`, `/etc/bashrc`, or `/etc/bash/bashrc`). |
-| `shell__detect_zshdir` | `shell__detect_zshdir` | Prints the system-wide zsh config directory (`/etc/zsh` or `/etc`). |
-| `shell__resolve_home` | `shell__resolve_home <username>` | Prints the home directory for a user via `eval echo "~<user>"`. |
-| `shell__resolve_omz_theme` | `shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` | Given an `owner/repo` slug and `ZSH_CUSTOM`, prints the `ZSH_THEME` value for oh-my-zsh. |
-| `shell__plugin_names_from_slugs` | `shell__plugin_names_from_slugs <csv-slugs>` | Extracts repository names (basenames) from a comma-separated list of `owner/repo` slugs. |
-| `shell__write_block` | `shell__write_block --file <f> --marker <m> --content <c>` | Writes a fenced `# BEGIN <m>` … `# END <m>` block into a file. Idempotent: replaces any existing block with the same marker. |
-| `shell__remove_block` | `shell__remove_block --file <f> --marker <m>` | Removes a fenced block (by marker) from a file. |
-| `shell__export_path` | `shell__export_path --users <list> --path <dir> [--marker <m>] [--rc_files <list>]` | Appends a `PATH` export block to each user's shell RC files. |
-| `shell__export_env` | `shell__export_env --users <list> --name <VAR> --value <val> [--marker <m>] [--rc_files <list>]` | Appends an `export VAR=val` block to each user's shell RC files. |
+| `shell__detect_bashrc` | `shell__detect_bashrc` | Print the system-wide bashrc path for the current distro. Uses binary probing, never file-existence checks. |
+| `shell__detect_zshdir` | `shell__detect_zshdir` | Print the system-wide zsh config directory (`/etc/zsh` or `/etc`). Uses binary probing, never directory-existence checks. |
+| `shell__write_block` | `shell__write_block --file <f> --marker <id> --content <c>` | Idempotently write a named `# >>> <id> >>>` … `# <<< <id> <<<` block to a file. Creates the file if needed. |
+| `shell__sync_block` | `shell__sync_block --files <list> --marker <id> [--content <c>]` | Write (if `--content` given) or remove the named block in each file in the newline-separated list. |
+| `shell__user_login_file` | `shell__user_login_file [--home <dir>]` | Print the bash login startup file path (`~/.bash_profile`, `~/.bash_login`, or `~/.profile`). Falls back to `~/.bash_profile`. |
+| `shell__system_path_files` | `shell__system_path_files [--profile_d <filename>]` | Print system-wide shell startup file paths for PATH/env injection. |
+| `shell__detect_zdotdir` | `shell__detect_zdotdir [--home <dir>]` | Print the effective ZDOTDIR for a user. Probes the live environment, parses system and user zshenv, then falls back to `<home>`. |
+| `shell__user_path_files` | `shell__user_path_files [--home <dir>] [--zdotdir <dir>]` | Print user startup file paths for a PATH export: bash login file, `.bashrc`, and `<zdotdir>/.zshenv`. |
+| `shell__user_init_files` | `shell__user_init_files [--home <dir>] [--zdotdir <dir>]` | Print user startup file paths for a full initializer: bash login, `.bashrc`, `<zdotdir>/.zprofile`, `<zdotdir>/.zshrc`. |
+| `shell__user_rc_files` | `shell__user_rc_files [--home <dir>] [--zdotdir <dir>]` | Print user-scoped interactive RC file paths (`.bashrc`, `<zdotdir>/.zshrc`). Excludes login files. |
+| `shell__system_rc_files` | `shell__system_rc_files` | Print system-wide interactive RC file paths (global bashrc, `<zshdir>/zshrc`). Does not include login or PATH-export files. |
+| `shell__resolve_omz_theme` | `shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` | Given an `owner/repo` slug and `ZSH_CUSTOM` dir, print the `ZSH_THEME` value expected by oh-my-zsh. |
+| `shell__plugin_names_from_slugs` | `shell__plugin_names_from_slugs <csv-slugs>` | Extract repo names (basenames) from a comma-separated list of `owner/repo` slugs. Prints one name per line. |
+| `shell__resolve_home` | `shell__resolve_home <username>` | Print the home directory for the given user. |
+| `shell__ensure_bashenv` | `shell__ensure_bashenv` | Detect or create the system-wide BASH_ENV file and register it in `/etc/environment`. Print the absolute path to the file. |
+| `shell__create_symlink` | `shell__create_symlink --src <s> --system-target <t> --user-target <t>` | Create a symlink, choosing system-wide or user-scoped location based on the src path. |
+<!-- END lib-shell-table MARKER -->
 
 ### `git.sh`
 
+<!-- START lib-git-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `git__clone` | `git__clone --url <url> --dir <dir> [--branch <branch>]` | Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent: skips if `<dir>/.git` already exists. On failure, removes the partial clone so re-runs do not silently skip a broken directory. |
+| `git__clone` | `git__clone --url <url> --dir <dir> [--branch <branch>]` | Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent; skips if `<dir>/.git` already exists. |
+<!-- END lib-git-table MARKER -->
 
 ### `github.sh`
 
 Source explicitly. Requires `net.sh` (and `ospkg.sh`) to have been sourced first. Respects the `GITHUB_TOKEN` environment variable for all API calls.
 
+<!-- START lib-github-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `github__fetch_release_json` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` | Fetches GitHub Releases API JSON. Without `--tag`: `/releases/latest`. Without `--dest`: writes to stdout. |
-| `github__latest_tag` | `github__latest_tag <owner/repo>` | Prints the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
-| `github__release_tags` | `github__release_tags <owner/repo> [--per_page <n>]` | Prints one tag per line (newest first) from `/releases?per_page=<n>` (default 100). Useful for version matching. |
-| `github__release_asset_urls` | `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` | Prints `browser_download_url` values from a release. `--filter` applies an extended-regex grep to the URL list. |
+| `github__fetch_release_json` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` | Fetch GitHub Releases API JSON for a repository. |
+| `github__latest_tag` | `github__latest_tag <owner/repo>` | Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
+| `github__release_tags` | `github__release_tags <owner/repo> [--per_page N]` | Print one release tag per line (newest first) from `/releases?per_page=N` (default 100). |
+| `github__tags` | `github__tags <owner/repo> [--per_page N]` | Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release. |
+| `github__release_asset_urls` | `github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>]` | Print `browser_download_url` values from a release. `--filter` applies an ERE grep to the URL list. |
+| `github__pick_release_asset` | `github__pick_release_asset <owner/repo> [--tag <tag>] [--asset-regex <ERE>]` | Select a single release asset URL using heuristic arch/platform filters. |
+<!-- END lib-github-table MARKER -->
 
 Typical patterns:
 
@@ -608,10 +633,12 @@ github__fetch_release_json owner/repo --tag "$tag" --dest "$json"
 
 Source explicitly. Works transparently with `sha256sum` (Linux) or `shasum` (macOS).
 
+<!-- START lib-checksum-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `checksum__verify_sha256` | `checksum__verify_sha256 <file> <expected_hash>` | Verifies the SHA-256 digest of `<file>` against `<expected_hash>`. Exits 1 on mismatch. |
-| `checksum__verify_sha256_sidecar` | `checksum__verify_sha256_sidecar <file> <sha256_file>` | Reads the expected hash from the first whitespace-separated field of `<sha256_file>` then delegates to `checksum__verify_sha256`. Use for `.sha256` sidecar files. |
+| `checksum__verify_sha256` | `checksum__verify_sha256 <file> <expected_hash>` | Verify the SHA-256 digest of `<file>`. Uses `sha256sum` (Linux) or `shasum -a 256` (macOS). Returns 1 on mismatch. |
+| `checksum__verify_sha256_sidecar` | `checksum__verify_sha256_sidecar <file> <sha256_file>` | Read the expected hash from the first field of `<sha256_file>` and delegate to `checksum__verify_sha256`. |
+<!-- END lib-checksum-table MARKER -->
 
 Typical pattern:
 
@@ -627,10 +654,12 @@ Source explicitly. Reads the standard devcontainer user-config env vars
 (`ADD_CURRENT_USER_CONFIG`, `ADD_REMOTE_USER_CONFIG`, `ADD_CONTAINER_USER_CONFIG`,
 `ADD_USER_CONFIG`).
 
+<!-- START lib-users-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
-| `users__resolve_list` | `users__resolve_list` | Prints one deduplicated username per line to stdout. Root is excluded from auto-detected paths (CURRENT, REMOTE, CONTAINER user) but **allowed** when explicitly listed in `ADD_USER_CONFIG`. |
-| `users__set_login_shell` | `users__set_login_shell <shell_path> <username>...` | Registers `<shell_path>` in `/etc/shells`, patches Alpine PAM if needed, then calls `chsh -s` for each user. Skips users already on that shell; warns (does not abort) on `chsh` failure. |
+| `users__resolve_list` | `users__resolve_list` | Print one deduplicated username per line from devcontainer user-config env vars. |
+| `users__set_login_shell` | `users__set_login_shell <shell_path> <username>...` | Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user. |
+<!-- END lib-users-table MARKER -->
 
 Typical bash caller pattern:
 
