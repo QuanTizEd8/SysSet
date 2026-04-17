@@ -122,9 +122,23 @@ def generate_block(feature_name: str, options: dict) -> str:
     lines.append('. "$_SELF_DIR/_lib/logging.sh"')
     lines.append("logging__setup")
     lines.append(
-        f'echo "\u21aa\ufe0f Script entry: {feature_name} Devcontainer Feature Installer" >&2'
+        f'echo "\u21aa\ufe0f Script entry: {feature_name}" >&2'
     )
-    lines.append("trap 'logging__cleanup' EXIT")
+    lines.append("_on_exit() {")
+    lines.append("  local _rc=$?")
+    lines.append("  if [[ $_rc -eq 0 ]]; then")
+    lines.append(
+        f'    echo "\u2705 {feature_name} script finished successfully." >&2'
+    )
+    lines.append("  else")
+    lines.append(
+        f'    echo "\u274c {feature_name} script exited with error ${{_rc}}." >&2'
+    )
+    lines.append("  fi")
+    lines.append("  logging__cleanup")
+    lines.append("  return")
+    lines.append("}")
+    lines.append("trap '_on_exit' EXIT")
     lines.append("")
 
     # ── __usage__ ───────────────────────────────────────────────────────────
