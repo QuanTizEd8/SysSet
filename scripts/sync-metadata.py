@@ -122,8 +122,15 @@ def _process_value(key: str, value: object) -> object:
     if key == "options" and isinstance(value, dict):
         return {
             opt_name: {
-                k: (_normalize_description(v) if k == "description" and isinstance(v, str) else v)
+                k: (
+                    _normalize_description(v)
+                    if k == "description" and isinstance(v, str)
+                    else "string"
+                    if k == "type" and v == "array"
+                    else v
+                )
                 for k, v in opt.items()
+                if not k.startswith("x_")  # drop option-level extension fields
             }
             for opt_name, opt in value.items()
         }
