@@ -160,3 +160,8 @@ options:
     description: Append install log to this file path.
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
+dependencies:
+  base:
+    packages:
+      - ca-certificates
+      - curl

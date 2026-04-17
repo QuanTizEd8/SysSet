@@ -1,6 +1,0 @@
-# Base dependencies for the install-gh devcontainer feature.
-# bash is guaranteed by bootstrap.sh before this script runs.
-# curl and ca-certificates are needed for binary downloads and HTTPS repo setup.
-packages:
-  - ca-certificates
-  - curl
