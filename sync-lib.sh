@@ -24,7 +24,16 @@ _check_mode=false
 [[ "${1-}" == "--check" ]] && _check_mode=true
 
 # ---------------------------------------------------------------------------
-# Step 1: Generate (or check) devcontainer-feature.json from metadata.yaml.
+# Step 1: Generate (or check) dependencies/*.yaml from metadata.yaml.
+# ---------------------------------------------------------------------------
+if [[ "$_check_mode" == true ]]; then
+  "$_python" "${_SCRIPT_DIR}/scripts/sync-deps.py" --check
+else
+  "$_python" "${_SCRIPT_DIR}/scripts/sync-deps.py"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 3: Generate (or check) devcontainer-feature.json from metadata.yaml.
 # ---------------------------------------------------------------------------
 # Resolve a Python interpreter that has PyYAML available.
 _python=""
@@ -47,7 +56,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2: Generate (or check) argparse blocks in each feature's install.sh.
+# Step 4: Generate (or check) argparse blocks in each feature's install.sh.
 # ---------------------------------------------------------------------------
 if [[ "$_check_mode" == true ]]; then
   "$_python" "${_SCRIPT_DIR}/scripts/sync-argparse.py" --check
@@ -56,7 +65,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 3: Auto-discover feature directories that have a scripts/ subdirectory.
+# Step 5: Auto-discover feature directories that have a scripts/ subdirectory.
 # ---------------------------------------------------------------------------
 _feature_dirs=()
 while IFS= read -r _meta; do
