@@ -658,6 +658,7 @@ Source explicitly. Reads the standard devcontainer user-config env vars
 | Function | Signature | Description |
 |---|---|---|
 | `users__resolve_list` | `users__resolve_list` | Print one deduplicated username per line from devcontainer user-config env vars. |
+| `users__set_write_permissions` | `users__set_write_permissions <prefix> <owner> <group> [<user>...]` |  |
 | `users__set_login_shell` | `users__set_login_shell <shell_path> <username>...` | Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user. |
 <!-- END lib-users-table MARKER -->
 

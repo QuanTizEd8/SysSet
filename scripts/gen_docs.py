@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """scripts/gen_docs.py — Documentation injection tool for sysset.
 
-Reads structured @brief annotations from lib/*.sh and devcontainer-feature.json
-files to inject auto-generated content between special marker comments in
-documentation files.
+Reads structured @brief annotations from lib/*.sh and injects auto-generated
+content between special marker comments in documentation files.
 
 Injection markers (HTML comments preserved in Markdown):
     <!-- START <tag> MARKER -->
@@ -11,31 +10,31 @@ Injection markers (HTML comments preserved in Markdown):
     <!-- END <tag> MARKER -->
 
 Usage:
-    python3 scripts/gen_docs.py [--lib] [--json] [--check]
+    python3 scripts/gen_docs.py [--lib] [--check]
     make gen-docs          # run all modes
     make gen-docs-check    # --check (CI mode, exits 1 if anything would change)
 
 Modes (default: all):
     --lib    Inject lib API tables into lib.instructions.md and
              docs/dev-guide/writing-features.md
-    --json   Inject options blocks from src/*/devcontainer-feature.json
-             into docs/ref/*/api.md files that carry the JSON marker
     --check  Dry-run: print what would change and exit 1 if anything differs
+
+Note: Feature reference preambles (H1, description, ## Options table) are now
+injected at Sphinx build time via the source-read hook in docs/conf.py.
+The --json mode and devcontainer-feature.json marker comments are no longer used.
 
 Parsers live in separate modules:
     parse_lib.py          — @brief + structured body parser for lib/*.sh
-    parse_feature_json.py — devcontainer-feature.json options renderer
+    parse_feature_json.py — devcontainer-feature.json options renderer (used by conf.py)
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 from parse_lib import LibFunction, parse_lib_file
-from parse_feature_json import render_json_block
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
@@ -213,42 +212,6 @@ def run_lib(check: bool) -> bool:
     return any_changed
 
 
-# ── Mode: json ─────────────────────────────────────────────────────────────────
-
-
-def run_json(check: bool) -> bool:
-    """
-    Parse devcontainer-feature.json files and inject options blocks into
-    docs/ref/*/api.md files that carry the JSON injection markers.
-    Returns True if any file changed.
-    """
-    any_changed = False
-    tag = "devcontainer-feature.json"
-
-    for api_doc in sorted(DOCS_REF_DIR.glob("*/api.md")):
-        content = api_doc.read_text(encoding="utf-8")
-        if not has_markers(content, tag):
-            # Not an error — some api.md files may not use JSON injection yet
-            continue
-
-        feature_name = api_doc.parent.name
-        json_path = SRC_DIR / feature_name / "devcontainer-feature.json"
-        if not json_path.exists():
-            rel = api_doc.relative_to(REPO)
-            print(
-                f"  ⚠  {rel}: no JSON at src/{feature_name}/devcontainer-feature.json"
-                " — skipping."
-            )
-            continue
-
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-        block = render_json_block(data)
-        if process_file(api_doc, [(tag, block)], check):
-            any_changed = True
-
-    return any_changed
-
-
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 
@@ -258,7 +221,6 @@ def main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--lib", action="store_true", help="Inject lib API tables")
-    parser.add_argument("--json", action="store_true", help="Inject JSON options blocks")
     parser.add_argument(
         "--check",
         action="store_true",
@@ -266,18 +228,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    run_all = not args.lib and not args.json
     any_changed = False
 
-    if run_all or args.lib:
-        print("── lib ──────────────────────────────────────────────────────────────")
-        if run_lib(args.check):
-            any_changed = True
-
-    if run_all or args.json:
-        print("── json ─────────────────────────────────────────────────────────────")
-        if run_json(args.check):
-            any_changed = True
+    print("── lib ──────────────────────────────────────────────────────────────")
+    if run_lib(args.check):
+        any_changed = True
 
     if any_changed:
         if args.check:

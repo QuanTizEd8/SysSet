@@ -214,10 +214,10 @@ Install Bash and Zsh with [Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://o
   "zdotdir": "",                    // default: ~/.config/zsh
   "ohmyzsh_custom_dir": "",         // default: $ZDOTDIR/custom
   "set_user_shells": "zsh",         // "zsh" | "bash" | "none"
-  "add_current_user_config": true,
-  "add_remote_user_config": true,
-  "add_container_user_config": true,
-  "add_user_config": "",            // extra comma-separated usernames
+  "add_current_user": true,
+  "add_remote_user": true,
+  "add_container_user": true,
+  "add_users": "",            // extra comma-separated usernames
   "user_config_mode": "overwrite"   // "overwrite" | "augment" | "skip"
 }
 ```
@@ -303,10 +303,10 @@ Install [rootless Podman](https://podman.io/) for running OCI containers inside 
 
 ```jsonc
 "ghcr.io/quantized8/sysset/install-podman:0": {
-  "add_current_user_config": true,   // configure subuid/subgid for current user
-  "add_remote_user_config": true,    // configure for devcontainer remoteUser
-  "add_container_user_config": true, // configure for devcontainer containerUser
-  "add_user_config": ""              // extra comma-separated usernames
+  "add_current_user": true,   // configure subuid/subgid for current user
+  "add_remote_user": true,    // configure for devcontainer remoteUser
+  "add_container_user": true, // configure for devcontainer containerUser
+  "add_users": ""              // extra comma-separated usernames
 }
 ```
 
