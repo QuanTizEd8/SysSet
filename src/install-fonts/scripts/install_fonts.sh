@@ -18,6 +18,8 @@ set -euo pipefail
 # Shared helpers
 # ---------------------------------------------------------------------------
 _SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=lib/file.sh
+. "$_SCRIPTS_DIR/_lib/file.sh"
 # shellcheck source=lib/net.sh
 . "$_SCRIPTS_DIR/_lib/net.sh"
 # shellcheck source=lib/github.sh
@@ -142,31 +144,8 @@ _ensure_install_dir() {
   fi
 }
 
-# ---------------------------------------------------------------------------
-# Helper: extract_archive <archive_file> <dest_dir> <original_name>
-# <original_name> is used for format detection (the archive file itself may be
-# a mktemp path with no extension).
-# ---------------------------------------------------------------------------
-extract_archive() {
-  local _arc="$1" _dest="$2"
-  local _name="${3:-$(basename "$_arc")}"
-  mkdir -p "$_dest"
-  case "$_name" in
-    *.tar.xz) tar -xJf "$_arc" -C "$_dest" ;;
-    *.tar.gz | *.tgz) tar -xzf "$_arc" -C "$_dest" ;;
-    *.zip)
-      if ! command -v unzip > /dev/null 2>&1; then
-        echo "⚠️  'unzip' not found — cannot extract '$(basename "$_arc")'. Skipping." >&2
-        return 1
-      fi
-      unzip -q -o "$_arc" -d "$_dest"
-      ;;
-    *)
-      echo "⚠️  Unrecognized archive format: '$(basename "$_arc")'. Skipping." >&2
-      return 1
-      ;;
-  esac
-}
+# extract_archive: thin alias kept for readability at call sites.
+extract_archive() { file__extract_archive "$@"; }
 
 # ---------------------------------------------------------------------------
 # Helper: url_to_namespace <url>
