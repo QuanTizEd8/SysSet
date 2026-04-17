@@ -106,19 +106,21 @@ bibtex_bibfiles = []
 
 # ── Feature reference preamble injection ───────────────────────────────────────
 # At build time, prepend each feature's H1 title, description, and ## Options
-# table (read from the canonical devcontainer-feature.json source) to the
-# stripped reference pages, replacing what was previously stored in the source
-# files and injected via marker comments.
+# table to the stripped reference pages.
 #
-# The source md files now contain only the "Details / Usage Examples" sections
-# (no H1, no description, no options table) — gen_docs.py --json is superseded.
+# metadata.yaml is the single source of truth.  The raw markdown description
+# (including links) is used verbatim so MyST renders it correctly.  The
+# ## Options table is generated from the options dict in metadata.yaml.
+# devcontainer-feature.json is a generated artifact and not read here.
 
 import sys as _sys
+
+import yaml as _yaml  # noqa: E402 (pyyaml; available in sysset-website env via myst-parser)
 
 _REPO = Path(__file__).resolve().parent.parent
 _sys.path.insert(0, str(_REPO / "scripts"))
 
-from parse_feature_json import render_json_block as _render_json_block  # noqa: E402
+from parse_feature_json import render_options_table as _render_options_table  # noqa: E402
 
 # Map Sphinx docname → feature directory name (under src/)
 _FEATURE_DOC_MAP = {
@@ -138,57 +140,31 @@ _FEATURE_DOC_MAP = {
 }
 
 
-def _parse_jsonc(text: str) -> dict:
-    """Parse JSON with ``//`` line comments and trailing commas stripped."""
-    import json
-    import re
-
-    in_string = False
-    escaped = False
-    result: list[str] = []
-    i = 0
-    while i < len(text):
-        c = text[i]
-        if escaped:
-            escaped = False
-            result.append(c)
-        elif c == "\\" and in_string:
-            escaped = True
-            result.append(c)
-        elif c == '"':
-            in_string = not in_string
-            result.append(c)
-        elif (
-            not in_string
-            and c == "/"
-            and i + 1 < len(text)
-            and text[i + 1] == "/"
-        ):
-            while i < len(text) and text[i] != "\n":
-                i += 1
-            continue
-        else:
-            result.append(c)
-        i += 1
-    # Remove trailing commas before ] or } (not valid in strict JSON)
-    cleaned = re.sub(r",(\s*[}\]])", r"\1", "".join(result))
-    return json.loads(cleaned)
-
-
 def _inject_feature_preamble(app, docname, source):  # noqa: ANN001
     """Prepend H1 + description + options table to feature reference pages."""
     feature_id = _FEATURE_DOC_MAP.get(docname)
     if feature_id is None:
         return
 
-    json_path = _REPO / "src" / feature_id / "devcontainer-feature.json"
-    if not json_path.exists():
+    meta_path = _REPO / "src" / feature_id / "metadata.yaml"
+    if not meta_path.exists():
         return
 
-    data = _parse_jsonc(json_path.read_text(encoding="utf-8"))
+    with meta_path.open(encoding="utf-8") as fh:
+        data = _yaml.safe_load(fh)
+
     feature_name = data.get("name", feature_id)
-    block = _render_json_block(data)
-    preamble = f"# {feature_name}\n\n{block}\n---\n\n"
+    # Use the raw description from YAML verbatim so markdown links render.
+    desc_raw = (data.get("description") or "").strip()
+    options_block = _render_options_table(data)
+
+    parts = [f"# {feature_name}"]
+    if desc_raw:
+        parts.append(desc_raw)
+    if options_block:
+        parts.append(options_block)
+    parts.append("---\n")
+    preamble = "\n\n".join(parts) + "\n"
     source[0] = preamble + source[0]
 
 
