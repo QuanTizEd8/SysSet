@@ -1,0 +1,48 @@
+{
+    "nvm_set_permissions": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-node": {
+                "set_permissions": true,
+                "debug": true
+            }
+        }
+    },
+    "nvm_add_users": {
+        "build": {
+            "dockerfile": "Dockerfile"
+        },
+        "features": {
+            "install-node": {
+                "add_users": "testuser",
+                "add_current_user": false,
+                "add_remote_user": false,
+                "add_container_user": false,
+                "set_permissions": true,
+                "debug": true
+            }
+        }
+    },
+    "nvm_remote_user": {
+        "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+        "remoteUser": "vscode",
+        "features": {
+            "install-node": {
+                "add_remote_user": true,
+                "add_current_user": false,
+                "add_container_user": false,
+                "set_permissions": true,
+                "debug": true
+            }
+        }
+    },
+    "nvm_no_permissions": {
+        "image": "ubuntu:latest",
+        "features": {
+            "install-node": {
+                "set_permissions": false,
+                "debug": true
+            }
+        }
+    }
+}
