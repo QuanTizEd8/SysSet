@@ -52,3 +52,20 @@ options:
     default: ''
     description: Log all output (stdout + stderr) to this file in addition to console.
     type: string
+dependencies:
+  base:
+    packages:
+      - bash
+      - ca-certificates
+      - curl
+      - fontconfig
+      - unzip
+    apt:
+      packages:
+        - xz-utils
+    apk:
+      packages:
+        - xz
+    dnf:
+      packages:
+        - xz
