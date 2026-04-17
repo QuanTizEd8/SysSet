@@ -1,0 +1,143 @@
+id: install-pixi
+version: 1.0.0
+name: Pixi
+description: Install Pixi, the open-source, cross-platform package and project manager for conda and PyPI packages. Pixi provides fast, reproducible environments for Python, C++, R, and any language distributed via conda channels.
+options:
+  version:
+    type: string
+    default: latest
+    description: |
+      Version of Pixi to install (e.g. '0.67.0').
+      Accepts 'latest' (resolved via the GitHub Releases API) or any 'X.Y.Z', 'X.Y', 'vX.Y.Z', or 'vX.Y' version string.
+      If the already-installed Pixi version matches the resolved version,
+      the install is skipped silently regardless of the 'if_exists' setting.
+    proposals:
+    - latest
+    - 0.67.0
+    - 0.66.0
+    - 0.65.0
+  prefix:
+    type: string
+    default: auto
+    description: |
+      Installation prefix for pixi. The 'pixi' binary is placed at '$prefix/bin/pixi'.
+      'auto' (default) — resolves to /usr/local when running as root, or $HOME/.pixi when running as non-root.
+      An explicit path — used as-is; the script exits with an error if the path is not writable and cannot be created.
+      Set to '' to use the upstream default ($HOME/.pixi) regardless of the current user.
+  if_exists:
+    type: string
+    default: skip
+    description: |
+      What to do when a pixi binary already exists at $prefix/bin.
+      'skip'      -- log a warning and continue to post-install steps (default).
+      'fail'      -- print an error and exit non-zero.
+      'reinstall' -- remove the existing binary, then install fresh.
+      'update'    -- run 'pixi self-update --version <resolved>' to update in-place.
+                     Only works for installer-managed pixi (not Homebrew/conda/mamba).
+      Version-match: if the installed version already equals the resolved target
+      version, the install is always skipped silently regardless of this setting.
+    enum:
+    - skip
+    - fail
+    - reinstall
+    - update
+  installer_dir:
+    type: string
+    default: /tmp/pixi-installer
+    description: |
+      Directory to download the pixi .tar.gz archive and its .tar.gz.sha256 sidecar to.
+      Both files are removed after installation unless keep_installer is true.
+  arch:
+    type: string
+    default: ''
+    description: |
+      Override the detected CPU architecture when selecting a release asset.
+      Accepted values: 'x86_64', 'aarch64', 'riscv64'.
+      When empty (default), the architecture is detected automatically from uname -m.
+      Useful for cross-arch image builds or forced emulation only.
+  home_dir:
+    type: string
+    default: ''
+    description: |
+      Set PIXI_HOME -- the directory where pixi stores global environments (pixi global install) and configuration.
+      When empty (default), the upstream default ($HOME/.pixi) is used.
+      PIXI_HOME is a runtime variable read by pixi on every invocation; set export_pixi_home='auto' (the default)
+      to have the installer write this to shell startup files so it is active in all future sessions.
+  download_url:
+    type: string
+    default: ''
+    description: |
+      Override the binary download URL for the pixi .tar.gz archive.
+      When set, the standard GitHub Releases URL is not used and checksum
+      verification is skipped with a warning.
+      Useful for air-gapped environments, internal mirrors, or custom builds.
+  netrc:
+    type: string
+    default: ''
+    description: |
+      Path to a .netrc file for authenticating the download request.
+      Passed to curl via --netrc-file or to wget via --netrc-file.
+      Use when downloading from a private mirror that requires credentials.
+      See https://pixi.prefix.dev/latest/installation/#using-netrc-for-authentication
+  export_path:
+    type: string
+    default: auto
+    description: |
+      Controls which shell startup files receive the PATH export for $prefix/bin.
+      'auto'      -- writes to system-wide files (root) or user-scoped files (non-root).
+                   No-op when prefix resolves to /usr/local (already on PATH everywhere).
+      '' (empty)  -- skips all PATH writes.
+      Newline-separated list of absolute file paths -- writes only to those files.
+  export_pixi_home:
+    type: string
+    default: auto
+    description: |
+      Controls which shell startup files receive 'export PIXI_HOME=<home_dir>'.
+      Only active when home_dir is non-empty; a no-op otherwise.
+      'auto'      -- writes to system-wide files (root) or user-scoped files (non-root).
+      '' (empty)  -- skips all PIXI_HOME writes.
+      Newline-separated list of absolute file paths -- writes only to those files.
+      PIXI_HOME is a runtime variable read on every pixi invocation; if it is not set
+      in the environment, pixi will not find globally installed tools or config written
+      to a custom home_dir.
+  symlink:
+    type: boolean
+    default: true
+    description: |-
+      Create a symlink from the canonical bin directory to $prefix/bin/pixi when prefix resolves to a non-default path.
+      The symlink location is determined by whether $prefix falls under any user's home directory (as listed in /etc/passwd):
+        System-wide (prefix is not under any user home): creates /usr/local/bin/pixi -> $prefix/bin/pixi.
+        User-scoped  (prefix is under a user home):        creates $HOME/.pixi/bin/pixi -> $prefix/bin/pixi.
+      Ensures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.
+      No-op when $prefix/bin/pixi is already the chosen target path.
+  shell_completions:
+    type: string
+    default: ''
+    description: |
+      Space-separated list of shell names to write pixi completion eval blocks for.
+      For each listed shell, writes an idempotent 'eval "$(pixi completion --shell <shell>)"' block
+      to the appropriate system-wide (root) or user-scoped (non-root) shell config file.
+      Supported shells: 'bash', 'zsh', 'fish', 'nushell', 'elvish'.
+      Set to '' (the default) to skip all completion writes.
+      Examples: 'bash', 'zsh', 'bash zsh'.
+  keep_installer:
+    type: boolean
+    default: false
+    description: |
+      Keep the downloaded .tar.gz archive and .tar.gz.sha256 sidecar file after installation.
+      By default both files are removed from installer_dir on exit.
+  debug:
+    type: boolean
+    default: false
+    description: Enable debug output (set -x).
+  logfile:
+    type: string
+    default: ''
+    description: Log all output (stdout + stderr) to this file in addition to the console.
+mounts:
+- source: ${localWorkspaceFolderBasename}-pixi
+  target: ${containerWorkspaceFolder}/.pixi
+  type: volume
+containerEnv:
+  PATH: ${HOME}/.pixi/bin:${PATH}
+installsAfter: []

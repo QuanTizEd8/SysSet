@@ -1,0 +1,37 @@
+id: install-fonts
+version: 0.1.0
+name: Install Fonts
+description: 'Install fonts from multiple sources: Nerd Fonts by name, arbitrary direct URLs (individual font files or archives), and GitHub release assets. Can be used inside a devcontainer (runs as root at image build time) or run directly on a host machine (macOS or Linux) via CLI flags.'
+options:
+  nerd_fonts:
+    default: Meslo,JetBrainsMono
+    description: Comma-separated Nerd Fonts archive names to install (e.g. Meslo,JetBrainsMono,FiraCode). Set to empty string to skip Nerd Font downloads.
+    type: string
+  font_urls:
+    default: ''
+    description: Comma-separated direct font URLs. Font files (.ttf, .otf, .woff, .woff2) and archives (.tar.xz, .tar.gz, .tgz, .zip) are downloaded and installed. Fonts are deduplicated by PostScript name against already-installed fonts.
+    type: string
+  gh_release_fonts:
+    default: ''
+    description: Comma-separated GitHub slugs (owner/repo or owner/repo@tag). Without a tag, the latest release is used; with a tag that specific release is used. All font and archive assets from the release are installed, deduplicated by PostScript name.
+    type: string
+  p10k_fonts:
+    default: false
+    description: Also install the four Powerlevel10k-specific MesloLGS NF fonts from romkatv/powerlevel10k-media.
+    type: boolean
+  overwrite:
+    default: false
+    description: When a font with the same PostScript name is already installed, overwrite it instead of skipping. Default is to skip and log.
+    type: boolean
+  font_dir:
+    default: ''
+    description: 'Font installation directory. Leave empty to auto-detect: root/container -> /usr/share/fonts; Linux user -> $XDG_DATA_HOME/fonts; macOS user -> ~/Library/Fonts.'
+    type: string
+  debug:
+    default: false
+    description: Enable debug output.
+    type: boolean
+  logfile:
+    default: ''
+    description: Log all output (stdout + stderr) to this file in addition to console.
+    type: string

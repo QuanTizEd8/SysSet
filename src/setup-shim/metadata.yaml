@@ -1,0 +1,27 @@
+id: setup-shim
+version: 0.1.0
+name: Shim Setup
+description: Install lightweight wrapper scripts (shims) into a dedicated directory prepended to PATH, ensuring they always take priority over any real binary of the same name. Each shim can be individually enabled or disabled.
+containerEnv:
+  PATH: /usr/local/share/setup-shim/bin:$PATH
+options:
+  code:
+    type: boolean
+    default: true
+    description: Install a `code` shim that delegates to the real `code` CLI or falls back to `code-insiders`.
+  devcontainer-info:
+    type: boolean
+    default: true
+    description: Install a `devcontainer-info` shim that queries dev container image metadata from meta.env files.
+  systemctl:
+    type: boolean
+    default: true
+    description: Install a `systemctl` shim that delegates to the real systemctl when systemd is running, or prints a helpful message suggesting the `service` command.
+  debug:
+    default: false
+    description: Enable debug output.
+    type: boolean
+  logfile:
+    default: ''
+    description: Log all output (stdout + stderr) to this file in addition to console.
+    type: string

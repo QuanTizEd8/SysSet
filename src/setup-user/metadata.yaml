@@ -1,0 +1,56 @@
+id: setup-user
+version: 0.1.0
+name: User Setup
+description: |-
+  Create and configure a user account for the development container. Creates a primary group, places the user at the requested UID/GID, creates a home directory (populated from /etc/skel), sets the login shell, and optionally grants passwordless sudo access and membership in supplementary groups.
+
+  Works on Debian/Ubuntu (APT), Alpine (APK), Fedora/RHEL (DNF), and any image where useradd/groupadd are available.
+options:
+  username:
+    default: vscode
+    description: Username to create.
+    type: string
+  user_id:
+    default: '1000'
+    description: UID to assign to the user. Must be a non-negative integer.
+    type: string
+  group_id:
+    default: '1000'
+    description: GID to assign to the user's primary group. Must be a non-negative integer.
+    type: string
+  group_name:
+    default: ''
+    description: Name for the user's primary group. Defaults to the username.
+    type: string
+  home_dir:
+    default: ''
+    description: Home directory for the user. Defaults to /home/<username>.
+    type: string
+  user_shell:
+    default: /bin/bash
+    description: Login shell for the user. Must exist on the image.
+    type: string
+  sudo_access:
+    default: true
+    description: Grant the user passwordless sudo access. Installs sudo if not present.
+    type: boolean
+  extra_groups:
+    default: ''
+    description: Comma-separated list of supplementary groups to add the user to. Groups must already exist.
+    type: string
+  replace_existing:
+    default: true
+    description: When true, any user or group occupying the requested UID/GID is removed first (home directories are preserved). When false, a conflict causes the script to fail unless the user is already correctly configured.
+    type: boolean
+  sudoers_dir:
+    default: /etc/sudoers.d
+    description: Directory for the sudoers drop-in file.
+    type: string
+  debug:
+    default: false
+    description: Enable debug output.
+    type: boolean
+  logfile:
+    default: ''
+    description: Log all output (stdout + stderr) to this file in addition to console.
+    type: string
