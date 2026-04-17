@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # sync-lib.sh — Distributes shared files into each feature directory:
 #   - metadata.yaml → devcontainer-feature.json (via scripts/sync-metadata.py)
+#   - metadata.yaml → argparse block in scripts/install.sh (via scripts/sync-argparse.py)
 #   - lib/          → each feature's scripts/_lib/
 #   - bootstrap.sh  → each feature's install.sh
 #
@@ -46,7 +47,16 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2: Auto-discover feature directories that have a scripts/ subdirectory.
+# Step 2: Generate (or check) argparse blocks in each feature's install.sh.
+# ---------------------------------------------------------------------------
+if [[ "$_check_mode" == true ]]; then
+  "$_python" "${_SCRIPT_DIR}/scripts/sync-argparse.py" --check
+else
+  "$_python" "${_SCRIPT_DIR}/scripts/sync-argparse.py"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 3: Auto-discover feature directories that have a scripts/ subdirectory.
 # ---------------------------------------------------------------------------
 _feature_dirs=()
 while IFS= read -r _meta; do
