@@ -1,7 +1,31 @@
 # API Reference — install-gh
 
 <!-- START devcontainer-feature.json MARKER -->
-<!-- This section will be automatically generated from devcontainer-feature.json, containing the feature description and options table. Do not rewrite manually. -->
+Install the GitHub CLI (gh). Two strategies controlled by 'method': 'repos' (default) adds and uses the official GitHub CLI package repository on Debian/Ubuntu (apt) and RHEL/Fedora/SUSE (rpm/dnf), the native community package on Alpine (apk) and Arch (pacman), and Homebrew on macOS; 'binary' downloads the pre-built binary from GitHub Releases for all platforms including Alpine (the Linux binaries are statically linked with CGO_ENABLED=0). Version is controlled by the 'version' option.
+
+## Options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `version` | string (proposals) | `"latest"` | Version of gh to install. |
+| `method` | string (enum) | `"repos"` | Installation strategy. |
+| `prefix` | string | `"auto"` | Installation prefix when method=binary. The 'gh' binary is placed at '$prefix/bin/gh'. |
+| `symlink` | boolean | `true` | Create a symlink from the canonical bin directory to $prefix/bin/gh when prefix resolves to a non-default path (method=binary only). |
+| `shell_completions` | string | `"bash zsh"` | Space-separated list of shell names to install completions for. |
+| `if_exists` | string (enum) | `"skip"` | What to do when 'gh' is already present in PATH before installation begins. |
+| `extensions` | string | `""` | Comma-separated list of GitHub CLI extensions to install after gh itself is installed. Each entry is passed verbatim to 'gh extension install', so any argument that command accepts is valid: a GitHub repository slug ('owner/repo'), a full https:// URL, or a local directory path. Example: 'dlvhdr/gh-dash,github/gh-copilot'. Extensions are installed for the users resolved by the add_*_user_config and add_user_config options. Set to '' to skip extension installation. |
+| `add_current_user_config` | boolean | `true` | Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the current non-root user (SUDO_USER if run via sudo, otherwise the result of whoami). |
+| `add_remote_user_config` | boolean | `true` | Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the devcontainer remoteUser (the _REMOTE_USER environment variable set by the devcontainer tooling). |
+| `add_container_user_config` | boolean | `true` | Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the devcontainer containerUser (the _CONTAINER_USER environment variable set by the devcontainer tooling). |
+| `add_user_config` | string | `""` | Comma-separated list of additional usernames to apply per-user git configuration and install extensions for (e.g. 'alice,bob'). Each user must already exist. Root is accepted here if explicitly listed. Only applies when at least one of 'extensions', 'git_protocol', 'setup_git', or 'sign_commits' is active. |
+| `git_protocol` | string (proposals) | `""` | Set the default git protocol in gh's per-user config (~/.config/gh/config.yml) by running 'gh config set git_protocol <value>' for each resolved user. |
+| `setup_git` | boolean | `false` | Register gh as the git credential helper by running 'gh auth setup-git --force --hostname <git_hostname>' for each resolved user. |
+| `sign_commits` | string (proposals) | `""` | Pre-configure commit signing in each resolved user's ~/.gitconfig. |
+| `git_hostname` | string | `"github.com"` | The hostname to configure as the git credential helper target when setup_git=true. |
+| `installer_dir` | string | `"/tmp/gh-install"` | Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here. |
+| `keep_installer` | boolean | `false` | Keep the installer_dir after a successful install when method=binary. |
+| `debug` | boolean | `false` | Enable debug output (set -x). |
+| `logfile` | string | `""` | Append install log to this file path. |
 <!-- END devcontainer-feature.json MARKER -->
 
 ## Options
