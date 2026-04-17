@@ -1,5 +1,0 @@
-# Base dependencies for the install-pixi devcontainer feature.
-# bash is guaranteed by bootstrap.sh before this script runs.
-packages:
-  - ca-certificates
-  - curl

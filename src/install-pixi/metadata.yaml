@@ -145,3 +145,8 @@ mounts:
 containerEnv:
   PATH: ${HOME}/.pixi/bin:${PATH}
 installsAfter: []
+dependencies:
+  base:
+    packages:
+      - ca-certificates
+      - curl
