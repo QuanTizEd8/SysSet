@@ -1,7 +1,8 @@
 root: index
 
 subtrees:
-  - entries:
+  - caption: Intro
+    entries:
     - file: intro/index
       subtrees:
         - entries:
