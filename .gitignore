@@ -1,3 +1,6 @@
+*.pyc
+__pycache__/
+
 # Generated copies — synced by sync-lib.sh.
 # Never commit these; CI runs sync-lib.sh after checkout.
 src/**/_lib/
