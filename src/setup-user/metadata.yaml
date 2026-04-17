@@ -2,9 +2,13 @@ id: setup-user
 version: 0.1.0
 name: User Setup
 description: |-
-  Create and configure a user account for the development container. Creates a primary group, places the user at the requested UID/GID, creates a home directory (populated from /etc/skel), sets the login shell, and optionally grants passwordless sudo access and membership in supplementary groups.
+  Create and configure a user account for the development container. Creates a
+  primary group, places the user at the requested UID/GID, creates a home
+  directory (populated from `/etc/skel`), sets the login shell, and optionally
+  grants passwordless `sudo` access and membership in supplementary groups.
 
-  Works on Debian/Ubuntu (APT), Alpine (APK), Fedora/RHEL (DNF), and any image where useradd/groupadd are available.
+  Works on **Debian/Ubuntu** (APT), **Alpine** (APK), **Fedora/RHEL** (DNF),
+  and any image where `useradd` / `groupadd` are available.
 options:
   username:
     default: vscode
@@ -20,19 +24,19 @@ options:
     type: string
   group_name:
     default: ''
-    description: Name for the user's primary group. Defaults to the username.
+    description: Name for the user's primary group. Defaults to the `username` when left empty.
     type: string
   home_dir:
     default: ''
-    description: Home directory for the user. Defaults to /home/<username>.
+    description: Home directory for the user. Defaults to `/home/<username>` when left empty.
     type: string
   user_shell:
     default: /bin/bash
-    description: Login shell for the user. Must exist on the image.
+    description: Login shell for the user. The path must exist and be executable on the image.
     type: string
   sudo_access:
     default: true
-    description: Grant the user passwordless sudo access. Installs sudo if not present.
+    description: Grant the user passwordless `sudo` access. Installs `sudo` if not already present.
     type: boolean
   extra_groups:
     default: ''

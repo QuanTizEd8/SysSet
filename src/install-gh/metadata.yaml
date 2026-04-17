@@ -1,7 +1,8 @@
 id: install-gh
 version: 0.1.0
 name: GitHub CLI Installer
-description: 'Install the GitHub CLI (gh). Two strategies controlled by ''method'': ''repos'' (default) adds and uses the official GitHub CLI package repository on Debian/Ubuntu (apt) and RHEL/Fedora/SUSE (rpm/dnf), the native community package on Alpine (apk) and Arch (pacman), and Homebrew on macOS; ''binary'' downloads the pre-built binary from GitHub Releases for all platforms including Alpine (the Linux binaries are statically linked with CGO_ENABLED=0). Version is controlled by the ''version'' option.'
+description: >-
+  Install `gh` – the [GitHub CLI](https://cli.github.com/) from the official package repositories or by downloading the pre-built binary from the GitHub repository.
 options:
   version:
     type: string

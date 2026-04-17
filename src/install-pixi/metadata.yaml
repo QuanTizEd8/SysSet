@@ -1,7 +1,11 @@
 id: install-pixi
 version: 1.0.0
 name: Pixi
-description: Install Pixi, the open-source, cross-platform package and project manager for conda and PyPI packages. Pixi provides fast, reproducible environments for Python, C++, R, and any language distributed via conda channels.
+description: >-
+  Install [Pixi](https://pixi.sh/), the open-source, cross-platform package
+  and project manager for conda and PyPI packages. Pixi provides fast,
+  reproducible environments for Python, C++, R, and any language distributed
+  via conda channels.
 options:
   version:
     type: string

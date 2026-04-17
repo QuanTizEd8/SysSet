@@ -1,14 +1,3 @@
-# Install Fonts
-
-Install fonts from multiple sources: [Nerd Fonts](https://www.nerdfonts.com/)
-by name, arbitrary direct URLs (individual font files or archives), and
-[GitHub release](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)
-assets. Suitable both as a Dev Container feature (runs as root at image build
-time) and as a standalone script on a host machine (macOS or Linux) via CLI
-flags.
-
----
-
 ## Usage
 
 ### As a Dev Container feature
@@ -197,20 +186,6 @@ installed. Set `overwrite: true` to invert this behavior.
 When `overwrite: true`, fonts with a PostScript name that is already registered
 in `font_dir` are replaced rather than skipped. Useful for upgrading fonts in
 an existing image layer.
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `nerd_fonts` | string | `"Meslo,JetBrainsMono"` | Comma-separated [Nerd Fonts](https://www.nerdfonts.com/) archive names to install (e.g. `Meslo,FiraCode,Hack`). Set to empty string to skip Nerd Font downloads. |
-| `font_urls` | string | `""` | Comma-separated direct URLs to download. Font files (`.ttf`, `.otf`, `.woff`, `.woff2`) and archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) are installed under a namespaced path derived from the URL. Fonts are deduplicated by PostScript name. |
-| `gh_release_fonts` | string | `""` | Comma-separated GitHub slugs in `owner/repo` or `owner/repo@tag` form. All font and archive assets from the release are installed under `gh/<owner>/<repo>/<tag>/<id>/`. Without a tag, the latest release is used. Fonts are deduplicated by PostScript name. |
-| `font_dir` | string | `""` | Font installation directory. Leave empty to auto-detect (see [Font directory auto-detection](#font-directory-auto-detection)). |
-| `p10k_fonts` | boolean | `false` | Install the four [MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) fonts required by Powerlevel10k under `p10k/MesloLGS-NF/`. |
-| `overwrite` | boolean | `false` | When a font with the same PostScript name is already registered, overwrite it instead of skipping. Default is to skip and log. |
-| `debug` | boolean | `false` | Enable `set -x` trace output in all scripts. |
 
 ---
 

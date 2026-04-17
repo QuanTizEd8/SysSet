@@ -1,7 +1,13 @@
 id: install-shell
 version: 0.1.0
 name: Install Shell
-description: Install and configure Bash and Zsh with shell frameworks (Oh My Zsh, Oh My Bash) and the Starship prompt. Deploys a layered set of system-wide and per-user configuration files that work correctly across all shell invocation modes — login, interactive, non-interactive, scripts, cron, devcontainer exec, CI runners, and VS Code tasks.
+description: >-
+  Install and configure Bash and Zsh with shell frameworks
+  ([Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/))
+  and the [Starship](https://starship.rs/) prompt. Deploys a layered set of
+  system-wide and per-user configuration files that work correctly across all
+  shell invocation modes — login, interactive, non-interactive, scripts, cron,
+  `devcontainer exec`, CI runners, and VS Code tasks.
 options:
   install_zsh:
     type: boolean
@@ -77,12 +83,12 @@ options:
   ohmyzsh_branch:
     default: master
     description: |
-      Branch or tag of the ohmyzsh/ohmyzsh repository to clone.
+      Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone.
       Also recorded as `oh-my-zsh.branch` in the git config so `omz update` works correctly.
     type: string
   ohmybash_branch:
     default: master
-    description: Branch or tag of the ohmybash/ohmybash repository to clone.
+    description: Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone.
     type: string
   add_current_user:
     default: true

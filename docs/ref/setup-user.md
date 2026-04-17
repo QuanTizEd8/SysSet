@@ -1,15 +1,3 @@
-# User Setup
-
-Create and configure a user account for the development container. Creates a
-primary group, places the user at the requested UID/GID, creates a home
-directory (populated from `/etc/skel`), sets the login shell, and optionally
-grants passwordless `sudo` access and membership in supplementary groups.
-
-Works on **Debian/Ubuntu** (APT), **Alpine** (APK), **Fedora/RHEL** (DNF),
-and any image where `useradd` / `groupadd` are available.
-
----
-
 ## Usage
 
 ### Basic
@@ -73,25 +61,6 @@ With the defaults above, the feature creates:
 
 > **Note** Groups listed in `extra_groups` must already exist in the image.
 > Create them in your `Dockerfile` or via another feature before this one runs.
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `username` | string | `"vscode"` | Username to create. |
-| `user_id` | string | `"1000"` | UID to assign to the user. Must be a non-negative integer. |
-| `group_id` | string | `"1000"` | GID to assign to the user's primary group. Must be a non-negative integer. |
-| `group_name` | string | `""` | Name for the user's primary group. Defaults to the `username` when left empty. |
-| `home_dir` | string | `""` | Home directory for the user. Defaults to `/home/<username>` when left empty. |
-| `user_shell` | string | `"/bin/bash"` | Login shell for the user. The path must exist and be executable on the image. |
-| `sudo_access` | boolean | `true` | Grant the user passwordless `sudo` access. Installs `sudo` if not already present. |
-| `extra_groups` | string | `""` | Comma-separated list of supplementary groups to add the user to. Groups must already exist. |
-| `replace_existing` | boolean | `true` | When `true`, any user or group that occupies the requested UID/GID is removed first (home directories are preserved). When `false`, a conflict causes the script to fail unless the account is already correctly configured. |
-| `sudoers_dir` | string | `"/etc/sudoers.d"` | Directory for the sudoers drop-in file. |
-| `debug` | boolean | `false` | Enable `set -x` trace output. |
-| `logfile` | string | `""` | Mirror all output (stdout + stderr) to this file in addition to the console. |
 
 ---
 

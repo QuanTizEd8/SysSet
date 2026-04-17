@@ -1,14 +1,3 @@
-# OS Package Installer
-
-Install packages from the operating system's native package manager using a
-single, cross-platform YAML or JSON manifest file.
-
-Supports **APT** (Debian/Ubuntu), **APK** (Alpine), **DNF/YUM**
-(Fedora/RHEL/CentOS), **microdnf**, **Zypper** (openSUSE), **Pacman** (Arch
-Linux), and **Homebrew** (macOS, Linuxbrew).
-
----
-
 ## Usage
 
 ### As a Dev Container feature
@@ -87,26 +76,6 @@ their own setup process:
 # install.sh of another feature
 install-os-pkg --manifest $'packages:\n  - git\n  - curl\n'
 ```
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `manifest` | string | `""` | Inline manifest content (YAML/JSON) or path to a manifest file. Required unless `install_self` is `true`. When the value contains a newline it is treated as inline content; otherwise as a file path. |
-| `install_self` | boolean | `false` | Write the `install-os-pkg` wrapper to `/usr/local/bin`. Enable when you want the installer accessible to other features or lifecycle hook scripts after the build step. |
-| `lifecycle_hook` | enum | `""` | Defer installation to a devcontainer lifecycle event (`onCreate`, `updateContent`, or `postCreate`). See [Lifecycle hook](#lifecycle-hook). |
-| `interactive` | boolean | `false` | Allow interactive package manager prompts. Defaults to `DEBIAN_FRONTEND=noninteractive` for APT. |
-| `prefer_linuxbrew` | boolean | `false` | On Linux, prefer Homebrew (Linuxbrew) over the native package manager when both are available. By default the native PM always takes priority. |
-| `update` | boolean | `true` | Refresh package lists before installing. Auto-skipped when lists were refreshed within `lists_max_age` seconds, unless a new repository was added by the manifest. |
-| `lists_max_age` | string | `"300"` | Maximum age of the package lists (in seconds) before a refresh is considered necessary. Set to `0` to always update. Ignored when `update` is `false` or when a new repository was added by the manifest. |
-| `keep_repos` | boolean | `false` | Keep repository drop-in files written during installation. By default they are removed after packages are installed. Homebrew taps are always kept regardless of this setting. |
-| `keep_cache` | boolean | `false` | Keep the package manager's download cache after installation. By default the cache is cleaned to reduce image size. |
-| `skip_installed` | boolean | `false` | Skip packages whose binary is already present in `PATH` (checked via `command -v`). Useful when a dependency may have been installed outside the system package manager. |
-| `dry_run` | boolean | `false` | Print what would be installed/fetched without making any changes. No packages are installed, no files are written, and no scripts are executed. Root privilege is not required. See [Dry run](#dry-run). |
-| `debug` | boolean | `false` | Enable `set -x` trace output. |
-| `logfile` | string | `""` | Mirror all output (stdout + stderr) to this file in addition to the console. |
 
 ---
 

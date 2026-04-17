@@ -1,7 +1,10 @@
 id: install-podman
 version: 0.1.0
 name: Rootless Podman
-description: Installs Podman for rootless container execution inside a dev container. Uses native kernel overlay storage on a named volume for fast, space-efficient copy-on-write container creation.
+description: >-
+  Installs [Podman](https://podman.io/) for rootless container execution inside
+  a dev container. Uses native kernel overlay storage on a named volume for
+  fast, space-efficient copy-on-write image management.
 documentationURL: https://github.com/containers/podman
 keywords:
 - podman

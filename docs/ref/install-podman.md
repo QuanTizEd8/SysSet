@@ -1,12 +1,3 @@
-# Rootless Podman
-
-Installs [Podman](https://podman.io/)
-for rootless container execution inside a dev container.
-Uses native kernel overlay storage on a named volume for fast,
-space-efficient copy-on-write image management.
-
----
-
 ## Usage
 
 ### Basic
@@ -51,17 +42,6 @@ podman run --rm -v "$(pwd):/work" --userns=keep-id -w /work some-image some-tool
   }
 }
 ```
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `add_current_user` | boolean | `true` | Configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root. |
-| `add_remote_user` | boolean | `true` | Configure Podman for `remoteUser` as set by the devcontainer tooling. No effect when running standalone. |
-| `add_container_user` | boolean | `true` | Configure Podman for `containerUser` as set by the devcontainer tooling. No effect when running standalone. |
-| `add_users` | string | `""` | Comma-separated list of additional usernames to configure. |
 
 ---
 

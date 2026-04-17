@@ -1,14 +1,3 @@
-# Install Shell
-
-Install and configure Bash and Zsh with shell frameworks
-([Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/))
-and the [Starship](https://starship.rs/) prompt. Deploys a layered set of system-wide
-and per-user configuration files that work correctly across all shell
-invocation modes — login, interactive, non-interactive, scripts, cron,
-`devcontainer exec`, CI runners, and VS Code tasks.
-
----
-
 ## Usage
 
 ### As a Dev Container feature
@@ -92,36 +81,6 @@ With the defaults above, the feature will:
 
 With defaults, Zsh config files end up at `~/.config/zsh/` and the Oh My Zsh
 custom directory at `~/.config/zsh/custom/` (symlinked to the system install).
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `install_zsh` | boolean | `true` | Install Zsh. Bash is always available. |
-| `install_ohmyzsh` | boolean | `true` | Install Oh My Zsh. Ignored if Zsh is not available. |
-| `install_ohmybash` | boolean | `true` | Install Oh My Bash. |
-| `install_starship` | boolean | `true` | Install the Starship prompt binary to `/usr/local/bin`. |
-| `ohmyzsh_theme` | string | `""` | Custom OMZ theme as a `owner/repo` GitHub slug (e.g. `romkatv/powerlevel10k`). Empty = no custom theme. |
-| `ohmybash_theme` | string | `""` | Custom OMB theme as a `owner/repo` GitHub slug. Empty = no custom theme. |
-| `ohmyzsh_plugins` | string | `"zsh-users/zsh-syntax-highlighting"` | Comma-separated OMZ plugins. GitHub slugs (`owner/repo`) are cloned; plain names (e.g. `git`) are treated as built-in and skipped. |
-| `ohmybash_plugins` | string | `"git"` | Comma-separated OMB plugins. Same slug/built-in logic as OMZ. |
-| `ohmyzsh_install_dir` | string | `"/usr/local/share/oh-my-zsh"` | Oh My Zsh installation directory (maps to the `ZSH` variable). |
-| `ohmybash_install_dir` | string | `"/usr/local/share/oh-my-bash"` | Oh My Bash installation directory. |
-| `zdotdir` | string | `""` | Directory where Zsh looks for per-user config files (`.zshrc`, `.zprofile`, `.zlogin`). Maps to the `ZDOTDIR` variable injected into `~/.zshenv`. Leave empty to use the default: `~/.config/zsh`. Accepts `~`- or `$HOME`-prefixed paths. |
-| `ohmyzsh_custom_dir` | string | `""` | `ZSH_CUSTOM` directory. Leave empty to default to `${ZDOTDIR}/custom` (e.g. `~/.config/zsh/custom`) — per-user, with named themes/plugins symlinked from the system install. Set to an explicit system path (e.g. `/opt/zsh-custom`) to share one directory across all users; set to a `~`- or `$HOME`-prefixed path for an explicit per-user directory with symlinks. |
-| `ohmybash_custom_dir` | string | `""` | `OSH_CUSTOM` directory. Leave empty to default to `${XDG_CONFIG_HOME}/bash/custom` (e.g. `~/.config/bash/custom`) — per-user, with named themes/plugins symlinked from the system install. Accepts the same three forms as `ohmyzsh_custom_dir`. |
-| `ohmyzsh_branch` | string | `"master"` | Git branch/tag of [ohmyzsh/ohmyzsh](https://github.com/ohmyzsh/ohmyzsh) to clone. |
-| `ohmybash_branch` | string | `"master"` | Git branch/tag of [ohmybash/oh-my-bash](https://github.com/ohmybash/oh-my-bash) to clone. |
-| `add_current_user` | boolean | `true` | Configure the current non-root user's dotfiles. |
-| `add_container_user` | boolean | `true` | Configure the `containerUser` from devcontainer.json. |
-| `add_remote_user` | boolean | `true` | Configure the `remoteUser` from devcontainer.json. |
-| `add_users` | string | `""` | Comma-separated list of additional usernames to configure. |
-| `user_config_mode` | string | `"overwrite"` | How to handle existing dotfiles: `overwrite`, `augment`, or `skip` (see below). |
-| `set_user_shells` | string | `"none"` | Set the default login shell via `chsh`: `zsh`, `bash`, or `none`. Applies to all configured users. |
-| `debug` | boolean | `false` | Enable `set -x` trace output. |
-| `logfile` | string | `""` | Mirror all output (stdout + stderr) to this file. |
 
 ---
 

@@ -4,13 +4,25 @@ name: Node.js
 description: |-
   Install Node.js and npm in the development container.
 
-  Two methods are supported, selected by the 'method' option:
+  Two methods are supported, selected by the `method` option:
 
-  'nvm' (default) — installs the Node Version Manager (nvm) to 'nvm_dir' and uses it to install the requested Node.js version. Supports Linux (glibc and musl/Alpine), macOS, and any POSIX platform. On Alpine Linux, Node.js is compiled from source automatically when the '-s' flag is used (build dependencies are installed from the apk manifest). Node.js binaries are symlinked to /usr/local/bin (when running as root and symlink=true) for universal PATH availability.
+  **`nvm`** (default) — installs the Node Version Manager (nvm) to `nvm_dir`
+  and uses it to install the requested Node.js version. Supports Linux (glibc
+  and musl/Alpine), macOS, and any POSIX platform. On Alpine Linux, Node.js is
+  compiled from source automatically when the `-s` flag is used (build
+  dependencies are installed from the apk manifest). Node.js binaries are
+  symlinked to `/usr/local/bin` (when running as root and `symlink=true`) for
+  universal PATH availability.
 
-  'binary' — downloads the official prebuilt Node.js tarball from nodejs.org/dist and extracts it to 'prefix'. Fast and dependency-free. Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64); NOT compatible with Alpine Linux (musl). Integrity is verified against SHASUMS256.txt via SHA-256.
+  **`binary`** — downloads the official prebuilt Node.js tarball from
+  `nodejs.org/dist` and extracts it to `prefix`. Fast and dependency-free.
+  Supports Linux glibc (x64, arm64, armv7l) and macOS (x64, arm64); NOT
+  compatible with Alpine Linux (musl). Integrity is verified against
+  `SHASUMS256.txt` via SHA-256.
 
-  Version selection supports nvm-style aliases ('lts/*', '--lts', major number) for both methods, and exact semver strings. The default 'lts/*' installs the latest Active LTS release.
+  Version selection supports nvm-style aliases (`lts/*`, `--lts`, major
+  number) for both methods, and exact semver strings. The default `lts/*`
+  installs the latest Active LTS release.
 options:
   method:
     type: string

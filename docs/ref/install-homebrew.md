@@ -1,18 +1,3 @@
-# Install Homebrew
-
-Installs [Homebrew](https://brew.sh/) on macOS and Linux.
-
-On **macOS** the feature ensures Xcode Command Line Tools are present before
-running the official installer. On **Linux** it installs the required
-build dependencies (git, curl, gcc, make, etc.) via the OS package manager
-first, then invokes the official installer.
-
-After installation the feature writes an `eval "$(brew shellenv)"` block to
-the appropriate shell startup files so that `brew` and any tools it installs
-are on `PATH` in subsequent shell sessions.
-
----
-
 ## Usage
 
 ### As a Dev Container feature
@@ -68,27 +53,6 @@ present) to obtain bash ≥ 4, then hands off to `scripts/install.sh`.
 On Linux it uses whatever package manager is available to obtain bash ≥ 4.
 Feature callers never need to invoke the bootstrap directly — the devcontainer
 framework calls `install.sh` automatically.
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `install_user` | string | `""` | User to own the Homebrew installation. See [Install user](#install-user). |
-| `prefix` | string | `""` | Override the Homebrew installation prefix (`HOMEBREW_PREFIX`). Defaults to the platform default: `/opt/homebrew` (Apple Silicon), `/usr/local` (Intel macOS), `/home/linuxbrew/.linuxbrew` (Linux). |
-| `if_exists` | string | `"skip"` | What to do when Homebrew is already installed. One of `skip`, `fail`, or `reinstall`. See [If already installed](#if-already-installed). |
-| `update` | boolean | `true` | Run `brew update` after installation to fetch the latest formula index. |
-| `export_path` | string | `"auto"` | Controls which shell startup files receive the shellenv block. See [shellenv export](#shellenv-export). |
-| `add_current_user` | boolean | `false` | Include the current user in the resolved user list for shellenv exports and init-file writes. Root is deferred: only included as a fallback when no other non-root user is resolved. |
-| `add_remote_user` | boolean | `false` | Include the devcontainer remoteUser (from `_REMOTE_USER`) in the resolved user list for shellenv exports and init-file writes. Ignored when `_REMOTE_USER` is unset or empty. Root is excluded. |
-| `add_container_user` | boolean | `false` | Include the devcontainer containerUser (from `_CONTAINER_USER`) in the resolved user list for shellenv exports and init-file writes. Ignored when `_CONTAINER_USER` is unset or empty. Root is excluded. |
-| `add_users` | string | `""` | Comma-separated list of additional usernames for shellenv exports and init-file writes. Root is accepted here. |
-| `brew_git_remote` | string | `""` | Override `HOMEBREW_BREW_GIT_REMOTE` — the git remote for the `Homebrew/brew` repository. Useful for mirrors or air-gapped environments. |
-| `core_git_remote` | string | `""` | Override `HOMEBREW_CORE_GIT_REMOTE` — the git remote for the `homebrew-core` tap. Useful for mirrors or air-gapped environments. |
-| `no_install_from_api` | boolean | `false` | Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation. Forces `homebrew-core` to be cloned as a full git repository instead of relying on the JSON API. Slower but useful when the API endpoint is blocked. |
-| `debug` | boolean | `false` | Enable `set -x` trace output. |
-| `logfile` | string | `""` | Mirror all installer output to this file in addition to stdout/stderr. |
 
 ---
 

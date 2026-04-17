@@ -1,12 +1,3 @@
-# Shim Setup
-
-Installs lightweight wrapper scripts ("shims") into a dedicated directory
-that is prepended to `PATH`, ensuring they always take priority over any
-real binary of the same name. Each shim can be individually enabled or
-disabled.
-
----
-
 ## Usage
 
 ### Basic
@@ -35,18 +26,6 @@ With the defaults above, all three shims (`code`, `devcontainer-info`,
   }
 }
 ```
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `code` | boolean | `true` | Install a `code` shim that delegates to the real `code` CLI or falls back to `code-insiders`. |
-| `devcontainer-info` | boolean | `true` | Install a `devcontainer-info` shim that queries dev container image metadata from meta.env files. |
-| `systemctl` | boolean | `true` | Install a `systemctl` shim that delegates to the real systemctl when systemd is running, or prints a helpful message suggesting the `service` command. |
-| `debug` | boolean | `false` | Enable debug output. |
-| `logfile` | string | `""` | Log all output (stdout + stderr) to this file in addition to console. |
 
 ---
 

@@ -1,7 +1,17 @@
 id: install-homebrew
 version: 0.2.0
 name: Install Homebrew
-description: Installs Homebrew on macOS and Linux. On macOS, ensures Xcode Command Line Tools are present before running the official installer. On Linux, installs required build dependencies (git, curl, gcc, make, etc.) via the OS package manager first. After installation, writes an eval "$(brew shellenv)" block to the appropriate shell startup files so brew and any tools it installs are on PATH in subsequent shell sessions.
+description: |-
+  Installs [Homebrew](https://brew.sh/) on macOS and Linux.
+
+  On **macOS** the feature ensures Xcode Command Line Tools are present before
+  running the official installer. On **Linux** it installs the required
+  build dependencies (git, curl, gcc, make, etc.) via the OS package manager
+  first, then invokes the official installer.
+
+  After installation the feature writes an `eval "$(brew shellenv)"` block to
+  the appropriate shell startup files so that `brew` and any tools it installs
+  are on `PATH` in subsequent shell sessions.
 documentationURL: https://github.com/quantized8/sysset/tree/main/src/install-homebrew
 options:
   install_user:
@@ -16,8 +26,8 @@ options:
     type: string
     default: ''
     description: |
-      Override the Homebrew installation prefix (HOMEBREW_PREFIX).
-      Defaults are /opt/homebrew (Apple Silicon), /usr/local (Intel macOS), /home/linuxbrew/.linuxbrew (Linux).
+      Override the Homebrew installation prefix (`HOMEBREW_PREFIX`).
+      Defaults are `/opt/homebrew` (Apple Silicon), `/usr/local` (Intel macOS), `/home/linuxbrew/.linuxbrew` (Linux).
       Leave empty to accept the platform default.
   if_exists:
     type: string
@@ -78,20 +88,20 @@ options:
     type: string
     default: ''
     description: |
-      Override HOMEBREW_BREW_GIT_REMOTE — the git remote for the Homebrew/brew repository.
+      Override `HOMEBREW_BREW_GIT_REMOTE` — the git remote for the `Homebrew/brew` repository.
       Useful for air-gapped environments or mirrors.
   core_git_remote:
     type: string
     default: ''
     description: |
-      Override HOMEBREW_CORE_GIT_REMOTE — the git remote for the homebrew-core tap.
+      Override `HOMEBREW_CORE_GIT_REMOTE` — the git remote for the `homebrew-core` tap.
       Useful for air-gapped environments or mirrors.
   no_install_from_api:
     type: boolean
     default: false
     description: |
-      Set HOMEBREW_NO_INSTALL_FROM_API=1 during installation.
-      Forces homebrew-core to be cloned as a full git repository rather than relying on the JSON API.
+      Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation.
+      Forces `homebrew-core` to be cloned as a full git repository rather than relying on the JSON API.
       Slower but useful in environments where the API endpoint is blocked.
   debug:
     type: boolean
