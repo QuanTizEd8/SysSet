@@ -49,14 +49,14 @@ def _option_default_str(opt: dict) -> str:
     return f"`{default}`"
 
 
-def _option_desc_first_line(opt: dict) -> str:
-    """First non-empty line of the option description, for a table cell."""
+def _option_desc_full(opt: dict) -> str:
+    """Full option description collapsed to a single line for a table cell.
+
+    Joins all non-empty lines with a space, so multi-line JSON descriptions
+    are not truncated.
+    """
     desc = opt.get("description", "")
-    for line in desc.splitlines():
-        line = line.strip()
-        if line:
-            return line
-    return ""
+    return " ".join(line.strip() for line in desc.splitlines() if line.strip())
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ def render_json_block(data: dict) -> str:
         for opt_name, opt in options.items():
             type_str = _option_type_str(opt)
             default_str = _option_default_str(opt)
-            desc_str = _option_desc_first_line(opt)
+            desc_str = _option_desc_full(opt)
             rows.append(
                 f"| `{opt_name}` | {type_str} | {default_str} | {desc_str} |"
             )
