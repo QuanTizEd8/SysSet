@@ -17,29 +17,6 @@ trap 'logging__cleanup' EXIT
 echo "✅ Conda environment setup complete."
 echo "↩️ Script exit: Conda Environment Devcontainer Feature Installer" >&2
 
-__usage__() {
-  echo "Usage:" >&2
-  echo "  --conda_dir (string): Path to the conda installation directory." >&2
-  echo "    Leave empty to auto-detect via conda in PATH." >&2
-  echo "  --env_files (string): Paths to conda environment YAML files." >&2
-  echo "    Separate multiple paths with ' :: '." >&2
-  echo "  --env_dirs (string): Paths to directories containing conda environment YAML files." >&2
-  echo "    Separate multiple paths with ' :: '." >&2
-  echo "  --env_name (string): Name of a conda environment to create/update from inline options." >&2
-  echo "  --packages (string): Space-separated conda packages for the inline env (requires env_name)." >&2
-  echo "  --python_version (string): Python version for the inline env (e.g. '3.11')." >&2
-  echo "  --channels (string): Conda channels to add. Separate with ' :: '." >&2
-  echo "  --strict_channel_priority (boolean): Set channel_priority to strict." >&2
-  echo "  --pip_requirements_files (string): Pip requirements files. Separate with ' :: '." >&2
-  echo "  --pip_env (string): Conda env to pip-install requirements into (default: each env's own)." >&2
-  echo "  --post_env_script (string): Script run after each env create/update; receives env name as \$1." >&2
-  echo "  --solver (string): Solver to use: 'auto' (default), 'mamba', or 'conda'." >&2
-  echo "  --keep_cache (boolean): Skip 'conda clean' after setup." >&2
-  echo "  --debug (boolean): Enable debug output." >&2
-  echo "  --logfile (string): Log all output to this file in addition to console." >&2
-  exit 0
-}
-
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
   CHANNELS=()
