@@ -174,3 +174,84 @@ options:
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 installsAfter: []
+dependencies:
+  os-pkg:
+    packages:
+      - git
+  source-build:
+    packages:
+      - curl
+      - ca-certificates
+      - tar
+
+    apt:
+      packages:
+        - build-essential
+        - gettext
+        - libcurl4-openssl-dev
+        - libexpat1-dev
+        - libpcre2-dev
+        - libssl-dev
+        - zlib1g-dev
+        # libpcre2-posix package name varies by Debian/Ubuntu release.
+        - name: libpcre2-posix3
+          when:
+            version_codename: [bookworm, trixie, jammy, noble, plucky, oracular]
+        - name: libpcre2-posix2
+          when:
+            version_codename: [focal, bullseye]
+        - name: libpcre2-posix0
+          when:
+            version_codename: [bionic, buster]
+
+    brew:
+      packages:
+        - make
+        - openssl
+        - pcre2
+        - gettext
+
+    dnf:
+      packages:
+        - gcc
+        - make
+        - gettext-devel
+        - libcurl-devel
+        - expat-devel
+        - openssl-devel
+        - pcre2-devel
+        - perl-devel
+        - zlib-devel
+
+    apk:
+      packages:
+        - make
+        - gcc
+        - g++
+        - musl-dev
+        - curl-dev
+        - expat-dev
+        - openssl-dev
+        - pcre2-dev
+        - perl-dev
+        - zlib-dev
+
+    zypper:
+      packages:
+        - gcc
+        - make
+        - gettext-tools
+        - libcurl-devel
+        - libexpat-devel
+        - libopenssl-devel
+        - libpcre2-devel
+        - zlib-devel
+
+    pacman:
+      packages:
+        - base-devel
+        - pcre2
+        - curl
+        - expat
+        - openssl
+        - zlib

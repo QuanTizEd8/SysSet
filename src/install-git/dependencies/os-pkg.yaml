@@ -1,5 +1,0 @@
-# OS package manifest for the install-git feature — package method.
-# Used by _git__install_package (plain package path and stable version).
-# All supported package managers name the git package "git".
-packages:
-  - git
