@@ -252,7 +252,22 @@ def generate_block(feature_name: str, options: dict) -> str:
         vname = opt_to_var(key)
         typ = opt.get("type", "string")
         if typ == "array":
-            lines.append(f'[ "${{{vname}+defined}}" ] || {vname}=()')
+            raw_default = opt.get("default", "")
+            if raw_default == "" or raw_default is None:
+                lines.append(f'[ "${{{vname}+defined}}" ] || {vname}=()')
+            else:
+                # Embed the default as an ANSI-C quoted string so newlines are preserved.
+                escaped = (
+                    str(raw_default)
+                    .replace("\\", "\\\\")
+                    .replace("'", "\\'")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                )
+                lines.append(
+                    f'[ "${{{vname}+defined}}" ] || '
+                    f"mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$')"
+                )
         else:
             rhs = shell_val(opt.get("default", ""), typ)
             lines.append(f'[ "${{{vname}+defined}}" ] || {vname}={rhs}')
