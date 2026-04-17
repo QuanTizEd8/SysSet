@@ -1,4 +1,4 @@
-.PHONY: format format-check lint sync test-unit
+.PHONY: format format-check lint sync test-unit gen-docs gen-docs-check
 
 # Apply shfmt formatting to all tracked shell files.
 # test/unit/bats/** is excluded via .editorconfig ignore = true.
@@ -45,3 +45,12 @@ test-unit:
 # Accepts an optional VERSION variable: make build-dist VERSION=v1.0.0
 artifacts:
 	bash build-artifacts.sh $(VERSION)
+
+# Inject auto-generated content (lib API tables, JSON options blocks) into docs.
+gen-docs:
+	python3 scripts/gen_docs.py
+
+# Dry-run: exits non-zero if any doc file would be changed by gen-docs.
+# Used in CI to enforce that generated docs are up to date.
+gen-docs-check:
+	python3 scripts/gen_docs.py --check
