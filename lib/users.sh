@@ -9,17 +9,14 @@
 [ -n "${_USERS__LIB_LOADED-}" ] && return 0
 _USERS__LIB_LOADED=1
 
-# users__resolve_list
+# @brief users__resolve_list — Print one deduplicated username per line from devcontainer user-config env vars.
 #
-# Reads the standard devcontainer user-config env vars and prints one
-# deduplicated username per line to stdout.
-#
-# Root is excluded from the auto-detected paths (CURRENT_USER, REMOTE_USER,
-# CONTAINER_USER) when other non-root users exist, since the build process
-# running as root should not override a named container user.  However, when
-# the build user IS root and no other users are found, root is included as a
-# fallback so the feature still has a target (e.g. plain images, standalone
-# macOS use).  Root is always accepted in ADD_USER_CONFIG.
+# Root is excluded from auto-detected paths (SUDO_USER, _REMOTE_USER,
+# _CONTAINER_USER) when other non-root users exist, because the build process
+# running as root should not override a named container user. When the build
+# user IS root and no other users are found, root is included as a fallback
+# (e.g. plain container images, standalone macOS use). Root is always
+# accepted in ADD_USER_CONFIG.
 #
 # Env vars consumed (all optional):
 #   ADD_CURRENT_USER_CONFIG   — "true" to include SUDO_USER / whoami (default: true)
@@ -27,10 +24,11 @@ _USERS__LIB_LOADED=1
 #   ADD_CONTAINER_USER_CONFIG — "true" to include _CONTAINER_USER (default: true)
 #   ADD_USER_CONFIG           — comma-separated extra usernames; root allowed here
 #
-# Usage (bash caller — collect into array):
-#   mapfile -t _RESOLVED_USERS < <(users__resolve_list)
+# Stdout: one username per line.
 #
-# Usage (POSIX sh caller — iterate):
+# Usage (bash — collect into array):
+#   mapfile -t _users < <(users__resolve_list)
+# Usage (POSIX sh — iterate):
 #   users__resolve_list | while IFS= read -r _u; do ...; done
 users__resolve_list() {
   # Track seen names in a local space-separated string for dedup.
@@ -100,15 +98,18 @@ users__resolve_list() {
   return 0
 }
 
-# users__set_login_shell <shell_path> <username>...
+# @brief users__set_login_shell <shell_path> <username>... — Register `<shell_path>` in `/etc/shells`, patch Alpine PAM if needed, then call `chsh -s` for each user.
 #
-# Sets the login shell for one or more users.
-#   • Ensures <shell_path> is registered in /etc/shells (idempotent).
-#   • On Alpine, patches /etc/pam.d/chsh to allow root to run chsh without a
-#     password (inserts "auth sufficient pam_rootok.so" if not present).
-#   • Calls chsh -s <shell_path> for each user; skips users already on that
-#     shell; logs a warning when chsh fails but does not abort.
-# Exits early (with a warning, not an error) if chsh is not installed.
+# Exits early with a warning (not an error) if chsh is not installed.
+# Skips users whose login shell is already set to <shell_path>. Logs a
+# warning when chsh fails for a user but does not abort.
+#
+# On Alpine: patches /etc/pam.d/chsh to allow root to run chsh without a
+# password (inserts "auth sufficient pam_rootok.so" if not already present).
+#
+# Args:
+#   <shell_path>    Absolute path to the shell binary (e.g. /bin/zsh).
+#   <username>...   One or more usernames to update.
 users__set_login_shell() {
   local _shell="$1"
   shift

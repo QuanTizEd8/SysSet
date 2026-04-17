@@ -13,12 +13,17 @@ _NET__LIB_LOADED=1
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
 
-# net__fetch_with_retry [--retries N] [--delay N] <cmd...>
-# Runs <cmd> up to N times with a <delay>-second pause between failures.
-# --retries defaults to 60; --delay defaults to 5s.  Does NOT require ospkg.sh.
-# Prefer net__fetch_url_stdout / net__fetch_url_file for curl/wget downloads;
-# those handle tool detection, --compressed, and smart transient-only retries
-# automatically.  Use this function only for commands that are not curl/wget.
+# @brief net__fetch_with_retry [--retries N] [--delay N] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
+#
+# Does NOT require ospkg.sh. Prefer net__fetch_url_stdout / net__fetch_url_file
+# for curl/wget downloads; those handle tool detection, --compressed, and
+# transient-only retries automatically. Use this function only for commands
+# that are not curl/wget.
+#
+# Args:
+#   --retries N  Maximum number of attempts (default: 60).
+#   --delay N    Seconds to wait between failures (default: 5).
+#   <cmd...>     Command and arguments to run.
 net__fetch_with_retry() {
   local _max=60 _delay=5
   while [ $# -gt 0 ]; do
@@ -48,13 +53,18 @@ net__fetch_with_retry() {
   return 1
 }
 
-# net__fetch_url_stdout <url> [--retries N] [--delay N] [--header "Name: Value"]...
-# Writes URL response body to stdout using _NET_FETCH_TOOL, with retries.
-# curl: uses --retry which retries only on transient errors (5xx, 408, 429,
-#   connection failures).  wget: falls back to net__fetch_with_retry.
-# --retries defaults to 60 (≈5 min at 5s intervals); --delay defaults to 5s.
-# Multiple --header flags may be supplied; each value is passed verbatim.
-# Calls _net__ensure_fetch_tool automatically if not already initialised.
+# @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... — Download `<url>` to stdout with retries. Auto-detects curl/wget.
+#
+# curl uses --retry (transient errors only: 5xx, 408, 429, connection
+# failures); wget falls back to net__fetch_with_retry. Calls
+# _net__ensure_fetch_tool automatically if not already initialised.
+#
+# Args:
+#   <url>          URL to download.
+#   --retries N    Maximum number of attempts (default: 60, ≈5 min at 5s).
+#   --delay N      Seconds between failures (default: 5).
+#   --header <H>   Request header (e.g. "Authorization: Bearer $TOKEN").
+#                  May be specified multiple times.
 net__fetch_url_stdout() {
   local _url="$1"
   shift
@@ -103,13 +113,19 @@ _NET_HDR_EOF_
   return 0
 }
 
-# net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header "Name: Value"]...
-# Writes URL response body to file using _NET_FETCH_TOOL, with retries.
-# curl: uses --retry which retries only on transient errors (5xx, 408, 429,
-#   connection failures).  wget: falls back to net__fetch_with_retry.
-# --retries defaults to 60 (≈5 min at 5s intervals); --delay defaults to 5s.
-# Multiple --header flags may be supplied; each value is passed verbatim.
-# Calls _net__ensure_fetch_tool automatically if not already initialised.
+# @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
+#
+# curl uses --retry (transient errors only: 5xx, 408, 429, connection
+# failures); wget falls back to net__fetch_with_retry. Calls
+# _net__ensure_fetch_tool automatically if not already initialised.
+#
+# Args:
+#   <url>          URL to download.
+#   <dest>         Destination file path.
+#   --retries N    Maximum number of attempts (default: 60, ≈5 min at 5s).
+#   --delay N      Seconds between failures (default: 5).
+#   --header <H>   Request header (e.g. "Authorization: Bearer $TOKEN").
+#                  May be specified multiple times.
 net__fetch_url_file() {
   local _url="$1"
   local _dest="$2"

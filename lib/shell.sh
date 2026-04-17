@@ -9,15 +9,14 @@ _SHELL__LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/os.sh
 . "$_SHELL__LIB_DIR/os.sh"
 
-# shell__detect_bashrc
-# Prints the system-wide bashrc path for the current distro.
-#   /etc/bash.bashrc  — Debian/Ubuntu, Arch, openSUSE
-#   /etc/bashrc       — Fedora/RHEL/CentOS, NixOS, macOS
-#   /etc/bash/bashrc  — Alpine, Gentoo, Void
+# @brief shell__detect_bashrc — Print the system-wide bashrc path for the current distro. Uses binary probing, never file-existence checks.
+#
 # Detection order: (1) strings-probe the bash binary (most accurate — bash
-# itself reports the file it was compiled with); (2) os-release platform IDs.
-# Never uses file-existence checks — a file at the wrong path for this distro
-# won't be sourced by any shell, so writing to it would have no effect.
+# itself reports the compiled-in path); (2) os-release platform IDs.
+# Never uses file-existence checks — a file at the wrong path for this
+# distro won't be sourced by any shell.
+#
+# Stdout: one of /etc/bash.bashrc, /etc/bashrc, or /etc/bash/bashrc.
 shell__detect_bashrc() {
   # Ask bash which RC file it was compiled with — most accurate.
   local _compiled
@@ -42,14 +41,14 @@ shell__detect_bashrc() {
   return 0
 }
 
-# shell__detect_zshdir
-# Prints the directory prefix for system-wide zsh config files.
-#   /etc/zsh  — Debian/Ubuntu, Arch, Alpine, Gentoo, Void
-#   /etc      — Fedora/RHEL, openSUSE, NixOS, macOS
-# Detection order: (1) strings-probe the zsh binary (zsh compiles in the path
-# of its global zshenv); (2) os-release platform IDs.
-# Never uses directory-existence checks — a directory at the wrong path for
-# this distro won't be used by the shell anyway.
+# @brief shell__detect_zshdir — Print the system-wide zsh config directory (`/etc/zsh` or `/etc`). Uses binary probing, never directory-existence checks.
+#
+# Detection order: (1) strings-probe the zsh binary (zsh compiles in the
+# path of its global zshenv); (2) os-release platform IDs. Never uses
+# directory-existence checks — a directory at the wrong path won't be used
+# by the shell anyway.
+#
+# Stdout: /etc/zsh (most distros) or /etc (Fedora/RHEL, openSUSE, macOS).
 shell__detect_zshdir() {
   # Ask zsh which global zshenv path it was compiled with.
   local _compiled
@@ -70,13 +69,15 @@ shell__detect_zshdir() {
   return 0
 }
 
-# shell__write_block --file <file> --marker <id> --content <content>
-# Idempotently writes a shell block wrapped in named idempotency markers:
-#   # >>> <id> >>>
-#   <content>
-#   # <<< <id> <<<
-# Creates parent dirs and the file if needed. Updates the block content
-# in-place if the marker already exists; appends otherwise.
+# @brief shell__write_block --file <f> --marker <id> --content <c> — Idempotently write a named `# >>> <id> >>>` … `# <<< <id> <<<` block to a file. Creates the file if needed.
+#
+# Updates the block in-place if the marker already exists; appends otherwise.
+# Creates parent directories and the file if they do not exist.
+#
+# Args:
+#   --file <f>     Path to the target file.
+#   --marker <id>  Block identifier used in the begin/end comment markers.
+#   --content <c>  Content to write inside the block.
 shell__write_block() {
   local _file="" _marker="" _content=""
   while [[ $# -gt 0 ]]; do
@@ -118,11 +119,17 @@ shell__write_block() {
   return 0
 }
 
-# shell__sync_block --files <files> --marker <id> [--content <text>]
+# @brief shell__sync_block --files <list> --marker <id> [--content <c>] — Write (if `--content` given) or remove the named block in each file in the newline-separated list.
+#
 # For each file in the newline-separated <files> list:
-#   - If --content is present: write or update the named idempotency block.
-#   - If --content is absent: remove the named idempotency block if it exists.
+#   - If --content is given: write or update the named idempotency block.
+#   - If --content is absent: remove the named idempotency block if present.
 # Skips blank lines in the file list.
+#
+# Args:
+#   --files <list>  Newline-separated list of file paths.
+#   --marker <id>   Block identifier (same format as shell__write_block).
+#   --content <c>   Block content (optional; omit to remove the block).
 shell__sync_block() {
   local _files="" _marker="" _content="" _has_content=false
   while [[ $# -gt 0 ]]; do
@@ -167,11 +174,15 @@ shell__sync_block() {
   return 0
 }
 
-# shell__user_login_file [--home <dir>]
-# Prints the bash login startup file path for the given home directory.
-# Returns the first existing of .bash_profile, .bash_login, .profile;
-# falls back to <home>/.bash_profile if none exist yet.
-# Default home: $HOME
+# @brief shell__user_login_file [--home <dir>] — Print the bash login startup file path (`~/.bash_profile`, `~/.bash_login`, or `~/.profile`). Falls back to `~/.bash_profile`.
+#
+# Probes in order: .bash_profile, .bash_login, .profile. Falls back to
+# <home>/.bash_profile if none exist yet.
+#
+# Args:
+#   --home <dir>  User home directory (default: $HOME).
+#
+# Stdout: absolute path to the login file.
 shell__user_login_file() {
   local _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
@@ -195,13 +206,17 @@ shell__user_login_file() {
   return 0
 }
 
-# shell__system_path_files [--profile_d <filename>]
-# Prints system-wide shell startup file paths for PATH or env variable
-# injection (intended for root on Linux). One absolute path per line:
-#   1. BASH_ENV file (non-login non-interactive bash — via shell__ensure_bashenv)
-#   2. /etc/profile.d/<filename>  — only if --profile_d is given
-#   3. <global bashrc>            — non-login interactive bash
-#   4. <global zshdir>/zshenv    — all zsh invocations
+# @brief shell__system_path_files [--profile_d <filename>] — Print system-wide shell startup file paths for PATH/env injection.
+#
+# Intended for use when configuring PATH or environment variables as root
+# on Linux. Prints one path per line:
+#   1. BASH_ENV file      — non-login non-interactive bash (via shell__ensure_bashenv)
+#   2. /etc/profile.d/<f> — only if --profile_d is given
+#   3. <global bashrc>    — non-login interactive bash
+#   4. <zshdir>/zshenv    — all zsh invocations
+#
+# Args:
+#   --profile_d <filename>  Base filename for an /etc/profile.d/ drop-in (optional).
 shell__system_path_files() {
   local _profiled=""
   while [[ $# -gt 0 ]]; do
@@ -221,15 +236,20 @@ shell__system_path_files() {
   return 0
 }
 
-# shell__detect_zdotdir [--home <dir>]
-# Prints the ZDOTDIR for the given home directory.
+# @brief shell__detect_zdotdir [--home <dir>] — Print the effective ZDOTDIR for a user. Probes the live environment, parses system and user zshenv, then falls back to `<home>`.
+#
 # Detection order:
 #   1. If <home> matches $HOME and $ZDOTDIR is set → use $ZDOTDIR directly
-#      (we are the target user, the value is live in the environment).
+#      (we are the target user; the value is live in the environment).
 #   2. Parse ZDOTDIR= assignments from the system zshenv and <home>/.zshenv.
 #      Substitutes $HOME, ${HOME}, ~, $XDG_CONFIG_HOME, ${XDG_CONFIG_HOME}.
-#      If the result still contains unresolvable variables ($...), falls back.
+#      Falls back if the result still contains unresolvable variables.
 #   3. Falls back to <home>.
+#
+# Args:
+#   --home <dir>  User home directory (default: $HOME).
+#
+# Stdout: absolute path to the effective ZDOTDIR.
 shell__detect_zdotdir() {
   local _home="${HOME:-}"
   while [[ $# -gt 0 ]]; do
@@ -291,14 +311,16 @@ shell__detect_zdotdir() {
   return 0
 }
 
-# shell__user_path_files [--home <dir>] [--zdotdir <dir>]
-# Prints user-scoped shell startup file paths for a PATH export.
-# One absolute path per line:
-#   <login_file>      — bash login (.bash_profile/.bash_login/.profile)
+# @brief shell__user_path_files [--home <dir>] [--zdotdir <dir>] — Print user startup file paths for a PATH export: bash login file, `.bashrc`, and `<zdotdir>/.zshenv`.
+#
+# Prints one path per line:
+#   <login_file>      — bash login (.bash_profile / .bash_login / .profile)
 #   <home>/.bashrc    — bash non-login interactive
 #   <zdotdir>/.zshenv — all zsh invocations (login, interactive, non-interactive)
-# Default home: $HOME
-# Default zdotdir: auto-detected via shell__detect_zdotdir
+#
+# Args:
+#   --home <dir>    User home directory (default: $HOME).
+#   --zdotdir <dir> ZDOTDIR override (default: auto-detected via shell__detect_zdotdir).
 shell__user_path_files() {
   local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
@@ -323,15 +345,18 @@ shell__user_path_files() {
   return 0
 }
 
-# shell__user_init_files [--home <dir>] [--zdotdir <dir>]
-# Prints user-scoped shell startup file paths for a full shell initializer
-# (e.g. eval "$(brew shellenv)"). One absolute path per line:
-#   <login_file>        — bash login (.bash_profile/.bash_login/.profile)
+# @brief shell__user_init_files [--home <dir>] [--zdotdir <dir>] — Print user startup file paths for a full initializer: bash login, `.bashrc`, `<zdotdir>/.zprofile`, `<zdotdir>/.zshrc`.
+#
+# Suitable for initializers that need to run in all contexts (e.g.
+# `eval "$(brew shellenv)"`). Prints one path per line:
+#   <login_file>        — bash login (.bash_profile / .bash_login / .profile)
 #   <home>/.bashrc      — bash non-login interactive
 #   <zdotdir>/.zprofile — zsh login
 #   <zdotdir>/.zshrc    — zsh interactive
-# Default home: $HOME
-# Default zdotdir: auto-detected via shell__detect_zdotdir
+#
+# Args:
+#   --home <dir>    User home directory (default: $HOME).
+#   --zdotdir <dir> ZDOTDIR override (default: auto-detected via shell__detect_zdotdir).
 shell__user_init_files() {
   local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
@@ -357,16 +382,19 @@ shell__user_init_files() {
   return 0
 }
 
-# shell__user_rc_files [--home <dir>] [--zdotdir <dir>]
-# Prints user-scoped interactive shell rc file paths.
-# One absolute path per line:
-#   <home>/.bashrc    — bash interactive (non-login)
-#   <zdotdir>/.zshrc  — zsh interactive
+# @brief shell__user_rc_files [--home <dir>] [--zdotdir <dir>] — Print user-scoped interactive RC file paths (`.bashrc`, `<zdotdir>/.zshrc`). Excludes login files.
+#
 # Intended for initializers that must only run in interactive shells
-# (e.g. conda init, shell prompt setup). Does NOT include login files
-# (.bash_profile, .zprofile) — use shell__user_init_files for those.
-# Default home: $HOME
-# Default zdotdir: auto-detected via shell__detect_zdotdir
+# (e.g. conda init, shell prompt setup). Does NOT include login files —
+# use shell__user_init_files when those are needed too.
+#
+# Prints one path per line:
+#   <home>/.bashrc    — bash non-login interactive
+#   <zdotdir>/.zshrc  — zsh interactive
+#
+# Args:
+#   --home <dir>    User home directory (default: $HOME).
+#   --zdotdir <dir> ZDOTDIR override (default: auto-detected via shell__detect_zdotdir).
 shell__user_rc_files() {
   local _home="${HOME:-}" _zdotdir=""
   while [[ $# -gt 0 ]]; do
@@ -390,24 +418,28 @@ shell__user_rc_files() {
   return 0
 }
 
-# shell__system_rc_files
-# Prints system-wide interactive shell rc file paths.
-# One absolute path per line:
-#   <global bashrc>           — bash interactive (distro-specific path)
-#   <global zshdir>/zshrc     — zsh interactive
-# Intended for system-wide conda init or similar interactive-only setup
-# when no per-user targets are resolved (e.g. running as root with no
-# resolved users). Does NOT include login files or PATH-export files.
+# @brief shell__system_rc_files — Print system-wide interactive RC file paths (global bashrc, `<zshdir>/zshrc`). Does not include login or PATH-export files.
+#
+# Intended for system-wide interactive-only setup when no per-user targets
+# are resolved (e.g. running as root with no resolved users). Does NOT
+# include login files or PATH-export files.
+#
+# Stdout: global bashrc path, then <zshdir>/zshrc.
 shell__system_rc_files() {
   shell__detect_bashrc
   echo "$(shell__detect_zshdir)/zshrc"
   return 0
 }
 
-# shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>
-# Given an owner/repo theme slug and the ZSH_CUSTOM directory, prints the
-# ZSH_THEME value that oh-my-zsh expects (e.g. "powerlevel10k/powerlevel10k").
-# Prints the repo name alone if the theme file can't be found.
+# @brief shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir> — Given an `owner/repo` slug and `ZSH_CUSTOM` dir, print the `ZSH_THEME` value expected by oh-my-zsh.
+#
+# Falls back to the repo name alone if the `.zsh-theme` file cannot be found.
+#
+# Args:
+#   --theme_slug <slug>  GitHub slug in "owner/repo" format.
+#   --custom_dir <dir>   Path to $ZSH_CUSTOM (oh-my-zsh custom directory).
+#
+# Stdout: ZSH_THEME value (e.g. `repo-name/theme-stem` or just `repo-name`).
 shell__resolve_omz_theme() {
   local slug="" custom_dir=""
   while [[ $# -gt 0 ]]; do
@@ -443,9 +475,12 @@ shell__resolve_omz_theme() {
   return 0
 }
 
-# shell__plugin_names_from_slugs <comma-separated-slugs>
-# Extracts the repo names (basenames) from a CSV of owner/repo slugs.
-# Prints one name per line.
+# @brief shell__plugin_names_from_slugs <csv-slugs> — Extract repo names (basenames) from a comma-separated list of `owner/repo` slugs. Prints one name per line.
+#
+# Args:
+#   <csv-slugs>  Comma-separated list of "owner/repo" slugs.
+#
+# Stdout: one repo name (basename) per line.
 shell__plugin_names_from_slugs() {
   local _slugs="$1"
   [ -z "$_slugs" ] && return 0
@@ -458,22 +493,23 @@ shell__plugin_names_from_slugs() {
   return 0
 }
 
-# shell__resolve_home <username>
-# Prints the home directory for the given user.
+# @brief shell__resolve_home <username> — Print the home directory for the given user.
 shell__resolve_home() {
   local _user="$1"
   eval echo "~${_user}"
   return 0
 }
 
-# shell__ensure_bashenv
-# Detects or creates the system-wide BASH_ENV file and registers it in
-# /etc/environment. Prints the absolute path to the file.
-# Detection priority:
-#   1. $BASH_ENV environment variable — already set, reuse as-is.
-#   2. BASH_ENV= entry in /etc/environment — already registered, reuse.
-#   3. Create <bashrc_dir>/bashenv, register BASH_ENV="<path>" in /etc/environment.
+# @brief shell__ensure_bashenv — Detect or create the system-wide BASH_ENV file and register it in `/etc/environment`. Print the absolute path to the file.
+#
 # Callers are responsible for writing content to the returned path.
+#
+# Detection priority:
+#   1. $BASH_ENV environment variable — already set; reuse as-is.
+#   2. BASH_ENV= entry in /etc/environment — already registered; reuse.
+#   3. Create <bashrc_dir>/bashenv and register BASH_ENV in /etc/environment.
+#
+# Stdout: absolute path to the BASH_ENV file.
 shell__ensure_bashenv() {
   # 1. Live environment variable
   if [ -n "${BASH_ENV:-}" ]; then

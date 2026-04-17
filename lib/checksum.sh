@@ -6,11 +6,14 @@
 [ -n "${_CHECKSUM__LIB_LOADED-}" ] && return 0
 _CHECKSUM__LIB_LOADED=1
 
-# checksum__verify_sha256 <file> <expected_hash>
+# @brief checksum__verify_sha256 <file> <expected_hash> — Verify the SHA-256 digest of `<file>`. Uses `sha256sum` (Linux) or `shasum -a 256` (macOS). Returns 1 on mismatch.
 #
-# Verifies the SHA-256 digest of <file> against <expected_hash>.
 # Uses sha256sum (Linux) or shasum --algorithm 256 (macOS) transparently.
-# Exits 1 if neither tool is available or if the digest does not match.
+# Returns 1 if neither tool is available or if the digest does not match.
+#
+# Args:
+#   <file>           Path to the file to verify.
+#   <expected_hash>  Expected lowercase hex SHA-256 digest.
 checksum__verify_sha256() {
   local _file="$1"
   local _expected="$2"
@@ -36,11 +39,14 @@ checksum__verify_sha256() {
   return 0
 }
 
-# checksum__verify_sha256_sidecar <file> <sha256_file>
+# @brief checksum__verify_sha256_sidecar <file> <sha256_file> — Read the expected hash from the first field of `<sha256_file>` and delegate to `checksum__verify_sha256`.
 #
-# Reads the first whitespace-separated field of <sha256_file>
-# as the expected hash, then delegates to checksum__verify_sha256.
-# Suitable for the common pattern of <name>.sha256 sidecar files.
+# Reads the first whitespace-separated field of <sha256_file> as the expected
+# hash. Suitable for the common `<name>.sha256` sidecar file pattern.
+#
+# Args:
+#   <file>          Path to the file to verify.
+#   <sha256_file>   Path to the sidecar file containing the expected hash.
 checksum__verify_sha256_sidecar() {
   local _file="$1"
   local _sha256_file="$2"

@@ -8,14 +8,16 @@
 [ -n "${_GITHUB__LIB_LOADED-}" ] && return 0
 _GITHUB__LIB_LOADED=1
 
-# github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]
+# @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
 #
-# Fetches the GitHub Releases API response for a repository.
-# Without --tag: fetches /releases/latest (single release object).
-# With    --tag: fetches /releases/tags/<tag> (single release object).
-# Without --dest: writes JSON to stdout.
-# With    --dest: writes JSON to <file>.
-# Respects GITHUB_TOKEN env var (Authorization: Bearer).
+# Without --tag: fetches /releases/latest. With --tag: fetches
+# /releases/tags/<tag>. Without --dest: writes JSON to stdout.
+# Respects GITHUB_TOKEN (sets Authorization: Bearer automatically).
+#
+# Args:
+#   <owner/repo>   GitHub repository in "owner/repo" format.
+#   --tag <tag>    Release tag to fetch (optional; defaults to latest).
+#   --dest <file>  Write JSON to this file instead of stdout (optional).
 github__fetch_release_json() {
   local _repo="$1"
   shift
@@ -50,10 +52,12 @@ github__fetch_release_json() {
   return $?
 }
 
-# github__latest_tag <owner/repo>
+# @brief github__latest_tag <owner/repo> — Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed.
 #
-# Prints the latest release tag name for the given repository.
-# Exits 1 if the API call fails or no tag can be parsed.
+# Args:
+#   <owner/repo>  GitHub repository in "owner/repo" format.
+#
+# Stdout: the tag name (e.g. `v1.2.3`).
 github__latest_tag() {
   local _repo="$1"
   local _tag
@@ -71,11 +75,15 @@ github__latest_tag() {
   return 0
 }
 
-# github__release_tags <owner/repo> [--per_page <n>]
+# @brief github__release_tags <owner/repo> [--per_page N] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
 #
-# Prints one release tag per line (newest first) for the given repository.
-# Fetches /releases?per_page=<n> (default 100).
 # Useful for version-matching against a list (grep/sort/tail in the caller).
+#
+# Args:
+#   <owner/repo>   GitHub repository in "owner/repo" format.
+#   --per_page N   Releases per page to request (default: 100).
+#
+# Stdout: one tag name per line, newest first.
 github__release_tags() {
   local _repo="$1"
   shift
@@ -103,12 +111,16 @@ github__release_tags() {
   return 0
 }
 
-# github__tags <owner/repo> [--per_page <n>]
+# @brief github__tags <owner/repo> [--per_page N] — Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release.
 #
-# Prints one tag name per line for the given repository.
-# Fetches /tags?per_page=<n> (default 100).
 # Unlike github__release_tags (which uses /releases), this endpoint includes
-# all tags including lightweight tags not associated with a release.
+# all git tags, including lightweight ones not associated with a release.
+#
+# Args:
+#   <owner/repo>   GitHub repository in "owner/repo" format.
+#   --per_page N   Tags per page to request (default: 100).
+#
+# Stdout: one tag name per line.
 github__tags() {
   local _repo="$1"
   shift
@@ -136,13 +148,17 @@ github__tags() {
   return 0
 }
 
-# github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere_pattern>]
+# @brief github__release_asset_urls <owner/repo> [--tag <tag>] [--filter <ere>] — Print `browser_download_url` values from a release. `--filter` applies an ERE grep to the URL list.
 #
-# Prints one browser_download_url per line from a GitHub release.
-# Without --tag: uses /releases/latest.
-# With    --tag: uses /releases/tags/<tag>.
-# With    --filter: applies an extended-regex grep to the URL list.
-# Exits 1 if the API call fails.
+# Without --tag: uses /releases/latest. With --tag: uses
+# /releases/tags/<tag>. Exits 1 if the API call fails.
+#
+# Args:
+#   <owner/repo>    GitHub repository in "owner/repo" format.
+#   --tag <tag>     Release tag to query (optional; defaults to latest).
+#   --filter <ere>  ERE grep pattern applied to the URL list (optional).
+#
+# Stdout: one `browser_download_url` per line.
 github__release_asset_urls() {
   local _repo="$1"
   shift
@@ -191,13 +207,11 @@ github__release_asset_urls() {
   return 0
 }
 
-# github__pick_release_asset <owner/repo> [--tag <tag>] [--asset-regex <ERE>]
+# @brief github__pick_release_asset <owner/repo> [--tag <tag>] [--asset-regex <ERE>] — Select a single release asset URL using heuristic arch/platform filters.
 #
-# Selects a single browser_download_url from a GitHub release using a cascade
-# of heuristic filters based on the current host architecture and platform.
-# Designed for tools that do not publish checksums or have irregular release
-# naming conventions; prefer explicit URL construction with checksum
-# verification when the release naming is known and stable.
+# Designed for tools that do not publish checksums or have irregular naming
+# conventions. Prefer explicit URL construction with checksum verification
+# when the release naming is known and stable.
 #
 # Filter cascade (each stage is skipped if it would reduce candidates to zero):
 #   1. Negative: eliminate assets for other CPU architectures.
@@ -206,12 +220,13 @@ github__release_asset_urls() {
 #   4. Positive tiebreaker: prefer assets that explicitly name the current arch.
 #   5. Positive tiebreaker: prefer statically linked / musl builds.
 #
-# --tag <tag>          Use a specific release tag instead of /releases/latest.
-# --asset-regex <ERE>  Pre-filter applied before the cascade. If it produces
-#                      exactly one URL the cascade is skipped entirely. If it
-#                      produces zero URLs the function returns 1 immediately.
+# Args:
+#   <owner/repo>         GitHub repository in "owner/repo" format.
+#   --tag <tag>          Release tag to use (optional; defaults to /releases/latest).
+#   --asset-regex <ERE>  Pre-filter applied before the cascade. Exactly one
+#                        match skips the cascade; zero matches returns 1.
 #
-# Prints exactly one URL to stdout. Returns 1 on failure (no match or >1 remain).
+# Stdout: exactly one URL. Returns 1 if no match or >1 candidates remain.
 github__pick_release_asset() {
   local _repo="$1"
   shift

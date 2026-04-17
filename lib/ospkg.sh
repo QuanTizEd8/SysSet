@@ -365,7 +365,8 @@ _ospkg_load_linux_release() {
 }
 
 # ── Public: ospkg__detect ────────────────────────────────────────────────────
-# Idempotent: detects the package manager and populates _OSPKG_* state.
+# @brief ospkg__detect — Detect the package manager and populate internal state. Idempotent; called automatically by all other `ospkg__*` functions.
+#
 # Respects _OSPKG_PREFER_LINUXBREW: when true, brew is checked before the
 # native Linux PM chain (no effect on macOS where brew is always used).
 ospkg__detect() {
@@ -429,8 +430,12 @@ ospkg__detect() {
 }
 
 # ── Public: ospkg__update ────────────────────────────────────────────────────
-# Usage: ospkg__update [--force] [--lists_max_age <N>] [--repo_added]
-# Runs the package index update, optionally skipping if lists are fresh.
+# @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
+#
+# Args:
+#   --force             Unconditionally refresh (overrides the age check).
+#   --lists_max_age N   Skip if package lists were updated within N seconds (default: 300).
+#   --repo_added        A new repo was just added; forces an unconditional refresh.
 ospkg__update() {
   ospkg__detect
   local _force=false _max_age=300 _repo_added=false
@@ -489,8 +494,10 @@ ospkg__update() {
 }
 
 # ── Public: ospkg__install ───────────────────────────────────────────────────
-# Usage: ospkg__install <pkg>...
-# Installs packages, with idempotency check for apt and dnf.
+# @brief ospkg__install <pkg>... — Install one or more packages. Skips if all are already installed (APT, DNF/YUM).
+#
+# Args:
+#   <pkg>...  One or more package names to install.
 ospkg__install() {
   ospkg__detect
   if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
@@ -520,6 +527,7 @@ ospkg__install() {
 }
 
 # ── Public: ospkg__clean ─────────────────────────────────────────────────────
+# @brief ospkg__clean — Remove the package manager cache to reduce image layer size.
 ospkg__clean() {
   ospkg__detect
   echo "🧹 Cleaning package manager cache." >&2
@@ -528,10 +536,10 @@ ospkg__clean() {
 }
 
 # ── Public: ospkg__parse_manifest_yaml ───────────────────────────────────────
-# Usage: ospkg__parse_manifest_yaml <json-file>
-# Parses a JSON manifest (pre-converted from YAML via yq) and emits a stream
-# of newline-delimited compact JSON records to stdout, each with a "kind" field.
-# Requires: jq in PATH; _OSPKG_OS_RELEASE populated by ospkg__detect.
+# @brief ospkg__parse_manifest_yaml <json-file> — Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout.
+#
+# Requires jq in PATH and _OSPKG_OS_RELEASE populated by ospkg__detect.
+# Each record is a compact JSON object with a "kind" field.
 #
 # Output record kinds:
 #   prescript   {kind,content}
@@ -545,6 +553,9 @@ ospkg__clean() {
 #   package     {kind,name,flags,version}
 #   cask        {kind,cask}          — brew (macOS) only
 #   script      {kind,content}
+#
+# Args:
+#   <json-file>  Path to the manifest JSON file (use `yq -o=json` to convert YAML first).
 ospkg__parse_manifest_yaml() {
   local _json_file="$1"
 
@@ -756,14 +767,19 @@ end
 }
 
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
+# @brief ospkg__run [--manifest <f>] [--update <bool>] [--keep_cache] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] — Run the full installation pipeline from a manifest.
+#
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
 # repos → PM setup → update → install → casks → script → cleanup.
 #
-# Usage: ospkg__run [--manifest <file-or-inline>]
-#                   [--update <bool>] [--skip_installed]
-#                   [--keep_cache]  [--prefer_linuxbrew]
-#                   [--keep_repos] [--lists_max_age <N>] [--dry_run]
-#                   [--interactive]
+# Args:
+#   --manifest <f>     Path to the YAML manifest file.
+#   --update <bool>    Run package index update before installing (default: true).
+#   --keep_cache       Do not run ospkg__clean after installation.
+#   --keep_repos       Do not remove added third-party repo files after installation.
+#   --dry_run          Print what would be installed without doing it.
+#   --skip_installed   Skip packages that are already installed.
+#   --interactive      Preserve TTY for interactive package prompts.
 ospkg__run() {
   local _manifest='' _update=true _keep_cache=false _keep_repos=false
   local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false

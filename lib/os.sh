@@ -14,37 +14,37 @@ _OS__CODENAME=""
 _OS__PLATFORM=""
 _OS__RELEASE_LOADED=""
 
-# os__kernel — prints the kernel name (Linux or Darwin).
+# @brief os__kernel — Prints the kernel name (`Linux` or `Darwin`). Cached; use instead of `uname -s`.
 os__kernel() {
   [ -n "${_OS__KERNEL-}" ] || _OS__KERNEL="$(uname -s)"
   echo "$_OS__KERNEL"
   return 0
 }
 
-# os__arch — prints the CPU architecture (x86_64, aarch64, arm64, …).
+# @brief os__arch — Prints the CPU architecture (e.g. `x86_64`, `aarch64`). Cached; use instead of `uname -m`.
 os__arch() {
   [ -n "${_OS__ARCH-}" ] || _OS__ARCH="$(uname -m)"
   echo "$_OS__ARCH"
   return 0
 }
 
-# os__id — prints the ID field from /etc/os-release (e.g. ubuntu, debian, alpine).
+# @brief os__id — Prints the `ID` field from `/etc/os-release` (e.g. `ubuntu`, `alpine`).
 os__id() {
   _os__load_release
   echo "${_OS__ID:-}"
   return 0
 }
 
-# os__id_like — prints ID_LIKE from /etc/os-release (space-separated family list).
+# @brief os__id_like — Prints the `ID_LIKE` field from `/etc/os-release` (space-separated distro family list).
 os__id_like() {
   _os__load_release
   echo "${_OS__ID_LIKE:-}"
   return 0
 }
 
-# os__platform — prints a canonical platform tag.
-# Returns one of: debian | alpine | rhel | macos
-# 'debian' is the fallback for unrecognised Linux distros.
+# @brief os__platform — Prints a canonical platform tag: `debian` | `alpine` | `rhel` | `macos`.
+#
+# Falls back to `debian` for unrecognised Linux distros.
 os__platform() {
   if [ -n "${_OS__PLATFORM-}" ]; then
     echo "$_OS__PLATFORM"
@@ -72,8 +72,7 @@ os__platform() {
   return 0
 }
 
-# os__require_root
-# Exits 1 with a message if the current user is not root.
+# @brief os__require_root — Exits 1 with an error message if the current user is not root.
 os__require_root() {
   if [ "$(id -u)" -ne 0 ]; then
     echo '⛔ This script must be run as root. Use sudo, su, or add "USER root" to your Dockerfile before running this script.' >&2
@@ -82,11 +81,12 @@ os__require_root() {
   return 0
 }
 
-# os__font_dir
-# Prints the appropriate font directory for the current user.
-#   root (id -u = 0): /usr/share/fonts
-#   macOS non-root:   ~/Library/Fonts
-#   Linux non-root:   ${XDG_DATA_HOME:-~/.local/share}/fonts
+# @brief os__font_dir — Print the font directory for the current user.
+#
+# Stdout:
+#   root (id -u = 0)  /usr/share/fonts
+#   macOS non-root    ~/Library/Fonts
+#   Linux non-root    ${XDG_DATA_HOME:-~/.local/share}/fonts
 os__font_dir() {
   if [ "$(id -u)" -eq 0 ]; then
     echo "/usr/share/fonts"
@@ -98,9 +98,9 @@ os__font_dir() {
   return 0
 }
 
-# os__is_container
-# Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI),
-# 1 otherwise.  Uses the same heuristics as Homebrew's check-run-command-as-root()
+# @brief os__is_container — Returns 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise.
+#
+# Uses the same heuristics as Homebrew's check-run-command-as-root()
 # (Library/Homebrew/brew.sh) so that brew can run as root in devcontainers.
 os__is_container() {
   [ -f /.dockerenv ] && return 0
@@ -134,9 +134,9 @@ _os__load_release() {
   return 0
 }
 
-# os__codename — prints the VERSION_CODENAME from /etc/os-release (e.g. jammy, bookworm).
+# @brief os__codename — Prints `VERSION_CODENAME` from `/etc/os-release` (e.g. `jammy`, `bookworm`). Empty string if absent or on macOS.
+#
 # Falls back to UBUNTU_CODENAME if VERSION_CODENAME is absent.
-# Returns an empty string on macOS or distros that do not set a codename.
 os__codename() {
   _os__load_release
   echo "${_OS__CODENAME:-}"

@@ -5,10 +5,15 @@
 [[ -n "${_GIT__LIB_LOADED-}" ]] && return 0
 _GIT__LIB_LOADED=1
 
-# git__clone --url <url> --dir <dir> [--branch <branch>]
-# Clones <url> into <dir> with depth=1.  If <dir>/.git already exists the
-# clone is skipped (idempotent).  On failure the partially-created <dir> is
-# removed so a re-run does not silently skip a broken clone.
+# @brief git__clone --url <url> --dir <dir> [--branch <branch>] — Shallow clone (`--depth=1`) of `<url>` into `<dir>`. Idempotent; skips if `<dir>/.git` already exists.
+#
+# On failure, the partially-created <dir> is removed so that a re-run does
+# not silently skip a broken clone.
+#
+# Args:
+#   --url <url>        Repository URL to clone.
+#   --dir <dir>        Local destination directory.
+#   --branch <branch>  Branch or tag to check out (optional; defaults to HEAD).
 git__clone() {
   local branch="" dir="" url=""
   while [[ $# -gt 0 ]]; do
