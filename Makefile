@@ -1,4 +1,4 @@
-.PHONY: format format-check lint sync test-unit gen-docs gen-docs-check
+.PHONY: format format-check lint sync test-unit gen-docs gen-docs-check docs docs-serve
 
 # Apply shfmt formatting to all tracked shell files.
 # test/unit/bats/** is excluded via .editorconfig ignore = true.
@@ -54,3 +54,17 @@ gen-docs:
 # Used in CI to enforce that generated docs are up to date.
 gen-docs-check:
 	python3 scripts/gen_docs.py --check
+
+# Build the Sphinx documentation into docs/website/.build/.
+# Requires the sysset-website conda environment (docs/environment.yaml).
+docs:
+	conda run -n sysset-website --no-capture-output \
+		python -m sphinx -b dirhtml docs docs/website/.build \
+		--keep-going --color --jobs auto
+
+# Live-preview the docs with auto-rebuild on file changes.
+# Requires the sysset-website conda environment (docs/environment.yaml).
+docs-serve:
+	conda run -n sysset-website --no-capture-output \
+		python -m sphinx_autobuild docs docs/website/.build \
+		-b dirhtml --open-browser --watch docs

@@ -1,0 +1,32 @@
+root: index
+
+subtrees:
+  - entries:
+    - file: intro/index
+      subtrees:
+        - entries:
+          - file: intro/background/index
+          - file: intro/background/env-vars
+          - file: intro/background/shell-config
+
+  - caption: Reference
+    entries:
+    - file: ref/install-shell
+    - file: ref/install-fonts
+    - file: ref/install-os-pkg
+    - file: ref/install-podman
+    - file: ref/install-homebrew
+    - glob: ref/install-pixi/*
+    - glob: ref/install-node/*
+    - glob: ref/install-gh/*
+    - glob: ref/install-git/*
+    - file: ref/setup-user
+    - file: ref/setup-shim
+
+  - caption: Developer Guide
+    entries:
+    - file: dev-guide/index
+    - file: dev-guide/writing-features
+    - file: dev-guide/testing
+    - file: dev-guide/publishing
+    - file: dev-guide/repo-structure

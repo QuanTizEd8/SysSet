@@ -9,3 +9,6 @@ src/*/install.sh
 # Distribution artifacts — built by build-artifacts.sh.
 /dist/
 /.local/
+
+# Sphinx documentation build output.
+docs/website/.build/
