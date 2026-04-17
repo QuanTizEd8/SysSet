@@ -1,9 +1,0 @@
-# Base dependencies for the setup-user devcontainer feature.
-# Installed unconditionally before any user/group manipulation.
-# bash is guaranteed by bootstrap.sh before this script runs.
-
-# useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,
-# but requires the shadow package on Alpine.
-apk:
-  packages:
-    - shadow

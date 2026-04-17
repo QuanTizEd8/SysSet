@@ -58,3 +58,14 @@ options:
     default: ''
     description: Log all output (stdout + stderr) to this file in addition to console.
     type: string
+dependencies:
+  base:
+    # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,
+    # but requires the shadow package on Alpine.
+    apk:
+      packages:
+        - shadow
+  sudo:
+    # Installed only when sudo_access=true.
+    packages:
+      - sudo

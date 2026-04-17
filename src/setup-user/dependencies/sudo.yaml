@@ -1,4 +1,0 @@
-# Conditional dependency for the setup-user devcontainer feature.
-# Installed only when sudo_access=true.
-packages:
-  - sudo
