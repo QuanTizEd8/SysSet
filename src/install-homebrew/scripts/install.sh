@@ -10,13 +10,201 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-# shellcheck source=lib/shell.sh
-. "$_SELF_DIR/_lib/shell.sh"
-# shellcheck source=lib/users.sh
-. "$_SELF_DIR/_lib/users.sh"
+
 logging__setup
 echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
 trap 'logging__cleanup' EXIT
+
+# ── Argument parsing (dual-mode: env vars or CLI flags) ───────────────────────
+if [[ "$#" -gt 0 ]]; then
+  INSTALL_USER=""
+  PREFIX=""
+  IF_EXISTS=""
+  UPDATE=""
+  unset EXPORT_PATH
+  ADD_CURRENT_USER=""
+  ADD_REMOTE_USER=""
+  ADD_CONTAINER_USER=""
+  ADD_USERS=""
+  WRITE_GROUP=""
+  BREW_GIT_REMOTE=""
+  CORE_GIT_REMOTE=""
+  NO_INSTALL_FROM_API=""
+  DEBUG=""
+  LOGFILE=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --install_user)
+        shift
+        INSTALL_USER="$1"
+        echo "📩 Read argument 'install_user': '${INSTALL_USER}'" >&2
+        shift
+        ;;
+      --prefix)
+        shift
+        PREFIX="$1"
+        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
+        shift
+        ;;
+      --if_exists)
+        shift
+        IF_EXISTS="$1"
+        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+        shift
+        ;;
+      --update)
+        shift
+        UPDATE="$1"
+        echo "📩 Read argument 'update': '${UPDATE}'" >&2
+        shift
+        ;;
+      --export_path)
+        shift
+        EXPORT_PATH="$1"
+        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+        shift
+        ;;
+      --add_current_user)
+        shift
+        ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+        shift
+        ;;
+      --add_remote_user)
+        shift
+        ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+        shift
+        ;;
+      --add_container_user)
+        shift
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS="$1"
+        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+        shift
+        ;;
+      --write_group)
+        shift
+        WRITE_GROUP="$1"
+        echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
+        shift
+        ;;
+      --brew_git_remote)
+        shift
+        BREW_GIT_REMOTE="$1"
+        echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
+        shift
+        ;;
+      --core_git_remote)
+        shift
+        CORE_GIT_REMOTE="$1"
+        echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
+        shift
+        ;;
+      --no_install_from_api)
+        shift
+        NO_INSTALL_FROM_API="$1"
+        echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
+        shift
+        ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
+    esac
+  done
+else
+  echo "ℹ️ Script called with no arguments. Reading environment variables." >&2
+  [ "${INSTALL_USER+defined}" ] && echo "📩 Read argument 'install_user': '${INSTALL_USER}'" >&2
+  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
+  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+  [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
+  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+  [ "${WRITE_GROUP+defined}" ] && echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
+  [ "${BREW_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
+  [ "${CORE_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
+  [ "${NO_INSTALL_FROM_API+defined}" ] && echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+fi
+
+[[ "${DEBUG-}" == true ]] && set -x
+
+[ -z "${INSTALL_USER-}" ] && {
+  echo "ℹ️ Argument 'INSTALL_USER' set to default value ''." >&2
+  INSTALL_USER=""
+}
+[ -z "${PREFIX-}" ] && {
+  echo "ℹ️ Argument 'PREFIX' set to default value ''." >&2
+  PREFIX=""
+}
+[ -z "${IF_EXISTS-}" ] && {
+  echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2
+  IF_EXISTS="skip"
+}
+[ -z "${UPDATE-}" ] && {
+  echo "ℹ️ Argument 'UPDATE' set to default value 'true'." >&2
+  UPDATE=true
+}
+[ -z "${EXPORT_PATH+x}" ] && {
+  echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2
+  EXPORT_PATH="auto"
+}
+: "${ADD_CURRENT_USER:=true}"
+: "${ADD_REMOTE_USER:=true}"
+: "${ADD_CONTAINER_USER:=true}"
+: "${ADD_USERS:=}"
+[ -z "${WRITE_GROUP+x}" ] && {
+  echo "ℹ️ Argument 'WRITE_GROUP' set to default value 'brew'." >&2
+  WRITE_GROUP="brew"
+}
+[ -z "${BREW_GIT_REMOTE-}" ] && {
+  echo "ℹ️ Argument 'BREW_GIT_REMOTE' set to default value ''." >&2
+  BREW_GIT_REMOTE=""
+}
+[ -z "${CORE_GIT_REMOTE-}" ] && {
+  echo "ℹ️ Argument 'CORE_GIT_REMOTE' set to default value ''." >&2
+  CORE_GIT_REMOTE=""
+}
+[ -z "${NO_INSTALL_FROM_API-}" ] && {
+  echo "ℹ️ Argument 'NO_INSTALL_FROM_API' set to default value 'false'." >&2
+  NO_INSTALL_FROM_API=false
+}
+[ -z "${DEBUG-}" ] && {
+  echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
+  DEBUG=false
+}
+[ -z "${LOGFILE-}" ] && {
+  echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
+  LOGFILE=""
+}
+
+# END OF AUTOGENERATED BLOCK
 
 # ── Constants ────────────────────────────────────────────────────────────────
 _BREW_INSTALL_BASE_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD"
@@ -317,198 +505,10 @@ detect_install_user() {
   return 0
 }
 
-# ── Argument parsing (dual-mode: env vars or CLI flags) ───────────────────────
-if [[ "$#" -gt 0 ]]; then
-  INSTALL_USER=""
-  PREFIX=""
-  IF_EXISTS=""
-  UPDATE=""
-  unset EXPORT_PATH
-  ADD_CURRENT_USER=""
-  ADD_REMOTE_USER=""
-  ADD_CONTAINER_USER=""
-  ADD_USERS=""
-  WRITE_GROUP=""
-  BREW_GIT_REMOTE=""
-  CORE_GIT_REMOTE=""
-  NO_INSTALL_FROM_API=""
-  DEBUG=""
-  LOGFILE=""
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --install_user)
-        shift
-        INSTALL_USER="$1"
-        echo "📩 Read argument 'install_user': '${INSTALL_USER}'" >&2
-        shift
-        ;;
-      --prefix)
-        shift
-        PREFIX="$1"
-        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-        shift
-        ;;
-      --if_exists)
-        shift
-        IF_EXISTS="$1"
-        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-        shift
-        ;;
-      --update)
-        shift
-        UPDATE="$1"
-        echo "📩 Read argument 'update': '${UPDATE}'" >&2
-        shift
-        ;;
-      --export_path)
-        shift
-        EXPORT_PATH="$1"
-        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-        shift
-        ;;
-      --add_current_user)
-        shift
-        ADD_CURRENT_USER="$1"
-        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
-        shift
-        ;;
-      --add_remote_user)
-        shift
-        ADD_REMOTE_USER="$1"
-        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
-        shift
-        ;;
-      --add_container_user)
-        shift
-        ADD_CONTAINER_USER="$1"
-        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
-        shift
-        ;;
-      --add_users)
-        shift
-        ADD_USERS="$1"
-        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
-        shift
-        ;;
-      --write_group)
-        shift
-        WRITE_GROUP="$1"
-        echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
-        shift
-        ;;
-      --brew_git_remote)
-        shift
-        BREW_GIT_REMOTE="$1"
-        echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
-        shift
-        ;;
-      --core_git_remote)
-        shift
-        CORE_GIT_REMOTE="$1"
-        echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
-        shift
-        ;;
-      --no_install_from_api)
-        shift
-        NO_INSTALL_FROM_API="$1"
-        echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
-        shift
-        ;;
-      --debug)
-        shift
-        DEBUG="$1"
-        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-        shift
-        ;;
-      --logfile)
-        shift
-        LOGFILE="$1"
-        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-        shift
-        ;;
-      --*)
-        echo "⛔ Unknown option: '${1}'" >&2
-        exit 1
-        ;;
-      *)
-        echo "⛔ Unexpected argument: '${1}'" >&2
-        exit 1
-        ;;
-    esac
-  done
-else
-  echo "ℹ️ Script called with no arguments. Reading environment variables." >&2
-  [ "${INSTALL_USER+defined}" ] && echo "📩 Read argument 'install_user': '${INSTALL_USER}'" >&2
-  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-  [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
-  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
-  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
-  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
-  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
-  [ "${WRITE_GROUP+defined}" ] && echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
-  [ "${BREW_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
-  [ "${CORE_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
-  [ "${NO_INSTALL_FROM_API+defined}" ] && echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-fi
-
-[[ "${DEBUG-}" == true ]] && set -x
-
-[ -z "${INSTALL_USER-}" ] && {
-  echo "ℹ️ Argument 'INSTALL_USER' set to default value ''." >&2
-  INSTALL_USER=""
-}
-[ -z "${PREFIX-}" ] && {
-  echo "ℹ️ Argument 'PREFIX' set to default value ''." >&2
-  PREFIX=""
-}
-[ -z "${IF_EXISTS-}" ] && {
-  echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2
-  IF_EXISTS="skip"
-}
-[ -z "${UPDATE-}" ] && {
-  echo "ℹ️ Argument 'UPDATE' set to default value 'true'." >&2
-  UPDATE=true
-}
-[ -z "${EXPORT_PATH+x}" ] && {
-  echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2
-  EXPORT_PATH="auto"
-}
-: "${ADD_CURRENT_USER:=true}"
-: "${ADD_REMOTE_USER:=true}"
-: "${ADD_CONTAINER_USER:=true}"
-: "${ADD_USERS:=}"
-[ -z "${WRITE_GROUP+x}" ] && {
-  echo "ℹ️ Argument 'WRITE_GROUP' set to default value 'brew'." >&2
-  WRITE_GROUP="brew"
-}
-[ -z "${BREW_GIT_REMOTE-}" ] && {
-  echo "ℹ️ Argument 'BREW_GIT_REMOTE' set to default value ''." >&2
-  BREW_GIT_REMOTE=""
-}
-[ -z "${CORE_GIT_REMOTE-}" ] && {
-  echo "ℹ️ Argument 'CORE_GIT_REMOTE' set to default value ''." >&2
-  CORE_GIT_REMOTE=""
-}
-[ -z "${NO_INSTALL_FROM_API-}" ] && {
-  echo "ℹ️ Argument 'NO_INSTALL_FROM_API' set to default value 'false'." >&2
-  NO_INSTALL_FROM_API=false
-}
-[ -z "${DEBUG-}" ] && {
-  echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
-  DEBUG=false
-}
-[ -z "${LOGFILE-}" ] && {
-  echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
-  LOGFILE=""
-}
-
-echo "========================================" >&2
-echo "  install-homebrew" >&2
-echo "========================================" >&2
+# shellcheck source=lib/shell.sh
+. "$_SELF_DIR/_lib/shell.sh"
+# shellcheck source=lib/users.sh
+. "$_SELF_DIR/_lib/users.sh"
 
 # ── Resolve prefix and install user ──────────────────────────────────────────
 if [ -n "$PREFIX" ]; then
@@ -588,6 +588,3 @@ if [[ -n "${WRITE_GROUP:-}" ]] && [[ "$(os__kernel)" = "Linux" ]]; then
   mapfile -t _write_users < <(users__resolve_list)
   users__set_write_permissions "$PREFIX" "$RESOLVED_INSTALL_USER" "$WRITE_GROUP" "${_write_users[@]}"
 fi
-
-echo "✅ Homebrew installation complete." >&2
-echo "↩️ Script exit: Homebrew Installation Devcontainer Feature Installer" >&2
