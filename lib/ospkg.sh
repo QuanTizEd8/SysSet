@@ -767,21 +767,23 @@ end
 }
 
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
-# @brief ospkg__run [--manifest <f>] [--update <bool>] [--keep_cache] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] — Run the full installation pipeline from a manifest.
+# @brief ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] — Run the full installation pipeline from a manifest.
 #
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
-# repos → PM setup → update → install → casks → script → cleanup.
+# repos → PM setup → update → install → casks → script.
+#
+# Cache cleanup is NOT performed by this function. Call ospkg__clean explicitly
+# (e.g. via the _on_exit trap) when you want to purge the package manager cache.
 #
 # Args:
 #   --manifest <f>     Path to the YAML manifest file.
 #   --update <bool>    Run package index update before installing (default: true).
-#   --keep_cache       Do not run ospkg__clean after installation.
 #   --keep_repos       Do not remove added third-party repo files after installation.
 #   --dry_run          Print what would be installed without doing it.
 #   --skip_installed   Skip packages that are already installed.
 #   --interactive      Preserve TTY for interactive package prompts.
 ospkg__run() {
-  local _manifest='' _update=true _keep_cache=false _keep_repos=false
+  local _manifest='' _update=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false
   local _prefer_linuxbrew=false
 
@@ -796,10 +798,6 @@ ospkg__run() {
         shift
         _update="$1"
         shift
-        ;;
-      --keep_cache)
-        shift
-        _keep_cache=true
         ;;
       --keep_repos)
         shift
@@ -1278,15 +1276,6 @@ ospkg__run() {
     fi
 
   fi # end manifest processing
-
-  # ── Cache cleanup ─────────────────────────────────────────────────────────
-  if [[ "$_dry_run" == true ]]; then
-    echo "🔍 [dry-run] cache clean: would run ${_OSPKG_CLEAN}" >&2
-  elif [[ "$_keep_cache" == false ]]; then
-    ospkg__clean
-  else
-    echo "ℹ️  Cache cleanup skipped (--keep_cache)." >&2
-  fi
 
   return 0
 }
