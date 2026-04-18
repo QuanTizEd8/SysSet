@@ -27,10 +27,13 @@ endif
 # re-analysing the lib/ source chain for every file.
 # Pass FILES="f1 f2 ..." to check specific files only (used by lefthook).
 # features/*/install.bash are body-only (no header); lint the assembled src/ copies.
+# The full (no FILES) target auto-syncs src/ if it is absent, so that locally
+# the assembled install.bash files are always linted (matching CI behaviour).
 lint:
 ifdef FILES
 	echo $(FILES) | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
 else
+	@[ -d src ] || bash sync-lib.sh
 	{ git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$$'; find src -maxdepth 2 -name 'install.bash' 2>/dev/null; } | sort -u | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
 endif
 

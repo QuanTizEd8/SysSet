@@ -1,5 +1,6 @@
 _cleanup_hook() {
   echo "↪️ Function entry: _cleanup_hook" >&2
+  # shellcheck disable=SC2015  # || true is intentional: cleanup must not abort on rm failure
   [ -n "${INSTALLER_DIR-}" ] && rm -rf "$INSTALLER_DIR" 2> /dev/null || true
   if [ "${_NVM_CLEANUP_ENABLED-}" = "true" ] && [ -n "${NVM_DIR-}" ] && [ -f "${NVM_DIR}/nvm.sh" ] && [ -n "${_NVM_USER-}" ]; then
     su "$_NVM_USER" -c ". '${NVM_DIR}/nvm.sh' && nvm clear-cache" 2> /dev/null || true
