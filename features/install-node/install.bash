@@ -239,8 +239,6 @@ _node_install_via_nvm() {
 
   # Run nvm installer as target user
   echo "ℹ️ Running nvm installer as user '${_NVM_USER}'..." >&2
-  # Unset METHOD to prevent nvm installer from misinterpreting our 'method' option value
-  unset METHOD
   su "$_NVM_USER" -c \
     "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${NVM_DIR}' bash '${INSTALLER_DIR}/nvm-install.sh'"
 

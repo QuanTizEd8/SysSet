@@ -296,7 +296,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             lines.append(f"  if [ \"${{{vname}+defined}}\" ]; then")
             lines.append(f"    if [ -n \"${{{vname}-}}\" ]; then")
             lines.append(
-                f'      mapfile -t {vname} < <(printf \'%s\\n\' "${{{vname}}}" | tr \',\' \'\\n\' | grep -v \'^\')'
+                f'      mapfile -t {vname} < <(printf \'%s\\n\' "${{{vname}}}" | grep -v \'^\')'
             )
             lines.append(f'      for _item in "${{{vname}[@]}}"; do')
             lines.append(
@@ -422,6 +422,23 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                 lines.append("    exit 1")
                 lines.append("    ;;")
                 lines.append("esac")
+    # ── unexport option variables ─────────────────────────────────────────────
+    # Strip the export attribute from all scalar option variables so they cannot
+    # leak into child processes (e.g. third-party installers called via su/exec).
+    # Array variables are never exported by bash, so they need no treatment.
+    scalar_vars = [
+        opt_to_var(key)
+        for key, opt in options.items()
+        if opt.get("type", "string") != "array"
+    ]
+    if scalar_vars:
+        lines.append("")
+        lines.append(
+            "# Unexport option variables — values remain accessible in this script but"
+        )
+        lines.append("# are not inherited by child processes.")
+        lines.append("declare +x " + " ".join(scalar_vars))
+
     # ── base dependencies ─────────────────────────────────────────────────────
     lines.append("")
     if dependencies and "base" in dependencies:

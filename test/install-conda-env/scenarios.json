@@ -41,7 +41,7 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-conda-env": {
-                "env_files": "/tmp/test-envs/envA.yml,/tmp/test-envs/envB.yml",
+                "env_files": "/tmp/test-envs/envA.yml\n/tmp/test-envs/envB.yml",
                 "debug": true
             }
         }
