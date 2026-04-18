@@ -27,6 +27,10 @@ on:
       run_dist:
         type: string
         default: "false"
+      version:
+        description: "Version to stamp into built artifacts (commit SHA or release tag)."
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       run_lint:
@@ -61,6 +65,10 @@ on:
         description: "Run dist tests (get.sh, sysset.sh)"
         type: boolean
         default: true
+      version:
+        description: "Version to stamp into built artifacts (leave blank to use commit SHA)"
+        type: string
+        default: ""
 
 jobs:
   # ── Pass through caller inputs, or resolve dispatch inputs ───────────────
@@ -76,6 +84,8 @@ jobs:
       run_macos: ${{ steps.setup.outputs.run_macos }}
       macos_features: ${{ steps.setup.outputs.macos_features }}
       run_dist: ${{ steps.setup.outputs.run_dist }}
+      run_prepare: ${{ steps.setup.outputs.run_prepare }}
+      version: ${{ steps.setup.outputs.version }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -90,6 +100,7 @@ jobs:
           INPUT_RUN_MACOS: ${{ inputs.run_macos }}
           INPUT_MACOS_FEATURES: ${{ inputs.macos_features }}
           INPUT_RUN_DIST: ${{ inputs.run_dist }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           # ── Resolve features ──────────────────────────────────────────────
           # INPUT_FEATURES can be:
@@ -117,6 +128,18 @@ jobs:
               | grep -v '^$' | jq -R . | jq -sc .)
           fi
 
+          # ── run_prepare: true if any job that consumes artifacts is requested ─
+          run_prepare=false
+          for flag in "$INPUT_RUN_LINT" "$INPUT_RUN_VALIDATE" "$INPUT_RUN_UNIT" "$INPUT_RUN_FEATURES" "$INPUT_RUN_MACOS" "$INPUT_RUN_DIST"; do
+            if [[ "$flag" == "true" ]]; then
+              run_prepare=true
+              break
+            fi
+          done
+
+          # ── Resolve version ───────────────────────────────────────────────
+          version="${INPUT_VERSION:-${GITHUB_SHA}}"
+
           {
             echo "run_lint=$INPUT_RUN_LINT"
             echo "run_validate=$INPUT_RUN_VALIDATE"
@@ -126,52 +149,80 @@ jobs:
             echo "run_macos=$INPUT_RUN_MACOS"
             echo "macos_features=$macos_features"
             echo "run_dist=$INPUT_RUN_DIST"
+            echo "run_prepare=$run_prepare"
+            echo "version=$version"
           } >> "$GITHUB_OUTPUT"
+
+  # ── Prepare: sync src/, build dist/, upload artifacts ────────────────────
+  prepare:
+    name: "Prepare"
+    needs: setup
+    if: needs.setup.outputs.run_prepare == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install PyYAML
+        run: pip3 install -r requirements.txt
+
+      - name: Sync Library Files
+        run: bash sync-lib.sh
+
+      - name: Build Distribution Artifacts
+        run: bash build-artifacts.sh "${{ needs.setup.outputs.version }}"
+
+      - name: Upload src/ artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sysset-src
+          path: src/
+          retention-days: 1
+
+      - name: Upload dist/ artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sysset-dist
+          path: dist/
+          retention-days: 1
 
   # ── Lint (shfmt + shellcheck) ─────────────────────────────────────────────
   lint:
     name: "Format & lint"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_lint == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: "Install shfmt"
-        env:
-          SHFMT_VERSION: "v3.10.0"
-        run: |
-          curl -fsSL \
-            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64" \
-            -o /usr/local/bin/shfmt
-          chmod +x /usr/local/bin/shfmt
-          shfmt --version
+      - name: Install shfmt and shellcheck
+        run: bash scripts/setup-dev.sh --tools shfmt,shellcheck
 
-      - name: "Install shellcheck"
-        run: |
-          sudo apt-get install -y --no-install-recommends shellcheck
-          shellcheck --version
+      - name: Download src/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-src
+          path: src/
 
       - name: "Check formatting (shfmt)"
-        run: shfmt -d --apply-ignore .
+        run: make format-check
 
       - name: "Lint (shellcheck)"
-        run: |
-          # features/*/install.bash are body-only (no header) — skip them here.
-          # The assembled src/*/install.bash files are linted in the feature test jobs
-          # after sync-lib.sh regenerates src/.
-          git ls-files -- '*.sh' '*.bash' \
-            | grep -v '^features/[^/]*/install\.bash$' \
-            | xargs shellcheck
+        run: make lint
 
   # ── Validate devcontainer-feature.json files ──────────────────────────────
   validate:
     name: "Validate feature metadata"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_validate == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download src/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-src
+          path: src/
 
       - name: "Validate devcontainer-feature.json files"
         uses: devcontainers/action@1082abd5d2bf3a11abccba70eef98df068277772 # v1.4.3
@@ -182,7 +233,7 @@ jobs:
   # ── Unit tests (native: ubuntu + macOS) ───────────────────────────────────
   unit-native:
     name: "Unit tests (${{ matrix.os }})"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
@@ -197,8 +248,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download src/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-src
+          path: src/
 
       - name: "Install bash ≥4 (macOS)"
         if: runner.os == 'macOS'
@@ -210,7 +264,7 @@ jobs:
   # ── Unit tests (Linux distribution containers) ────────────────────────────
   unit-linux:
     name: "Unit tests (container / ${{ matrix.distro }})"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_unit == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -235,8 +289,11 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download src/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-src
+          path: src/
 
       - name: "Run unit tests in container"
         run: |
@@ -249,7 +306,7 @@ jobs:
   # ── Feature scenario tests (Linux / devcontainer) ─────────────────────────
   test-features:
     name: "Test ${{ matrix.feature }}"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_features == 'true' && needs.setup.outputs.features != '[]'
     runs-on: ubuntu-latest
     strategy:
@@ -259,8 +316,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download src/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-src
+          path: src/
 
       - name: Install Devcontainer CLI
         run: npm install -g @devcontainers/cli
@@ -273,7 +333,7 @@ jobs:
   # ── install-os-pkg manifest resolution (6 distros) ────────────────────────
   test-os-pkg:
     name: "Test install-os-pkg manifest resolution (${{ matrix.image }})"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_features == 'true' && contains(fromJSON(needs.setup.outputs.features), 'install-os-pkg')
     runs-on: ubuntu-latest
     strategy:
@@ -289,8 +349,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download src/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-src
+          path: src/
 
       - name: "Run manifest resolution tests"
         env:
@@ -305,7 +368,7 @@ jobs:
   # ── Feature scenario tests (macOS native) ─────────────────────────────────
   test-macos:
     name: "Test ${{ matrix.feature }} (macOS)"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_macos == 'true' && needs.setup.outputs.macos_features != '[]'
     runs-on: macos-latest
     strategy:
@@ -315,8 +378,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download src/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-src
+          path: src/
 
       - name: "Test ${{ matrix.feature }} macOS scenarios"
         run: bash test/run-macos.sh "${{ matrix.feature }}"
@@ -324,14 +390,17 @@ jobs:
   # ── Dist: build artifacts ─────────────────────────────────────────────────
   test-dist-build:
     name: "Dist: build artifacts"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download dist/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-dist
+          path: dist/
 
       - name: "Run build scenario"
         env:
@@ -341,14 +410,17 @@ jobs:
   # ── Dist: get/ scenarios ──────────────────────────────────────────────────
   test-dist-get:
     name: "Dist: get/ scenarios"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download dist/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-dist
+          path: dist/
 
       - name: "Run get/ scenarios"
         env:
@@ -358,7 +430,7 @@ jobs:
   # ── Dist: sysset/ scenarios (Linux containers) ────────────────────────────
   test-dist-sysset:
     name: "Dist: sysset/ scenarios (${{ matrix.distro }})"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: ubuntu-latest
     strategy:
@@ -377,8 +449,11 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download dist/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-dist
+          path: dist/
 
       - name: "Run sysset/ scenarios inside ${{ matrix.distro }} container"
         env:
@@ -395,14 +470,17 @@ jobs:
   # ── Dist: macOS scenarios ─────────────────────────────────────────────────
   test-dist-macos:
     name: "Dist: macOS scenarios"
-    needs: setup
+    needs: [setup, prepare]
     if: needs.setup.outputs.run_dist == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Sync Library Files
-        run: bash sync-lib.sh
+      - name: Download dist/ artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sysset-dist
+          path: dist/
 
       - name: "Install bash ≥4 (macOS)"
         run: brew install bash
