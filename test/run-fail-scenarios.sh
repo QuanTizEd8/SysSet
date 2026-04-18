@@ -3,7 +3,7 @@
 # Usage: bash run-fail-scenarios.sh <feature>
 #
 # Sources test/<feature>/fail_scenarios.sh; each call to fail_scenario() runs
-# the feature's scripts/install.sh inside a container and expects a non-zero
+# the feature's install.bash inside a container and expects a non-zero
 # exit.  Reports pass/fail counts and exits non-zero if any scenario exits zero.
 #
 # DSL (inside fail_scenarios.sh):
@@ -20,7 +20,7 @@ set -euo pipefail
 FEATURE="${1:?Usage: run-fail-scenarios.sh <feature>}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCENARIOS_FILE="${REPO_ROOT}/test/${FEATURE}/fail_scenarios.sh"
-INSTALL_SCRIPT="src/${FEATURE}/scripts/install.sh"
+INSTALL_SCRIPT="src/${FEATURE}/install.bash"
 DEPS_FILE="${REPO_ROOT}/src/${FEATURE}/dependencies/base.yaml"
 
 if [[ ! -f "$SCENARIOS_FILE" ]]; then

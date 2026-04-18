@@ -16,7 +16,7 @@ library available to every script.
     - [Options](#options)
     - [Dependencies on other features](#dependencies-on-other-features)
   - [The bootstrap pattern](#the-bootstrap-pattern)
-  - [`scripts/install.sh` structure](#scriptsinstallsh-structure)
+  - [`install.bash` structure](#installbash-structure)
     - [Shebang and error settings](#shebang-and-error-settings)
     - [Paths](#paths)
     - [Library sourcing](#library-sourcing)
@@ -54,12 +54,12 @@ library available to every script.
    implemented. Use library functions instead of reinventing them.
 2. Create `src/<feature-id>/devcontainer-feature.json` with `"id"` matching
    the directory name.
-2. Create `src/<feature-id>/scripts/install.sh` following the structure
+2. Create `src/<feature-id>/install.bash` following the structure
    described below.
 3. Run `bash sync-lib.sh` — this generates `src/<feature-id>/install.sh`
-   (bootstrap) and `src/<feature-id>/scripts/_lib/`.
+   (bootstrap) and `src/<feature-id>/_lib/`.
 4. Create `test/<feature-id>/scenarios.json` and at least one `<scenario>.sh`.
-5. If the feature requires OS packages before `scripts/install.sh` runs,
+5. If the feature requires OS packages before `install.bash` runs,
    add `src/<feature-id>/dependencies/base.yaml`.
 
 ---
@@ -79,7 +79,7 @@ src/<feature-id>/
 └── files/                      ← Optional static files
 ```
 
-`install.sh` (at the feature root) and `scripts/_lib/` are git-ignored
+`install.sh` (at the feature root) and `_lib/` are git-ignored
 generated artefacts — they are created by `bash sync-lib.sh`. Never edit
 them directly.
 
@@ -186,8 +186,8 @@ The bootstrap resolves this two-step:
 
 1. **`install.sh`** (POSIX sh) — checks whether `bash` is present; if not,
    installs it via the system package manager (`apk`, `apt-get`, `dnf`, etc.).
-   Then `exec bash scripts/install.sh "$@"` to hand off.
-2. **`scripts/install.sh`** (bash ≥4) — the real installer with full access
+   Then `exec bash install.bash "$@"` to hand off.
+2. **`install.bash`** (bash ≥4) — the real installer with full access
    to the shared library.
 
 `install.sh` at the feature root is generated from `bootstrap.sh` by
@@ -195,7 +195,7 @@ The bootstrap resolves this two-step:
 
 ---
 
-## `scripts/install.sh` structure
+## `install.bash` structure
 
 Follow this structure for every new installer:
 
@@ -213,12 +213,11 @@ set -euo pipefail
 
 ```bash
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"   # Only needed when referencing files/
+_BASE_DIR="$_SELF_DIR"
 ```
 
-`_SELF_DIR` resolves to `src/<feature>/scripts/`. Use it to source `_lib/`
-and find manifests. `_BASE_DIR` resolves to `src/<feature>/` — use it to
-reference `files/` or `dependencies/`.
+`_SELF_DIR` and `_BASE_DIR` both resolve to `src/<feature>/`. Use them to source `_lib/`,
+reference `files/`, and find manifests.
 
 ### Library sourcing
 
@@ -282,7 +281,7 @@ Every feature must work in two modes:
 - **Devcontainer mode** (no CLI arguments): the devcontainer tooling injects
   options as environment variables (`VERSION`, `DEBUG`, `LOGFILE`, etc.).
 - **CLI mode** (arguments present): a human or another script calls
-  `scripts/install.sh --version 1.2.3 --debug` directly.
+  `install.bash --version 1.2.3 --debug` directly.
 
 The standard pattern:
 
@@ -451,7 +450,7 @@ ospkg__clean
 
 ## Shared library reference
 
-All library files live in `lib/` and are synced to `scripts/_lib/` in each
+All library files live in `lib/` and are synced to `_lib/` in each
 feature. Source them from `$_SELF_DIR/_lib/<file>.sh`.
 
 > **Always check here before implementing something from scratch.** If a
@@ -681,7 +680,7 @@ users__set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
 
 If a feature deploys configuration files, templates, or scripts into the
 container, place them under `src/<feature>/files/`. Reference them in
-`scripts/install.sh` via `_FILES_DIR="${_BASE_DIR}/files"`.
+`install.bash` via `_FILES_DIR="${_BASE_DIR}/files"`.
 
 ```bash
 _FILES_DIR="${_BASE_DIR}/files"
@@ -692,13 +691,13 @@ cp "${_FILES_DIR}/my-config.conf" /etc/my-config.conf
 
 ## Sync and pre-commit
 
-After creating or editing `scripts/install.sh`, run:
+After creating or editing `install.bash`, run:
 
 ```bash
 bash sync-lib.sh
 ```
 
-This generates `install.sh` (bootstrap) and `scripts/_lib/` for your new
+This generates `install.sh` (bootstrap) and `_lib/` for your new
 feature. Both are git-ignored — never commit them.
 
 If you have [Lefthook](https://github.com/evilmartians/lefthook) installed and

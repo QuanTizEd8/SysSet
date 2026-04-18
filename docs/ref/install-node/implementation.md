@@ -364,7 +364,7 @@ brew:
 ### Installer Script Structure
 
 ```
-scripts/install.sh
+install.bash
   ├── Header: set -euo pipefail, _SELF_DIR, _BASE_DIR
   ├── Source: ospkg.sh, logging.sh, github.sh, checksum.sh, shell.sh, users.sh
   ├── logging__setup + EXIT trap (includes: rm -rf "$INSTALLER_DIR"; for nvm also: cleanup nvm cache on error)
@@ -424,7 +424,7 @@ scripts/install.sh
 
 ### Key Edge Cases and Implementation Notes
 
-**nvm shell function sourcing:** nvm is a shell function, not a binary. Within `scripts/install.sh` (which runs as bash), nvm must be sourced with `. "$NVM_DIR/nvm.sh"`. Any subshell invocation (e.g. `bash -c "..."`) must re-source it. The `nvm install` and `nvm version` calls in `_node_install_via_nvm` are made in the same shell after sourcing.
+**nvm shell function sourcing:** nvm is a shell function, not a binary. Within `install.bash` (which runs as bash), nvm must be sourced with `. "$NVM_DIR/nvm.sh"`. Any subshell invocation (e.g. `bash -c "..."`) must re-source it. The `nvm install` and `nvm version` calls in `_node_install_via_nvm` are made in the same shell after sourcing.
 
 **`lts/*` quoting:** The `VERSION` variable may contain `lts/*`. To prevent glob expansion, all nvm invocations must pass `"$VERSION"` (double-quoted) which suppresses glob expansion in bash.
 

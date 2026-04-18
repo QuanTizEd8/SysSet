@@ -1,6 +1,6 @@
 ---
-description: "Use when writing, editing, or creating feature installer scripts under src/**/scripts/ or shared library modules under lib/. Covers the bootstrap pattern, library sourcing, logging setup, dual-mode argument parsing, emoji conventions, and the full shared library API."
-applyTo: "src/**/scripts/*.sh, lib/*.sh"
+description: "Use when writing, editing, or creating feature installer scripts under src/**/*.bash or shared library modules under lib/. Covers the bootstrap pattern, library sourcing, logging setup, dual-mode argument parsing, emoji conventions, and the full shared library API."
+applyTo: "src/**/*.bash, lib/*.sh"
 ---
 
 # Feature Installer Script Conventions
@@ -105,7 +105,7 @@ ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 ## Return Statements
 
-Every function must end with an explicit `return` statement (even if it always returns 0). This applies to all functions in both `scripts/` and `lib/`.
+Every function must end with an explicit `return` statement (even if it always returns 0). This applies to all functions in both `install.bash` and `lib/`.
 
 ## Guard Pattern (lib/ modules only)
 

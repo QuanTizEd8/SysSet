@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Fail scenarios for install-gh.
-# Each call to fail_scenario expects scripts/install.sh to exit non-zero.
+# Each call to fail_scenario expects install.bash to exit non-zero.
 # See test/run-fail-scenarios.sh for the DSL reference.
 
 # Invalid enum values must be rejected before any install work begins.

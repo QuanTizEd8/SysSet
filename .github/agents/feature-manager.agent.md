@@ -77,7 +77,7 @@ DO NOT PROCEED TO PHASE 6 (IMPLEMENTATION) OR ASK THE USER WHETHER YOU SHOULD PR
 RUN THE TESTS AND VERIFY THEY FAIL BEFORE IMPLEMENTING THE BUILDING BLOCK, to ensure that the tests are correctly written and that they will effectively validate the implementation. After writing the tests, implement the building block in `lib/`, ensuring that it fulfills the specification outlined in the implementation reference document, is robust against all current and anticipated use cases, follows best practices, and is well-documented.
 4. After modifying `lib/`, run `bash sync-lib.sh` to propagate changes, then run the unit tests for the modified library modules to verify that the new implementation is correct and doesn't introduce regressions.
 5. After all building blocks are implemented and their unit tests pass, adopt the same TDD approach and implement comprehensive scenario tests for the feature under `test/<feature-name>/`, covering all relevant use cases, options, and edge cases, and fully verifying the correctness of the implementation according to the reference documents. Make sure to include failing and passing scenarios for all supported platforms, including macOS tests (run on CI runners). Scenario tests are too heavy to run locally, so NEVER TRY TO RUN THEM LOCALLY.
-6. Write the installer script under `src/<feature-name>/scripts/install.sh` following all conventions:
+6. Write the installer script under `src/<feature-name>/install.bash` following all conventions:
    - File header with `_SELF_DIR` and `_BASE_DIR`.
    - Source `ospkg.sh` first, then `logging.sh`, then other needed modules.
    - `logging__setup` + EXIT trap for `logging__cleanup`.
@@ -168,7 +168,7 @@ If the verdict is **NOT APPROVED**:
 ## Key Project Facts
 
 - **Generated files** (`src/*/install.sh`, `src/**/_lib/`): never edit; run `bash sync-lib.sh`.
-- **bootstrap.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `scripts/install.sh`. Generates all `src/*/install.sh` files.
+- **bootstrap.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files.
 - **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `build-artifacts.sh`).
 - **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `sync-lib.sh`.
 - **Test layers**: bats unit tests (`test/unit/`), devcontainer scenario tests (`test/<feature-name>/`), fail scenarios, dry-run manifest tests.

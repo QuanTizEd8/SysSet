@@ -93,7 +93,7 @@ sequential steps.
 
 The top-level `install.sh` is a POSIX sh script that ensures `bash` is
 available (installing it via the detected package manager if necessary),
-then hands off to the main orchestrator at `scripts/install.sh`.
+then hands off to the main orchestrator at `install.bash`.
 
 ### Step 1 — Install packages
 

@@ -10,22 +10,20 @@
 
 The workspace is a git repository with following key directories and files:
 
-- `bootstrap.sh`: A thin POSIX-compliant shim that ensures bash is available, then exec's `scripts/install.sh`. This is the canonical source for the install script's entry point, and is copied into each feature's `src/*/install.sh` by `sync-lib.sh`.
+- `bootstrap.sh`: A thin POSIX-compliant shim that ensures bash is available, then exec's `install.bash`. This is the canonical source for the install script's entry point, and is copied into each feature's `src/*/install.sh` by `sync-lib.sh`.
 - `sync-lib.sh`: Distributes `lib/` and `bootstrap.sh` into every feature.
 - `Makefile`: Developer targets: format, format-check, lint, sync.
 - `.editorconfig`: shfmt style config (2-space, case-indent, etc.).
 - `.shellcheckrc`: shellcheck defaults (shell=bash, external-sources=true).
 - `lefthook.yml`: A lefthook pre-commit hook that runs `sync-lib.sh` and `make format` automatically.
 - `.local/scratch/`: Git-ignored scratch space for temporary files that is wiped periodically; use it for short-term storage during your work.
-- `lib/`: Shared library containing common functions for feature scripts (canonical source); its contents are copied into every feature's `scripts/_lib/` by `sync-lib.sh`, which are then sourced by the feature scripts.
+- `lib/`: Shared library containing common functions for feature scripts (canonical source); its contents are copied into every feature's `_lib/` by `sync-lib.sh`, which are then sourced by the feature scripts.
 - `src/`: Source code of all features.
   - `src/*/`: Per-feature directory, where `*` is the feature name/ID (e.g. `install-shell`).
     - `src/*/devcontainer-feature.json`: Metadata and option definitions for the feature, consumed by the devcontainer CLI to install the feature into devcontainer images.
     - `src/*/install.sh`: Auto-generated and git-ignored copy of `bootstrap.sh` for each feature; **NEVER EDIT THIS FILE DIRECTLY!** It is overwritten by `sync-lib.sh` on every run.
-    - `src/*/scripts/`: Main feature scripts.
-      - `src/*/scripts/_lib/`: Auto-generated and git-ignored copies of `lib/` for each feature; **NEVER EDIT THESE FILES DIRECTLY!** They are overwritten by `sync-lib.sh` on every run.
-      - `src/*/scripts/install.sh`: Main installer script and entry point for the feature (bash ≥4.0); orchestrates and implement the installation using functionalities in the shared library.
-      - `src/*/scripts/*.sh`: Any additional feature-specific helper scripts; sourced by the main installer.
+    - `src/*/install.bash`: Main installer script and entry point for the feature (bash ≥4.0); orchestrates and implement the installation using functionalities in the shared library.
+    - `src/*/_lib/`: Auto-generated and git-ignored copies of `lib/` for each feature; **NEVER EDIT THESE FILES DIRECTLY!** They are overwritten by `sync-lib.sh` on every run.
     - `src/*/dependencies/`: Dependency manifests for the feature.
       - `src/*/dependencies/*.yaml`: Feature dependencies, i.e. lists of OS packages required by the feature, represented as platform-aware manifests that are consumed by `lib/ospkg.sh`.
       - `src/*/dependencies/base.yaml`: Manifest for always-required dependencies; all other manifests are optional and only used when specific options are set.

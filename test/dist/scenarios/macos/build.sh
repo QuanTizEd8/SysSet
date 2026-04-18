@@ -26,10 +26,10 @@ check "dist/get.sh no placeholder" \
 # spot-check a few features
 for _feat in install-pixi install-os-pkg setup-user; do
   check "sysset-${_feat}.tar.gz exists" test -f "${DIST}/sysset-${_feat}.tar.gz"
-  check "sysset-${_feat}: contains install.sh" \
-    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'install\.sh'"
-  check "sysset-${_feat}: contains scripts/_lib/" \
-    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'scripts/_lib/'"
+  check "sysset-${_feat}: contains install.bash" \
+    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q 'install\.bash'"
+  check "sysset-${_feat}: contains _lib/" \
+    bash -c "tar -tzf '${DIST}/sysset-${_feat}.tar.gz' | grep -q '_lib/'"
 done
 
 check "sysset-all: contains scripts/sysset.sh" \

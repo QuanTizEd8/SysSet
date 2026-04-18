@@ -45,8 +45,8 @@ testing them, and publishing releases.
 
 ## Shared library quick reference
 
-Every feature's `scripts/install.sh` has access to a shared bash library
-(sourced from `scripts/_lib/`, a synced copy of `lib/`):
+Every feature's `install.bash` has access to a shared bash library
+(sourced from `_lib/`, a synced copy of `lib/`):
 
 | Module | Key functions |
 |---|---|

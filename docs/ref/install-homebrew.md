@@ -49,7 +49,7 @@ sudo bash install.sh --if_exists skip --export_path /etc/profile.d/brew.sh
 
 `install.sh` at the repository root is a lightweight POSIX sh bootstrap.
 On macOS it installs Homebrew first (if neither `brew` nor MacPorts is
-present) to obtain bash ≥ 4, then hands off to `scripts/install.sh`.
+present) to obtain bash ≥ 4, then hands off to `install.bash`.
 On Linux it uses whatever package manager is available to obtain bash ≥ 4.
 Feature callers never need to invoke the bootstrap directly — the devcontainer
 framework calls `install.sh` automatically.

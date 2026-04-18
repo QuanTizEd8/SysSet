@@ -2,7 +2,7 @@
 
 The installer has two top-level code paths (`package`, `source`) dispatched directly from `$METHOD`. The `package` path installs git via the OS package manager; on Ubuntu with `VERSION=latest` it first configures the git-core PPA before installing. The `source` path downloads a `kernel.org` tarball, verifies its SHA-256 checksum, and runs `make && make install` with platform-appropriate flags.
 
-The script lives at `src/install-git/scripts/install.sh` and must only orchestrate; all reusable logic (GitHub API, checksum, OS detection) is delegated to `lib/` functions.
+The script lives at `src/install-git/install.bash` and must only orchestrate; all reusable logic (GitHub API, checksum, OS detection) is delegated to `lib/` functions.
 
 ---
 
@@ -285,7 +285,7 @@ The existing `dependencies/base.yaml` (apt-only, incomplete) will be replaced. T
 
 ---
 
-## Script Functions (in `scripts/install.sh`)
+## Script Functions (in `install.bash`)
 
 ### `_git__check_exists`
 
@@ -814,7 +814,7 @@ When the version short-circuit does not apply (or versions differ), the `if_exis
 
 ### `base.yaml` Migration
 
-The existing `dependencies/base.yaml` is replaced by `dependencies/os-pkg.yaml` and `dependencies/source-build.yaml`. The old file is removed. The new `scripts/install.sh` references the appropriate manifest for each method.
+The existing `dependencies/base.yaml` is replaced by `dependencies/os-pkg.yaml` and `dependencies/source-build.yaml`. The old file is removed. The new `install.bash` references the appropriate manifest for each method.
 
 ---
 

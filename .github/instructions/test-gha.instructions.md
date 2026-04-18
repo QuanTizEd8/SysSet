@@ -207,7 +207,7 @@ The devcontainer CLI cannot assert that a feature install exits non-zero. `fail_
 
 ```bash
 # test/<feature>/fail_scenarios.sh
-# Each fail_scenario call expects scripts/install.sh to exit non-zero.
+# Each fail_scenario call expects install.bash to exit non-zero.
 
 fail_scenario "invalid version string" \
     VERSION=bad_value

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
+_BASE_DIR="$_SELF_DIR"
 
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
@@ -32,7 +32,7 @@ trap '_on_exit' EXIT
 
 __usage__() {
   cat << 'EOF'
-Usage: install.sh [OPTIONS]
+Usage: install.bash [OPTIONS]
 
 Options:
   --add_current_user {true,false}    Whether to configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root. (default: "true")

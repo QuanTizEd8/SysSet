@@ -318,7 +318,7 @@ _run_feature() {
   local _exit=0
 
   # The tarball root contains a POSIX sh bootstrap that handles bash>=4
-  # and then execs scripts/install.sh "$@".
+  # and then execs install.bash "$@".
   sh "$_tmpdir/install.sh" "${_opts[@]+"${_opts[@]}"}" || _exit=$?
 
   rm -rf "$_tmpdir"

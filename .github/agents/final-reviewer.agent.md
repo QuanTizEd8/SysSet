@@ -38,7 +38,7 @@ Read these files and verify they agree:
 2. **`docs/ref/<feature-name>/api.md`** — the API reference
 3. **`docs/ref/<feature-name>/implementation.md`** — the implementation reference
 4. **`src/<feature>/devcontainer-feature.json`** — the JSON API
-5. **`src/<feature>/scripts/install.sh`** — the script argument parser
+5. **`src/<feature>/install.bash`** — the script argument parser
 
 For each option, verify:
 - Same name in all three (doc, JSON key, script flag/env var).

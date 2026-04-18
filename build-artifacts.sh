@@ -14,9 +14,8 @@
 #
 # Tarball layout (per feature):
 #   install.sh        POSIX sh bootstrap (handles bash>=4 on any platform)
-#   scripts/
-#     install.sh      Real bash>=4 installer
-#     _lib/           Full lib/ copy
+#   install.bash      Real bash>=4 installer
+#   _lib/             Full lib/ copy
 #   dependencies/     Optional — only when src/<feature>/dependencies/ exists
 #   files/            Optional — only when src/<feature>/files/ exists
 set -euo pipefail
@@ -38,11 +37,11 @@ mkdir -p "${_SCRIPT_DIR}/dist"
 _feature_dirs=()
 while IFS= read -r _json; do
   _dir="$(dirname "$_json")"
-  [[ -d "${_dir}/scripts" ]] && _feature_dirs+=("$_dir")
+  [[ -f "${_dir}/install.bash" ]] && _feature_dirs+=("$_dir")
 done < <(find "${_SCRIPT_DIR}/src" -maxdepth 2 -name "devcontainer-feature.json" | sort)
 
 if [[ ${#_feature_dirs[@]} -eq 0 ]]; then
-  echo "⛔ No features with a scripts/ subdirectory found." >&2
+  echo "⛔ No features with an install.bash found." >&2
   exit 1
 fi
 
@@ -58,7 +57,8 @@ for _feature_dir in "${_feature_dirs[@]}"; do
 
   # Always include: bootstrap and real installer (with _lib/)
   cp "${_feature_dir}/install.sh" "${_staging}/install.sh"
-  cp -r "${_feature_dir}/scripts/" "${_staging}/scripts/"
+  cp "${_feature_dir}/install.bash" "${_staging}/install.bash"
+  cp -r "${_feature_dir}/_lib/" "${_staging}/_lib/"
 
   # Optional: dependencies/
   if [[ -d "${_feature_dir}/dependencies" ]]; then

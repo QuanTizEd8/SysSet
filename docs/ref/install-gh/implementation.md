@@ -1,6 +1,6 @@
 # Implementation Reference — install-gh
 
-The installer follows the established pattern of a thin orchestrator script (`scripts/install.sh`) that
+The installer follows the established pattern of a thin orchestrator script (`install.bash`) that
 dispatches to feature-local helper functions. All low-level primitives (platform detection, package management,
 HTTP fetches, checksum verification, shell directory detection, user resolution) come from `lib/`. No new
 library functions are required.
@@ -47,7 +47,7 @@ library functions are required.
 
 ## Feature-Local Helper Functions
 
-All the following live in `scripts/install.sh` and are named with the `_gh__` prefix.
+All the following live in `install.bash` and are named with the `_gh__` prefix.
 
 ### `_gh__resolve_version`
 **Responsibility:** Resolve `VERSION` to a concrete semver string (no `v` prefix, e.g. `2.89.0`).
@@ -329,8 +329,8 @@ macOS (zip) uses the same structure with `macOS` in the directory name.
 - [API Reference](api.md) — options, defaults, and usage examples
 - [goreleaser.yml — CGO_ENABLED=0, archive structure, naming convention](https://github.com/cli/cli/blob/trunk/.goreleaser.yml)
 - [Official Linux Install Docs](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
-- [install-git scripts/install.sh — Platform dispatch and GPG key import patterns](../../src/install-git/scripts/install.sh)
-- [install-pixi scripts/install.sh — Binary download + version resolution pattern](../../src/install-pixi/scripts/install.sh)
+- [install-git install.bash — Platform dispatch and GPG key import patterns](../../src/install-git/install.bash)
+- [install-pixi install.bash — Binary download + version resolution pattern](../../src/install-pixi/install.bash)
 - [lib/github.sh — github__latest_tag, github__release_asset_urls](../../lib/github.sh)
 - [lib/checksum.sh — checksum__verify_sha256](../../lib/checksum.sh)
 - [lib/shell.sh — shell__detect_zshdir](../../lib/shell.sh)

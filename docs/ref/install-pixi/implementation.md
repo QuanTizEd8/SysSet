@@ -5,7 +5,7 @@
 The installer downloads a pre-built static binary from GitHub Releases, verifies it
 against a `.tar.gz.sha256` sidecar file, extracts it to `$PREFIX/bin`, and optionally updates
 shell startup files for PATH and completion. It follows the same structural patterns
-as `src/install-miniforge/scripts/install.sh`.
+as `src/install-miniforge/install.bash`.
 
 All heavy-lifting is delegated to `lib/` functions. The installer's own functions
 are pure orchestrators that handle pixi-specific logic (triple detection, version
@@ -397,8 +397,8 @@ The `__cleanup__` EXIT trap always runs `logging__cleanup`. The installer files
 
 - [Installation Reference](./installation.md) — research output; installation methods and decision.
 - [API Reference](./api.md) — feature option design.
-- [install-miniforge/scripts/install.sh](../../src/install-miniforge/scripts/install.sh) — reference pattern for dual-mode parsing, export_path_main, cleanup, if_exists logic.
-- [install-git/scripts/install.sh](../../src/install-git/scripts/install.sh) — reference pattern for `prefix="auto"` root/non-root resolution and `create_symlink` (steps 1 and 8).
+- [install-miniforge/install.bash](../../src/install-miniforge/install.bash) — reference pattern for dual-mode parsing, export_path_main, cleanup, if_exists logic.
+- [install-git/install.bash](../../src/install-git/install.bash) — reference pattern for `prefix="auto"` root/non-root resolution and `create_symlink` (steps 1 and 8).
 - [lib/shell.sh](../../lib/shell.sh) — `shell__sync_block`, `shell__system_path_files`, `shell__user_path_files`, `shell__detect_bashrc`, `shell__detect_zshdir`.
 - [lib/checksum.sh](../../lib/checksum.sh) — `checksum__verify_sha256_sidecar`.
 - [lib/github.sh](../../lib/github.sh) — `github__latest_tag`.

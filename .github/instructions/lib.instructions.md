@@ -1,5 +1,5 @@
 ---
-description: "Use when writing, editing, or creating feature installer scripts under src/**/scripts/ or shared library modules under lib/. Covers the bootstrap pattern, library sourcing, logging setup, dual-mode argument parsing, emoji conventions, and the full shared library API."
+description: "Use when writing, editing, or creating feature installer scripts under src/**/*.bash or shared library modules under lib/. Covers the bootstrap pattern, library sourcing, logging setup, dual-mode argument parsing, emoji conventions, and the full shared library API."
 applyTo: "lib/*.sh"
 ---
 

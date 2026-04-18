@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Fail scenarios for install-git.
-# Each call to fail_scenario expects scripts/install.sh to exit non-zero.
+# Each call to fail_scenario expects install.bash to exit non-zero.
 # See test/run-fail-scenarios.sh for the DSL and runner logic.
 
 # Nonexistent tarball: version 0.0.0 does not exist on kernel.org.

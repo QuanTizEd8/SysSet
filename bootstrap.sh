@@ -65,13 +65,13 @@ _ensure_xcode_clt() {
 
 # _install_homebrew_bare — install Homebrew non-interactively.
 # Respects HOMEBREW_PREFIX if set (the only install-time option that matters).
-# All other Homebrew configuration is applied by scripts/install.sh afterwards.
+# All other Homebrew configuration is applied by install.bash afterwards.
 _install_homebrew_bare() {
   echo "🔍 Homebrew not found — installing Homebrew." >&2
   _ensure_xcode_clt
   _self_dir="$(dirname "$0")"
   # shellcheck source=/dev/null
-  . "$_self_dir/scripts/_lib/net.sh"
+  . "$_self_dir/_lib/net.sh"
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
   net__fetch_url_file \
     "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" \
@@ -120,4 +120,4 @@ _BASH4=$(_find_bash4) || {
 }
 
 _SELF_DIR="$(dirname "$0")"
-exec "$_BASH4" "$_SELF_DIR/scripts/install.sh" "$@"
+exec "$_BASH4" "$_SELF_DIR/install.bash" "$@"

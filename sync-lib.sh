@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # sync-lib.sh — Distributes shared files into each feature directory:
 #   - metadata.yaml → devcontainer-feature.json (via scripts/sync-metadata.py)
-#   - metadata.yaml → argparse block in scripts/install.sh (via scripts/sync-argparse.py)
-#   - lib/          → each feature's scripts/_lib/
+#   - metadata.yaml → argparse block in install.bash (via scripts/sync-argparse.py)
+#   - lib/          → each feature's _lib/
 #   - bootstrap.sh  → each feature's install.sh
 #
 # Usage:
@@ -11,8 +11,6 @@
 #                              # exits non-zero and reports stale features
 #
 # Features are auto-discovered from src/*/metadata.yaml — never hard-coded.
-# Any feature directory that contains a scripts/ subdirectory also receives
-# a scripts/_lib/ copy and an install.sh stub.
 set -euo pipefail
 
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -58,7 +56,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 4: Generate (or check) argparse blocks in each feature's install.sh.
+# Step 4: Generate (or check) argparse blocks in each feature's install.bash.
 # ---------------------------------------------------------------------------
 if [[ "$_check_mode" == true ]]; then
   "$_python" "${_SCRIPT_DIR}/scripts/sync-argparse.py" --check
@@ -67,16 +65,15 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 5: Auto-discover feature directories that have a scripts/ subdirectory.
+# Step 5: Auto-discover feature directories (those with a metadata.yaml).
 # ---------------------------------------------------------------------------
 _feature_dirs=()
 while IFS= read -r _meta; do
-  _dir="$(dirname "$_meta")"
-  [[ -d "${_dir}/scripts" ]] && _feature_dirs+=("$_dir")
+  _feature_dirs+=("$(dirname "$_meta")")
 done < <(find "$_SRC_DIR" -maxdepth 2 -name "metadata.yaml")
 
 if [[ ${#_feature_dirs[@]} -eq 0 ]]; then
-  echo "⛔ No features with a scripts/ subdirectory found in '${_SRC_DIR}'." >&2
+  echo "⛔ No feature directories found in '${_SRC_DIR}'." >&2
   exit 1
 fi
 
@@ -87,19 +84,19 @@ _any_stale=false
 
 for _feature_dir in "${_feature_dirs[@]}"; do
   _name="$(basename "$_feature_dir")"
-  _dest="${_feature_dir}/scripts/_lib"
+  _dest="${_feature_dir}/_lib"
   _bootstrap_dest="${_feature_dir}/install.sh"
 
   if [[ "$_check_mode" == true ]]; then
     if [[ ! -d "$_dest" ]]; then
-      echo "⛔ ${_name}: scripts/_lib/ is missing" >&2
+      echo "⛔ ${_name}: _lib/ is missing" >&2
       _any_stale=true
       continue
     fi
     if diff -rq "$_LIB_DIR" "$_dest" > /dev/null 2>&1; then
       echo "✅ ${_name}: in sync" >&2
     else
-      echo "⛔ ${_name}: scripts/_lib/ is stale" >&2
+      echo "⛔ ${_name}: _lib/ is stale" >&2
       diff -r "$_LIB_DIR" "$_dest" >&2 || true
       _any_stale=true
     fi

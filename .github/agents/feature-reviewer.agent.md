@@ -31,8 +31,8 @@ You are given a feature name, referenced to as `<feature-name>` in this document
 ### Step 1 — Read Everything From Disk
 
 Read fresh from disk. Do not trust any summary you were given. Read:
-- `src/<feature>/scripts/install.sh` — the main installer
-- `src/<feature>/scripts/*.sh` — any helper scripts
+- `src/<feature>/install.bash` — the main installer
+- `src/<feature>/*.bash` — any helper scripts
 - `src/<feature>/devcontainer-feature.json` — the API definition
 - `src/<feature>/dependencies/*.yaml` — dependency manifests (if they exist)
 - `docs/ref/<feature-name>/` — the reference documents (api.md, implementation.md)
@@ -125,7 +125,7 @@ For each issue you found, add a section with the following format:
 
 - **Severity**: [CRITICAL / ERROR / WARNING]
 - **Type**: [Implementation Gap / Platform Edge Case / Error Handling / Security / Idempotency / Argument Parsing / API Consistency / Completeness, etc.]
-- **Code Location(s)**: Exact file paths and line numbers where the issue exists (e.g. `src/install-some-tool/scripts/install.sh:45-60`).
+- **Code Location(s)**: Exact file paths and line numbers where the issue exists (e.g. `src/install-some-tool/install.bash:45-60`).
 - **Reference**: Link to the relevant part of the reference documents that this issue violates or fails to implement.
 - **Description**: A clear, detailed description of the issue, why it's a problem, and under what circumstances it would cause a failure or incorrect behavior.
 - **Test Location(s)**: Exact file paths and line numbers of the tests you wrote that target this issue (e.g. `test/install-some-tool/fail_scenarios.sh:10-30`).

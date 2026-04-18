@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""sync-argparse.py — Generates the full header of each feature's scripts/install.sh.
+"""sync-argparse.py — Generates the full header of each feature's install.bash.
 
 The generated content covers everything from the shebang (#!/usr/bin/env bash)
 through the argument-parsing block and default-variable initialisation, and is
@@ -19,7 +19,7 @@ The ``type: array`` is serialised as ``type: string`` in devcontainer-feature.js
 (handled by sync-metadata.py).
 
 Usage:
-  python3 scripts/sync-argparse.py           # update all install.sh files
+  python3 scripts/sync-argparse.py           # update all install.bash files
   python3 scripts/sync-argparse.py --check   # exit non-zero if any block is stale
 """
 
@@ -154,7 +154,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
 
     # ── path variables ───────────────────────────────────────────────────────
     lines.append('_SELF_DIR="$(cd "$(dirname "$0")" && pwd)"')
-    lines.append('_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"')
+    lines.append('_BASE_DIR="$_SELF_DIR"')
     lines.append("")
 
     # ── library sourcing ─────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
 
     lines.append("__usage__() {")
     lines.append("  cat << 'EOF'")
-    lines.append("Usage: install.sh [OPTIONS]")
+    lines.append("Usage: install.bash [OPTIONS]")
     lines.append("")
     lines.append("Options:")
     for (flag_str, desc, disp_default, is_required), (_key, _opt) in zip(entries, options.items()):
@@ -518,7 +518,7 @@ def main() -> int:
     for meta_path in feature_dirs:
         feature_dir = meta_path.parent
         feature_id = feature_dir.name
-        script_path = feature_dir / "scripts" / "install.sh"
+        script_path = feature_dir / "install.bash"
 
         if not script_path.exists():
             continue

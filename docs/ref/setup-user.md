@@ -72,7 +72,7 @@ The top-level `install.sh` is a minimal POSIX `sh` script. It uses the
 [`install-os-pkg`](../install-os-pkg/) feature (declared as a `dependsOn`
 dependency) to install base requirements — `bash` and, on Alpine, `shadow`
 (the `useradd`/`groupadd` suite) — before handing control to
-`scripts/install.sh` via `exec bash`.
+`install.bash` via `exec bash`.
 
 This two-stage design avoids the "bootstrap paradox" of calling `bash`
 before it is installed.

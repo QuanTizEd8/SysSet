@@ -105,5 +105,5 @@ fi
 tar -xzf "$_tmpdir/feature.tar.gz" -C "$_tmpdir"
 
 # The tarball root contains a POSIX sh bootstrap (install.sh) that finds
-# bash>=4 (installing it if necessary) and execs scripts/install.sh "$@".
+# bash>=4 (installing it if necessary) and execs install.bash "$@".
 sh "$_tmpdir/install.sh" "$@"

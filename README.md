@@ -495,8 +495,8 @@ bash test/run-unit.sh --module ospkg
 ```
 src/<feature>/
   devcontainer-feature.json   Feature metadata and options
-  scripts/install.sh          Main installer (bash ≥4.0)
-  scripts/_lib/               ← auto-generated; never edit directly
+  install.bash                Main installer (bash ≥4.0)
+  _lib/                       ← auto-generated; never edit directly
   dependencies/base.yaml      OS package manifest
   files/                      Static files copied into the container
   install.sh                  ← auto-generated bootstrap; never edit

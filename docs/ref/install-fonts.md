@@ -197,7 +197,7 @@ The installer runs as root at image build time in a single sequential pass.
 
 The top-level `install.sh` is a POSIX sh script that invokes `install-os-pkg`
 to install all declared package dependencies (including `bash` itself), then
-hands off to `scripts/install.sh` via `exec bash`.
+hands off to `install.bash` via `exec bash`.
 
 ### Step 1 — Install packages
 
@@ -208,7 +208,7 @@ present.
 
 ### Step 2 — Resolve font directory
 
-`scripts/install.sh` parses options (CLI flags or environment variables), then
+`install.bash` parses options (CLI flags or environment variables), then
 auto-detects `FONT_DIR` if it was not set explicitly. See
 [Font directory auto-detection](#font-directory-auto-detection).
 
@@ -428,7 +428,7 @@ than modifying the first.
 
 | Package | Purpose |
 |---|---|
-| `bash` | Required to run `scripts/install.sh` and `scripts/install_fonts.sh` |
+| `bash` | Required to run `install.bash` |
 | `curl` | Download font archives, individual files, and GitHub API responses |
 | `ca-certificates` | TLS certificate verification for HTTPS downloads |
 | `fontconfig` | Provides `fc-cache` for font cache refresh |
@@ -443,7 +443,7 @@ This feature declares a hard dependency on
 
 ## Standalone CLI usage
 
-`scripts/install.sh` accepts CLI flags and can be run directly on any machine
+`install.bash` accepts CLI flags and can be run directly on any machine
 that has `bash`, `curl`, and `fontconfig` available. All options that are
 available as Dev Container feature options map directly to `--<option>` flags.
 
@@ -451,7 +451,7 @@ available as Dev Container feature options map directly to `--<option>` flags.
 
 ```sh
 # Install Meslo and FiraCode Nerd Fonts to ~/.local/share/fonts
-bash scripts/install.sh --nerd_fonts "Meslo,FiraCode"
+bash install.bash --nerd_fonts "Meslo,FiraCode"
 ```
 
 Font directory auto-detects to `~/.local/share/fonts` when running as a
@@ -461,7 +461,7 @@ non-root user on Linux.
 
 ```sh
 # Install JetBrainsMono Nerd Font to ~/Library/Fonts
-bash scripts/install.sh --nerd_fonts "JetBrainsMono"
+bash install.bash --nerd_fonts "JetBrainsMono"
 ```
 
 Font directory auto-detects to `~/Library/Fonts` on macOS.
@@ -469,7 +469,7 @@ Font directory auto-detects to `~/Library/Fonts` on macOS.
 ### Custom font directory
 
 ```sh
-bash scripts/install.sh \
+bash install.bash \
   --nerd_fonts "Meslo" \
   --font_dir "/opt/fonts"
 ```
@@ -477,7 +477,7 @@ bash scripts/install.sh \
 ### GitHub release (pinned)
 
 ```sh
-bash scripts/install.sh \
+bash install.bash \
   --nerd_fonts "" \
   --gh_release_fonts "JetBrains/JetBrainsMono@v2.304" \
   --font_dir "$HOME/.local/share/fonts"
@@ -486,7 +486,7 @@ bash scripts/install.sh \
 ### All options
 
 ```
-Usage: install.sh [OPTIONS]
+Usage: install.bash [OPTIONS]
 
 Options:
   --nerd_fonts <string>        Comma-separated Nerd Fonts archive names (default: "Meslo,JetBrainsMono")
@@ -506,7 +506,7 @@ Options:
 ```
 src/install-fonts/
 ├── devcontainer-feature.json   # Feature metadata and options
-├── install.sh                  # Bootstrap: installs packages, then execs scripts/install.sh
+├── install.sh                  # Bootstrap: installs packages, then execs install.bash
 ├── base.yaml                   # Dependencies for install-os-pkg
 └── scripts/
     ├── helpers.sh              # fetch_with_retry helper

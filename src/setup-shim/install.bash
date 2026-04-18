@@ -2,7 +2,7 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
+_BASE_DIR="$_SELF_DIR"
 
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
@@ -31,7 +31,7 @@ trap '_on_exit' EXIT
 
 __usage__() {
   cat << 'EOF'
-Usage: install.sh [OPTIONS]
+Usage: install.bash [OPTIONS]
 
 Options:
   --code {true,false}               Install a `code` shim that delegates to the real `code` CLI or falls back to `code-insiders`. (default: "true")

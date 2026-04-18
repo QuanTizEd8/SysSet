@@ -527,7 +527,7 @@ gh run list --workflow "CI/CD"
 **Verify syntax locally before pushing:**
 
 ```bash
-bash -n src/<feature>/scripts/install.sh
+bash -n src/<feature>/install.bash
 bash -n test/<feature>/<scenario>.sh
 ```
 

@@ -35,7 +35,7 @@ endif
 
 # Sync generated artifacts from canonical sources:
 #   metadata.yaml  → devcontainer-feature.json  (via scripts/sync-metadata.py)
-#   lib/           → each feature's scripts/_lib/
+#   lib/           → each feature's _lib/
 #   bootstrap.sh   → each feature's install.sh
 sync:
 	bash sync-lib.sh
