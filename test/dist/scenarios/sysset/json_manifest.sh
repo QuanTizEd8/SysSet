@@ -19,10 +19,6 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-# ── Build dist/ ───────────────────────────────────────────────────────────────
-echo "ℹ️  Building dist/ artifacts ..." >&2
-bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
-
 # ── Extract sysset-all.tar.gz ─────────────────────────────────────────────────
 _bundle_dir="$(mktemp -d)"
 trap 'rm -rf "$_bundle_dir"' EXIT

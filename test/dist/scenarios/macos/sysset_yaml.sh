@@ -17,8 +17,6 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test-macos"
-
 _bundle_dir="$(mktemp -d)"
 # Use a tmpdir for the manifest so we can control the .yaml extension
 # (BSD mktemp on macOS does not support --suffix).

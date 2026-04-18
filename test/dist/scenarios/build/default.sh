@@ -16,10 +16,6 @@ DIST="${REPO_ROOT}/dist"
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
 
-# ── Build ─────────────────────────────────────────────────────────────────────
-echo "ℹ️  Running build-artifacts.sh dev ..." >&2
-bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
-
 # ── Helper: list features that have an install.bash ─────────────────────────
 _features=()
 while IFS= read -r _json; do
@@ -36,8 +32,8 @@ check "dist/scripts/ cleaned up after build" test ! -d "${DIST}/scripts"
 
 check "dist/get.sh tag stamped (no placeholder)" \
   bash -c "! grep -q '@@RELEASE_TAG@@' '${DIST}/get.sh'"
-check "dist/get.sh stamped with expected tag" \
-  bash -c "grep -q 'v0.1.0-test' '${DIST}/get.sh'"
+[[ -n "${SYSSET_BUILD_VERSION:-}" ]] && check "dist/get.sh stamped with expected tag" \
+  bash -c "grep -q '${SYSSET_BUILD_VERSION}' '${DIST}/get.sh'"
 
 for _feat in "${_features[@]}"; do
   _tarball="${DIST}/sysset-${_feat}.tar.gz"

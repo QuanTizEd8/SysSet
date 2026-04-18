@@ -16,8 +16,6 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 
 DIST="${REPO_ROOT}/dist"
 
-bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
-
 _bundle_dir="$(mktemp -d)"
 # Use a tmpdir so we can control the .json extension (BusyBox mktemp lacks --suffix).
 _manifest_dir="$(mktemp -d)"

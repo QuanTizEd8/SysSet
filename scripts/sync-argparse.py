@@ -329,8 +329,10 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             raw_default = opt["default"]
             if raw_default == "" or raw_default is None:
                 lines.append(
-                    f'[ "${{{vname}+defined}}" ] || {{ {vname}=(); '
-                    f"echo \"\u2139\ufe0f Argument '{key}' set to default value '(empty)'.\" >&2; }}"
+                    f'[ "${{{vname}+defined}}" ] || {{\n'
+                    f"  {vname}=()\n"
+                    f"  echo \"\u2139\ufe0f Argument '{key}' set to default value '(empty)'.\" >&2\n"
+                    f"}}"
                 )
             else:
                 # Embed the default as an ANSI-C quoted string so newlines are preserved.
@@ -343,9 +345,10 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                 )
                 disp = ", ".join(str(raw_default).splitlines())
                 lines.append(
-                    f'[ "${{{vname}+defined}}" ] || {{ '
-                    f"mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$'); "
-                    f"echo \"\u2139\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
+                    f'[ "${{{vname}+defined}}" ] || {{\n'
+                    f"  mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$')\n"
+                    f"  echo \"\u2139\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2\n"
+                    f"}}"
                 )
         else:
             rhs = shell_val(opt["default"], typ)
@@ -356,8 +359,10 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             else:
                 disp = str(opt["default"])
             lines.append(
-                f'[ "${{{vname}+defined}}" ] || {{ {vname}={rhs}; '
-                f"echo \"\u2139\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
+                f'[ "${{{vname}+defined}}" ] || {{\n'
+                f"  {vname}={rhs}\n"
+                f"  echo \"\u2139\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2\n"
+                f"}}"
             )
     # ── required argument checks ─────────────────────────────────────────────
     required_opts = [

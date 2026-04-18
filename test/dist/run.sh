@@ -16,6 +16,8 @@ SUITES=(build get sysset macos)
 
 SUITE_FILTER=""
 NAME_FILTER=""
+BUILD=true
+VERSION="v0.1.0-test"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -29,9 +31,18 @@ while [[ $# -gt 0 ]]; do
       NAME_FILTER="${1:?--filter requires a value}"
       shift
       ;;
+    --version)
+      shift
+      VERSION="${1:?--version requires a value}"
+      shift
+      ;;
+    --no-build)
+      BUILD=false
+      shift
+      ;;
     --help | -h)
       cat << EOF
-Usage: bash test/dist/run.sh [--suite <build|get|sysset|macos>] [--filter <name>]
+Usage: bash test/dist/run.sh [--suite <build|get|sysset|macos>] [--filter <name>] [--version <tag>] [--no-build]
 EOF
       exit 0
       ;;
@@ -41,6 +52,14 @@ EOF
       ;;
   esac
 done
+
+# ── Centralised build (skipped with --no-build) ───────────────────────────────
+export SYSSET_BUILD_VERSION=""
+if [[ "$BUILD" == true ]]; then
+  echo "ℹ️  Building dist/ artifacts for tag '${VERSION}' ..." >&2
+  bash "${REPO_ROOT}/build-artifacts.sh" "${VERSION}"
+  export SYSSET_BUILD_VERSION="${VERSION}"
+fi
 
 _pass=0
 _fail=0

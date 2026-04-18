@@ -13,10 +13,6 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
 
-# ── Pre-build dist/ artifacts ─────────────────────────────────────────────────
-echo "ℹ️  Building dist/ artifacts ..." >&2
-bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
-
 # ── Start local file server on an ephemeral port ──────────────────────────────
 # python3 -m http.server does not support port 0 on all platforms, so pick a
 # fixed high port that is unlikely to be in use.

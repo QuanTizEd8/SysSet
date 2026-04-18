@@ -10,8 +10,6 @@ REPO_ROOT="${1:?REPO_ROOT required as \$1}"
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
 
-bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test"
-
 _PORT=18533
 trap 'stop_file_server' EXIT
 start_file_server "${REPO_ROOT}/dist" "$_PORT"

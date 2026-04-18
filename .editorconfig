@@ -40,5 +40,5 @@ indent_size = 2
 ignore = true
 
 # p10k config uses zsh-only syntax not parseable by shfmt.
-[src/install-shell/files/skel/p10k.zsh]
+[{src,features}/install-shell/files/skel/p10k.zsh]
 ignore = true

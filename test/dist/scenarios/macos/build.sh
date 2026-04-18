@@ -11,17 +11,14 @@ DIST="${REPO_ROOT}/dist"
 # shellcheck source=test/lib/assert.sh
 . "${REPO_ROOT}/test/lib/assert.sh"
 
-echo "ℹ️  Running build-artifacts.sh on macOS ..." >&2
-bash "${REPO_ROOT}/build-artifacts.sh" "v0.1.0-test-macos"
-
 check "dist/get.sh exists" test -f "${DIST}/get.sh"
 check "dist/sysset-all.tar.gz exists" test -f "${DIST}/sysset-all.tar.gz"
 check "dist/scripts/ cleaned up after build" test ! -d "${DIST}/scripts"
 
-check "dist/get.sh tag stamped" \
-  bash -c "grep -q 'v0.1.0-test-macos' '${DIST}/get.sh'"
 check "dist/get.sh no placeholder" \
   bash -c "! grep -q '@@RELEASE_TAG@@' '${DIST}/get.sh'"
+[[ -n "${SYSSET_BUILD_VERSION:-}" ]] && check "dist/get.sh tag stamped" \
+  bash -c "grep -q '${SYSSET_BUILD_VERSION}' '${DIST}/get.sh'"
 
 # spot-check a few features
 for _feat in install-pixi install-os-pkg setup-user; do

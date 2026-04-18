@@ -396,16 +396,19 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Download dist/ artifact
+      - name: Download src/ artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: sysset-dist
-          path: dist/
+          name: sysset-src
+          path: src/
+
+      - name: Install PyYAML
+        run: pip3 install -r requirements.txt
 
       - name: "Run build scenario"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash test/dist/scenarios/build/default.sh "$GITHUB_WORKSPACE"
+        run: bash test/dist/run.sh --suite build --version v0.1.0-test
 
   # ── Dist: get/ scenarios ──────────────────────────────────────────────────
   test-dist-get:
@@ -425,7 +428,7 @@ jobs:
       - name: "Run get/ scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash test/dist/run.sh --suite get
+        run: bash test/dist/run.sh --suite get --no-build
 
   # ── Dist: sysset/ scenarios (Linux containers) ────────────────────────────
   test-dist-sysset:
@@ -465,7 +468,7 @@ jobs:
             -w /repo \
             -e GITHUB_TOKEN \
             "${{ matrix.image }}" \
-            sh -c "${{ matrix.pre }} && bash test/dist/run.sh --suite sysset"
+            sh -c "${{ matrix.pre }} && bash test/dist/run.sh --suite sysset --no-build"
 
   # ── Dist: macOS scenarios ─────────────────────────────────────────────────
   test-dist-macos:
@@ -488,4 +491,4 @@ jobs:
       - name: "Run macOS dist scenarios"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash test/dist/run.sh --suite macos
+        run: bash test/dist/run.sh --suite macos --no-build
