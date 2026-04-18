@@ -24,7 +24,12 @@ options:
   install_starship:
     type: boolean
     default: true
-    description: Install the [Starship](https://starship.rs/) prompt binary to `/usr/local/bin`.
+    description: Install the [Starship](https://starship.rs/) prompt binary.
+  starship_prefix:
+    type: string
+    default: /usr/local
+    description: |-
+      Installation prefix for Starship. The binary is placed at `$starship_prefix/bin/starship`.
   starship_shells:
     type: array
     default: zsh
