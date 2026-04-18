@@ -48,8 +48,8 @@ Options:
   --symlink {true,false}                     Create a symlink from the canonical bin directory to $prefix/bin/pixi when prefix resolves to a non-default path. (default: "true")
   --shell_completions <value>  (repeatable)  Shell names to write pixi completion eval blocks for.
   --keep_installer {true,false}              Keep the downloaded .tar.gz archive and .tar.gz.sha256 sidecar file after installation. (default: "false")
-  --keep_cache {true,false}                  Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
-  --debug {true,false}                       Enable debug output. (default: "false")
+  --keep_cache {true,false}                  Keep the package manager cache after installation. By default, the package manager cache is removed after installation to reduce image layer size. Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers. (default: "false")
+  --debug {true,false}                       Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                          Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                 Show this help
 EOF
@@ -71,7 +71,7 @@ if [ "$#" -gt 0 ]; then
   SYMLINK=true
   SHELL_COMPLETIONS=()
   KEEP_INSTALLER=false
-  KEEP_CACHE=true
+  KEEP_CACHE=false
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -271,8 +271,8 @@ fi
   echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
 }
 [ "${KEEP_CACHE+defined}" ] || {
-  KEEP_CACHE=true
-  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
+  KEEP_CACHE=false
+  echo "ℹ️ Argument 'keep_cache' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

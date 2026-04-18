@@ -55,8 +55,8 @@ Options:
   --node_gyp_deps {true,false}                 Install OS build dependencies required to compile native Node.js modules via node-gyp: 'make', 'gcc'/'g++', and 'python3'. (default: "true")
   --pnpm_version <value>                       Version of pnpm to install globally via 'npm install -g pnpm@VERSION' after Node.js is installed. (default: "none")
   --yarn_version <value>                       Version of Yarn to install globally after Node.js is installed. (default: "none")
-  --keep_cache {true,false}                    Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
-  --debug {true,false}                         Enable debug output. (default: "false")
+  --keep_cache {true,false}                    Keep the package manager cache after installation. By default, the package manager cache is removed after installation to reduce image layer size. Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers. (default: "false")
+  --debug {true,false}                         Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                            Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                   Show this help
 EOF
@@ -85,7 +85,7 @@ if [ "$#" -gt 0 ]; then
   NODE_GYP_DEPS=true
   PNPM_VERSION="none"
   YARN_VERSION="none"
-  KEEP_CACHE=true
+  KEEP_CACHE=false
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -371,8 +371,8 @@ fi
   echo "ℹ️ Argument 'yarn_version' set to default value 'none'." >&2
 }
 [ "${KEEP_CACHE+defined}" ] || {
-  KEEP_CACHE=true
-  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
+  KEEP_CACHE=false
+  echo "ℹ️ Argument 'keep_cache' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

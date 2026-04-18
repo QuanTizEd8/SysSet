@@ -52,8 +52,8 @@ Options:
   --git_hostname <value>                     The hostname to configure as the git credential helper target when setup_git=true. (default: "github.com")
   --installer_dir <value>                    Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here. (default: "/tmp/gh-install")
   --keep_installer {true,false}              Keep the installer_dir after a successful install when method=binary. (default: "false")
-  --keep_cache {true,false}                  Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
-  --debug {true,false}                       Enable debug output. (default: "false")
+  --keep_cache {true,false}                  Keep the package manager cache after installation. By default, the package manager cache is removed after installation to reduce image layer size. Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers. (default: "false")
+  --debug {true,false}                       Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                          Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                 Show this help
 EOF
@@ -79,7 +79,7 @@ if [ "$#" -gt 0 ]; then
   GIT_HOSTNAME="github.com"
   INSTALLER_DIR="/tmp/gh-install"
   KEEP_INSTALLER=false
-  KEEP_CACHE=true
+  KEEP_CACHE=false
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -341,8 +341,8 @@ fi
   echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
 }
 [ "${KEEP_CACHE+defined}" ] || {
-  KEEP_CACHE=true
-  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
+  KEEP_CACHE=false
+  echo "ℹ️ Argument 'keep_cache' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

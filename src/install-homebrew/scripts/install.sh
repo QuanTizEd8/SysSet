@@ -48,8 +48,8 @@ Options:
   --brew_git_remote <value>           Override `HOMEBREW_BREW_GIT_REMOTE` — the git remote for the `Homebrew/brew` repository.
   --core_git_remote <value>           Override `HOMEBREW_CORE_GIT_REMOTE` — the git remote for the `homebrew-core` tap.
   --no_install_from_api {true,false}  Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation. (default: "false")
-  --keep_cache {true,false}           Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
-  --debug {true,false}                Enable debug output. (default: "false")
+  --keep_cache {true,false}           Keep the package manager cache after installation. By default, the package manager cache is removed after installation to reduce image layer size. Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers. (default: "false")
+  --debug {true,false}                Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                   Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                          Show this help
 EOF
@@ -71,7 +71,7 @@ if [ "$#" -gt 0 ]; then
   BREW_GIT_REMOTE=""
   CORE_GIT_REMOTE=""
   NO_INSTALL_FROM_API=false
-  KEEP_CACHE=true
+  KEEP_CACHE=false
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -271,8 +271,8 @@ fi
   echo "ℹ️ Argument 'no_install_from_api' set to default value 'false'." >&2
 }
 [ "${KEEP_CACHE+defined}" ] || {
-  KEEP_CACHE=true
-  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
+  KEEP_CACHE=false
+  echo "ℹ️ Argument 'keep_cache' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

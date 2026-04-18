@@ -39,8 +39,8 @@ Options:
   --add_remote_user {true,false}     Whether to configure Podman for the `_REMOTE_USER` set by the devcontainer tooling. No effect when running standalone. (default: "true")
   --add_container_user {true,false}  Whether to configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone. (default: "true")
   --add_users <value>  (repeatable)  Additional usernames to register subuid/subgid ranges and write Podman storage config for.
-  --keep_cache {true,false}          Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
-  --debug {true,false}               Enable debug output. (default: "false")
+  --keep_cache {true,false}          Keep the package manager cache after installation. By default, the package manager cache is removed after installation to reduce image layer size. Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers. (default: "false")
+  --debug {true,false}               Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                  Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                         Show this help
 EOF
@@ -53,7 +53,7 @@ if [ "$#" -gt 0 ]; then
   ADD_REMOTE_USER=true
   ADD_CONTAINER_USER=true
   ADD_USERS=()
-  KEEP_CACHE=true
+  KEEP_CACHE=false
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -154,8 +154,8 @@ fi
   echo "ℹ️ Argument 'add_users' set to default value '(empty)'." >&2
 }
 [ "${KEEP_CACHE+defined}" ] || {
-  KEEP_CACHE=true
-  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
+  KEEP_CACHE=false
+  echo "ℹ️ Argument 'keep_cache' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

@@ -45,8 +45,8 @@ Options:
   --extra_groups <value>  (repeatable)  Supplementary groups to add the user to. Groups must already exist.
   --replace_existing {true,false}       When true, any user or group occupying the requested UID/GID is removed first (home directories are preserved). When false, a conflict causes the script to fail unless the user is already correctly configured. (default: "true")
   --sudoers_dir <value>                 Directory for the sudoers drop-in file. (default: "/etc/sudoers.d")
-  --keep_cache {true,false}             Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
-  --debug {true,false}                  Enable debug output. (default: "false")
+  --keep_cache {true,false}             Keep the package manager cache after installation. By default, the package manager cache is removed after installation to reduce image layer size. Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers. (default: "false")
+  --debug {true,false}                  Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                     Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                            Show this help
 EOF
@@ -65,7 +65,7 @@ if [ "$#" -gt 0 ]; then
   EXTRA_GROUPS=()
   REPLACE_EXISTING=true
   SUDOERS_DIR="/etc/sudoers.d"
-  KEEP_CACHE=true
+  KEEP_CACHE=false
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -232,8 +232,8 @@ fi
   echo "ℹ️ Argument 'sudoers_dir' set to default value '/etc/sudoers.d'." >&2
 }
 [ "${KEEP_CACHE+defined}" ] || {
-  KEEP_CACHE=true
-  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
+  KEEP_CACHE=false
+  echo "ℹ️ Argument 'keep_cache' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

@@ -37,7 +37,7 @@ Options:
   --code {true,false}               Install a `code` shim that delegates to the real `code` CLI or falls back to `code-insiders`. (default: "true")
   --devcontainer-info {true,false}  Install a `devcontainer-info` shim that queries dev container image metadata from meta.env files. (default: "true")
   --systemctl {true,false}          Install a `systemctl` shim that delegates to the real systemctl when systemd is running, or prints a helpful message suggesting the `service` command. (default: "true")
-  --debug {true,false}              Enable debug output. (default: "false")
+  --debug {true,false}              Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                 Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                        Show this help
 EOF

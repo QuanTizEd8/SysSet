@@ -47,7 +47,7 @@ Options:
   --post_env_script <value>                       Path to a script to run after each environment is created or updated.
   --solver <value>                                Conda solver to use. 'auto' prefers mamba if available, falls back to conda. (default: "auto")
   --keep_cache {true,false}                       Skip running 'conda clean' after all environments are set up. (default: "false")
-  --debug {true,false}                            Enable debug output. (default: "false")
+  --debug {true,false}                            Enable debug output. This adds `set -x` to the installer script, which prints each command before executing it. (default: "false")
   --logfile <value>                               Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                      Show this help
 EOF
