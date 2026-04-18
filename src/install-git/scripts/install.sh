@@ -307,30 +307,102 @@ fi
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ "${METHOD+defined}" ] || METHOD="package"
-[ "${VERSION+defined}" ] || VERSION="latest"
-[ "${PREFIX+defined}" ] || PREFIX="auto"
-[ "${SYSCONFDIR+defined}" ] || SYSCONFDIR="auto"
-[ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/git-build"
-[ "${KEEP_INSTALLER+defined}" ] || KEEP_INSTALLER=false
-[ "${NO_FLAGS+defined}" ] || NO_FLAGS=()
-[ "${MAKE_FLAGS+defined}" ] || MAKE_FLAGS=""
-[ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
-[ "${SHELL_COMPLETIONS+defined}" ] || mapfile -t SHELL_COMPLETIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
-[ "${IF_EXISTS+defined}" ] || IF_EXISTS="update"
-[ "${DEFAULT_BRANCH+defined}" ] || DEFAULT_BRANCH="main"
-[ "${SAFE_DIRECTORY+defined}" ] || SAFE_DIRECTORY="*"
-[ "${SYSTEM_GITCONFIG+defined}" ] || SYSTEM_GITCONFIG=""
-[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
-[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
-[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
-[ "${ADD_USERS+defined}" ] || ADD_USERS=()
-[ "${USER_NAME+defined}" ] || USER_NAME=""
-[ "${USER_EMAIL+defined}" ] || USER_EMAIL=""
-[ "${USER_GITCONFIG+defined}" ] || USER_GITCONFIG=""
-[ "${SYMLINK+defined}" ] || SYMLINK=true
-[ "${DEBUG+defined}" ] || DEBUG=false
-[ "${LOGFILE+defined}" ] || LOGFILE=""
+[ "${METHOD+defined}" ] || {
+  METHOD="package"
+  echo "\u2139\ufe0f Argument 'method' set to default value 'package'." >&2
+}
+[ "${VERSION+defined}" ] || {
+  VERSION="latest"
+  echo "\u2139\ufe0f Argument 'version' set to default value 'latest'." >&2
+}
+[ "${PREFIX+defined}" ] || {
+  PREFIX="auto"
+  echo "\u2139\ufe0f Argument 'prefix' set to default value 'auto'." >&2
+}
+[ "${SYSCONFDIR+defined}" ] || {
+  SYSCONFDIR="auto"
+  echo "\u2139\ufe0f Argument 'sysconfdir' set to default value 'auto'." >&2
+}
+[ "${INSTALLER_DIR+defined}" ] || {
+  INSTALLER_DIR="/tmp/git-build"
+  echo "\u2139\ufe0f Argument 'installer_dir' set to default value '/tmp/git-build'." >&2
+}
+[ "${KEEP_INSTALLER+defined}" ] || {
+  KEEP_INSTALLER=false
+  echo "\u2139\ufe0f Argument 'keep_installer' set to default value 'false'." >&2
+}
+[ "${NO_FLAGS+defined}" ] || {
+  NO_FLAGS=()
+  echo "\u2139\ufe0f Argument 'no_flags' set to default value '(empty)'." >&2
+}
+[ "${MAKE_FLAGS+defined}" ] || {
+  MAKE_FLAGS=""
+  echo "\u2139\ufe0f Argument 'make_flags' set to default value ''." >&2
+}
+[ "${EXPORT_PATH+defined}" ] || {
+  EXPORT_PATH="auto"
+  echo "\u2139\ufe0f Argument 'export_path' set to default value 'auto'." >&2
+}
+[ "${SHELL_COMPLETIONS+defined}" ] || {
+  mapfile -t SHELL_COMPLETIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
+  echo "\u2139\ufe0f Argument 'shell_completions' set to default value 'bash, zsh'." >&2
+}
+[ "${IF_EXISTS+defined}" ] || {
+  IF_EXISTS="update"
+  echo "\u2139\ufe0f Argument 'if_exists' set to default value 'update'." >&2
+}
+[ "${DEFAULT_BRANCH+defined}" ] || {
+  DEFAULT_BRANCH="main"
+  echo "\u2139\ufe0f Argument 'default_branch' set to default value 'main'." >&2
+}
+[ "${SAFE_DIRECTORY+defined}" ] || {
+  SAFE_DIRECTORY="*"
+  echo "\u2139\ufe0f Argument 'safe_directory' set to default value '*'." >&2
+}
+[ "${SYSTEM_GITCONFIG+defined}" ] || {
+  SYSTEM_GITCONFIG=""
+  echo "\u2139\ufe0f Argument 'system_gitconfig' set to default value ''." >&2
+}
+[ "${ADD_CURRENT_USER+defined}" ] || {
+  ADD_CURRENT_USER=true
+  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+}
+[ "${ADD_REMOTE_USER+defined}" ] || {
+  ADD_REMOTE_USER=true
+  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+}
+[ "${ADD_CONTAINER_USER+defined}" ] || {
+  ADD_CONTAINER_USER=true
+  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+}
+[ "${ADD_USERS+defined}" ] || {
+  ADD_USERS=()
+  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+}
+[ "${USER_NAME+defined}" ] || {
+  USER_NAME=""
+  echo "\u2139\ufe0f Argument 'user_name' set to default value ''." >&2
+}
+[ "${USER_EMAIL+defined}" ] || {
+  USER_EMAIL=""
+  echo "\u2139\ufe0f Argument 'user_email' set to default value ''." >&2
+}
+[ "${USER_GITCONFIG+defined}" ] || {
+  USER_GITCONFIG=""
+  echo "\u2139\ufe0f Argument 'user_gitconfig' set to default value ''." >&2
+}
+[ "${SYMLINK+defined}" ] || {
+  SYMLINK=true
+  echo "\u2139\ufe0f Argument 'symlink' set to default value 'true'." >&2
+}
+[ "${DEBUG+defined}" ] || {
+  DEBUG=false
+  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+}
+[ "${LOGFILE+defined}" ] || {
+  LOGFILE=""
+  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+}
 
 # Validate enum options.
 case "${METHOD}" in

@@ -316,30 +316,102 @@ fi
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ "${INSTALL_ZSH+defined}" ] || INSTALL_ZSH=true
-[ "${INSTALL_OHMYZSH+defined}" ] || INSTALL_OHMYZSH=true
-[ "${INSTALL_OHMYBASH+defined}" ] || INSTALL_OHMYBASH=true
-[ "${INSTALL_STARSHIP+defined}" ] || INSTALL_STARSHIP=true
-[ "${STARSHIP_SHELLS+defined}" ] || mapfile -t STARSHIP_SHELLS < <(printf '%s' $'zsh' | grep -v '^$')
-[ "${OHMYZSH_PLUGINS+defined}" ] || mapfile -t OHMYZSH_PLUGINS < <(printf '%s' $'git\nzsh-users/zsh-syntax-highlighting' | grep -v '^$')
-[ "${OHMYBASH_PLUGINS+defined}" ] || mapfile -t OHMYBASH_PLUGINS < <(printf '%s' $'git' | grep -v '^$')
-[ "${OHMYZSH_THEME+defined}" ] || OHMYZSH_THEME=""
-[ "${OHMYBASH_THEME+defined}" ] || OHMYBASH_THEME=""
-[ "${OHMYZSH_INSTALL_DIR+defined}" ] || OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
-[ "${OHMYBASH_INSTALL_DIR+defined}" ] || OHMYBASH_INSTALL_DIR="/usr/local/share/oh-my-bash"
-[ "${OHMYZSH_BRANCH+defined}" ] || OHMYZSH_BRANCH="master"
-[ "${OHMYBASH_BRANCH+defined}" ] || OHMYBASH_BRANCH="master"
-[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
-[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
-[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
-[ "${ADD_USERS+defined}" ] || ADD_USERS=()
-[ "${SET_USER_SHELLS+defined}" ] || SET_USER_SHELLS="zsh"
-[ "${ZDOTDIR+defined}" ] || ZDOTDIR=""
-[ "${OHMYZSH_CUSTOM_DIR+defined}" ] || OHMYZSH_CUSTOM_DIR=""
-[ "${OHMYBASH_CUSTOM_DIR+defined}" ] || OHMYBASH_CUSTOM_DIR=""
-[ "${USER_CONFIG_MODE+defined}" ] || USER_CONFIG_MODE="overwrite"
-[ "${DEBUG+defined}" ] || DEBUG=false
-[ "${LOGFILE+defined}" ] || LOGFILE=""
+[ "${INSTALL_ZSH+defined}" ] || {
+  INSTALL_ZSH=true
+  echo "\u2139\ufe0f Argument 'install_zsh' set to default value 'true'." >&2
+}
+[ "${INSTALL_OHMYZSH+defined}" ] || {
+  INSTALL_OHMYZSH=true
+  echo "\u2139\ufe0f Argument 'install_ohmyzsh' set to default value 'true'." >&2
+}
+[ "${INSTALL_OHMYBASH+defined}" ] || {
+  INSTALL_OHMYBASH=true
+  echo "\u2139\ufe0f Argument 'install_ohmybash' set to default value 'true'." >&2
+}
+[ "${INSTALL_STARSHIP+defined}" ] || {
+  INSTALL_STARSHIP=true
+  echo "\u2139\ufe0f Argument 'install_starship' set to default value 'true'." >&2
+}
+[ "${STARSHIP_SHELLS+defined}" ] || {
+  mapfile -t STARSHIP_SHELLS < <(printf '%s' $'zsh' | grep -v '^$')
+  echo "\u2139\ufe0f Argument 'starship_shells' set to default value 'zsh'." >&2
+}
+[ "${OHMYZSH_PLUGINS+defined}" ] || {
+  mapfile -t OHMYZSH_PLUGINS < <(printf '%s' $'git\nzsh-users/zsh-syntax-highlighting' | grep -v '^$')
+  echo "\u2139\ufe0f Argument 'ohmyzsh_plugins' set to default value 'git, zsh-users/zsh-syntax-highlighting'." >&2
+}
+[ "${OHMYBASH_PLUGINS+defined}" ] || {
+  mapfile -t OHMYBASH_PLUGINS < <(printf '%s' $'git' | grep -v '^$')
+  echo "\u2139\ufe0f Argument 'ohmybash_plugins' set to default value 'git'." >&2
+}
+[ "${OHMYZSH_THEME+defined}" ] || {
+  OHMYZSH_THEME=""
+  echo "\u2139\ufe0f Argument 'ohmyzsh_theme' set to default value ''." >&2
+}
+[ "${OHMYBASH_THEME+defined}" ] || {
+  OHMYBASH_THEME=""
+  echo "\u2139\ufe0f Argument 'ohmybash_theme' set to default value ''." >&2
+}
+[ "${OHMYZSH_INSTALL_DIR+defined}" ] || {
+  OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
+  echo "\u2139\ufe0f Argument 'ohmyzsh_install_dir' set to default value '/usr/local/share/oh-my-zsh'." >&2
+}
+[ "${OHMYBASH_INSTALL_DIR+defined}" ] || {
+  OHMYBASH_INSTALL_DIR="/usr/local/share/oh-my-bash"
+  echo "\u2139\ufe0f Argument 'ohmybash_install_dir' set to default value '/usr/local/share/oh-my-bash'." >&2
+}
+[ "${OHMYZSH_BRANCH+defined}" ] || {
+  OHMYZSH_BRANCH="master"
+  echo "\u2139\ufe0f Argument 'ohmyzsh_branch' set to default value 'master'." >&2
+}
+[ "${OHMYBASH_BRANCH+defined}" ] || {
+  OHMYBASH_BRANCH="master"
+  echo "\u2139\ufe0f Argument 'ohmybash_branch' set to default value 'master'." >&2
+}
+[ "${ADD_CURRENT_USER+defined}" ] || {
+  ADD_CURRENT_USER=true
+  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+}
+[ "${ADD_CONTAINER_USER+defined}" ] || {
+  ADD_CONTAINER_USER=true
+  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+}
+[ "${ADD_REMOTE_USER+defined}" ] || {
+  ADD_REMOTE_USER=true
+  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+}
+[ "${ADD_USERS+defined}" ] || {
+  ADD_USERS=()
+  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+}
+[ "${SET_USER_SHELLS+defined}" ] || {
+  SET_USER_SHELLS="zsh"
+  echo "\u2139\ufe0f Argument 'set_user_shells' set to default value 'zsh'." >&2
+}
+[ "${ZDOTDIR+defined}" ] || {
+  ZDOTDIR=""
+  echo "\u2139\ufe0f Argument 'zdotdir' set to default value ''." >&2
+}
+[ "${OHMYZSH_CUSTOM_DIR+defined}" ] || {
+  OHMYZSH_CUSTOM_DIR=""
+  echo "\u2139\ufe0f Argument 'ohmyzsh_custom_dir' set to default value ''." >&2
+}
+[ "${OHMYBASH_CUSTOM_DIR+defined}" ] || {
+  OHMYBASH_CUSTOM_DIR=""
+  echo "\u2139\ufe0f Argument 'ohmybash_custom_dir' set to default value ''." >&2
+}
+[ "${USER_CONFIG_MODE+defined}" ] || {
+  USER_CONFIG_MODE="overwrite"
+  echo "\u2139\ufe0f Argument 'user_config_mode' set to default value 'overwrite'." >&2
+}
+[ "${DEBUG+defined}" ] || {
+  DEBUG=false
+  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+}
+[ "${LOGFILE+defined}" ] || {
+  LOGFILE=""
+  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+}
 
 # Validate enum options.
 case "${SET_USER_SHELLS}" in

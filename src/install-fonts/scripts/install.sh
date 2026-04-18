@@ -163,14 +163,38 @@ fi
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ "${NERD_FONTS+defined}" ] || mapfile -t NERD_FONTS < <(printf '%s' $'Meslo\nJetBrainsMono' | grep -v '^$')
-[ "${FONT_URLS+defined}" ] || FONT_URLS=()
-[ "${GH_RELEASE_FONTS+defined}" ] || GH_RELEASE_FONTS=()
-[ "${P10K_FONTS+defined}" ] || P10K_FONTS=false
-[ "${OVERWRITE+defined}" ] || OVERWRITE=false
-[ "${FONT_DIR+defined}" ] || FONT_DIR=""
-[ "${DEBUG+defined}" ] || DEBUG=false
-[ "${LOGFILE+defined}" ] || LOGFILE=""
+[ "${NERD_FONTS+defined}" ] || {
+  mapfile -t NERD_FONTS < <(printf '%s' $'Meslo\nJetBrainsMono' | grep -v '^$')
+  echo "\u2139\ufe0f Argument 'nerd_fonts' set to default value 'Meslo, JetBrainsMono'." >&2
+}
+[ "${FONT_URLS+defined}" ] || {
+  FONT_URLS=()
+  echo "\u2139\ufe0f Argument 'font_urls' set to default value '(empty)'." >&2
+}
+[ "${GH_RELEASE_FONTS+defined}" ] || {
+  GH_RELEASE_FONTS=()
+  echo "\u2139\ufe0f Argument 'gh_release_fonts' set to default value '(empty)'." >&2
+}
+[ "${P10K_FONTS+defined}" ] || {
+  P10K_FONTS=false
+  echo "\u2139\ufe0f Argument 'p10k_fonts' set to default value 'false'." >&2
+}
+[ "${OVERWRITE+defined}" ] || {
+  OVERWRITE=false
+  echo "\u2139\ufe0f Argument 'overwrite' set to default value 'false'." >&2
+}
+[ "${FONT_DIR+defined}" ] || {
+  FONT_DIR=""
+  echo "\u2139\ufe0f Argument 'font_dir' set to default value ''." >&2
+}
+[ "${DEBUG+defined}" ] || {
+  DEBUG=false
+  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+}
+[ "${LOGFILE+defined}" ] || {
+  LOGFILE=""
+  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+}
 
 ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 

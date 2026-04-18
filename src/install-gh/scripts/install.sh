@@ -47,7 +47,7 @@ Options:
   --add_users <value>  (repeatable)          Additional usernames to apply per-user git configuration and install extensions for.
   --git_protocol <value>                     Set the default git protocol in gh's per-user config (~/.config/gh/config.yml) by running 'gh config set git_protocol <value>' for each resolved user.
   --setup_git {true,false}                   Register gh as the git credential helper by running 'gh auth setup-git --force --hostname <git_hostname>' for each resolved user. (default: "false")
-  --sign_commits <value>                     Pre-configure commit signing in each resolved user's ~/.gitconfig.
+  --sign_commits {|ssh|gpg}                  Pre-configure commit signing in each resolved user's ~/.gitconfig.
   --git_hostname <value>                     The hostname to configure as the git credential helper target when setup_git=true. (default: "github.com")
   --installer_dir <value>                    Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here. (default: "/tmp/gh-install")
   --keep_installer {true,false}              Keep the installer_dir after a successful install when method=binary. (default: "false")
@@ -262,25 +262,82 @@ fi
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ "${VERSION+defined}" ] || VERSION="latest"
-[ "${METHOD+defined}" ] || METHOD="repos"
-[ "${PREFIX+defined}" ] || PREFIX="auto"
-[ "${SYMLINK+defined}" ] || SYMLINK=true
-[ "${SHELL_COMPLETIONS+defined}" ] || mapfile -t SHELL_COMPLETIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
-[ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
-[ "${EXTENSIONS+defined}" ] || EXTENSIONS=()
-[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
-[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
-[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
-[ "${ADD_USERS+defined}" ] || ADD_USERS=()
-[ "${GIT_PROTOCOL+defined}" ] || GIT_PROTOCOL=""
-[ "${SETUP_GIT+defined}" ] || SETUP_GIT=false
-[ "${SIGN_COMMITS+defined}" ] || SIGN_COMMITS=""
-[ "${GIT_HOSTNAME+defined}" ] || GIT_HOSTNAME="github.com"
-[ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/gh-install"
-[ "${KEEP_INSTALLER+defined}" ] || KEEP_INSTALLER=false
-[ "${DEBUG+defined}" ] || DEBUG=false
-[ "${LOGFILE+defined}" ] || LOGFILE=""
+[ "${VERSION+defined}" ] || {
+  VERSION="latest"
+  echo "\u2139\ufe0f Argument 'version' set to default value 'latest'." >&2
+}
+[ "${METHOD+defined}" ] || {
+  METHOD="repos"
+  echo "\u2139\ufe0f Argument 'method' set to default value 'repos'." >&2
+}
+[ "${PREFIX+defined}" ] || {
+  PREFIX="auto"
+  echo "\u2139\ufe0f Argument 'prefix' set to default value 'auto'." >&2
+}
+[ "${SYMLINK+defined}" ] || {
+  SYMLINK=true
+  echo "\u2139\ufe0f Argument 'symlink' set to default value 'true'." >&2
+}
+[ "${SHELL_COMPLETIONS+defined}" ] || {
+  mapfile -t SHELL_COMPLETIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
+  echo "\u2139\ufe0f Argument 'shell_completions' set to default value 'bash, zsh'." >&2
+}
+[ "${IF_EXISTS+defined}" ] || {
+  IF_EXISTS="skip"
+  echo "\u2139\ufe0f Argument 'if_exists' set to default value 'skip'." >&2
+}
+[ "${EXTENSIONS+defined}" ] || {
+  EXTENSIONS=()
+  echo "\u2139\ufe0f Argument 'extensions' set to default value '(empty)'." >&2
+}
+[ "${ADD_CURRENT_USER+defined}" ] || {
+  ADD_CURRENT_USER=true
+  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+}
+[ "${ADD_REMOTE_USER+defined}" ] || {
+  ADD_REMOTE_USER=true
+  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+}
+[ "${ADD_CONTAINER_USER+defined}" ] || {
+  ADD_CONTAINER_USER=true
+  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+}
+[ "${ADD_USERS+defined}" ] || {
+  ADD_USERS=()
+  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+}
+[ "${GIT_PROTOCOL+defined}" ] || {
+  GIT_PROTOCOL=""
+  echo "\u2139\ufe0f Argument 'git_protocol' set to default value ''." >&2
+}
+[ "${SETUP_GIT+defined}" ] || {
+  SETUP_GIT=false
+  echo "\u2139\ufe0f Argument 'setup_git' set to default value 'false'." >&2
+}
+[ "${SIGN_COMMITS+defined}" ] || {
+  SIGN_COMMITS=""
+  echo "\u2139\ufe0f Argument 'sign_commits' set to default value ''." >&2
+}
+[ "${GIT_HOSTNAME+defined}" ] || {
+  GIT_HOSTNAME="github.com"
+  echo "\u2139\ufe0f Argument 'git_hostname' set to default value 'github.com'." >&2
+}
+[ "${INSTALLER_DIR+defined}" ] || {
+  INSTALLER_DIR="/tmp/gh-install"
+  echo "\u2139\ufe0f Argument 'installer_dir' set to default value '/tmp/gh-install'." >&2
+}
+[ "${KEEP_INSTALLER+defined}" ] || {
+  KEEP_INSTALLER=false
+  echo "\u2139\ufe0f Argument 'keep_installer' set to default value 'false'." >&2
+}
+[ "${DEBUG+defined}" ] || {
+  DEBUG=false
+  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+}
+[ "${LOGFILE+defined}" ] || {
+  LOGFILE=""
+  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+}
 
 # Validate enum options.
 case "${METHOD}" in
@@ -294,6 +351,13 @@ case "${IF_EXISTS}" in
   skip | fail) ;;
   *)
     echo "⛔ Invalid value for 'if_exists': '${IF_EXISTS}' (expected: skip, fail)" >&2
+    exit 1
+    ;;
+esac
+case "${SIGN_COMMITS}" in
+  '' | ssh | gpg) ;;
+  *)
+    echo "⛔ Invalid value for 'sign_commits': '${SIGN_COMMITS}' (expected: '', ssh, gpg)" >&2
     exit 1
     ;;
 esac
