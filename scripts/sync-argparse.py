@@ -329,7 +329,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             raw_default = opt["default"]
             if raw_default == "" or raw_default is None:
                 lines.append(
-                    f'[ "${{{vname}+defined}}" ] || {{\n'
+                    f'declare -p {vname} &>/dev/null || {{\n'
                     f"  {vname}=()\n"
                     f"  echo \"\u2139\ufe0f Argument '{key}' set to default value '(empty)'.\" >&2\n"
                     f"}}"
@@ -345,7 +345,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                 )
                 disp = ", ".join(str(raw_default).splitlines())
                 lines.append(
-                    f'[ "${{{vname}+defined}}" ] || {{\n'
+                    f'declare -p {vname} &>/dev/null || {{\n'
                     f"  mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$')\n"
                     f"  echo \"\u2139\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2\n"
                     f"}}"
