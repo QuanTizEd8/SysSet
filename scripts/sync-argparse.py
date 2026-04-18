@@ -285,7 +285,10 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         elif typ == "array":
             raw_default = opt["default"]
             if raw_default == "" or raw_default is None:
-                lines.append(f'[ "${{{vname}+defined}}" ] || {vname}=()')
+                lines.append(
+                    f'[ "${{{vname}+defined}}" ] || {{ {vname}=(); '
+                    f"echo \"\\u2139\\ufe0f Argument '{key}' set to default value '(empty)'.\" >&2; }}"
+                )
             else:
                 # Embed the default as an ANSI-C quoted string so newlines are preserved.
                 escaped = (
@@ -295,13 +298,24 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                     .replace("\n", "\\n")
                     .replace("\r", "\\r")
                 )
+                disp = ", ".join(str(raw_default).splitlines())
                 lines.append(
-                    f'[ "${{{vname}+defined}}" ] || '
-                    f"mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$')"
+                    f'[ "${{{vname}+defined}}" ] || {{ '
+                    f"mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$'); "
+                    f"echo \"\\u2139\\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
                 )
         else:
             rhs = shell_val(opt["default"], typ)
-            lines.append(f'[ "${{{vname}+defined}}" ] || {vname}={rhs}')
+            if typ == "boolean":
+                disp = "true" if opt["default"] else "false"
+            elif opt["default"] == "" or opt["default"] is None:
+                disp = ""
+            else:
+                disp = str(opt["default"])
+            lines.append(
+                f'[ "${{{vname}+defined}}" ] || {{ {vname}={rhs}; '
+                f"echo \"\\u2139\\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
+            )
     # ── required argument checks ─────────────────────────────────────────────
     required_opts = [
         (key, opt) for key, opt in options.items()
