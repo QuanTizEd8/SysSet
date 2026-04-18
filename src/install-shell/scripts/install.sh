@@ -8,162 +8,237 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-
 logging__setup
-trap 'logging__cleanup' EXIT
+echo "↪️ Script entry: Install Shell" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Install Shell script finished successfully." >&2
+  else
+    echo "❌ Install Shell script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
 
-# ---------------------------------------------------------------------------
-# Argument parsing — dual-mode: CLI flags or env vars
-# ---------------------------------------------------------------------------
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --install_zsh {true,false}                   Install Zsh. Bash is always installed. (default: "true")
+  --install_ohmyzsh {true,false}               Install Oh My Zsh when installing Zsh. Ignored if Zsh is not available or being installed. (default: "true")
+  --install_ohmybash {true,false}              Install Oh My Bash. (default: "true")
+  --install_starship {true,false}              Install the Starship prompt binary to `/usr/local/bin`. (default: "true")
+  --starship_shells <value>  (repeatable)      Shells to activate the Starship prompt in (`zsh`, `bash`, or both).
+  --ohmyzsh_plugins <value>  (repeatable)      Oh My Zsh plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
+  --ohmybash_plugins <value>  (repeatable)     Oh My Bash plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
+  --ohmyzsh_theme <value>                      Oh My Zsh custom theme to install, as a `owner/repo` GitHub slug (e.g., 'romkatv/powerlevel10k' for the Powerlevel10k theme).
+  --ohmybash_theme <value>                     Oh My Bash custom theme to install, as a `owner/repo` GitHub slug.
+  --ohmyzsh_install_dir <value>                Path to the Oh My Zsh installation directory. (default: "/usr/local/share/oh-my-zsh")
+  --ohmybash_install_dir <value>               Path to the Oh My Bash installation directory. (default: "/usr/local/share/oh-my-bash")
+  --ohmyzsh_branch <value>                     Git branch/tag of ohmyzsh/ohmyzsh to clone. (default: "master")
+  --ohmybash_branch <value>                    Git branch/tag of ohmybash/oh-my-bash to clone. (default: "master")
+  --add_current_user {true,false}              Whether to add configuration for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root. (default: "true")
+  --add_container_user {true,false}            Whether to add configuration for the `containerUser` set in the devcontainer.json file, which becomes the `_CONTAINER_USER` environment variable set by the devcontainer tooling. No effect when `_CONTAINER_USER` is not set. (default: "true")
+  --add_remote_user {true,false}               Whether to add configuration for the `remoteUser` set in the devcontainer.json file, which becomes the `_REMOTE_USER` environment variable set by the devcontainer tooling. No effect when `_REMOTE_USER` is not set. (default: "true")
+  --add_users <value>  (repeatable)            Usernames to add shell configuration for, in addition to the users specified by the other `add_*_user_config` options.
+  --set_user_shells {zsh|bash|none}            Whether to set users' default login shell to zsh or bash via `chsh`. (default: "zsh")
+  --zdotdir <value>                            Directory where Zsh looks for its per-user config files (`.zshrc`, `.zprofile`, `.zlogin`).
+  --ohmyzsh_custom_dir <value>                 ZSH_CUSTOM directory for Oh My Zsh.
+  --ohmybash_custom_dir <value>                OSH_CUSTOM directory for Oh My Bash.
+  --user_config_mode {overwrite|augment|skip}  How to handle existing user dotfiles when configuring users. (default: "overwrite")
+  --debug {true,false}                         Enable debug output. (default: "false")
+  --logfile <value>                            Log all output (stdout + stderr) to this file in addition to console.
+  -h, --help                                   Show this help
+EOF
+  return
+}
+
 if [ "$#" -gt 0 ]; then
-  INSTALL_ZSH=""
-  INSTALL_OHMYZSH=""
-  INSTALL_OHMYBASH=""
-  INSTALL_STARSHIP=""
-  STARSHIP_SHELLS=""
-  OHMYZSH_INSTALL_DIR=""
+  echo "ℹ️ Script called with arguments: $*" >&2
+  INSTALL_ZSH=true
+  INSTALL_OHMYZSH=true
+  INSTALL_OHMYBASH=true
+  INSTALL_STARSHIP=true
+  STARSHIP_SHELLS=()
+  OHMYZSH_PLUGINS=()
+  OHMYBASH_PLUGINS=()
+  OHMYZSH_THEME=""
+  OHMYBASH_THEME=""
+  OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
+  OHMYBASH_INSTALL_DIR="/usr/local/share/oh-my-bash"
+  OHMYZSH_BRANCH="master"
+  OHMYBASH_BRANCH="master"
+  ADD_CURRENT_USER=true
+  ADD_CONTAINER_USER=true
+  ADD_REMOTE_USER=true
+  ADD_USERS=()
+  SET_USER_SHELLS="zsh"
   ZDOTDIR=""
   OHMYZSH_CUSTOM_DIR=""
-  OHMYZSH_BRANCH=""
-  OHMYZSH_THEME=""
-  OHMYZSH_PLUGINS=""
-  OHMYBASH_INSTALL_DIR=""
   OHMYBASH_CUSTOM_DIR=""
-  OHMYBASH_BRANCH=""
-  OHMYBASH_THEME=""
-  OHMYBASH_PLUGINS=""
-  ADD_CURRENT_USER=""
-  ADD_CONTAINER_USER=""
-  ADD_REMOTE_USER=""
-  ADD_USERS=""
-  USER_CONFIG_MODE=""
-  SET_USER_SHELLS=""
-  DEBUG=""
+  USER_CONFIG_MODE="overwrite"
+  DEBUG=false
   LOGFILE=""
-
-  while [[ $# -gt 0 ]]; do
+  while [ "$#" -gt 0 ]; do
     case $1 in
       --install_zsh)
         shift
         INSTALL_ZSH="$1"
+        echo "📩 Read argument 'install_zsh': '${INSTALL_ZSH}'" >&2
         shift
         ;;
       --install_ohmyzsh)
         shift
         INSTALL_OHMYZSH="$1"
+        echo "📩 Read argument 'install_ohmyzsh': '${INSTALL_OHMYZSH}'" >&2
         shift
         ;;
       --install_ohmybash)
         shift
         INSTALL_OHMYBASH="$1"
+        echo "📩 Read argument 'install_ohmybash': '${INSTALL_OHMYBASH}'" >&2
         shift
         ;;
       --install_starship)
         shift
         INSTALL_STARSHIP="$1"
+        echo "📩 Read argument 'install_starship': '${INSTALL_STARSHIP}'" >&2
         shift
         ;;
       --starship_shells)
         shift
-        STARSHIP_SHELLS="$1"
+        STARSHIP_SHELLS+=("$1")
+        echo "📩 Read argument 'starship_shells': '$1'" >&2
         shift
         ;;
-
-      --ohmyzsh_install_dir)
+      --ohmyzsh_plugins)
         shift
-        OHMYZSH_INSTALL_DIR="$1"
-        shift
-        ;;
-      --zdotdir)
-        shift
-        ZDOTDIR="$1"
+        OHMYZSH_PLUGINS+=("$1")
+        echo "📩 Read argument 'ohmyzsh_plugins': '$1'" >&2
         shift
         ;;
-      --ohmyzsh_custom_dir)
+      --ohmybash_plugins)
         shift
-        OHMYZSH_CUSTOM_DIR="$1"
-        shift
-        ;;
-      --ohmyzsh_branch)
-        shift
-        OHMYZSH_BRANCH="$1"
+        OHMYBASH_PLUGINS+=("$1")
+        echo "📩 Read argument 'ohmybash_plugins': '$1'" >&2
         shift
         ;;
       --ohmyzsh_theme)
         shift
         OHMYZSH_THEME="$1"
-        shift
-        ;;
-      --ohmyzsh_plugins)
-        shift
-        OHMYZSH_PLUGINS="$1"
-        shift
-        ;;
-      --ohmybash_install_dir)
-        shift
-        OHMYBASH_INSTALL_DIR="$1"
-        shift
-        ;;
-      --ohmybash_custom_dir)
-        shift
-        OHMYBASH_CUSTOM_DIR="$1"
-        shift
-        ;;
-      --ohmybash_branch)
-        shift
-        OHMYBASH_BRANCH="$1"
+        echo "📩 Read argument 'ohmyzsh_theme': '${OHMYZSH_THEME}'" >&2
         shift
         ;;
       --ohmybash_theme)
         shift
         OHMYBASH_THEME="$1"
+        echo "📩 Read argument 'ohmybash_theme': '${OHMYBASH_THEME}'" >&2
         shift
         ;;
-      --ohmybash_plugins)
+      --ohmyzsh_install_dir)
         shift
-        OHMYBASH_PLUGINS="$1"
+        OHMYZSH_INSTALL_DIR="$1"
+        echo "📩 Read argument 'ohmyzsh_install_dir': '${OHMYZSH_INSTALL_DIR}'" >&2
+        shift
+        ;;
+      --ohmybash_install_dir)
+        shift
+        OHMYBASH_INSTALL_DIR="$1"
+        echo "📩 Read argument 'ohmybash_install_dir': '${OHMYBASH_INSTALL_DIR}'" >&2
+        shift
+        ;;
+      --ohmyzsh_branch)
+        shift
+        OHMYZSH_BRANCH="$1"
+        echo "📩 Read argument 'ohmyzsh_branch': '${OHMYZSH_BRANCH}'" >&2
+        shift
+        ;;
+      --ohmybash_branch)
+        shift
+        OHMYBASH_BRANCH="$1"
+        echo "📩 Read argument 'ohmybash_branch': '${OHMYBASH_BRANCH}'" >&2
         shift
         ;;
       --add_current_user)
         shift
         ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
         shift
         ;;
       --add_container_user)
         shift
         ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
         shift
         ;;
       --add_remote_user)
         shift
         ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
         shift
         ;;
       --add_users)
         shift
-        ADD_USERS="$1"
-        shift
-        ;;
-      --user_config_mode)
-        shift
-        USER_CONFIG_MODE="$1"
+        ADD_USERS+=("$1")
+        echo "📩 Read argument 'add_users': '$1'" >&2
         shift
         ;;
       --set_user_shells)
         shift
         SET_USER_SHELLS="$1"
+        echo "📩 Read argument 'set_user_shells': '${SET_USER_SHELLS}'" >&2
+        shift
+        ;;
+      --zdotdir)
+        shift
+        ZDOTDIR="$1"
+        echo "📩 Read argument 'zdotdir': '${ZDOTDIR}'" >&2
+        shift
+        ;;
+      --ohmyzsh_custom_dir)
+        shift
+        OHMYZSH_CUSTOM_DIR="$1"
+        echo "📩 Read argument 'ohmyzsh_custom_dir': '${OHMYZSH_CUSTOM_DIR}'" >&2
+        shift
+        ;;
+      --ohmybash_custom_dir)
+        shift
+        OHMYBASH_CUSTOM_DIR="$1"
+        echo "📩 Read argument 'ohmybash_custom_dir': '${OHMYBASH_CUSTOM_DIR}'" >&2
+        shift
+        ;;
+      --user_config_mode)
+        shift
+        USER_CONFIG_MODE="$1"
+        echo "📩 Read argument 'user_config_mode': '${USER_CONFIG_MODE}'" >&2
         shift
         ;;
       --debug)
-        DEBUG=true
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
         shift
         ;;
       --logfile)
         shift
         LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
         shift
         ;;
-      --help | -h) __usage__ ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
         exit 1
@@ -174,40 +249,115 @@ if [ "$#" -gt 0 ]; then
         ;;
     esac
   done
+else
+  echo "ℹ️ Script called with no arguments. Read environment variables." >&2
+  [ "${INSTALL_ZSH+defined}" ] && echo "📩 Read argument 'install_zsh': '${INSTALL_ZSH}'" >&2
+  [ "${INSTALL_OHMYZSH+defined}" ] && echo "📩 Read argument 'install_ohmyzsh': '${INSTALL_OHMYZSH}'" >&2
+  [ "${INSTALL_OHMYBASH+defined}" ] && echo "📩 Read argument 'install_ohmybash': '${INSTALL_OHMYBASH}'" >&2
+  [ "${INSTALL_STARSHIP+defined}" ] && echo "📩 Read argument 'install_starship': '${INSTALL_STARSHIP}'" >&2
+  if [ "${STARSHIP_SHELLS+defined}" ]; then
+    if [ -n "${STARSHIP_SHELLS-}" ]; then
+      mapfile -t STARSHIP_SHELLS < <(printf '%s\n' "${STARSHIP_SHELLS}" | grep -v '^$')
+      for _item in "${STARSHIP_SHELLS[@]}"; do
+        echo "📩 Read argument 'starship_shells': '$_item'" >&2
+      done
+    else
+      STARSHIP_SHELLS=()
+    fi
+  fi
+  if [ "${OHMYZSH_PLUGINS+defined}" ]; then
+    if [ -n "${OHMYZSH_PLUGINS-}" ]; then
+      mapfile -t OHMYZSH_PLUGINS < <(printf '%s\n' "${OHMYZSH_PLUGINS}" | grep -v '^$')
+      for _item in "${OHMYZSH_PLUGINS[@]}"; do
+        echo "📩 Read argument 'ohmyzsh_plugins': '$_item'" >&2
+      done
+    else
+      OHMYZSH_PLUGINS=()
+    fi
+  fi
+  if [ "${OHMYBASH_PLUGINS+defined}" ]; then
+    if [ -n "${OHMYBASH_PLUGINS-}" ]; then
+      mapfile -t OHMYBASH_PLUGINS < <(printf '%s\n' "${OHMYBASH_PLUGINS}" | grep -v '^$')
+      for _item in "${OHMYBASH_PLUGINS[@]}"; do
+        echo "📩 Read argument 'ohmybash_plugins': '$_item'" >&2
+      done
+    else
+      OHMYBASH_PLUGINS=()
+    fi
+  fi
+  [ "${OHMYZSH_THEME+defined}" ] && echo "📩 Read argument 'ohmyzsh_theme': '${OHMYZSH_THEME}'" >&2
+  [ "${OHMYBASH_THEME+defined}" ] && echo "📩 Read argument 'ohmybash_theme': '${OHMYBASH_THEME}'" >&2
+  [ "${OHMYZSH_INSTALL_DIR+defined}" ] && echo "📩 Read argument 'ohmyzsh_install_dir': '${OHMYZSH_INSTALL_DIR}'" >&2
+  [ "${OHMYBASH_INSTALL_DIR+defined}" ] && echo "📩 Read argument 'ohmybash_install_dir': '${OHMYBASH_INSTALL_DIR}'" >&2
+  [ "${OHMYZSH_BRANCH+defined}" ] && echo "📩 Read argument 'ohmyzsh_branch': '${OHMYZSH_BRANCH}'" >&2
+  [ "${OHMYBASH_BRANCH+defined}" ] && echo "📩 Read argument 'ohmybash_branch': '${OHMYBASH_BRANCH}'" >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  if [ "${ADD_USERS+defined}" ]; then
+    if [ -n "${ADD_USERS-}" ]; then
+      mapfile -t ADD_USERS < <(printf '%s\n' "${ADD_USERS}" | grep -v '^$')
+      for _item in "${ADD_USERS[@]}"; do
+        echo "📩 Read argument 'add_users': '$_item'" >&2
+      done
+    else
+      ADD_USERS=()
+    fi
+  fi
+  [ "${SET_USER_SHELLS+defined}" ] && echo "📩 Read argument 'set_user_shells': '${SET_USER_SHELLS}'" >&2
+  [ "${ZDOTDIR+defined}" ] && echo "📩 Read argument 'zdotdir': '${ZDOTDIR}'" >&2
+  [ "${OHMYZSH_CUSTOM_DIR+defined}" ] && echo "📩 Read argument 'ohmyzsh_custom_dir': '${OHMYZSH_CUSTOM_DIR}'" >&2
+  [ "${OHMYBASH_CUSTOM_DIR+defined}" ] && echo "📩 Read argument 'ohmybash_custom_dir': '${OHMYBASH_CUSTOM_DIR}'" >&2
+  [ "${USER_CONFIG_MODE+defined}" ] && echo "📩 Read argument 'user_config_mode': '${USER_CONFIG_MODE}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
-
-# ---------------------------------------------------------------------------
-# Defaults (match devcontainer-feature.json)
-# ---------------------------------------------------------------------------
-: "${INSTALL_ZSH:=true}"
-: "${INSTALL_OHMYZSH:=true}"
-: "${INSTALL_OHMYBASH:=true}"
-: "${INSTALL_STARSHIP:=true}"
-: "${STARSHIP_SHELLS=zsh,bash}"
-: "${OHMYZSH_INSTALL_DIR:=/usr/local/share/oh-my-zsh}"
-: "${ZDOTDIR:=}"
-: "${OHMYZSH_CUSTOM_DIR:=}"
-: "${OHMYZSH_BRANCH:=master}"
-: "${OHMYZSH_THEME:=}"
-: "${OHMYZSH_PLUGINS=zsh-users/zsh-syntax-highlighting}"
-: "${OHMYBASH_INSTALL_DIR:=/usr/local/share/oh-my-bash}"
-: "${OHMYBASH_CUSTOM_DIR:=}"
-: "${OHMYBASH_BRANCH:=master}"
-: "${OHMYBASH_THEME:=}"
-: "${OHMYBASH_PLUGINS:=}"
-: "${ADD_CURRENT_USER:=true}"
-: "${ADD_CONTAINER_USER:=true}"
-: "${ADD_REMOTE_USER:=true}"
-: "${ADD_USERS:=}"
-: "${USER_CONFIG_MODE:=overwrite}"
-: "${SET_USER_SHELLS:=none}"
-: "${DEBUG:=false}"
-: "${LOGFILE:=}"
 
 [[ "${DEBUG:-}" == true ]] && set -x
 
-_PKG_MANIFEST="${_BASE_DIR}/dependencies/base.yaml"
-ospkg__run --manifest "$_PKG_MANIFEST" --skip_installed --keep_cache
+# Apply defaults.
+[ "${INSTALL_ZSH+defined}" ] || INSTALL_ZSH=true
+[ "${INSTALL_OHMYZSH+defined}" ] || INSTALL_OHMYZSH=true
+[ "${INSTALL_OHMYBASH+defined}" ] || INSTALL_OHMYBASH=true
+[ "${INSTALL_STARSHIP+defined}" ] || INSTALL_STARSHIP=true
+[ "${STARSHIP_SHELLS+defined}" ] || mapfile -t STARSHIP_SHELLS < <(printf '%s' $'zsh' | grep -v '^$')
+[ "${OHMYZSH_PLUGINS+defined}" ] || mapfile -t OHMYZSH_PLUGINS < <(printf '%s' $'git\nzsh-users/zsh-syntax-highlighting' | grep -v '^$')
+[ "${OHMYBASH_PLUGINS+defined}" ] || mapfile -t OHMYBASH_PLUGINS < <(printf '%s' $'git' | grep -v '^$')
+[ "${OHMYZSH_THEME+defined}" ] || OHMYZSH_THEME=""
+[ "${OHMYBASH_THEME+defined}" ] || OHMYBASH_THEME=""
+[ "${OHMYZSH_INSTALL_DIR+defined}" ] || OHMYZSH_INSTALL_DIR="/usr/local/share/oh-my-zsh"
+[ "${OHMYBASH_INSTALL_DIR+defined}" ] || OHMYBASH_INSTALL_DIR="/usr/local/share/oh-my-bash"
+[ "${OHMYZSH_BRANCH+defined}" ] || OHMYZSH_BRANCH="master"
+[ "${OHMYBASH_BRANCH+defined}" ] || OHMYBASH_BRANCH="master"
+[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
+[ "${ADD_USERS+defined}" ] || ADD_USERS=()
+[ "${SET_USER_SHELLS+defined}" ] || SET_USER_SHELLS="zsh"
+[ "${ZDOTDIR+defined}" ] || ZDOTDIR=""
+[ "${OHMYZSH_CUSTOM_DIR+defined}" ] || OHMYZSH_CUSTOM_DIR=""
+[ "${OHMYBASH_CUSTOM_DIR+defined}" ] || OHMYBASH_CUSTOM_DIR=""
+[ "${USER_CONFIG_MODE+defined}" ] || USER_CONFIG_MODE="overwrite"
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
+
+# Validate enum options.
+case "${SET_USER_SHELLS}" in
+  zsh | bash | none) ;;
+  *)
+    echo "⛔ Invalid value for 'set_user_shells': '${SET_USER_SHELLS}' (expected: zsh, bash, none)" >&2
+    exit 1
+    ;;
+esac
+case "${USER_CONFIG_MODE}" in
+  overwrite | augment | skip) ;;
+  *)
+    echo "⛔ Invalid value for 'user_config_mode': '${USER_CONFIG_MODE}' (expected: overwrite, augment, skip)" >&2
+    exit 1
+    ;;
+esac
+
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 # END OF AUTOGENERATED BLOCK
 
