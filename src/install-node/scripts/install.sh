@@ -412,7 +412,7 @@ _node_check_if_exists() {
         done
       elif [ "$METHOD" = "nvm" ]; then
         if [ -f "${NVM_DIR}/nvm.sh" ]; then
-          # shellcheck disable=SC1090
+          # shellcheck disable=SC1091
           . "${NVM_DIR}/nvm.sh"
           local _ver_to_remove="$VERSION"
           [ "$_ver_to_remove" = "lts" ] && _ver_to_remove="lts/*"
@@ -497,7 +497,7 @@ _node_install_via_nvm() {
     "umask 0002 && PROFILE=/dev/null NVM_SYMLINK_CURRENT=true NVM_DIR='${NVM_DIR}' bash '${INSTALLER_DIR}/nvm-install.sh'"
 
   # Verify nvm loaded (in root shell)
-  # shellcheck disable=SC1090
+  # shellcheck disable=SC1091
   . "${NVM_DIR}/nvm.sh"
   command -v nvm > /dev/null 2>&1 || {
     echo "⛔ nvm command not found after installation." >&2
