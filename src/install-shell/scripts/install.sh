@@ -38,7 +38,8 @@ Options:
   --install_zsh {true,false}                   Install Zsh. Bash is always installed. (default: "true")
   --install_ohmyzsh {true,false}               Install Oh My Zsh when installing Zsh. Ignored if Zsh is not available or being installed. (default: "true")
   --install_ohmybash {true,false}              Install Oh My Bash. (default: "true")
-  --install_starship {true,false}              Install the Starship prompt binary to `/usr/local/bin`. (default: "true")
+  --install_starship {true,false}              Install the Starship prompt binary. (default: "true")
+  --starship_prefix <value>                    Installation prefix for Starship. The binary is placed at `$starship_prefix/bin/starship`. (default: "/usr/local")
   --starship_shells <value>  (repeatable)      Shells to activate the Starship prompt in (`zsh`, `bash`, or both).
   --ohmyzsh_plugins <value>  (repeatable)      Oh My Zsh plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
   --ohmybash_plugins <value>  (repeatable)     Oh My Bash plugins to install, each as an `owner/repo` GitHub slug or a plain built-in name.
@@ -71,6 +72,7 @@ if [ "$#" -gt 0 ]; then
   INSTALL_OHMYZSH=true
   INSTALL_OHMYBASH=true
   INSTALL_STARSHIP=true
+  STARSHIP_PREFIX="/usr/local"
   STARSHIP_SHELLS=()
   OHMYZSH_PLUGINS=()
   OHMYBASH_PLUGINS=()
@@ -116,6 +118,12 @@ if [ "$#" -gt 0 ]; then
         shift
         INSTALL_STARSHIP="$1"
         echo "📩 Read argument 'install_starship': '${INSTALL_STARSHIP}'" >&2
+        shift
+        ;;
+      --starship_prefix)
+        shift
+        STARSHIP_PREFIX="$1"
+        echo "📩 Read argument 'starship_prefix': '${STARSHIP_PREFIX}'" >&2
         shift
         ;;
       --starship_shells)
@@ -264,6 +272,7 @@ else
   [ "${INSTALL_OHMYZSH+defined}" ] && echo "📩 Read argument 'install_ohmyzsh': '${INSTALL_OHMYZSH}'" >&2
   [ "${INSTALL_OHMYBASH+defined}" ] && echo "📩 Read argument 'install_ohmybash': '${INSTALL_OHMYBASH}'" >&2
   [ "${INSTALL_STARSHIP+defined}" ] && echo "📩 Read argument 'install_starship': '${INSTALL_STARSHIP}'" >&2
+  [ "${STARSHIP_PREFIX+defined}" ] && echo "📩 Read argument 'starship_prefix': '${STARSHIP_PREFIX}'" >&2
   if [ "${STARSHIP_SHELLS+defined}" ]; then
     if [ -n "${STARSHIP_SHELLS-}" ]; then
       mapfile -t STARSHIP_SHELLS < <(printf '%s\n' "${STARSHIP_SHELLS}" | grep -v '^$')
@@ -341,6 +350,10 @@ fi
 [ "${INSTALL_STARSHIP+defined}" ] || {
   INSTALL_STARSHIP=true
   echo "ℹ️ Argument 'install_starship' set to default value 'true'." >&2
+}
+[ "${STARSHIP_PREFIX+defined}" ] || {
+  STARSHIP_PREFIX="/usr/local"
+  echo "ℹ️ Argument 'starship_prefix' set to default value '/usr/local'." >&2
 }
 [ "${STARSHIP_SHELLS+defined}" ] || {
   mapfile -t STARSHIP_SHELLS < <(printf '%s' $'zsh' | grep -v '^$')
