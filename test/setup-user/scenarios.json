@@ -52,7 +52,7 @@
         },
         "features": {
             "setup-user": {
-                "extra_groups": "builders,testers",
+                "extra_groups": "builders\ntesters",
                 "debug": true
             }
         }

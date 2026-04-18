@@ -34,7 +34,7 @@
     "activate_multi": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "shell_activations": "bash zsh", "debug": true }
+            "install-miniforge": { "shell_activations": "bash\nzsh", "debug": true }
         }
     },
     "custom_active_env": {
@@ -94,7 +94,7 @@
     "multi_user_permissions": {
         "build": { "dockerfile": "Dockerfile" },
         "features": {
-            "install-miniforge": { "write_group": "conda", "add_users": "testuser1,testuser2", "debug": true }
+            "install-miniforge": { "write_group": "conda", "add_users": "testuser1\ntestuser2", "debug": true }
         }
     },
     "export_path_default": {

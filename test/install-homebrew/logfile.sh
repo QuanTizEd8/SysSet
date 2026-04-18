@@ -18,7 +18,7 @@ echo "===== /tmp/brew.log (last 20 lines) =====" && tail -20 /tmp/brew.log 2> /d
 check "logfile was created" test -f /tmp/brew.log
 check "logfile is non-empty" test -s /tmp/brew.log
 check "logfile contains install-homebrew header" grep -q 'install-homebrew' /tmp/brew.log
-check "logfile contains success marker" grep -q 'Homebrew installation complete' /tmp/brew.log
+check "logfile contains success marker" grep -q 'Install Homebrew script finished successfully' /tmp/brew.log
 check "logfile contains brew prefix path" grep -q '/home/linuxbrew/.linuxbrew' /tmp/brew.log
 
 reportResults

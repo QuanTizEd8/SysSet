@@ -61,7 +61,7 @@
             "install-conda-env": {
                 "env_name": "chanenv",
                 "packages": "numpy",
-                "channels": "conda-forge :: defaults",
+                "channels": "conda-forge\ndefaults",
                 "debug": true
             }
         }

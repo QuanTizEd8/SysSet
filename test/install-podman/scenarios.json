@@ -57,7 +57,7 @@
         "build": { "dockerfile": "Dockerfile" },
         "features": {
             "install-podman": {
-                "add_users": "alice,bob",
+                "add_users": "alice\nbob",
                 "add_remote_user": false,
                 "add_container_user": false,
                 "add_current_user": false,

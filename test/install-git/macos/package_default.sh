@@ -25,6 +25,7 @@ check "git --version succeeds" git --version
 bash "${REPO_ROOT}/src/install-git/install.sh" \
   --method package \
   --version stable \
+  --if_exists skip \
   --debug true
 
 # --- git is still functional after the feature skips ---

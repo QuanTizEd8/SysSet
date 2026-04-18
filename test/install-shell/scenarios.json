@@ -36,7 +36,7 @@
         },
         "features": {
             "install-shell": {
-                "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting",
+                "ohmyzsh_plugins": "zsh-users/zsh-autosuggestions\nzsh-users/zsh-syntax-highlighting",
                 "add_current_user": true,
                 "debug": true
             }
