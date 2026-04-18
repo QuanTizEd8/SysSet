@@ -196,9 +196,8 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     # ── __usage__ ───────────────────────────────────────────────────────────
     entries: list[tuple[str, str, str, bool]] = []
     for key, opt in options.items():
-        typ = opt.get("type", "string")
+        typ = opt["type"]
         flag_str = f"  {opt_to_flag(key)} {usage_type_hint(opt)}"
-        typ = opt.get("type", "string")
         has_default = "default" in opt
         default = opt.get("default", "")
         is_required = not has_default
@@ -258,24 +257,17 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         typ = opt.get("type", "string")
         lines.append(f"      {flag})")
         lines.append("        shift")
-        if typ == "boolean":
-            lines.append(f'        {vname}="$1"')
-            lines.append(
-                f'        echo "\U0001f4e9 Read argument \'{key}\': \'${{{vname}}}\'" >&2'
-            )
-            lines.append("        shift")
-        elif typ == "array":
+        if typ == "array":
             lines.append(f'        {vname}+=("$1")')
             lines.append(
                 f'        echo "\U0001f4e9 Read argument \'{key}\': \'$1\'" >&2'
             )
-            lines.append("        shift")
         else:
             lines.append(f'        {vname}="$1"')
             lines.append(
                 f'        echo "\U0001f4e9 Read argument \'{key}\': \'${{{vname}}}\'" >&2'
             )
-            lines.append("        shift")
+        lines.append("        shift")
         lines.append("        ;;")
     lines.append("      -h | --help)")
     lines.append("        __usage__")
