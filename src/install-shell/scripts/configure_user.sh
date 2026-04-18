@@ -43,28 +43,6 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# inject_guarded_block <file> <marker> <content>
-# Removes any existing block between "# BEGIN <marker>" and "# END <marker>",
-# then appends a new block with the given content.
-# ---------------------------------------------------------------------------
-inject_guarded_block() {
-  local _file="$1" _marker="$2" _content="$3"
-  local _tmp
-  _tmp="$(mktemp)"
-
-  if [ -f "$_file" ]; then
-    sed "/# BEGIN ${_marker}/,/# END ${_marker}/d" "$_file" > "$_tmp"
-    mv "$_tmp" "$_file"
-  fi
-
-  {
-    printf '# BEGIN %s\n' "$_marker"
-    printf '%s\n' "$_content"
-    printf '# END %s\n' "$_marker"
-  } >> "$_file"
-}
-
-# ---------------------------------------------------------------------------
 # resolve_custom_dir <raw_value> <user_home>
 # Expands ~- and $HOME-prefixed paths to absolute paths for the given user.
 # Absolute paths and other values are passed through unchanged.
@@ -330,9 +308,8 @@ fi
 # Inject ZDOTDIR into ~/.zshenv
 # ---------------------------------------------------------------------------
 _ZSHENV="${_HOME}/.zshenv"
-[ -f "$_ZSHENV" ] || touch "$_ZSHENV"
 mkdir -p "$_ZDOTDIR"
-inject_guarded_block "$_ZSHENV" "install-shell-zdotdir" "ZDOTDIR=\"${_ZDOTDIR}\""
+shell__write_block --file "$_ZSHENV" --marker "install-shell-zdotdir" --content "ZDOTDIR=\"${_ZDOTDIR}\""
 
 # ---------------------------------------------------------------------------
 # Zsh theme file ($ZDOTDIR/zshtheme)
