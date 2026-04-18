@@ -24,18 +24,8 @@ _check_mode=false
 [[ "${1-}" == "--check" ]] && _check_mode=true
 
 # ---------------------------------------------------------------------------
-# Step 1: Generate (or check) dependencies/*.yaml from metadata.yaml.
-# ---------------------------------------------------------------------------
-if [[ "$_check_mode" == true ]]; then
-  "$_python" "${_SCRIPT_DIR}/scripts/sync-deps.py" --check
-else
-  "$_python" "${_SCRIPT_DIR}/scripts/sync-deps.py"
-fi
-
-# ---------------------------------------------------------------------------
-# Step 3: Generate (or check) devcontainer-feature.json from metadata.yaml.
-# ---------------------------------------------------------------------------
 # Resolve a Python interpreter that has PyYAML available.
+# ---------------------------------------------------------------------------
 _python=""
 for _candidate in python3 python; do
   if command -v "$_candidate" &> /dev/null &&
@@ -49,6 +39,18 @@ if [[ -z "$_python" ]]; then
   exit 1
 fi
 
+# ---------------------------------------------------------------------------
+# Step 1: Generate (or check) dependencies/*.yaml from metadata.yaml.
+# ---------------------------------------------------------------------------
+if [[ "$_check_mode" == true ]]; then
+  "$_python" "${_SCRIPT_DIR}/scripts/sync-deps.py" --check
+else
+  "$_python" "${_SCRIPT_DIR}/scripts/sync-deps.py"
+fi
+
+# ---------------------------------------------------------------------------
+# Step 3: Generate (or check) devcontainer-feature.json from metadata.yaml.
+# ---------------------------------------------------------------------------
 if [[ "$_check_mode" == true ]]; then
   "$_python" "${_SCRIPT_DIR}/scripts/sync-metadata.py" --check
 else
