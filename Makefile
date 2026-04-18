@@ -1,4 +1,4 @@
-.PHONY: format format-check lint sync sync-check test-unit gen-docs gen-docs-check docs docs-serve
+.PHONY: format format-check lint sync sync-check test-unit install-dev gen-docs gen-docs-check docs docs-serve
 
 # Apply shfmt formatting to all tracked shell files.
 # test/unit/bats/** is excluded via .editorconfig ignore = true.
@@ -53,9 +53,16 @@ test-unit:
 	bash test/run-unit.sh
 
 # Build standalone distribution artifacts into dist/.
-# Accepts an optional VERSION variable: make build-dist VERSION=v1.0.0
-artifacts:
+# Runs sync first to ensure src/ is up to date.
+# Accepts an optional VERSION variable: make artifacts VERSION=v1.0.0
+artifacts: sync
 	bash build-artifacts.sh $(VERSION)
+
+# Install all development tools required to work on this repo.
+# Idempotent — skips tools already installed at the required version.
+# See scripts/setup-dev.sh for the list of tools and pinned versions.
+install-dev:
+	bash scripts/setup-dev.sh
 
 # Inject auto-generated content (lib API tables, JSON options blocks) into docs.
 gen-docs:
