@@ -795,6 +795,15 @@ fi
 
 os__require_root
 
+if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
+  if [ "$(id -u)" = "0" ]; then
+    PREFIX="/usr/local"
+  else
+    PREFIX="${HOME}/.local"
+  fi
+  echo "ℹ️ Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'." >&2
+fi
+
 # Resolve version (may call GitHub API).
 _resolved_version="$(_gh__resolve_version)"
 
