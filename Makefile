@@ -26,17 +26,20 @@ endif
 # Parallelised with xargs -P to offset the cost of external-sources=true
 # re-analysing the lib/ source chain for every file.
 # Pass FILES="f1 f2 ..." to check specific files only (used by lefthook).
+# features/*/install.bash are body-only (no header); lint the assembled src/ copies.
 lint:
 ifdef FILES
 	echo $(FILES) | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
 else
-	git ls-files -- '*.sh' '*.bash' | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
+	{ git ls-files -- '*.sh' '*.bash' | grep -v '^features/[^/]*/install\.bash$$'; find src -maxdepth 2 -name 'install.bash' 2>/dev/null; } | sort -u | xargs -P$$(nproc 2>/dev/null || sysctl -n hw.logicalcpu) -n8 shellcheck
 endif
 
-# Sync generated artifacts from canonical sources:
-#   metadata.yaml  → devcontainer-feature.json  (via scripts/sync-metadata.py)
-#   lib/           → each feature's _lib/
-#   bootstrap.sh   → each feature's install.sh
+# Sync generated artifacts from canonical sources (features/ + lib/ + bootstrap.sh → src/):
+#   features/*/metadata.yaml  → src/*/devcontainer-feature.json  (via scripts/sync-metadata.py)
+#   features/*/metadata.yaml  → src/*/dependencies/*.yaml         (via scripts/sync-deps.py)
+#   features/*/install.bash   → src/*/install.bash (header prepended by scripts/sync-argparse.py)
+#   lib/                      → src/*/_lib/
+#   bootstrap.sh              → src/*/install.sh
 sync:
 	bash sync-lib.sh
 

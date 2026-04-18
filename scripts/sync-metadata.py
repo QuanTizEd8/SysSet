@@ -36,6 +36,7 @@ except ImportError:
     sys.exit(1)
 
 _REPO = Path(__file__).resolve().parent.parent
+_FEATURES = _REPO / "features"
 _SRC = _REPO / "src"
 
 
@@ -204,8 +205,8 @@ def generate_json(data: dict) -> str:
 
 
 def find_features() -> list[Path]:
-    """Return sorted list of src/*/metadata.yaml paths."""
-    return sorted(_SRC.glob("*/metadata.yaml"))
+    """Return sorted list of features/*/metadata.yaml paths."""
+    return sorted(_FEATURES.glob("*/metadata.yaml"))
 
 
 def main() -> None:
@@ -215,14 +216,14 @@ def main() -> None:
     features = find_features()
     if not features:
         print(
-            f"ERROR: No src/*/metadata.yaml files found under {_SRC}",
+            f"ERROR: No features/*/metadata.yaml files found under {_FEATURES}",
             file=sys.stderr,
         )
         sys.exit(1)
 
     for meta_path in features:
         feature_id = meta_path.parent.name
-        json_path = meta_path.parent / "devcontainer-feature.json"
+        json_path = _SRC / feature_id / "devcontainer-feature.json"
 
         with meta_path.open(encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
@@ -239,6 +240,7 @@ def main() -> None:
             else:
                 print(f"✅ {feature_id}: in sync", file=sys.stderr)
         else:
+            json_path.parent.mkdir(parents=True, exist_ok=True)
             current = json_path.read_text(encoding="utf-8") if json_path.exists() else None
             if current == expected:
                 print(f"✅ {feature_id}: devcontainer-feature.json unchanged", file=sys.stderr)

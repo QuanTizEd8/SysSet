@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 
 SCRIPT_DIR = Path(__file__).parent
+FEATURES_DIR = SCRIPT_DIR.parent / "features"
 SRC_DIR = SCRIPT_DIR.parent / "src"
 
 
@@ -28,17 +29,17 @@ def _dump(data: object) -> str:
 def main() -> int:
     check_mode = "--check" in sys.argv
 
-    feature_dirs = sorted(SRC_DIR.glob("*/metadata.yaml"))
+    feature_dirs = sorted(FEATURES_DIR.glob("*/metadata.yaml"))
     if not feature_dirs:
-        print(f"⛔ No metadata.yaml files found under {SRC_DIR}", file=sys.stderr)
+        print(f"⛔ No metadata.yaml files found under {FEATURES_DIR}", file=sys.stderr)
         return 1
 
     any_stale = False
     any_error = False
 
     for meta_path in feature_dirs:
-        feature_dir = meta_path.parent
-        feature_id = feature_dir.name
+        feature_id = meta_path.parent.name
+        feature_dir = SRC_DIR / feature_id
 
         with meta_path.open(encoding="utf-8") as fh:
             meta = yaml.safe_load(fh)

@@ -1,12 +1,9 @@
 *.pyc
 __pycache__/
 
-# Generated copies — synced by sync-lib.sh and sync-metadata.py.
+# Generated copies — assembled by sync-lib.sh and the scripts/ sync suite.
 # Never commit these; CI regenerates them after checkout.
-src/**/_lib/
-src/*/install.sh
-src/*/devcontainer-feature.json
-src/*/dependencies/
+src/
 
 # Distribution artifacts — built by build-artifacts.sh.
 /dist/

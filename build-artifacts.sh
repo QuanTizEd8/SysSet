@@ -33,12 +33,14 @@ bash "${_SCRIPT_DIR}/sync-lib.sh"
 rm -rf "${_SCRIPT_DIR}/dist"
 mkdir -p "${_SCRIPT_DIR}/dist"
 
-# ── Step 3: Auto-discover features (same pattern as sync-lib.sh) ─────────────
+# ── Step 3: Auto-discover features from features/ (assembled artifacts are in src/) ─
 _feature_dirs=()
-while IFS= read -r _json; do
-  _dir="$(dirname "$_json")"
-  [[ -f "${_dir}/install.bash" ]] && _feature_dirs+=("$_dir")
-done < <(find "${_SCRIPT_DIR}/src" -maxdepth 2 -name "devcontainer-feature.json" | sort)
+while IFS= read -r _bash; do
+  _dir="$(dirname "$_bash")"
+  _name="$(basename "$_dir")"
+  _src_dir="${_SCRIPT_DIR}/src/${_name}"
+  [[ -f "${_src_dir}/install.bash" ]] && _feature_dirs+=("$_src_dir")
+done < <(find "${_SCRIPT_DIR}/features" -maxdepth 2 -name "install.bash" | sort)
 
 if [[ ${#_feature_dirs[@]} -eq 0 ]]; then
   echo "⛔ No features with an install.bash found." >&2

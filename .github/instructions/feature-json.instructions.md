@@ -1,6 +1,6 @@
 ---
 description: "Use when writing or editing devcontainer-feature.json files. Covers required options, enum vs proposals, versioning, lifecycle commands, and feature ID conventions."
-applyTo: "src/**/devcontainer-feature.json"
+applyTo: "features/**/metadata.yaml"
 ---
 
 # devcontainer-feature.json Conventions

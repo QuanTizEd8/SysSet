@@ -1,6 +1,7 @@
 {
     "name": "combined",
     "image": "ubuntu:latest",
+    "initializeCommand": "bash sync-lib.sh",
     "containerUser": "vscode",
     "features": {
       "../_src/setup-user": {},

@@ -1,6 +1,6 @@
 ---
-description: "Use when writing, editing, or creating feature installer scripts under src/**/*.bash or shared library modules under lib/. Covers the bootstrap pattern, library sourcing, logging setup, dual-mode argument parsing, emoji conventions, and the full shared library API."
-applyTo: "src/**/*.bash, lib/*.sh"
+description: "Use when writing, editing, or creating feature installer scripts under features/**/*.bash or shared library modules under lib/. Covers the bootstrap pattern, library sourcing, logging setup, dual-mode argument parsing, emoji conventions, and the full shared library API."
+applyTo: "features/**/*.bash, lib/*.sh"
 ---
 
 # Feature Installer Script Conventions
@@ -12,7 +12,7 @@ applyTo: "src/**/*.bash, lib/*.sh"
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"   # Feature root: src/<feature>/
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"   # Feature root: src/<feature>/ (assembled by sync-lib.sh)
 ```
 
 ## Library-First Principle

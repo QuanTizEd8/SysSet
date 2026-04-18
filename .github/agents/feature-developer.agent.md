@@ -1,6 +1,6 @@
 ---
 name: Feature Developer
-description: "Use when developing, auditing, improving, or maintaining devcontainer features and standalone installers. Expert Linux/macOS system administrator specializing in shell scripting, system software setup, containerization, and DevOps. Handles the full lifecycle: research, API design, implementation, adversarial review, testing, and CI verification. Invoke for tasks involving src/*/install.bash, lib/, devcontainer-feature.json, docs/ref/, test/, or anything related to feature development and distribution."
+description: "Use when developing, auditing, improving, or maintaining devcontainer features and standalone installers. Expert Linux/macOS system administrator specializing in shell scripting, system software setup, containerization, and DevOps. Handles the full lifecycle: research, API design, implementation, adversarial review, testing, and CI verification. Invoke for tasks involving features/*/install.bash, lib/, features/*/metadata.yaml, docs/ref/, test/, or anything related to feature development and distribution."
 tools: [execute, read, edit, search, web, agent, todo, vscode, github/*, microsoft/markitdown/*, oraios/serena/*]
 model: ["Claude Sonnet 4.6 (copilot)"]
 agents: [feature-researcher, adversarial-auditor, final-reviewer]
@@ -28,7 +28,7 @@ Execute these phases in order. DO NOT SKIP PHASES.
 
 **Constraints**:
 
-- NEVER edit generated files: `src/*/install.sh` and `src/**/_lib/`. Run `bash sync-lib.sh` to regenerate them from `bootstrap.sh` and `lib/`.
+- NEVER edit generated files: all of `src/` is generated. Run `bash sync-lib.sh` to regenerate `src/` from `features/` + `lib/` + `bootstrap.sh`.
 - NEVER skip the research phase. Always read `docs/ref/<feature-name>/` before implementing.
 - NEVER reimplement logic that already exists in `lib/`. Check the shared library first.
 - NEVER assume a single platform. Every code path must account for Linux (Debian, RHEL, Alpine, Arch) and macOS.
@@ -55,7 +55,7 @@ Execute these phases in order. DO NOT SKIP PHASES.
    - Logging (`debug`, `logfile` — required by convention).
    - Other tool-specific configuration knobs.
 3. Ensure **cross-feature uniformity**: similar options share the same name, type, and semantics across all features.
-4. Create or update the `src/<feature-name>/devcontainer-feature.json` file with the designed API,
+4. Create or update `features/<feature-name>/metadata.yaml` with the designed API,
 following the instructions in `.github/instructions/feature-json.instructions.md`. Make sure to include comprehensive descriptions both for the feature itself and for each individual option, covering all relevant details.
 5. Compile a comprehensive API reference document based on the designed API, strictly following the format and content guidelines in the API Reference template at `.github/doc-templates/api.md`. This document should provide all necessary information for users to understand and effectively use the API, including detailed explanations of each option, usage examples, and any important considerations or limitations.
 6. Create or update the API reference document at `docs/ref/<feature-name>/api.md` with the above content. Ensure that the API Reference is comprehensive, accurate, and clearly written, as it will serve as the definitive guide for users of the feature's API, as well as the primary source of truth for implementation and testing.
@@ -86,12 +86,12 @@ DO NOT PROCEED TO PHASE 6 (IMPLEMENTATION) OR ASK THE USER WHETHER YOU SHOULD PR
 ### Phase 6 — Implementation
 
 1. Review the latest version of the implementation reference document you and the user finalized in Phase 5, ensuring you have a deep understanding of the implementation plan, building blocks, and overall approach. Pay special attention to any edge cases, platform-specific behavior, and important considerations outlined in the document.
-2. Generate dependency manifests for base (`src/<feature-name>/dependencies/base.yaml`) and option-specific dependencies (`src/<feature-name>/dependencies/<option-or-case>.yaml`) based on the installation requirements outlined in the Installation Reference document, following the instructions in `.github/instructions/ospkg-manifests.instructions.md`. Ensure that all dependencies are accurately represented with correct package names, versions, and platform-specific details as needed.
+2. Generate dependency manifests for base (`features/<feature-name>/metadata.yaml` under `dependencies.base`) and option-specific dependencies (`dependencies.<option-or-case>`) based on the installation requirements outlined in the Installation Reference document, following the instructions in `.github/instructions/ospkg-manifests.instructions.md`. Ensure that all dependencies are accurately represented with correct package names, versions, and platform-specific details as needed.
 3. For each building block that is to be implemented or updated, use a test-driven development (TDD) approach and write comprehensive unit tests for it in the `test/unit/` directory before implementing the actual logic. The tests should cover all expected behavior, edge cases, and error conditions for the building block.
 RUN THE TESTS AND VERIFY THEY FAIL BEFORE IMPLEMENTING THE BUILDING BLOCK, to ensure that the tests are correctly written and that they will effectively validate the implementation. After writing the tests, implement the building block in `lib/`, ensuring that it fulfills the specification outlined in the implementation reference document, is robust against all current and anticipated use cases, follows best practices, and is well-documented.
 4. After modifying `lib/`, run `bash sync-lib.sh` to propagate changes, then run the unit tests for the modified library modules to verify that the new implementation is correct and doesn't introduce regressions.
 5. After all building blocks are implemented and their unit tests pass, adopt the same TDD approach and implement comprehensive scenario tests for the feature under `test/<feature-name>/`, covering all relevant use cases, options, and edge cases, and fully verifying the correctness of the implementation according to the reference documents. Make sure to include failing and passing scenarios for all supported platforms, including macOS tests (run on CI runners). Scenario tests are too heavy to run locally, so NEVER TRY TO RUN THEM LOCALLY.
-6. Write the installer script under `src/<feature-name>/install.bash` following all conventions:
+6. Write the installer script under `features/<feature-name>/install.bash` following all conventions:
    - File header with `_SELF_DIR` and `_BASE_DIR`.
    - Source `ospkg.sh` first, then `logging.sh`, then other needed modules.
    - `logging__setup` + EXIT trap for `logging__cleanup`.
@@ -181,8 +181,8 @@ If the verdict is **NOT APPROVED**:
 
 ## Key Project Facts
 
-- **Generated files** (`src/*/install.sh`, `src/**/_lib/`): never edit; run `bash sync-lib.sh`.
-- **bootstrap.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files.
+- **Generated files** (entire `src/`): never edit; run `bash sync-lib.sh` to regenerate from `features/`.
+- **bootstrap.sh**: POSIX sh wrapper that finds bash ≥ 4 and execs `install.bash`. Generates all `src/*/install.sh` files via `sync-lib.sh`.
 - **Dual distribution**: devcontainer features (GHCR) + standalone tarballs (GitHub Releases via `build-artifacts.sh`).
 - **Shared library** (`lib/`): canonical source of reusable bash functions. After changes, run `sync-lib.sh`.
 - **Test layers**: bats unit tests (`test/unit/`), devcontainer scenario tests (`test/<feature-name>/`), fail scenarios, dry-run manifest tests.

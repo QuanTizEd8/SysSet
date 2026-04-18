@@ -156,7 +156,13 @@ jobs:
         run: shfmt -d --apply-ignore .
 
       - name: "Lint (shellcheck)"
-        run: shellcheck $(git ls-files -- '*.sh' '*.bash')
+        run: |
+          # features/*/install.bash are body-only (no header) — skip them here.
+          # The assembled src/*/install.bash files are linted in the feature test jobs
+          # after sync-lib.sh regenerates src/.
+          git ls-files -- '*.sh' '*.bash' \
+            | grep -v '^features/[^/]*/install\.bash$' \
+            | xargs shellcheck
 
   # ── Validate devcontainer-feature.json files ──────────────────────────────
   validate:

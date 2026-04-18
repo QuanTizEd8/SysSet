@@ -1,6 +1,7 @@
 {
     "name": "install-shell",
     "image": "ubuntu:latest",
+    "initializeCommand": "bash sync-lib.sh",
     "containerUser": "ubuntu",
     "features": {
         "../_src/install-shell": {}

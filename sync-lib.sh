@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
-# sync-lib.sh — Distributes shared files into each feature directory:
-#   - metadata.yaml → devcontainer-feature.json (via scripts/sync-metadata.py)
-#   - metadata.yaml → argparse block in install.bash (via scripts/sync-argparse.py)
-#   - lib/          → each feature's _lib/
-#   - bootstrap.sh  → each feature's install.sh
+# sync-lib.sh — Assembles each feature's src/ directory from features/ + lib/ + bootstrap.sh:
+#   - features/*/metadata.yaml → src/*/devcontainer-feature.json (via scripts/sync-metadata.py)
+#   - features/*/metadata.yaml → src/*/dependencies/*.yaml (via scripts/sync-deps.py)
+#   - features/*/install.bash  → src/*/install.bash (header prepended via scripts/sync-argparse.py)
+#   - lib/                     → src/*/_lib/
+#   - bootstrap.sh             → src/*/install.sh
+#   - features/*/files/        → src/*/files/ (copied, not symlinked)
 #
 # Usage:
 #   bash sync-lib.sh           # sync all features
 #   bash sync-lib.sh --check   # verify copies are up to date
 #                              # exits non-zero and reports stale features
 #
-# Features are auto-discovered from src/*/metadata.yaml — never hard-coded.
+# Features are auto-discovered from features/*/metadata.yaml — never hard-coded.
 set -euo pipefail
 
 _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _LIB_DIR="${_SCRIPT_DIR}/lib"
+_FEATURES_DIR="${_SCRIPT_DIR}/features"
 _SRC_DIR="${_SCRIPT_DIR}/src"
 _BOOTSTRAP="${_SCRIPT_DIR}/bootstrap.sh"
 
@@ -65,15 +68,15 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Step 5: Auto-discover feature directories (those with a metadata.yaml).
+# Step 5: Auto-discover feature directories (those with a metadata.yaml in features/).
 # ---------------------------------------------------------------------------
 _feature_dirs=()
 while IFS= read -r _meta; do
   _feature_dirs+=("$(dirname "$_meta")")
-done < <(find "$_SRC_DIR" -maxdepth 2 -name "metadata.yaml")
+done < <(find "$_FEATURES_DIR" -maxdepth 2 -name "metadata.yaml")
 
 if [[ ${#_feature_dirs[@]} -eq 0 ]]; then
-  echo "⛔ No feature directories found in '${_SRC_DIR}'." >&2
+  echo "⛔ No feature directories found in '${_FEATURES_DIR}'." >&2
   exit 1
 fi
 
@@ -84,8 +87,9 @@ _any_stale=false
 
 for _feature_dir in "${_feature_dirs[@]}"; do
   _name="$(basename "$_feature_dir")"
-  _dest="${_feature_dir}/_lib"
-  _bootstrap_dest="${_feature_dir}/install.sh"
+  _src_dir="${_SRC_DIR}/${_name}"
+  _dest="${_src_dir}/_lib"
+  _bootstrap_dest="${_src_dir}/install.sh"
 
   if [[ "$_check_mode" == true ]]; then
     if [[ ! -d "$_dest" ]]; then
@@ -105,10 +109,16 @@ for _feature_dir in "${_feature_dirs[@]}"; do
       _any_stale=true
     fi
   else
+    mkdir -p "$_src_dir"
     rm -rf "$_dest"
     mkdir -p "$_dest"
     cp -r "${_LIB_DIR}/." "${_dest}/"
     cp "$_BOOTSTRAP" "$_bootstrap_dest"
+    # Copy files/ if the feature source has one (deployment must be self-contained).
+    if [[ -d "${_feature_dir}/files" ]]; then
+      rm -rf "${_src_dir}/files"
+      cp -r "${_feature_dir}/files" "${_src_dir}/files"
+    fi
     echo "✅ ${_name}: synced" >&2
   fi
 done
