@@ -13,6 +13,6 @@ check "logenv directory exists" test -d /opt/conda/envs/logenv
 check "logfile was created" test -f /tmp/conda-env.log
 check "logfile is non-empty" test -s /tmp/conda-env.log
 check "logfile contains env name" grep -q "logenv" /tmp/conda-env.log
-check "logfile contains success marker" grep -q "Conda environment setup complete" /tmp/conda-env.log
+check "logfile contains success marker" grep -q "Conda Environment script finished successfully" /tmp/conda-env.log
 
 reportResults

@@ -196,7 +196,7 @@ _node_set_permissions() {
   done
 
   mkdir -p "$NVM_DIR"
-  chown -R "${_RESOLVED_USERS[0]}:${GROUP}" "$NVM_DIR"
+  chown -R "${_NVM_USER}:${GROUP}" "$NVM_DIR"
   chmod g+rws "$NVM_DIR"
 
   echo "↩️ Function exit: _node_set_permissions" >&2

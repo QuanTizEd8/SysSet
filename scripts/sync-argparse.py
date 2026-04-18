@@ -296,7 +296,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             lines.append(f"  if [ \"${{{vname}+defined}}\" ]; then")
             lines.append(f"    if [ -n \"${{{vname}-}}\" ]; then")
             lines.append(
-                f'      mapfile -t {vname} < <(printf \'%s\\n\' "${{{vname}}}" | grep -v \'^\')'
+                f'      mapfile -t {vname} < <(printf \'%s\\n\' "${{{vname}}}" | grep -v \'^$\')'
             )
             lines.append(f'      for _item in "${{{vname}[@]}}"; do')
             lines.append(
