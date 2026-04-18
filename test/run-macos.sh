@@ -38,7 +38,7 @@ if [[ ! -d "$SCENARIOS_DIR" ]]; then
 fi
 
 echo "ℹ️  Syncing _lib/ copies from lib/ before running macOS scenarios."
-bash "${REPO_ROOT}/sync-lib.sh"
+[ -d "${REPO_ROOT}/src" ] || bash "${REPO_ROOT}/sync-lib.sh"
 
 _pass=0
 _fail=0

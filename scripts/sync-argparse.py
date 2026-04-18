@@ -257,17 +257,23 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         typ = opt.get("type", "string")
         lines.append(f"      {flag})")
         lines.append("        shift")
-        if typ == "array":
+        if typ == "boolean":
+            lines.append(f'        {vname}=true')
+            lines.append(
+                f'        echo "\U0001f4e9 Read boolean flag \'{key}\'" >&2'
+            )
+        elif typ == "array":
             lines.append(f'        {vname}+=("$1")')
             lines.append(
                 f'        echo "\U0001f4e9 Read argument \'{key}\': \'$1\'" >&2'
             )
+            lines.append("        shift")
         else:
             lines.append(f'        {vname}="$1"')
             lines.append(
                 f'        echo "\U0001f4e9 Read argument \'{key}\': \'${{{vname}}}\'" >&2'
             )
-        lines.append("        shift")
+            lines.append("        shift")
         lines.append("        ;;")
     lines.append("      -h | --help)")
     lines.append("        __usage__")
@@ -296,7 +302,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             lines.append(f"  if [ \"${{{vname}+defined}}\" ]; then")
             lines.append(f"    if [ -n \"${{{vname}-}}\" ]; then")
             lines.append(
-                f'      mapfile -t {vname} < <(printf \'%s\\n\' "${{{vname}}}" | grep -v \'^$\')'
+                f'      mapfile -t {vname} < <(printf \'%s\\n\' "${{{vname}}}" | tr \',\' \'\\n\' | grep -v \'^\')'
             )
             lines.append(f'      for _item in "${{{vname}[@]}}"; do')
             lines.append(

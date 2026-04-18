@@ -378,5 +378,5 @@ _brew_run_as_install_user "$_BREW_EXEC" doctor 2>&1 || true
 if [[ -n "${WRITE_GROUP:-}" ]] && [[ "$(os__kernel)" = "Linux" ]]; then
   export ADD_CURRENT_USER ADD_REMOTE_USER ADD_CONTAINER_USER ADD_USERS
   mapfile -t _write_users < <(users__resolve_list)
-  users__set_write_permissions "$PREFIX" "$RESOLVED_INSTALL_USER" "$WRITE_GROUP" "${_write_users[@]}"
+  users__set_write_permissions "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER" "$WRITE_GROUP" "${_write_users[@]}"
 fi

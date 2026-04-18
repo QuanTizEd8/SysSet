@@ -420,6 +420,8 @@ readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 . "$_SELF_DIR/_lib/github.sh"
 # shellcheck source=lib/checksum.sh
 . "$_SELF_DIR/_lib/checksum.sh"
+# shellcheck source=lib/users.sh
+. "$_SELF_DIR/_lib/users.sh"
 
 # ── Constants ────────────────────────────────────────────────────────────────
 _MINIFORGE_RELEASES_URL="https://github.com/conda-forge/miniforge/releases"
