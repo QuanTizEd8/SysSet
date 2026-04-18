@@ -388,13 +388,13 @@ _conda_init_snippet() {
 
 add_activation_to_rcfile() {
   echo "↪️ Function entry: add_activation_to_rcfile" >&2
-  if [[ -z "$SHELL_ACTIVATIONS" ]]; then
+  if [[ "${#SHELL_ACTIVATIONS[@]}" -eq 0 ]]; then
     echo "ℹ️ shell_activations is empty; skipping conda init." >&2
     echo "↩️ Function exit: add_activation_to_rcfile" >&2
     return 0
   fi
   local _shell
-  for _shell in ${SHELL_ACTIVATIONS}; do
+  for _shell in "${SHELL_ACTIVATIONS[@]}"; do
     local _target_file
     case "$_shell" in
       bash)
@@ -844,7 +844,7 @@ set_executable_paths --verify
 create_symlink
 export_path_main
 
-if [[ -n "${SHELL_ACTIVATIONS:-}" ]]; then add_activation_to_rcfile; fi
+if [[ "${#SHELL_ACTIVATIONS[@]}" -gt 0 ]]; then add_activation_to_rcfile; fi
 if [[ "$UPDATE_BASE" == true ]]; then
   echo "⚠️ Updating base conda environment."
   "$MAMBA_EXEC" update -n base --all -y

@@ -642,7 +642,7 @@ _gh__install_binary() {
   echo "✅ gh binary installed to '${PREFIX}/bin/gh'" >&2
 
   # Install completions from archive (if requested).
-  if [ -n "${SHELL_COMPLETIONS}" ]; then
+  if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
     _gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"
   fi
 
@@ -684,7 +684,7 @@ _gh__create_symlink() {
 #        _gh__install_completions --from-command
 _gh__install_completions() {
   echo "↪️ Function entry: _gh__install_completions" >&2
-  if [ -z "${SHELL_COMPLETIONS}" ]; then
+  if [ "${#SHELL_COMPLETIONS[@]}" -eq 0 ]; then
     echo "ℹ️ shell_completions is empty; skipping completion install." >&2
     echo "↩️ Function exit: _gh__install_completions" >&2
     return 0
@@ -692,7 +692,7 @@ _gh__install_completions() {
   local _mode="$1"
   local _archive_dir="${2:-}"
   local _shell
-  for _shell in ${SHELL_COMPLETIONS}; do
+  for _shell in "${SHELL_COMPLETIONS[@]}"; do
     case "${_shell}" in
       bash)
         local _bash_content
@@ -859,16 +859,11 @@ _gh__install_extensions() {
     return 0
   fi
 
-  # Split EXTENSIONS on comma.
-  local _ext_list="${EXTENSIONS}"
   local _user _home _ext
   while IFS= read -r _user; do
     [ -z "${_user}" ] && continue
     _home="$(shell__resolve_home "${_user}")"
-    local _old_ifs="${IFS}"
-    IFS=','
-    for _ext in ${_ext_list}; do
-      IFS="${_old_ifs}"
+    for _ext in "${EXTENSIONS[@]}"; do
       _ext="$(printf '%s' "${_ext}" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')"
       [ -z "${_ext}" ] && continue
       echo "🔌 Installing gh extension '${_ext}' for user '${_user}'..." >&2
@@ -884,7 +879,6 @@ _gh__install_extensions() {
         }
       fi
     done
-    IFS="${_old_ifs}"
   done << EOF
 ${_users}
 EOF
@@ -953,7 +947,7 @@ fi
 _gh__create_symlink
 
 # Install completions for repos method (binary method handles them internally).
-if [ -n "${SHELL_COMPLETIONS}" ] && [ "${METHOD}" = "repos" ]; then
+if [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ] && [ "${METHOD}" = "repos" ]; then
   _gh__install_completions --from-command
 fi
 
@@ -963,6 +957,6 @@ if [ -n "${GIT_PROTOCOL}" ] || [ "${SETUP_GIT}" = "true" ] || [ -n "${SIGN_COMMI
 fi
 
 # Install gh extensions (if any).
-if [ -n "${EXTENSIONS}" ]; then
+if [ "${#EXTENSIONS[@]}" -gt 0 ]; then
   _gh__install_extensions
 fi

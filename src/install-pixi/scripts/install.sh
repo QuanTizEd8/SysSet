@@ -610,14 +610,14 @@ export_pixi_home_main() {
 
 install_completion() {
   echo "↪️ Function entry: install_completion" >&2
-  if [ -z "${SHELL_COMPLETIONS}" ]; then
+  if [ "${#SHELL_COMPLETIONS[@]}" -eq 0 ]; then
     echo "ℹ️ shell_completions is empty; skipping completion install." >&2
     echo "↩️ Function exit: install_completion" >&2
     return 0
   fi
   local _marker="pixi completion (install-pixi)"
   local _shell
-  for _shell in ${SHELL_COMPLETIONS}; do
+  for _shell in "${SHELL_COMPLETIONS[@]}"; do
     local _content="eval \"\$(pixi completion --shell ${_shell})\""
     local _target_file
     case "${_shell}" in

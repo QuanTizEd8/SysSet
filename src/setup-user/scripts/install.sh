@@ -377,9 +377,8 @@ fi
 # ---------------------------------------------------------------------------
 # Supplementary groups
 # ---------------------------------------------------------------------------
-if [ -n "$EXTRA_GROUPS" ]; then
-  IFS=',' read -ra _extra_groups <<< "$EXTRA_GROUPS"
-  for _grp in "${_extra_groups[@]}"; do
+if [ "${#EXTRA_GROUPS[@]}" -gt 0 ]; then
+  for _grp in "${EXTRA_GROUPS[@]}"; do
     _grp="${_grp// /}" # trim spaces
     [ -z "$_grp" ] && continue
     if ! getent group "$_grp" > /dev/null 2>&1; then

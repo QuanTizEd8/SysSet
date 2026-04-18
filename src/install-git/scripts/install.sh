@@ -739,7 +739,7 @@ _git__source_build() {
 
   # Parse NO_FLAGS: space/comma-separated keywords → NO_<FLAG>=YesPlease.
   local _user_flags
-  _user_flags="$(printf '%s' "${NO_FLAGS}" | tr '[:lower:],' '[:upper:] ')"
+  _user_flags="$(printf '%s' "${NO_FLAGS[*]}" | tr '[:lower:],' '[:upper:] ')"
   local _flag
   for _flag in ${_user_flags}; do
     case "${_flag}" in
@@ -1006,12 +1006,12 @@ case "${METHOD}" in
 esac
 
 # 5. Shell completions (source build only).
-if [ "${METHOD}" = "source" ] && [ -n "${SHELL_COMPLETIONS}" ]; then
+if [ "${METHOD}" = "source" ] && [ "${#SHELL_COMPLETIONS[@]}" -gt 0 ]; then
   _comp_src="${PREFIX}/share/git-core/contrib/completion"
   if [ ! -d "${_comp_src}" ]; then
     echo "ℹ️  Completion scripts not found at '${_comp_src}' — skipping." >&2
   else
-    for _shell in ${SHELL_COMPLETIONS}; do
+    for _shell in "${SHELL_COMPLETIONS[@]}"; do
       case "${_shell}" in
         bash)
           if [ "$(id -u)" = "0" ]; then

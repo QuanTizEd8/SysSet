@@ -472,7 +472,7 @@ if [[ "$INSTALL_OHMYZSH" == true ]]; then
       --branch "$OHMYZSH_BRANCH"
       --install_dir "$OHMYZSH_INSTALL_DIR"
       --theme "$OHMYZSH_THEME"
-      --plugins "$OHMYZSH_PLUGINS"
+      --plugins "${OHMYZSH_PLUGINS[*]}"
     )
     # Pass an explicit system-path custom dir to the install script so themes
     # and plugins are cloned there.  Per-user paths (~/$HOME-prefixed) and
@@ -498,7 +498,7 @@ if [[ "$INSTALL_OHMYBASH" == true ]]; then
     --branch "$OHMYBASH_BRANCH"
     --install_dir "$OHMYBASH_INSTALL_DIR"
     --theme "$OHMYBASH_THEME"
-    --plugins "$OHMYBASH_PLUGINS"
+    --plugins "${OHMYBASH_PLUGINS[*]}"
   )
   # shellcheck disable=SC2016
   if [ -n "$OHMYBASH_CUSTOM_DIR" ] &&
@@ -618,7 +618,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
     --skel_dir "$_SKEL_DIR"
     --user_config_mode "$USER_CONFIG_MODE"
     --zdotdir "$ZDOTDIR"
-    --starship_shells "$STARSHIP_SHELLS"
+    --starship_shells "${STARSHIP_SHELLS[*]}"
   )
 
   if [[ "$_OMZ_INSTALLED" == true ]]; then
@@ -626,7 +626,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
       --ohmyzsh_install_dir "$OHMYZSH_INSTALL_DIR"
       --ohmyzsh_custom_dir "$OHMYZSH_CUSTOM_DIR"
       --ohmyzsh_theme "$OHMYZSH_THEME"
-      --ohmyzsh_plugins "$OHMYZSH_PLUGINS"
+      --ohmyzsh_plugins "${OHMYZSH_PLUGINS[*]}"
     )
   fi
 
@@ -635,7 +635,7 @@ for _username in "${_RESOLVED_USERS[@]}"; do
       --ohmybash_install_dir "$OHMYBASH_INSTALL_DIR"
       --ohmybash_custom_dir "$OHMYBASH_CUSTOM_DIR"
       --ohmybash_theme "$OHMYBASH_THEME"
-      --ohmybash_plugins "$OHMYBASH_PLUGINS"
+      --ohmybash_plugins "${OHMYBASH_PLUGINS[*]}"
     )
   fi
 

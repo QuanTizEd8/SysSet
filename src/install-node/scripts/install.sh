@@ -647,10 +647,10 @@ _node_install_via_nvm() {
 
   if [ "$_node_ver_spec" = "none" ]; then
     echo "ℹ️ version=none — skipping Node.js installation." >&2
-    if [ -n "$ADDITIONAL_VERSIONS" ]; then
+    if [ "${#ADDITIONAL_VERSIONS[@]}" -gt 0 ]; then
       echo "⚠️ VERSION=none with additional_versions: no default alias is set — run 'nvm alias default <version>' manually inside the container." >&2
       local _add_ver
-      IFS=',' read -ra _add_versions <<< "$ADDITIONAL_VERSIONS"
+      local _add_versions=("${ADDITIONAL_VERSIONS[@]}")
       for _add_ver in "${_add_versions[@]}"; do
         _add_ver="${_add_ver## }"
         _add_ver="${_add_ver%% }"
@@ -688,9 +688,9 @@ _node_install_via_nvm() {
   fi
 
   # Install additional versions
-  if [ -n "$ADDITIONAL_VERSIONS" ]; then
+  if [ "${#ADDITIONAL_VERSIONS[@]}" -gt 0 ]; then
     local _add_ver
-    IFS=',' read -ra _add_versions <<< "$ADDITIONAL_VERSIONS"
+    local _add_versions=("${ADDITIONAL_VERSIONS[@]}")
     for _add_ver in "${_add_versions[@]}"; do
       _add_ver="${_add_ver## }"
       _add_ver="${_add_ver%% }"
