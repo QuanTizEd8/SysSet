@@ -25,15 +25,21 @@ _TAG="${1:-dev}"
 
 echo "ℹ️  Building artifacts for tag: '${_TAG}'" >&2
 
-# ── Step 1: Regenerate _lib/ copies and install.sh stubs ─────────────────────
-echo "ℹ️  Running sync-lib.sh..." >&2
-bash "${_SCRIPT_DIR}/sync-lib.sh"
+# ── Pre-flight: require src/ to be already populated by sync-lib.sh ─────────
+# build-artifacts.sh is a consumer of sync output — it does not call sync
+# itself to stay usable in environments without Python+PyYAML (e.g. containers).
+# Run 'bash sync-lib.sh' (or 'make sync') before invoking this script.
+_check_feature=$(find "${_SCRIPT_DIR}/src" -maxdepth 2 -name 'install.bash' 2> /dev/null | head -1)
+if [[ -z "$_check_feature" ]]; then
+  echo "⛔ src/ is not populated. Run 'bash sync-lib.sh' first." >&2
+  exit 1
+fi
 
-# ── Step 2: Clean and create dist/ ───────────────────────────────────────────
+# ── Step 1: Clean and create dist/ ──────────────────────────────────────────
 rm -rf "${_SCRIPT_DIR}/dist"
 mkdir -p "${_SCRIPT_DIR}/dist"
 
-# ── Step 3: Auto-discover features from features/ (assembled artifacts are in src/) ─
+# ── Step 2: Auto-discover features from features/ (assembled artifacts are in src/) ─
 _feature_dirs=()
 while IFS= read -r _bash; do
   _dir="$(dirname "$_bash")"
@@ -49,7 +55,7 @@ fi
 
 echo "ℹ️  Found ${#_feature_dirs[@]} features." >&2
 
-# ── Step 4: Build per-feature tarballs ───────────────────────────────────────
+# ── Step 3: Build per-feature tarballs ──────────────────────────────────────────
 for _feature_dir in "${_feature_dirs[@]}"; do
   _name="$(basename "$_feature_dir")"
   _staging="${_SCRIPT_DIR}/dist/tmp/${_name}"
@@ -79,13 +85,13 @@ done
 
 rm -rf "${_SCRIPT_DIR}/dist/tmp"
 
-# ── Step 5: Stamp get.sh ──────────────────────────────────────────────────────
+# ── Step 4: Stamp get.sh ──────────────────────────────────────────────────────
 sed "s|@@RELEASE_TAG@@|${_TAG}|g" "${_SCRIPT_DIR}/get.sh" \
   > "${_SCRIPT_DIR}/dist/get.sh"
 chmod +x "${_SCRIPT_DIR}/dist/get.sh"
 echo "✅ Stamped dist/get.sh with tag '${_TAG}'" >&2
 
-# ── Step 6: Stamp sysset.sh and copy _lib/ for the all-bundle ────────────────
+# ── Step 5: Stamp sysset.sh and copy _lib/ for the all-bundle ──────────────────
 mkdir -p "${_SCRIPT_DIR}/dist/scripts"
 sed "s|@@RELEASE_TAG@@|${_TAG}|g" "${_SCRIPT_DIR}/sysset.sh" \
   > "${_SCRIPT_DIR}/dist/scripts/sysset.sh"
@@ -93,7 +99,7 @@ chmod +x "${_SCRIPT_DIR}/dist/scripts/sysset.sh"
 cp -r "${_SCRIPT_DIR}/lib/." "${_SCRIPT_DIR}/dist/scripts/_lib/"
 echo "✅ Stamped dist/scripts/sysset.sh with tag '${_TAG}'" >&2
 
-# ── Step 7: Build all-bundle ──────────────────────────────────────────────────
+# ── Step 6: Build all-bundle ──────────────────────────────────────────────────────
 # Collect individual feature tarballs (must exist before sysset-all.tar.gz is created)
 _feature_tarballs=()
 while IFS= read -r _t; do
@@ -109,7 +115,7 @@ done < <(find "${_SCRIPT_DIR}/dist" -maxdepth 1 -name "sysset-*.tar.gz" | sort)
 )
 echo "✅ Built dist/sysset-all.tar.gz" >&2
 
-# ── Step 8: Clean up intermediate scripts/ dir from dist/ root ───────────────
+# ── Step 7: Clean up intermediate scripts/ dir from dist/ root ─────────────────
 rm -rf "${_SCRIPT_DIR}/dist/scripts"
 
 echo "" >&2
