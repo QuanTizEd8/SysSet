@@ -126,8 +126,13 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     lines.append(
         f'echo "\u21aa\ufe0f Script entry: {feature_name}" >&2'
     )
+    lines.append("# Override _cleanup_hook in the hand-written section for feature-specific")
+    lines.append("# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;")
+    lines.append("# _on_exit owns that call and guarantees it runs exactly once, last.")
+    lines.append("_cleanup_hook() { return; }")
     lines.append("_on_exit() {")
     lines.append("  local _rc=$?")
+    lines.append("  _cleanup_hook")
     lines.append("  if [[ $_rc -eq 0 ]]; then")
     lines.append(
         f'    echo "\u2705 {feature_name} script finished successfully." >&2'
@@ -144,22 +149,24 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     lines.append("")
 
     # ── __usage__ ───────────────────────────────────────────────────────────
-    entries: list[tuple[str, str, str]] = []
+    entries: list[tuple[str, str, str, bool]] = []
     for key, opt in options.items():
         flag_str = f"  {opt_to_flag(key)} {usage_type_hint(opt)}"
         typ = opt.get("type", "string")
+        has_default = "default" in opt
         default = opt.get("default", "")
+        is_required = not has_default
         if typ == "boolean":
             disp_default = "true" if default else "false"
         elif typ == "array":
             disp_default = ""
         else:
-            disp_default = str(default) if default is not None else ""
+            disp_default = str(default) if has_default and default is not None else ""
         desc = first_sentence(strip_markdown(opt.get("description", "")))
-        entries.append((flag_str, desc, disp_default))
+        entries.append((flag_str, desc, disp_default, is_required))
     help_flag = "  -h, --help"
     col_width = max(
-        (len(f) for f, _, _ in entries),
+        (len(f) for f, _, _, _ in entries),
         default=len(help_flag),
     )
     col_width = max(col_width, len(help_flag))
@@ -169,10 +176,12 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     lines.append("Usage: install.sh [OPTIONS]")
     lines.append("")
     lines.append("Options:")
-    for (flag_str, desc, disp_default), (_key, _opt) in zip(entries, options.items()):
+    for (flag_str, desc, disp_default, is_required), (_key, _opt) in zip(entries, options.items()):
         padding = " " * (col_width - len(flag_str) + 2)
         desc_field = desc
-        if disp_default:
+        if is_required:
+            desc_field = f"{desc} (required)"
+        elif disp_default:
             desc_field = f'{desc} (default: "{disp_default}")'
         lines.append(f"{flag_str}{padding}{desc_field}")
     help_padding = " " * (col_width - len(help_flag) + 2)
@@ -190,8 +199,10 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         typ = opt.get("type", "string")
         if typ == "array":
             lines.append(f"  {vname}=()")
+        elif "default" not in opt:
+            lines.append(f'  {vname}=""')
         else:
-            rhs = shell_val(opt.get("default", ""), typ)
+            rhs = shell_val(opt["default"], typ)
             lines.append(f"  {vname}={rhs}")
     lines.append('  while [ "$#" -gt 0 ]; do')
     lines.append("    case $1 in")
@@ -267,8 +278,10 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     for key, opt in options.items():
         vname = opt_to_var(key)
         typ = opt.get("type", "string")
-        if typ == "array":
-            raw_default = opt.get("default", "")
+        if "default" not in opt:
+            pass  # required — no default to apply
+        elif typ == "array":
+            raw_default = opt["default"]
             if raw_default == "" or raw_default is None:
                 lines.append(f'[ "${{{vname}+defined}}" ] || {vname}=()')
             else:
@@ -285,9 +298,62 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                     f"mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$')"
                 )
         else:
-            rhs = shell_val(opt.get("default", ""), typ)
+            rhs = shell_val(opt["default"], typ)
             lines.append(f'[ "${{{vname}+defined}}" ] || {vname}={rhs}')
-
+    # ── required argument checks ─────────────────────────────────────────────
+    required_opts = [
+        (key, opt) for key, opt in options.items()
+        if "default" not in opt
+    ]
+    if required_opts:
+        lines.append("")
+        lines.append("# Check required arguments.")
+        for key, opt in required_opts:
+            vname = opt_to_var(key)
+            typ = opt.get("type", "string")
+            if typ == "array":
+                lines.append(
+                    f'[ "${{#{vname}[@]}}" -eq 0 ] && {{ echo "\u26d4 Missing required argument \'{key}\'." >&2; exit 1; }}'
+                )
+            else:
+                lines.append(
+                    f'[ -z "${{{vname}}}" ] && {{ echo "\u26d4 Missing required argument \'{key}\'." >&2; exit 1; }}'
+                )
+    # ── enum validation ──────────────────────────────────────────────────────────
+    enum_opts = [(key, opt) for key, opt in options.items() if opt.get("enum")]
+    if enum_opts:
+        lines.append("")
+        lines.append("# Validate enum options.")
+        for key, opt in enum_opts:
+            vname = opt_to_var(key)
+            typ = opt.get("type", "string")
+            values = [str(v) for v in opt["enum"]]
+            expected = ", ".join(values)
+            if typ == "array":
+                # Validate each element of the array.
+                pattern = " | ".join(values)
+                lines.append(f'for _item in "${{{vname}[@]}}"; do')
+                lines.append(f"  case \"$_item\" in")
+                lines.append(f"    {pattern}) ;;")
+                lines.append("    *)")
+                lines.append(
+                    f'      echo "\u26d4 Invalid value for \'{key}\': \'$_item\' (expected: {expected})" >&2'
+                )
+                lines.append("      exit 1")
+                lines.append("      ;;")
+                lines.append("  esac")
+                lines.append("done")
+            else:
+                pattern = " | ".join(values)
+                lines.append(f'case "${{{vname}}}" in')
+                lines.append(f"  {pattern}) ;;")
+                lines.append("  *)")
+                lines.append(
+                    f'    echo "\u26d4 Invalid value for \'{key}\': \'${{{vname}}}\' (expected: {expected})" >&2'
+                )
+                lines.append("    exit 1")
+                lines.append("    ;;")
+                lines.append("esac")
     # ── base dependencies ─────────────────────────────────────────────────────
     lines.append("")
     if dependencies and "base" in dependencies:
