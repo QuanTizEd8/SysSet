@@ -131,7 +131,7 @@ options:
       'ssh' — set gpg.format=ssh and commit.gpgsign=true. Requires git 2.34+. Well-suited for devcontainers with SSH agent forwarding (via runArgs/remoteEnv in devcontainer.json): signing is silent and needs no TTY or pinentry. Users must still set user.signingkey themselves (e.g. via dotfiles: 'git config --global user.signingkey ~/.ssh/id_ed25519.pub'). For commits to show as Verified on GitHub, the corresponding public key must be registered under GitHub Settings > SSH and GPG keys > New SSH signing key.
       'gpg' — set commit.gpgsign=true and explicitly unset gpg.format so git uses its default GPG format. Suited for users with an existing GPG key and gpg-agent already configured. Users must set user.signingkey to their GPG key ID (e.g. 'git config --global user.signingkey 3AA5C34371567BD2'). Note: gpg-agent socket forwarding into containers requires additional host setup beyond standard devcontainer spec; SSH signing is simpler in container environments.
       In both cases, 'user.signingkey' is intentionally not set by this feature because the key identifier is user-specific and unknown at build time.
-    proposals:
+    enum:
     - ''
     - ssh
     - gpg
