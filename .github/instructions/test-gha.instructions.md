@@ -1,6 +1,6 @@
 ---
-description: "Use when working with CI/CD workflows (.github/workflows/cicd.yaml, ci.yaml, cd.yaml), the install-os-pkg manifest dry-run tests (test/install-os-pkg/dry-run/), or fail scenario scripts (test/**/fail_scenarios.sh, test/run-fail-scenarios.sh). Covers macOS GHA runner behaviour, macOS native feature scenarios, dry-run test structure, adding dry-run cases, fail-scenario conventions, CI trigger logic, and how to inspect workflow run results and logs."
-applyTo: "test/install-os-pkg/dry-run/**, test/**/fail_scenarios.sh, test/run-fail-scenarios.sh, .github/workflows/*.yaml"
+description: "Use when working with CI/CD workflows (.github/workflows/cicd.yaml, ci.yaml, cd.yaml), the install-os-pkg manifest dry-run tests (test/install-os-pkg/dry-run/), or Linux-native scenario scripts (test/**/linux/). Covers macOS GHA runner behaviour, macOS native feature scenarios, Linux scenario structure, dry-run test structure, adding dry-run cases, CI trigger logic, and how to inspect workflow run results and logs."
+applyTo: "test/install-os-pkg/dry-run/**, test/**/linux/**, .github/workflows/*.yaml"
 ---
 
 # CI, macOS GHA Runner, and Supplementary Tests
@@ -199,37 +199,79 @@ curl
 
 CI (`ci.yaml`) runs the dry-run suite in a matrix across all supported distro images whenever `install-os-pkg` is in the discovered changed-feature set.
 
-## Fail Scenarios
+## Linux Scenarios
 
-The devcontainer CLI cannot assert that a feature install exits non-zero. `fail_scenarios.sh` fills this gap.
+The devcontainer CLI cannot assert that a feature install exits non-zero, and always runs features as root — it cannot test non-root code paths. Linux scenarios fill both gaps: they run assertion scripts inside plain Docker containers (not devcontainer builds), enabling negative assertions (`fail_check`) and any desired user context via `RUN_AS`.
 
-### Writing `fail_scenarios.sh`
+### Directory structure
 
-```bash
-# test/<feature>/fail_scenarios.sh
-# Each fail_scenario call expects install.bash to exit non-zero.
-
-fail_scenario "invalid version string" \
-    VERSION=bad_value
-
-fail_scenario "network required but unavailable" \
-    --network none \
-    ANOTHER_VAR=value
+```
+test/<feature>/linux/
+  <scenario>.sh       bash assertion script (sources test/lib/assert.sh)
+  <scenario>.conf     optional sidecar — KEY=VALUE config for the runner
+test/lib/
+  assert.sh           shared assertion library
 ```
 
-DSL arguments:
-- `KEY=VALUE` — passed as environment variables to the install script.
-- `--network none` — network-isolated container. The runner pre-builds a base image with the feature's OS-package dependencies already installed so only the install step itself lacks network access.
-
-### Running fail scenarios
+### Script anatomy
 
 ```bash
-bash test/run-fail-scenarios.sh <feature>
+#!/usr/bin/env bash
+# Brief description of what this scenario verifies.
+set -euo pipefail
+
+REPO_ROOT="${1:?REPO_ROOT required}"
+# shellcheck source=test/lib/assert.sh
+source "${REPO_ROOT}/test/lib/assert.sh"
+
+# Negative assertion: expects install.bash to exit non-zero.
+fail_check "invalid method exits non-zero" \
+  bash "${REPO_ROOT}/src/install-git/install.bash" --method invalid
+
+# Positive assertion (also valid in linux/ scenarios).
+check "git on PATH" command -v git
+
+reportResults
+```
+
+### `.conf` sidecar
+
+An optional `<scenario>.conf` file alongside the script sets per-scenario runner variables. It is sourced as a bash script before the Docker container is started:
+
+```bash
+# IMAGE      — Docker image (default: ubuntu:latest)
+IMAGE=ubuntu:latest
+
+# NETWORK    — Set to "none" to block all outbound network access inside the
+#              container. run-linux.sh pre-builds a base image with the
+#              feature's apt dependencies (from src/<feature>/dependencies/base.yaml)
+#              pre-installed so the scenario itself does not need network.
+NETWORK=none
+
+# SETUP_CMD  — Shell commands run as root before the scenario script.
+SETUP_CMD=apt-get update -qq && apt-get install -y git
+
+# RUN_AS     — Username to su to before running the scenario script.
+#              SETUP_CMD (still runs as root) should create the user first.
+RUN_AS=vscode
+```
+
+### Running Linux scenarios
+
+```bash
+# All Linux scenarios for a feature
+bash test/run-linux.sh <feature>
+
+# Or via the unified dispatcher
+bash test/run.sh linux <feature>
+
+# Single scenario
+bash test/run-linux.sh <feature> --filter <scenario_name>
 ```
 
 ### CI integration
 
-The `test-features` job in `ci.yaml` runs `bash test/run.sh feature <feature>` as a single step that covers both the scenario matrix and fail scenarios. No changes to `ci.yaml` are needed when adding a new `fail_scenarios.sh`.
+The `test-features` job in `ci.yaml` runs `bash test/run.sh feature <feature>`, which calls both the devcontainer scenario matrix and `run-linux.sh`. No changes to `ci.yaml` are needed when adding a new `linux/` scenario — discovery is fully automatic.
 
 ## CI Trigger Logic
 

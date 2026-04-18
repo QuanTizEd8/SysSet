@@ -1,6 +1,6 @@
 ---
-description: "Use when writing or editing devcontainer feature test scenarios, scenarios.json files, scenario assertion scripts, or test Dockerfiles under test/. Covers scenarios.json format, scenario script anatomy, assertion patterns, Dockerfiles, and fail scenarios."
-applyTo: "test/*/scenarios.json, test/*/*.sh, test/**/Dockerfile"
+description: "Use when writing or editing devcontainer feature test scenarios, scenarios.json files, scenario assertion scripts, Linux-native scenario scripts (linux/), or test Dockerfiles under test/. Covers scenarios.json format, scenario script anatomy, assertion patterns, Dockerfiles, and Linux-native scenarios."
+applyTo: "test/*/scenarios.json, test/*/*.sh, test/**/linux/*.sh, test/**/Dockerfile"
 ---
 
 # Feature Scenario Tests (devcontainer CLI)
@@ -16,6 +16,11 @@ test/<feature>/
   <scenario>/              Build context — only present when a Dockerfile is needed
     Dockerfile
     <other files>
+  linux/
+    <scenario>.sh          Linux-native assertion script (runs in Docker, see below)
+    <scenario>.conf        optional sidecar — runner config (IMAGE, NETWORK, SETUP_CMD, RUN_AS)
+  macos/
+    <scenario>.sh          macOS-native assertion script (runs directly on macOS runner)
 ```
 
 ## `scenarios.json` Format
@@ -150,26 +155,68 @@ ENV GITHUB_TOKEN=${GITHUB_TOKEN}
 
 `${localEnv:VAR}` is resolved from the shell running the devcontainer CLI. Missing values become empty strings.
 
-## Fail Scenarios
+## Linux Scenarios
 
-The devcontainer CLI cannot assert that a feature install exits non-zero. Use `fail_scenarios.sh` for expected-failure cases:
+Linux scenarios are plain Docker-based tests that run outside the devcontainer CLI. Use them when you need to:
+
+- Assert that a feature install **exits non-zero** (devcontainer CLI has no `fail_check` equivalent).
+- Test **non-root install paths** by running the feature as a non-root user via `RUN_AS`.
+- Test **network-isolated** behaviour by setting `NETWORK=none` (pre-built base image provides required packages).
+- Run **additional positive assertions** before or after an install without a full devcontainer build.
+
+### Script anatomy
 
 ```bash
-# test/<feature>/fail_scenarios.sh
-# Each call expects install.bash to exit non-zero.
+#!/usr/bin/env bash
+# Brief description of what this scenario verifies.
+set -euo pipefail
 
-fail_scenario "invalid version string" \
-    VERSION=bad_value
+REPO_ROOT="${1:?REPO_ROOT required}"
+# shellcheck source=test/lib/assert.sh
+source "${REPO_ROOT}/test/lib/assert.sh"
 
-fail_scenario "network required but unavailable" \
-    --network none
+# Negative assertion: expects install.bash to exit non-zero.
+fail_check "invalid method exits non-zero" \
+  bash "${REPO_ROOT}/src/install-git/install.bash" --method invalid
+
+# Mix positive and negative assertions freely.
+check "git not installed" bash -c '! command -v git'
+
+reportResults
 ```
 
-DSL:
-- `KEY=VALUE` — environment variables passed to the install script.
-- `--network none` — network-isolated container; the runner pre-builds an image with the feature's dependencies pre-installed so only the install step itself is isolated.
+### `.conf` sidecar
 
-Run with: `bash test/run.sh feature <feature>` (runs fail scenarios together with all other scenarios). To run fail scenarios in isolation: `bash test/run-fail-scenarios.sh <feature>`.
+Place an optional `<scenario>.conf` file alongside the script to configure the runner:
+
+```bash
+# Docker image to use (default: ubuntu:latest)
+IMAGE=ubuntu:latest
+
+# Block all outbound network; pre-builds a base image with feature deps.
+NETWORK=none
+
+# Root commands to run before the scenario (e.g. pre-install state, create users).
+SETUP_CMD=apt-get update -qq && apt-get install -y git && useradd -m vscode
+
+# Run the scenario script as this user (SETUP_CMD still runs as root).
+RUN_AS=vscode
+```
+
+### Running Linux scenarios locally
+
+```bash
+# All Linux scenarios for a feature
+bash test/run-linux.sh <feature>
+
+# Or via the unified dispatcher
+bash test/run.sh linux <feature>
+
+# Single scenario
+bash test/run-linux.sh <feature> --filter <scenario_name>
+```
+
+CI runs Linux scenarios automatically as part of `bash test/run.sh feature <feature>`. No `ci.yaml` changes are needed when adding a new `linux/` scenario.
 
 ## Running Tests Locally
 
