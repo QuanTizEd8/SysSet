@@ -2,44 +2,125 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "${_SELF_DIR}/.." && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
 # shellcheck source=lib/ospkg.sh
-. "${_SELF_DIR}/_lib/ospkg.sh"
+. "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
-. "${_SELF_DIR}/_lib/logging.sh"
-
+. "$_SELF_DIR/_lib/logging.sh"
 logging__setup
-echo "↪️ Script entry: GitHub CLI (gh) Installation Devcontainer Feature Installer" >&2
-trap 'logging__cleanup' EXIT
+echo "↪️ Script entry: GitHub CLI Installer" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ GitHub CLI Installer script finished successfully." >&2
+  else
+    echo "❌ GitHub CLI Installer script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
+
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --version <value>                          Version of gh to install. (default: "latest")
+  --method {repos|binary}                    Installation strategy. (default: "repos")
+  --prefix <value>                           Installation prefix when method=binary. The 'gh' binary is placed at '$prefix/bin/gh'. (default: "auto")
+  --symlink {true,false}                     Create a symlink from the canonical bin directory to $prefix/bin/gh when prefix resolves to a non-default path (method=binary only). (default: "true")
+  --shell_completions <value>  (repeatable)  Shell names to install completions for.
+  --if_exists {skip|fail}                    What to do when 'gh' is already present in PATH before installation begins. (default: "skip")
+  --extensions <value>  (repeatable)         GitHub CLI extensions to install after gh itself is installed.
+  --add_current_user {true,false}            Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the current non-root user (SUDO_USER if run via sudo, otherwise the result of whoami). (default: "true")
+  --add_remote_user {true,false}             Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the devcontainer remoteUser (the _REMOTE_USER environment variable set by the devcontainer tooling). (default: "true")
+  --add_container_user {true,false}          Apply per-user git configuration (git_protocol, setup_git, sign_commits) and install extensions for the devcontainer containerUser (the _CONTAINER_USER environment variable set by the devcontainer tooling). (default: "true")
+  --add_users <value>  (repeatable)          Additional usernames to apply per-user git configuration and install extensions for.
+  --git_protocol <value>                     Set the default git protocol in gh's per-user config (~/.config/gh/config.yml) by running 'gh config set git_protocol <value>' for each resolved user.
+  --setup_git {true,false}                   Register gh as the git credential helper by running 'gh auth setup-git --force --hostname <git_hostname>' for each resolved user. (default: "false")
+  --sign_commits <value>                     Pre-configure commit signing in each resolved user's ~/.gitconfig.
+  --git_hostname <value>                     The hostname to configure as the git credential helper target when setup_git=true. (default: "github.com")
+  --installer_dir <value>                    Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here. (default: "/tmp/gh-install")
+  --keep_installer {true,false}              Keep the installer_dir after a successful install when method=binary. (default: "false")
+  --debug {true,false}                       Enable debug output (set -x). (default: "false")
+  --logfile <value>                          Append install log to this file path.
+  -h, --help                                 Show this help
+EOF
+  return
+}
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  ADD_CONTAINER_USER=""
-  ADD_CURRENT_USER=""
-  ADD_REMOTE_USER=""
-  ADD_USERS=""
-  DEBUG=""
-  EXTENSIONS=""
-  GIT_HOSTNAME=""
+  VERSION="latest"
+  METHOD="repos"
+  PREFIX="auto"
+  SYMLINK=true
+  SHELL_COMPLETIONS=()
+  IF_EXISTS="skip"
+  EXTENSIONS=()
+  ADD_CURRENT_USER=true
+  ADD_REMOTE_USER=true
+  ADD_CONTAINER_USER=true
+  ADD_USERS=()
   GIT_PROTOCOL=""
-  IF_EXISTS=""
-  SHELL_COMPLETIONS=""
-  PREFIX=""
-  INSTALLER_DIR=""
-  LOGFILE=""
-  METHOD=""
-  KEEP_INSTALLER=""
-  SETUP_GIT=""
+  SETUP_GIT=false
   SIGN_COMMITS=""
-  SYMLINK=""
-  VERSION=""
+  GIT_HOSTNAME="github.com"
+  INSTALLER_DIR="/tmp/gh-install"
+  KEEP_INSTALLER=false
+  DEBUG=false
+  LOGFILE=""
   while [ "$#" -gt 0 ]; do
     case $1 in
-      --add_container_user)
+      --version)
         shift
-        ADD_CONTAINER_USER="$1"
-        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        VERSION="$1"
+        echo "📩 Read argument 'version': '${VERSION}'" >&2
+        shift
+        ;;
+      --method)
+        shift
+        METHOD="$1"
+        echo "📩 Read argument 'method': '${METHOD}'" >&2
+        shift
+        ;;
+      --prefix)
+        shift
+        PREFIX="$1"
+        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
+        shift
+        ;;
+      --symlink)
+        shift
+        SYMLINK="$1"
+        echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+        shift
+        ;;
+      --shell_completions)
+        shift
+        SHELL_COMPLETIONS+=("$1")
+        echo "📩 Read argument 'shell_completions': '$1'" >&2
+        shift
+        ;;
+      --if_exists)
+        shift
+        IF_EXISTS="$1"
+        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+        shift
+        ;;
+      --extensions)
+        shift
+        EXTENSIONS+=("$1")
+        echo "📩 Read argument 'extensions': '$1'" >&2
         shift
         ;;
       --add_current_user)
@@ -54,76 +135,22 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
         shift
         ;;
+      --add_container_user)
+        shift
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        shift
+        ;;
       --add_users)
         shift
-        ADD_USERS="$1"
-        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
-        shift
-        ;;
-      --debug)
-        shift
-        DEBUG="$1"
-        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-        shift
-        ;;
-      --extensions)
-        shift
-        EXTENSIONS="$1"
-        echo "📩 Read argument 'extensions': '${EXTENSIONS}'" >&2
-        shift
-        ;;
-      --git_hostname)
-        shift
-        GIT_HOSTNAME="$1"
-        echo "📩 Read argument 'git_hostname': '${GIT_HOSTNAME}'" >&2
+        ADD_USERS+=("$1")
+        echo "📩 Read argument 'add_users': '$1'" >&2
         shift
         ;;
       --git_protocol)
         shift
         GIT_PROTOCOL="$1"
         echo "📩 Read argument 'git_protocol': '${GIT_PROTOCOL}'" >&2
-        shift
-        ;;
-      --if_exists)
-        shift
-        IF_EXISTS="$1"
-        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-        shift
-        ;;
-      --shell_completions)
-        shift
-        SHELL_COMPLETIONS="$1"
-        echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
-        shift
-        ;;
-      --prefix)
-        shift
-        PREFIX="$1"
-        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-        shift
-        ;;
-      --installer_dir)
-        shift
-        INSTALLER_DIR="$1"
-        echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
-        shift
-        ;;
-      --logfile)
-        shift
-        LOGFILE="$1"
-        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-        shift
-        ;;
-      --method)
-        shift
-        METHOD="$1"
-        echo "📩 Read argument 'method': '${METHOD}'" >&2
-        shift
-        ;;
-      --keep_installer)
-        shift
-        KEEP_INSTALLER="$1"
-        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
         shift
         ;;
       --setup_git)
@@ -138,17 +165,39 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'sign_commits': '${SIGN_COMMITS}'" >&2
         shift
         ;;
-      --symlink)
+      --git_hostname)
         shift
-        SYMLINK="$1"
-        echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+        GIT_HOSTNAME="$1"
+        echo "📩 Read argument 'git_hostname': '${GIT_HOSTNAME}'" >&2
         shift
         ;;
-      --version)
+      --installer_dir)
         shift
-        VERSION="$1"
-        echo "📩 Read argument 'version': '${VERSION}'" >&2
+        INSTALLER_DIR="$1"
+        echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
         shift
+        ;;
+      --keep_installer)
+        shift
+        KEEP_INSTALLER="$1"
+        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+        shift
+        ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
         ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
@@ -162,76 +211,89 @@ if [ "$#" -gt 0 ]; then
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
+  [ "${METHOD+defined}" ] && echo "📩 Read argument 'method': '${METHOD}'" >&2
+  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
+  [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+  if [ "${SHELL_COMPLETIONS+defined}" ]; then
+    if [ -n "${SHELL_COMPLETIONS-}" ]; then
+      mapfile -t SHELL_COMPLETIONS < <(printf '%s\n' "${SHELL_COMPLETIONS}" | grep -v '^$')
+      for _item in "${SHELL_COMPLETIONS[@]}"; do
+        echo "📩 Read argument 'shell_completions': '$_item'" >&2
+      done
+    else
+      SHELL_COMPLETIONS=()
+    fi
+  fi
+  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+  if [ "${EXTENSIONS+defined}" ]; then
+    if [ -n "${EXTENSIONS-}" ]; then
+      mapfile -t EXTENSIONS < <(printf '%s\n' "${EXTENSIONS}" | grep -v '^$')
+      for _item in "${EXTENSIONS[@]}"; do
+        echo "📩 Read argument 'extensions': '$_item'" >&2
+      done
+    else
+      EXTENSIONS=()
+    fi
+  fi
   [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
   [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
-  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${EXTENSIONS+defined}" ] && echo "📩 Read argument 'extensions': '${EXTENSIONS}'" >&2
-  [ "${GIT_HOSTNAME+defined}" ] && echo "📩 Read argument 'git_hostname': '${GIT_HOSTNAME}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  if [ "${ADD_USERS+defined}" ]; then
+    if [ -n "${ADD_USERS-}" ]; then
+      mapfile -t ADD_USERS < <(printf '%s\n' "${ADD_USERS}" | grep -v '^$')
+      for _item in "${ADD_USERS[@]}"; do
+        echo "📩 Read argument 'add_users': '$_item'" >&2
+      done
+    else
+      ADD_USERS=()
+    fi
+  fi
   [ "${GIT_PROTOCOL+defined}" ] && echo "📩 Read argument 'git_protocol': '${GIT_PROTOCOL}'" >&2
-  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-  [ "${SHELL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
-  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-  [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-  [ "${METHOD+defined}" ] && echo "📩 Read argument 'method': '${METHOD}'" >&2
-  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
   [ "${SETUP_GIT+defined}" ] && echo "📩 Read argument 'setup_git': '${SETUP_GIT}'" >&2
   [ "${SIGN_COMMITS+defined}" ] && echo "📩 Read argument 'sign_commits': '${SIGN_COMMITS}'" >&2
-  [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
-  [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
+  [ "${GIT_HOSTNAME+defined}" ] && echo "📩 Read argument 'git_hostname': '${GIT_HOSTNAME}'" >&2
+  [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
+  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
 
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${VERSION+defined}" ] || VERSION="latest"
+[ "${METHOD+defined}" ] || METHOD="repos"
+[ "${PREFIX+defined}" ] || PREFIX="auto"
+[ "${SYMLINK+defined}" ] || SYMLINK=true
+[ "${SHELL_COMPLETIONS+defined}" ] || mapfile -t SHELL_COMPLETIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
+[ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
+[ "${EXTENSIONS+defined}" ] || EXTENSIONS=()
 [ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
 [ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
-[ -z "${ADD_USERS-}" ] && ADD_USERS=""
-[ -z "${DEBUG-}" ] && DEBUG=false
-[ -z "${EXTENSIONS-}" ] && EXTENSIONS=""
-[ -z "${GIT_HOSTNAME-}" ] && GIT_HOSTNAME="github.com"
-[ -z "${GIT_PROTOCOL-}" ] && GIT_PROTOCOL=""
-[ -z "${IF_EXISTS-}" ] && IF_EXISTS="skip"
-[ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS="bash zsh"
-if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
-  if [ "$(id -u)" = "0" ]; then
-    PREFIX="/usr/local"
-  else
-    PREFIX="${HOME}/.local"
-  fi
-  echo "ℹ️ Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'." >&2
-fi
-[ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/gh-install"
-[ -z "${LOGFILE-}" ] && LOGFILE=""
-[ -z "${METHOD-}" ] && METHOD="repos"
-[ -z "${KEEP_INSTALLER-}" ] && KEEP_INSTALLER=false
-[ -z "${SETUP_GIT-}" ] && SETUP_GIT=false
-[ -z "${SIGN_COMMITS-}" ] && SIGN_COMMITS=""
-[ -z "${SYMLINK-}" ] && SYMLINK=true
-[ -z "${VERSION-}" ] && VERSION="latest"
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_USERS+defined}" ] || ADD_USERS=()
+[ "${GIT_PROTOCOL+defined}" ] || GIT_PROTOCOL=""
+[ "${SETUP_GIT+defined}" ] || SETUP_GIT=false
+[ "${SIGN_COMMITS+defined}" ] || SIGN_COMMITS=""
+[ "${GIT_HOSTNAME+defined}" ] || GIT_HOSTNAME="github.com"
+[ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/gh-install"
+[ "${KEEP_INSTALLER+defined}" ] || KEEP_INSTALLER=false
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
 
-# Validate enum options early (fail fast before any install steps).
+# Validate enum options.
 case "${METHOD}" in
   repos | binary) ;;
   *)
-    echo "⛔ Unknown method: '${METHOD}' (expected: repos, binary)" >&2
+    echo "⛔ Invalid value for 'method': '${METHOD}' (expected: repos, binary)" >&2
     exit 1
     ;;
 esac
 case "${IF_EXISTS}" in
   skip | fail) ;;
   *)
-    echo "⛔ Unknown if_exists value: '${IF_EXISTS}' (expected: skip, fail)" >&2
-    exit 1
-    ;;
-esac
-case "${SIGN_COMMITS}" in
-  "" | ssh | gpg) ;;
-  *)
-    echo "⛔ Unknown sign_commits value: '${SIGN_COMMITS}' (expected: '', ssh, gpg)" >&2
+    echo "⛔ Invalid value for 'if_exists': '${IF_EXISTS}' (expected: skip, fail)" >&2
     exit 1
     ;;
 esac
