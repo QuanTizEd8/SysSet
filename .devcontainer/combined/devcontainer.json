@@ -1,0 +1,14 @@
+{
+    "name": "combined",
+    "image": "ubuntu:latest",
+    "containerUser": "vscode",
+    "features": {
+      "../_src/setup-user": {},
+      "../_src/install-git": {},
+      "../_src/install-gh": {},
+      "../_src/install-shell": {},
+      "../_src/install-podman": {},
+      "../_src/install-miniforge": {},
+      "../_src/install-pixi": {}
+    }
+}
