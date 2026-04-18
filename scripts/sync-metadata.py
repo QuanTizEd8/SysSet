@@ -138,38 +138,20 @@ def _process_value(key: str, value: object) -> object:
 
 
 # ---------------------------------------------------------------------------
-# Synthetic (derived) options injected by the generator
+# Derived (synthetic) options — loaded from shared YAML
 # ---------------------------------------------------------------------------
 
-# These options are NOT declared in metadata.yaml — the generator auto-injects
-# them based on the structure of the metadata:
-#   - keep_cache: injected when the `dependencies` key is present (the feature
-#     uses ospkg to install OS packages, so cache management is relevant).
-#   - debug / logfile: injected unconditionally for every feature.
+_DERIVED_OPTIONS_PATH = Path(__file__).parent / "derived-options.yaml"
+with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
+    _DERIVED_OPTIONS: dict = yaml.safe_load(_fh)
 
-_SYNTHETIC_KEEP_CACHE: dict = {
-    "type": "boolean",
-    "default": True,
-    "description": (
-        "Keep the package manager cache after installation. "
-        "Set to false to run ospkg__clean at script exit, removing cached "
-        "package index and downloaded packages to reduce image layer size."
-    ),
-}
-_SYNTHETIC_DEBUG: dict = {
-    "type": "boolean",
-    "default": False,
-    "description": "Enable debug output.",
-}
-_SYNTHETIC_LOGFILE: dict = {
-    "type": "string",
-    "default": "",
-    "description": "Log all output (stdout + stderr) to this file in addition to console.",
-}
+# All keys that the generators manage (strip from raw metadata before re-injecting).
+_DERIVED_OPTION_KEYS: frozenset[str] = frozenset(_DERIVED_OPTIONS)
 
-# Options that are stripped from the raw metadata before JSON generation and
-# re-injected as synthetic definitions.
-_DERIVED_OPTION_KEYS: frozenset[str] = frozenset({"debug", "logfile", "keep_cache"})
+
+def _synthetic(key: str) -> dict:
+    """Return the option schema for a derived key, stripping the 'inject' meta-field."""
+    return {k: v for k, v in _DERIVED_OPTIONS[key].items() if k != "inject"}
 
 # Keys in metadata.yaml that are internal to this project and must not be
 # written to devcontainer-feature.json (which follows the devcontainer spec).
@@ -196,15 +178,19 @@ def generate_json(data: dict) -> str:
 
     # Build a patched data dict with derived options stripped from the raw
     # options dict and replaced with canonical synthetic definitions.
+    # keep_cache is only stripped when has_ospkg (it will be re-injected);
+    # for features without ospkg, keep_cache may be a legitimate declared option.
     raw_options: dict = data.get("options") or {}
+    always_strip = _DERIVED_OPTION_KEYS - {"keep_cache"}
+    keys_to_strip = always_strip | ({"keep_cache"} if has_ospkg else set())
     core_options: dict = {
-        k: v for k, v in raw_options.items() if k not in _DERIVED_OPTION_KEYS
+        k: v for k, v in raw_options.items() if k not in keys_to_strip
     }
     synthetic_options: dict = {}
     if has_ospkg:
-        synthetic_options["keep_cache"] = _SYNTHETIC_KEEP_CACHE
-    synthetic_options["debug"] = _SYNTHETIC_DEBUG
-    synthetic_options["logfile"] = _SYNTHETIC_LOGFILE
+        synthetic_options["keep_cache"] = _synthetic("keep_cache")
+    synthetic_options["debug"] = _synthetic("debug")
+    synthetic_options["logfile"] = _synthetic("logfile")
 
     patched: dict = {**data, "options": {**core_options, **synthetic_options}}
     processed = {k: _process_value(k, v) for k, v in patched.items()}
@@ -253,8 +239,12 @@ def main() -> None:
             else:
                 print(f"✅ {feature_id}: in sync", file=sys.stderr)
         else:
-            json_path.write_text(expected, encoding="utf-8")
-            print(f"✅ {feature_id}: generated devcontainer-feature.json", file=sys.stderr)
+            current = json_path.read_text(encoding="utf-8") if json_path.exists() else None
+            if current == expected:
+                print(f"✅ {feature_id}: devcontainer-feature.json unchanged", file=sys.stderr)
+            else:
+                json_path.write_text(expected, encoding="utf-8")
+                print(f"✅ {feature_id}: generated devcontainer-feature.json", file=sys.stderr)
 
     if check_mode:
         if any_stale:

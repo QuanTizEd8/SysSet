@@ -24,7 +24,9 @@ Usage:
 """
 
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -35,35 +37,20 @@ SCRIPT_DIR = Path(__file__).parent
 SRC_DIR = SCRIPT_DIR.parent / "src"
 
 # ---------------------------------------------------------------------------
-# Synthetic (derived) options — auto-injected based on metadata structure
+# Derived (synthetic) options — loaded from shared YAML
 # ---------------------------------------------------------------------------
 
-# keep_cache: injected when the `dependencies` key is present in metadata.yaml
-# (the feature uses ospkg; cache management is relevant).
-_SYNTHETIC_KEEP_CACHE: dict = {
-    "type": "boolean",
-    "default": True,
-    "description": (
-        "Keep the package manager cache after installation. "
-        "Set to false to run ospkg__clean at script exit, removing cached "
-        "package index and downloaded packages to reduce image layer size."
-    ),
-}
-# debug / logfile: always injected for every feature.
-_SYNTHETIC_DEBUG: dict = {
-    "type": "boolean",
-    "default": False,
-    "description": "Enable debug output.",
-}
-_SYNTHETIC_LOGFILE: dict = {
-    "type": "string",
-    "default": "",
-    "description": "Log all output (stdout + stderr) to this file in addition to console.",
-}
+_DERIVED_OPTIONS_PATH = SCRIPT_DIR / "derived-options.yaml"
+with _DERIVED_OPTIONS_PATH.open(encoding="utf-8") as _fh:
+    _DERIVED_OPTIONS: dict = yaml.safe_load(_fh)
 
-# Option keys that must not appear in the raw metadata and are replaced by the
-# synthetic definitions above.
-_DERIVED_OPTION_KEYS: frozenset[str] = frozenset({"debug", "logfile", "keep_cache"})
+# All keys that the generators manage (strip from raw metadata before re-injecting).
+_DERIVED_OPTION_KEYS: frozenset[str] = frozenset(_DERIVED_OPTIONS)
+
+
+def _synthetic(key: str) -> dict:
+    """Return the option schema for a derived key, stripping the 'inject' meta-field."""
+    return {k: v for k, v in _DERIVED_OPTIONS[key].items() if k != "inject"}
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -141,16 +128,19 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     # which signals that this feature uses ospkg for package management.
     has_ospkg: bool = dependencies is not None
 
-    # Strip any derived keys from the raw options (they should not be in the
-    # metadata anymore, but guard defensively) and append canonical synthetics.
+    # Strip derived keys that will be re-injected as synthetics.
+    # keep_cache is only stripped when has_ospkg (it will be re-injected);
+    # for features without ospkg, keep_cache may be a legitimate declared option.
+    always_strip = _DERIVED_OPTION_KEYS - {"keep_cache"}
+    keys_to_strip = always_strip | ({"keep_cache"} if has_ospkg else set())
     core_options: dict = {
-        k: v for k, v in options.items() if k not in _DERIVED_OPTION_KEYS
+        k: v for k, v in options.items() if k not in keys_to_strip
     }
     final_options: dict = dict(core_options)
     if has_ospkg:
-        final_options["keep_cache"] = _SYNTHETIC_KEEP_CACHE
-    final_options["debug"] = _SYNTHETIC_DEBUG
-    final_options["logfile"] = _SYNTHETIC_LOGFILE
+        final_options["keep_cache"] = _synthetic("keep_cache")
+    final_options["debug"] = _synthetic("debug")
+    final_options["logfile"] = _synthetic("logfile")
 
     # All code generation below uses final_options (not the raw options dict).
     options = final_options
@@ -441,6 +431,42 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
 
 
 # ---------------------------------------------------------------------------
+# shfmt post-processing
+# ---------------------------------------------------------------------------
+
+
+def _shfmt_format(text: str) -> str:
+    """Format a bash script fragment through shfmt, respecting .editorconfig.
+
+    Writes to a temp file in the repo root so shfmt finds the .editorconfig
+    style settings.  Returns *text* unchanged if shfmt is not on PATH.
+    """
+    repo_root = SCRIPT_DIR.parent
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".sh",
+        dir=repo_root,
+        delete=False,
+        encoding="utf-8",
+    ) as tmp:
+        tmp.write(text)
+        tmp_path = Path(tmp.name)
+    try:
+        result = subprocess.run(
+            ["shfmt", "-w", str(tmp_path)],
+            capture_output=True,
+            cwd=repo_root,
+        )
+        if result.returncode == 0:
+            return tmp_path.read_text(encoding="utf-8")
+        return text
+    except FileNotFoundError:
+        return text
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
 # File update
 # ---------------------------------------------------------------------------
 
@@ -507,6 +533,7 @@ def main() -> int:
         dependencies: dict | None = meta.get("dependencies")
 
         new_block = generate_block(feature_name, options, dependencies)
+        new_block = _shfmt_format(new_block)
 
         if check_mode:
             text = script_path.read_text(encoding="utf-8")

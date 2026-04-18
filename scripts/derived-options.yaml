@@ -1,0 +1,30 @@
+# Canonical definitions for options that sync-argparse.py and sync-metadata.py
+# auto-inject into every feature's generated code and devcontainer-feature.json.
+# These keys must NOT be declared manually in any src/*/metadata.yaml.
+#
+# inject: ospkg  — injected only when the feature has a `dependencies` key
+#                  (the feature uses ospkg; cache management is relevant).
+# inject: always — injected unconditionally for every feature.
+
+keep_cache:
+  type: boolean
+  default: false
+  inject: ospkg
+  description: >-
+    Keep the package manager cache after installation.
+    By default, the package manager cache is removed after installation to reduce image layer size.
+    Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers.
+
+debug:
+  type: boolean
+  default: false
+  inject: always
+  description: >-
+    Enable debug output.
+    This adds `set -x` to the installer script, which prints each command before executing it.
+
+logfile:
+  type: string
+  default: ""
+  inject: always
+  description: Log all output (stdout + stderr) to this file in addition to console.
