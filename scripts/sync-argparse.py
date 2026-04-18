@@ -129,7 +129,9 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     lines.append("# Override _cleanup_hook in the hand-written section for feature-specific")
     lines.append("# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;")
     lines.append("# _on_exit owns that call and guarantees it runs exactly once, last.")
+    lines.append("# shellcheck disable=SC2329")
     lines.append("_cleanup_hook() { return; }")
+    lines.append("# shellcheck disable=SC2329")
     lines.append("_on_exit() {")
     lines.append("  local _rc=$?")
     lines.append("  _cleanup_hook")
@@ -328,10 +330,14 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             vname = opt_to_var(key)
             typ = opt.get("type", "string")
             values = [str(v) for v in opt["enum"]]
-            expected = ", ".join(values)
+            expected = ", ".join(repr(v) if v == "" else v for v in values)
+
+            def _case_pat(v: str) -> str:
+                return "''" if v == "" else v
+
             if typ == "array":
                 # Validate each element of the array.
-                pattern = " | ".join(values)
+                pattern = " | ".join(_case_pat(v) for v in values)
                 lines.append(f'for _item in "${{{vname}[@]}}"; do')
                 lines.append(f"  case \"$_item\" in")
                 lines.append(f"    {pattern}) ;;")
@@ -344,7 +350,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                 lines.append("  esac")
                 lines.append("done")
             else:
-                pattern = " | ".join(values)
+                pattern = " | ".join(_case_pat(v) for v in values)
                 lines.append(f'case "${{{vname}}}" in')
                 lines.append(f"  {pattern}) ;;")
                 lines.append("  *)")
