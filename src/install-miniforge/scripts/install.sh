@@ -2,47 +2,115 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
+
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-
 logging__setup
-echo "↪️ Script entry: Miniforge Installation Devcontainer Feature Installer" >&2
-trap '__cleanup__' EXIT
+echo "↪️ Script entry: Miniforge Installer" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Miniforge Installer script finished successfully." >&2
+  else
+    echo "❌ Miniforge Installer script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
+
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --version <value>                          Conda version to install (e.g. '26.3.1'). (default: "latest")
+  --if_exists {skip|fail|reinstall|update}   What to do when conda is already installed at prefix. (default: "skip")
+  --preserve_envs {true,false}               When if_exists is 'reinstall', export all non-base conda environments before (default: "true")
+  --preserve_config {true,false}             When if_exists is 'reinstall', skip conda init --reverse and preserve .condarc (default: "true")
+  --update_base {true,false}                 Update the base conda environment. (default: "false")
+  --prefix <value>                           Path to the conda installation directory (installation root/prefix). (default: "auto")
+  --export_path <value>                      Controls which shell startup files receive the PATH export for $PREFIX/bin. (default: "auto")
+  --symlink {true,false}                     Create a directory symlink from the canonical conda prefix to $prefix when prefix resolves to a non-default path. (default: "true")
+  --shell_activations <value>  (repeatable)  Shell names to write conda initialization blocks for.
+  --activate_env <value>                     Conda environment to activate at shell startup. (default: "base")
+  --write_group <value>                      OS group for shared write access to the conda prefix. (default: "conda")
+  --add_current_user {true,false}            Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user config writes and write-permission group membership. (default: "true")
+  --add_remote_user {true,false}             Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user config writes and write-permission group membership. (default: "true")
+  --add_container_user {true,false}          Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user config writes and write-permission group membership. (default: "true")
+  --add_users <value>  (repeatable)          Additional usernames to include in the resolved user list for per-user config writes and write-permission group membership.
+  --interactive {true,false}                 Run the installer in interactive mode. (default: "false")
+  --installer_dir <value>                    Path to a directory to download the installer to. (default: "/tmp/miniforge-installer")
+  --keep_installer {true,false}              Keep the Miniforge installer script and checksum after installation instead of removing them. (default: "false")
+  --debug {true,false}                       Enable debug output. (default: "false")
+  --logfile <value>                          Log all output (stdout + stderr) to this file in addition to console.
+  -h, --help                                 Show this help
+EOF
+  return
+}
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  SHELL_ACTIVATIONS=""
-  ACTIVATE_ENV=""
-  PREFIX=""
-  DEBUG=""
-  IF_EXISTS=""
-  INSTALLER_DIR=""
-  INTERACTIVE=""
+  VERSION="latest"
+  IF_EXISTS="skip"
+  PRESERVE_ENVS=true
+  PRESERVE_CONFIG=true
+  UPDATE_BASE=false
+  PREFIX="auto"
+  EXPORT_PATH="auto"
+  SYMLINK=true
+  SHELL_ACTIVATIONS=()
+  ACTIVATE_ENV="base"
+  WRITE_GROUP="conda"
+  ADD_CURRENT_USER=true
+  ADD_REMOTE_USER=true
+  ADD_CONTAINER_USER=true
+  ADD_USERS=()
+  INTERACTIVE=false
+  INSTALLER_DIR="/tmp/miniforge-installer"
+  KEEP_INSTALLER=false
+  DEBUG=false
   LOGFILE=""
-  VERSION=""
-  KEEP_INSTALLER=""
-  WRITE_GROUP=""
-  ADD_CURRENT_USER=""
-  ADD_REMOTE_USER=""
-  ADD_CONTAINER_USER=""
-  ADD_USERS=""
-  UPDATE_BASE=""
-  PRESERVE_ENVS=""
-  PRESERVE_CONFIG=""
-  while [[ $# -gt 0 ]]; do
+  while [ "$#" -gt 0 ]; do
     case $1 in
-      --shell_activations)
+      --version)
         shift
-        SHELL_ACTIVATIONS="$1"
-        echo "📩 Read argument 'shell_activations': '${SHELL_ACTIVATIONS}'" >&2
+        VERSION="$1"
+        echo "📩 Read argument 'version': '${VERSION}'" >&2
         shift
         ;;
-      --activate_env)
+      --if_exists)
         shift
-        ACTIVATE_ENV="$1"
-        echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
+        IF_EXISTS="$1"
+        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+        shift
+        ;;
+      --preserve_envs)
+        shift
+        PRESERVE_ENVS="$1"
+        echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2
+        shift
+        ;;
+      --preserve_config)
+        shift
+        PRESERVE_CONFIG="$1"
+        echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
+        shift
+        ;;
+      --update_base)
+        shift
+        UPDATE_BASE="$1"
+        echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
         shift
         ;;
       --prefix)
@@ -51,47 +119,28 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
         shift
         ;;
-      --debug)
+      --export_path)
         shift
-        DEBUG=true
-        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-        ;;
-      --if_exists)
-        shift
-        IF_EXISTS="$1"
-        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+        EXPORT_PATH="$1"
+        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
         shift
         ;;
-      --install)
+      --symlink)
         shift
-        echo "⚠️ --install is deprecated; use --if_exists. Ignored." >&2
-        ;;
-      --installer_dir)
-        shift
-        INSTALLER_DIR="$1"
-        echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
+        SYMLINK="$1"
+        echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
         shift
         ;;
-      --interactive)
+      --shell_activations)
         shift
-        INTERACTIVE=true
-        echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
-        ;;
-      --keep_installer)
-        shift
-        KEEP_INSTALLER=true
-        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
-        ;;
-      --logfile)
-        shift
-        LOGFILE="$1"
-        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        SHELL_ACTIVATIONS+=("$1")
+        echo "📩 Read argument 'shell_activations': '$1'" >&2
         shift
         ;;
-      --version)
+      --activate_env)
         shift
-        VERSION="$1"
-        echo "📩 Read argument 'version': '${VERSION}'" >&2
+        ACTIVATE_ENV="$1"
+        echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
         shift
         ;;
       --write_group)
@@ -120,37 +169,44 @@ if [ "$#" -gt 0 ]; then
         ;;
       --add_users)
         shift
-        ADD_USERS="$1"
-        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+        ADD_USERS+=("$1")
+        echo "📩 Read argument 'add_users': '$1'" >&2
         shift
         ;;
-      --update_base)
+      --interactive)
         shift
-        UPDATE_BASE=true
-        echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
-        ;;
-      --export_path)
-        shift
-        EXPORT_PATH="$1"
-        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+        INTERACTIVE="$1"
+        echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
         shift
         ;;
-      --symlink)
+      --installer_dir)
         shift
-        SYMLINK=true
-        echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
-        ;;
-      --discard_envs)
+        INSTALLER_DIR="$1"
+        echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
         shift
-        PRESERVE_ENVS=false
-        echo "📩 Read argument 'discard_envs': true" >&2
         ;;
-      --discard_config)
+      --keep_installer)
         shift
-        PRESERVE_CONFIG=false
-        echo "📩 Read argument 'discard_config': true" >&2
+        KEEP_INSTALLER="$1"
+        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+        shift
         ;;
-      --help | -h) __usage__ ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
         exit 1
@@ -163,38 +219,83 @@ if [ "$#" -gt 0 ]; then
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  [ "${SHELL_ACTIVATIONS+defined}" ] && echo "📩 Read argument 'shell_activations': '${SHELL_ACTIVATIONS}'" >&2
-  [ "${ACTIVATE_ENV+defined}" ] && echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
-  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${DOWNLOAD+defined}" ] && echo "📩 Read argument 'download (deprecated)': '${DOWNLOAD}'" >&2
-  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-  [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
-  [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
-  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
-  [ "${REINSTALL+defined}" ] && echo "⚠️ 'REINSTALL' env var is deprecated; use IF_EXISTS=reinstall." >&2
+  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+  [ "${PRESERVE_ENVS+defined}" ] && echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2
+  [ "${PRESERVE_CONFIG+defined}" ] && echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
+  [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
+  [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
+  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+  [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+  if [ "${SHELL_ACTIVATIONS+defined}" ]; then
+    if [ -n "${SHELL_ACTIVATIONS-}" ]; then
+      mapfile -t SHELL_ACTIVATIONS < <(printf '%s\n' "${SHELL_ACTIVATIONS}" | grep -v '^$')
+      for _item in "${SHELL_ACTIVATIONS[@]}"; do
+        echo "📩 Read argument 'shell_activations': '$_item'" >&2
+      done
+    else
+      SHELL_ACTIVATIONS=()
+    fi
+  fi
+  [ "${ACTIVATE_ENV+defined}" ] && echo "📩 Read argument 'activate_env': '${ACTIVATE_ENV}'" >&2
   [ "${WRITE_GROUP+defined}" ] && echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
   [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
   [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
   [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
-  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
-  [ "${UPDATE_BASE+defined}" ] && echo "📩 Read argument 'update_base': '${UPDATE_BASE}'" >&2
-  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
-  [ "${PRESERVE_ENVS+defined}" ] && echo "📩 Read argument 'preserve_envs': '${PRESERVE_ENVS}'" >&2
-  [ "${PRESERVE_CONFIG+defined}" ] && echo "📩 Read argument 'preserve_config': '${PRESERVE_CONFIG}'" >&2
+  if [ "${ADD_USERS+defined}" ]; then
+    if [ -n "${ADD_USERS-}" ]; then
+      mapfile -t ADD_USERS < <(printf '%s\n' "${ADD_USERS}" | grep -v '^$')
+      for _item in "${ADD_USERS[@]}"; do
+        echo "📩 Read argument 'add_users': '$_item'" >&2
+      done
+    else
+      ADD_USERS=()
+    fi
+  fi
+  [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
+  [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
+  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
+
 [[ "${DEBUG:-}" == true ]] && set -x
-[ -z "${SHELL_ACTIVATIONS+x}" ] && {
-  echo "ℹ️ Argument 'SHELL_ACTIVATIONS' set to default value 'bash zsh'." >&2
-  SHELL_ACTIVATIONS="bash zsh"
-}
-[ -z "${ACTIVATE_ENV-}" ] && {
-  echo "ℹ️ Argument 'ACTIVATE_ENV' set to default value 'base'." >&2
-  ACTIVATE_ENV="base"
-}
+
+# Apply defaults.
+[ "${VERSION+defined}" ] || VERSION="latest"
+[ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
+[ "${PRESERVE_ENVS+defined}" ] || PRESERVE_ENVS=true
+[ "${PRESERVE_CONFIG+defined}" ] || PRESERVE_CONFIG=true
+[ "${UPDATE_BASE+defined}" ] || UPDATE_BASE=false
+[ "${PREFIX+defined}" ] || PREFIX="auto"
+[ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
+[ "${SYMLINK+defined}" ] || SYMLINK=true
+[ "${SHELL_ACTIVATIONS+defined}" ] || mapfile -t SHELL_ACTIVATIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
+[ "${ACTIVATE_ENV+defined}" ] || ACTIVATE_ENV="base"
+[ "${WRITE_GROUP+defined}" ] || WRITE_GROUP="conda"
+[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
+[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_USERS+defined}" ] || ADD_USERS=()
+[ "${INTERACTIVE+defined}" ] || INTERACTIVE=false
+[ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/miniforge-installer"
+[ "${KEEP_INSTALLER+defined}" ] || KEEP_INSTALLER=false
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
+
+# Validate enum options.
+case "${IF_EXISTS}" in
+  skip | fail | reinstall | update) ;;
+  *)
+    echo "⛔ Invalid value for 'if_exists': '${IF_EXISTS}' (expected: skip, fail, reinstall, update)" >&2
+    exit 1
+    ;;
+esac
+
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
+
+# END OF AUTOGENERATED BLOCK
+
 if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
   if [ "$(id -u)" = "0" ]; then
     PREFIX="/opt/conda"
@@ -203,75 +304,6 @@ if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
   fi
   echo "ℹ️ Argument 'PREFIX' resolved from 'auto' to '${PREFIX}'." >&2
 fi
-[ -z "${DEBUG-}" ] && {
-  echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
-  DEBUG=false
-}
-[ -z "${IF_EXISTS-}" ] && {
-  echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2
-  IF_EXISTS="skip"
-}
-[ -z "${WRITE_GROUP+x}" ] && {
-  echo "ℹ️ Argument 'WRITE_GROUP' set to default value 'conda'." >&2
-  WRITE_GROUP="conda"
-}
-[ -z "${INSTALLER_DIR-}" ] && {
-  echo "ℹ️ Argument 'INSTALLER_DIR' set to default value '/tmp/miniforge-installer'." >&2
-  INSTALLER_DIR="/tmp/miniforge-installer"
-}
-[ -z "${INTERACTIVE-}" ] && {
-  echo "ℹ️ Argument 'INTERACTIVE' set to default value 'false'." >&2
-  INTERACTIVE=false
-}
-[ -z "${KEEP_INSTALLER-}" ] && {
-  echo "ℹ️ Argument 'KEEP_INSTALLER' set to default value 'false'." >&2
-  KEEP_INSTALLER=false
-}
-[ -z "${LOGFILE-}" ] && {
-  echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
-  LOGFILE=""
-}
-[ -z "${VERSION-}" ] && {
-  echo "ℹ️ Argument 'VERSION' set to default value 'latest'." >&2
-  VERSION="latest"
-}
-[ -z "${ADD_CURRENT_USER+x}" ] && {
-  echo "ℹ️ Argument 'ADD_CURRENT_USER' set to default value 'true'." >&2
-  ADD_CURRENT_USER=true
-}
-[ -z "${ADD_REMOTE_USER+x}" ] && {
-  echo "ℹ️ Argument 'ADD_REMOTE_USER' set to default value 'true'." >&2
-  ADD_REMOTE_USER=true
-}
-[ -z "${ADD_CONTAINER_USER+x}" ] && {
-  echo "ℹ️ Argument 'ADD_CONTAINER_USER' set to default value 'true'." >&2
-  ADD_CONTAINER_USER=true
-}
-[ -z "${ADD_USERS-}" ] && ADD_USERS=""
-[ -z "${UPDATE_BASE-}" ] && {
-  echo "ℹ️ Argument 'UPDATE_BASE' set to default value 'false'." >&2
-  UPDATE_BASE=false
-}
-[ -z "${EXPORT_PATH+x}" ] && {
-  echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2
-  EXPORT_PATH="auto"
-}
-[ -z "${SYMLINK+x}" ] && {
-  echo "ℹ️ Argument 'SYMLINK' set to default value 'false'." >&2
-  SYMLINK=false
-}
-[ -z "${PRESERVE_ENVS-}" ] && {
-  echo "ℹ️ Argument 'PRESERVE_ENVS' set to default value 'true'." >&2
-  PRESERVE_ENVS="true"
-}
-[ -z "${PRESERVE_CONFIG-}" ] && {
-  echo "ℹ️ Argument 'PRESERVE_CONFIG' set to default value 'true'." >&2
-  PRESERVE_CONFIG="true"
-}
-
-ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --skip_installed
-
-# END OF AUTOGENERATED BLOCK
 
 # _conda_init_snippet <shell>
 # Runs `conda init <shell>` into a tmpdir with a clean HOME and prints the

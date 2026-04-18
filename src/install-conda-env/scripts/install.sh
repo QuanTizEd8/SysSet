@@ -1,81 +1,95 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-
 logging__setup
-echo "↪️ Script entry: Conda Environment Devcontainer Feature Installer" >&2
+echo "↪️ Script entry: Conda Environment" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
 _on_exit() {
   local _rc=$?
+  _cleanup_hook
   if [[ $_rc -eq 0 ]]; then
-    echo "✅ Conda Environment Devcontainer Feature Installer finished successfully." >&2
+    echo "✅ Conda Environment script finished successfully." >&2
   else
-    echo "❌ Conda Environment Devcontainer Feature Installer exited with error ${_rc}." >&2
+    echo "❌ Conda Environment script exited with error ${_rc}." >&2
   fi
   logging__cleanup
   return
 }
 trap '_on_exit' EXIT
 
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --conda_dir <value>                             Path to the conda installation directory.
+  --env_files <value>  (repeatable)               Paths to conda environment YAML files to create or update.
+  --env_dirs <value>  (repeatable)                Paths to directories to scan for conda environment YAML files.
+  --env_name <value>                              Name of a conda environment to create or update from inline package options.
+  --packages <value>                              Space-separated list of conda packages to install into the environment
+  --python_version <value>                        Python version to use when creating the inline environment specified by 'env_name'.
+  --channels <value>  (repeatable)                Conda channels to add to the configuration.
+  --strict_channel_priority {true,false}          Set channel_priority to strict in the conda configuration. (default: "false")
+  --pip_requirements_files <value>  (repeatable)  Paths to pip requirements files to install.
+  --pip_env <value>                               Name of the conda environment to pip-install requirements into.
+  --post_env_script <value>                       Path to a script to run after each environment is created or updated.
+  --solver <value>                                Conda solver to use. 'auto' prefers mamba if available, falls back to conda. (default: "auto")
+  --keep_cache {true,false}                       Skip running 'conda clean' after all environments are set up. (default: "false")
+  --debug {true,false}                            Enable debug output. (default: "false")
+  --logfile <value>                               Log all output (stdout + stderr) to this file in addition to console.
+  -h, --help                                      Show this help
+EOF
+  return
+}
+
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  CHANNELS=()
   CONDA_DIR=""
-  DEBUG=""
-  ENV_DIRS=()
   ENV_FILES=()
+  ENV_DIRS=()
   ENV_NAME=""
-  LOGFILE=""
-  KEEP_CACHE=""
   PACKAGES=""
-  PIP_ENV=""
-  PIP_REQUIREMENTS_FILES=()
-  POST_ENV_SCRIPT=""
   PYTHON_VERSION=""
-  SOLVER=""
-  STRICT_CHANNEL_PRIORITY=""
-  while [[ $# -gt 0 ]]; do
+  CHANNELS=()
+  STRICT_CHANNEL_PRIORITY=false
+  PIP_REQUIREMENTS_FILES=()
+  PIP_ENV=""
+  POST_ENV_SCRIPT=""
+  SOLVER="auto"
+  KEEP_CACHE=false
+  DEBUG=false
+  LOGFILE=""
+  while [ "$#" -gt 0 ]; do
     case $1 in
-      --channels)
-        shift
-        while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-          CHANNELS+=("$1")
-          echo "📩 Read argument 'channels': '${1}'" >&2
-          shift
-        done
-        ;;
       --conda_dir)
         shift
         CONDA_DIR="$1"
         echo "📩 Read argument 'conda_dir': '${CONDA_DIR}'" >&2
         shift
         ;;
-      --debug)
+      --env_files)
         shift
-        DEBUG=true
-        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        ENV_FILES+=("$1")
+        echo "📩 Read argument 'env_files': '$1'" >&2
+        shift
         ;;
       --env_dirs)
         shift
-        while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-          ENV_DIRS+=("$1")
-          echo "📩 Read argument 'env_dirs': '${1}'" >&2
-          shift
-        done
-        ;;
-      --env_files)
+        ENV_DIRS+=("$1")
+        echo "📩 Read argument 'env_dirs': '$1'" >&2
         shift
-        while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-          ENV_FILES+=("$1")
-          echo "📩 Read argument 'env_files': '${1}'" >&2
-          shift
-        done
         ;;
       --env_name)
         shift
@@ -83,41 +97,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'env_name': '${ENV_NAME}'" >&2
         shift
         ;;
-      --logfile)
-        shift
-        LOGFILE="$1"
-        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-        shift
-        ;;
-      --keep_cache)
-        shift
-        KEEP_CACHE=true
-        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
-        ;;
       --packages)
         shift
         PACKAGES="$1"
         echo "📩 Read argument 'packages': '${PACKAGES}'" >&2
-        shift
-        ;;
-      --pip_env)
-        shift
-        PIP_ENV="$1"
-        echo "📩 Read argument 'pip_env': '${PIP_ENV}'" >&2
-        shift
-        ;;
-      --pip_requirements_files)
-        shift
-        while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-          PIP_REQUIREMENTS_FILES+=("$1")
-          echo "📩 Read argument 'pip_requirements_files': '${1}'" >&2
-          shift
-        done
-        ;;
-      --post_env_script)
-        shift
-        POST_ENV_SCRIPT="$1"
-        echo "📩 Read argument 'post_env_script': '${POST_ENV_SCRIPT}'" >&2
         shift
         ;;
       --python_version)
@@ -126,18 +109,64 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'python_version': '${PYTHON_VERSION}'" >&2
         shift
         ;;
+      --channels)
+        shift
+        CHANNELS+=("$1")
+        echo "📩 Read argument 'channels': '$1'" >&2
+        shift
+        ;;
+      --strict_channel_priority)
+        shift
+        STRICT_CHANNEL_PRIORITY="$1"
+        echo "📩 Read argument 'strict_channel_priority': '${STRICT_CHANNEL_PRIORITY}'" >&2
+        shift
+        ;;
+      --pip_requirements_files)
+        shift
+        PIP_REQUIREMENTS_FILES+=("$1")
+        echo "📩 Read argument 'pip_requirements_files': '$1'" >&2
+        shift
+        ;;
+      --pip_env)
+        shift
+        PIP_ENV="$1"
+        echo "📩 Read argument 'pip_env': '${PIP_ENV}'" >&2
+        shift
+        ;;
+      --post_env_script)
+        shift
+        POST_ENV_SCRIPT="$1"
+        echo "📩 Read argument 'post_env_script': '${POST_ENV_SCRIPT}'" >&2
+        shift
+        ;;
       --solver)
         shift
         SOLVER="$1"
         echo "📩 Read argument 'solver': '${SOLVER}'" >&2
         shift
         ;;
-      --strict_channel_priority)
+      --keep_cache)
         shift
-        STRICT_CHANNEL_PRIORITY=true
-        echo "📩 Read argument 'strict_channel_priority': '${STRICT_CHANNEL_PRIORITY}'" >&2
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
         ;;
-      --help | -h) __usage__ ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
         exit 1
@@ -150,152 +179,102 @@ if [ "$#" -gt 0 ]; then
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  if [ "${CHANNELS+defined}" ]; then
-    if [ -n "${CHANNELS-}" ]; then
-      echo "ℹ️ Parse 'channels' into array: '${CHANNELS}'" >&2
-    fi
-    mapfile -t _tmp_array < <(printf '%s' "${CHANNELS-}" | sed 's/ :: /\n/g')
-    CHANNELS=("${_tmp_array[@]}")
-    for _item in "${CHANNELS[@]}"; do
-      echo "📩 Read argument 'channels': '${_item}'" >&2
-    done
-    unset _item
-    unset _tmp_array
-  fi
   [ "${CONDA_DIR+defined}" ] && echo "📩 Read argument 'conda_dir': '${CONDA_DIR}'" >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  if [ "${ENV_DIRS+defined}" ]; then
-    if [ -n "${ENV_DIRS-}" ]; then
-      echo "ℹ️ Parse 'env_dirs' into array: '${ENV_DIRS}'" >&2
-    fi
-    mapfile -t _tmp_array < <(printf '%s' "${ENV_DIRS-}" | sed 's/ :: /\n/g')
-    ENV_DIRS=("${_tmp_array[@]}")
-    for _item in "${ENV_DIRS[@]}"; do
-      echo "📩 Read argument 'env_dirs': '${_item}'" >&2
-    done
-    unset _item
-    unset _tmp_array
-  fi
   if [ "${ENV_FILES+defined}" ]; then
     if [ -n "${ENV_FILES-}" ]; then
-      echo "ℹ️ Parse 'env_files' into array: '${ENV_FILES}'" >&2
+      mapfile -t ENV_FILES < <(printf '%s\n' "${ENV_FILES}" | grep -v '^$')
+      for _item in "${ENV_FILES[@]}"; do
+        echo "📩 Read argument 'env_files': '$_item'" >&2
+      done
+    else
+      ENV_FILES=()
     fi
-    mapfile -t _tmp_array < <(printf '%s' "${ENV_FILES-}" | sed 's/ :: /\n/g')
-    ENV_FILES=("${_tmp_array[@]}")
-    for _item in "${ENV_FILES[@]}"; do
-      echo "📩 Read argument 'env_files': '${_item}'" >&2
-    done
-    unset _item
-    unset _tmp_array
+  fi
+  if [ "${ENV_DIRS+defined}" ]; then
+    if [ -n "${ENV_DIRS-}" ]; then
+      mapfile -t ENV_DIRS < <(printf '%s\n' "${ENV_DIRS}" | grep -v '^$')
+      for _item in "${ENV_DIRS[@]}"; do
+        echo "📩 Read argument 'env_dirs': '$_item'" >&2
+      done
+    else
+      ENV_DIRS=()
+    fi
   fi
   [ "${ENV_NAME+defined}" ] && echo "📩 Read argument 'env_name': '${ENV_NAME}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${PACKAGES+defined}" ] && echo "📩 Read argument 'packages': '${PACKAGES}'" >&2
-  [ "${PIP_ENV+defined}" ] && echo "📩 Read argument 'pip_env': '${PIP_ENV}'" >&2
+  [ "${PYTHON_VERSION+defined}" ] && echo "📩 Read argument 'python_version': '${PYTHON_VERSION}'" >&2
+  if [ "${CHANNELS+defined}" ]; then
+    if [ -n "${CHANNELS-}" ]; then
+      mapfile -t CHANNELS < <(printf '%s\n' "${CHANNELS}" | grep -v '^$')
+      for _item in "${CHANNELS[@]}"; do
+        echo "📩 Read argument 'channels': '$_item'" >&2
+      done
+    else
+      CHANNELS=()
+    fi
+  fi
+  [ "${STRICT_CHANNEL_PRIORITY+defined}" ] && echo "📩 Read argument 'strict_channel_priority': '${STRICT_CHANNEL_PRIORITY}'" >&2
   if [ "${PIP_REQUIREMENTS_FILES+defined}" ]; then
     if [ -n "${PIP_REQUIREMENTS_FILES-}" ]; then
-      echo "ℹ️ Parse 'pip_requirements_files' into array: '${PIP_REQUIREMENTS_FILES}'" >&2
+      mapfile -t PIP_REQUIREMENTS_FILES < <(printf '%s\n' "${PIP_REQUIREMENTS_FILES}" | grep -v '^$')
+      for _item in "${PIP_REQUIREMENTS_FILES[@]}"; do
+        echo "📩 Read argument 'pip_requirements_files': '$_item'" >&2
+      done
+    else
+      PIP_REQUIREMENTS_FILES=()
     fi
-    mapfile -t _tmp_array < <(printf '%s' "${PIP_REQUIREMENTS_FILES-}" | sed 's/ :: /\n/g')
-    PIP_REQUIREMENTS_FILES=("${_tmp_array[@]}")
-    for _item in "${PIP_REQUIREMENTS_FILES[@]}"; do
-      echo "📩 Read argument 'pip_requirements_files': '${_item}'" >&2
-    done
-    unset _item
-    unset _tmp_array
   fi
+  [ "${PIP_ENV+defined}" ] && echo "📩 Read argument 'pip_env': '${PIP_ENV}'" >&2
   [ "${POST_ENV_SCRIPT+defined}" ] && echo "📩 Read argument 'post_env_script': '${POST_ENV_SCRIPT}'" >&2
-  [ "${PYTHON_VERSION+defined}" ] && echo "📩 Read argument 'python_version': '${PYTHON_VERSION}'" >&2
   [ "${SOLVER+defined}" ] && echo "📩 Read argument 'solver': '${SOLVER}'" >&2
-  [ "${STRICT_CHANNEL_PRIORITY+defined}" ] && echo "📩 Read argument 'strict_channel_priority': '${STRICT_CHANNEL_PRIORITY}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
+
 [[ "${DEBUG:-}" == true ]] && set -x
 
-{ [ "${CHANNELS+isset}" != "isset" ] || [ ${#CHANNELS[@]} -eq 0 ]; } && {
-  echo "ℹ️ Argument 'CHANNELS' set to default value '()'." >&2
-  CHANNELS=()
-}
-[ -z "${CONDA_DIR-}" ] && {
-  echo "ℹ️ Argument 'CONDA_DIR' set to default value ''." >&2
-  CONDA_DIR=""
-}
-[ -z "${DEBUG-}" ] && {
-  echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
-  DEBUG=false
-}
-{ [ "${ENV_DIRS+isset}" != "isset" ] || [ ${#ENV_DIRS[@]} -eq 0 ]; } && {
-  echo "ℹ️ Argument 'ENV_DIRS' set to default value '()'." >&2
-  ENV_DIRS=()
-}
+# Apply defaults.
+[ "${CONDA_DIR+defined}" ] || CONDA_DIR=""
+[ "${ENV_FILES+defined}" ] || ENV_FILES=()
+[ "${ENV_DIRS+defined}" ] || ENV_DIRS=()
+[ "${ENV_NAME+defined}" ] || ENV_NAME=""
+[ "${PACKAGES+defined}" ] || PACKAGES=""
+[ "${PYTHON_VERSION+defined}" ] || PYTHON_VERSION=""
+[ "${CHANNELS+defined}" ] || CHANNELS=()
+[ "${STRICT_CHANNEL_PRIORITY+defined}" ] || STRICT_CHANNEL_PRIORITY=false
+[ "${PIP_REQUIREMENTS_FILES+defined}" ] || PIP_REQUIREMENTS_FILES=()
+[ "${PIP_ENV+defined}" ] || PIP_ENV=""
+[ "${POST_ENV_SCRIPT+defined}" ] || POST_ENV_SCRIPT=""
+[ "${SOLVER+defined}" ] || SOLVER="auto"
+[ "${KEEP_CACHE+defined}" ] || KEEP_CACHE=false
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
+
+# END OF AUTOGENERATED BLOCK
+
 for elem in "${ENV_DIRS[@]}"; do
   [ -n "${elem-}" ] && [ ! -d "${elem}" ] && {
     echo "⛔ Directory argument to parameter 'env_dirs' not found: '${elem}'" >&2
     exit 1
   }
 done
-{ [ "${ENV_FILES+isset}" != "isset" ] || [ ${#ENV_FILES[@]} -eq 0 ]; } && {
-  echo "ℹ️ Argument 'ENV_FILES' set to default value '()'." >&2
-  ENV_FILES=()
-}
 for elem in "${ENV_FILES[@]}"; do
   [ -n "${elem-}" ] && [ ! -f "${elem}" ] && {
     echo "⛔ File argument to parameter 'env_files' not found: '${elem}'" >&2
     exit 1
   }
 done
-[ -z "${ENV_NAME-}" ] && {
-  echo "ℹ️ Argument 'ENV_NAME' set to default value ''." >&2
-  ENV_NAME=""
-}
-[ -z "${LOGFILE-}" ] && {
-  echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
-  LOGFILE=""
-}
-[ -z "${KEEP_CACHE-}" ] && {
-  echo "ℹ️ Argument 'KEEP_CACHE' set to default value 'false'." >&2
-  KEEP_CACHE=false
-}
-[ -z "${PACKAGES-}" ] && {
-  echo "ℹ️ Argument 'PACKAGES' set to default value ''." >&2
-  PACKAGES=""
-}
-[ -z "${PIP_ENV-}" ] && {
-  echo "ℹ️ Argument 'PIP_ENV' set to default value ''." >&2
-  PIP_ENV=""
-}
-{ [ "${PIP_REQUIREMENTS_FILES+isset}" != "isset" ] || [ ${#PIP_REQUIREMENTS_FILES[@]} -eq 0 ]; } && {
-  echo "ℹ️ Argument 'PIP_REQUIREMENTS_FILES' set to default value '()'." >&2
-  PIP_REQUIREMENTS_FILES=()
-}
 for elem in "${PIP_REQUIREMENTS_FILES[@]}"; do
   [ -n "${elem-}" ] && [ ! -f "${elem}" ] && {
     echo "⛔ File argument to parameter 'pip_requirements_files' not found: '${elem}'" >&2
     exit 1
   }
 done
-[ -z "${POST_ENV_SCRIPT-}" ] && {
-  echo "ℹ️ Argument 'POST_ENV_SCRIPT' set to default value ''." >&2
-  POST_ENV_SCRIPT=""
-}
-[ -z "${PYTHON_VERSION-}" ] && {
-  echo "ℹ️ Argument 'PYTHON_VERSION' set to default value ''." >&2
-  PYTHON_VERSION=""
-}
-[ -z "${SOLVER-}" ] && {
-  echo "ℹ️ Argument 'SOLVER' set to default value 'auto'." >&2
-  SOLVER="auto"
-}
-[ -z "${STRICT_CHANNEL_PRIORITY-}" ] && {
-  echo "ℹ️ Argument 'STRICT_CHANNEL_PRIORITY' set to default value 'false'." >&2
-  STRICT_CHANNEL_PRIORITY=false
-}
 if [[ -n "$ENV_NAME" ]] && [[ -z "$PACKAGES" ]] && [[ -z "$PYTHON_VERSION" ]]; then
   echo "⛔ 'env_name' requires at least one of 'packages' or 'python_version' to be set." >&2
   exit 1
 fi
-
-# END OF AUTOGENERATED BLOCK
 
 discover_conda() {
   echo "↪️ Function entry: discover_conda" >&2
