@@ -1,0 +1,2110 @@
+apt-utils:
+  summary: APT utilities for package management.
+  group: required
+  description: |
+    Provides internal APT tools used by frontends like apt-get and
+    aptitude. It enables progress reporting and other features.
+    Recommended for interactive or scripted environments.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man8/apt-get.8.html
+    package: https://packages.ubuntu.com/noble/apt-utils
+    source: https://salsa.debian.org/apt-team/apt
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+autoconf:
+  summary: Tool for generating configure scripts for building software.
+  group: recommended
+  description: |
+    Autoconf is a tool for producing shell scripts that automatically
+    configure software source code packages to adapt to many kinds of
+    Unix-like systems. It is essential for building software from
+    source that uses the GNU build system.
+  url:
+    docs: https://www.gnu.org/software/autoconf/manual/autoconf.html
+    source: https://git.savannah.gnu.org/git/autoconf.git
+automake:
+  summary: Tool for automatically generating Makefile.in files.
+  group: recommended
+  description: |
+    Automake is a tool for automatically generating Makefile.in files
+    compliant with the GNU Coding Standards. It is used in conjunction
+    with Autoconf to create portable and configurable build systems.
+  url:
+    docs: https://www.gnu.org/software/automake/manual/automake.html
+    source: https://git.savannah.gnu.org/git/automake.git
+bash-completion:
+  summary: Programmable completion for the Bash shell.
+  group: recommended
+  description: |
+    Adds intelligent tab-completion for Bash commands and arguments.
+    Useful for interactive shell users.
+  url:
+    docs: https://github.com/scop/bash-completion
+    package: https://packages.ubuntu.com/noble/bash-completion
+    source: https://salsa.debian.org/debian/bash-completion
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+build-essential:
+  summary: Meta-package for essential compilation tools on Ubuntu.
+  group: required
+  dependents: [ git ]
+  description: |
+    The 'build-essential' package is a meta-package that installs a
+    collection of packages necessary for compiling software on Ubuntu.
+    It includes the GNU Compiler Collection (gcc and g++), make,
+    libc6-dev, dpkg-dev, and other tools required for building Debian
+    packages and compiling software from source. These constituent
+    packages (gcc, g++, make, libc6-dev, dpkg-dev) are therefore not
+    listed separately. This package simplifies the setup of a
+    development environment by ensuring all essential compilation
+    tools are installed.
+  url:
+    docs: https://itsfoss.com/build-essential-ubuntu/
+ca-certificates:
+  summary: Common CA certificates for HTTPS and TLS validation.
+  group: required
+  description: |
+    This package installs a set of trusted Certificate Authority (CA)
+    certificates used by SSL/TLS applications to verify the authenticity
+    of remote servers. It is essential for secure HTTPS communication,
+    ensuring that tools like curl and wget can establish trusted
+    connections. Without it, many secure operations would fail due to
+    untrusted certificates.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/man8/update-ca-certificates.8.html
+clang:
+  summary: C, C++, and Objective-C compiler based on LLVM.
+  group: essential
+  description: |
+    Clang is a compiler for C, C++, and Objective-C languages,
+    offering fast compilation and expressive diagnostics. It is part
+    of the LLVM project and is designed to be highly compatible with
+    GCC. Clang is essential for developers who require a modern,
+    standards-compliant compiler with excellent tooling support.
+  url:
+    docs: https://clang.llvm.org/docs/
+    package: https://packages.ubuntu.com/noble/clang
+    source: https://github.com/llvm/llvm-project
+cmake:
+  summary: Cross-platform build system generator.
+  group: essential
+  description: |
+    CMake is a tool that manages the build process in an operating
+    system and compiler-independent manner. It uses configuration
+    files to generate native build environments, such as Makefiles
+    or Visual Studio project files. CMake is essential for building
+    complex software projects, especially those that are cross-platform.
+  url:
+    docs: https://cmake.org/documentation/
+    package: https://packages.ubuntu.com/noble/cmake
+    source: https://gitlab.kitware.com/cmake/cmake
+cppcheck:
+  summary: Static analysis tool for C/C++ code.
+  group: recommended
+  description: |
+    Cppcheck is a static analysis tool that detects bugs and
+    stylistic issues in C/C++ code. It focuses on finding undefined
+    behavior and dangerous coding constructs. Cppcheck is recommended
+    for developers aiming to improve code quality and maintainability.
+  url:
+    docs: https://cppcheck.sourceforge.io/manual.pdf
+    package: https://packages.ubuntu.com/noble/cppcheck
+    source: https://github.com/danmar/cppcheck
+curl:
+  summary: Command-line tool for transferring data with URL syntax.
+  group: required
+  description: |
+    curl is a versatile tool for transferring data from or to a server,
+    supporting various protocols including HTTP, HTTPS, FTP, and more.
+    It's widely used in scripts and applications for downloading files,
+    interacting with APIs, and testing endpoints. In a development
+    environment, it's indispensable for tasks like fetching dependencies
+    or testing web services.
+  url:
+    docs: https://curl.se/docs/
+    source: https://github.com/curl/curl
+default-jre:
+  summary: Standard Java Runtime Environment (OpenJDK 21).
+  group: essential
+  dependents: [ tex ]
+  description: |
+    This package serves as a metapackage that depends on the
+    recommended Java Runtime Environment for Ubuntu, which is
+    OpenJDK 21 in Noble. It's useful for running Java applications
+    and is commonly required for Java-based development tools.
+  url:
+    docs: https://ubuntu.com/tutorials/install-jre
+default-libmysqlclient-dev:
+  summary: MySQL database development files.
+  group: recommended
+  description: |
+    This package provides the development files for the MySQL client
+    library. It is used for compiling software that interacts with
+    MySQL databases.
+  url:
+    docs: https://dev.mysql.com/doc/
+    source: https://salsa.debian.org/mariadb-team/mysql-defaults
+dialog:
+  summary: Display user-friendly dialog boxes from shell scripts.
+  group: recommended
+  description: |
+    The 'dialog' package allows shell scripts to present
+    interactive dialog boxes, such as menus, input boxes, and
+    message boxes, in a terminal interface. It is useful for
+    creating user-friendly command-line interfaces. While not
+    essential, it is recommended for scripts that require user
+    interaction.
+  url:
+    docs: https://invisible-island.net/dialog/dialog.html
+    package: https://packages.ubuntu.com/noble/dialog
+    source: https://salsa.debian.org/debian/dialog
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+equivs:
+  summary: Tool for creating custom Debian packages to manage dependencies.
+  group: required
+  dependents: [ tex ]
+  description: |
+    The 'equivs' package provides utilities to create minimal Debian
+    packages, often containing only dependency information. This is
+    particularly useful for creating metapackages that declare
+    dependencies on other packages, facilitating the installation of
+    custom package sets. It can also be employed to satisfy
+    dependencies for packages not available in the repositories or
+    to override existing package dependencies.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/equivs-build.1.html
+    package: https://packages.ubuntu.com/noble/equivs
+    source: https://salsa.debian.org/perl-team/modules/packages/equivs.git
+  notes: |
+    This is required for the TeX Live installation in the Dockerfile.
+ffmpeg:
+  summary: Complete solution to record, convert, and stream audio and video.
+  group: recommended
+  description: |
+    FFmpeg is a cross-platform solution to record, convert, and stream
+    audio and video. It provides a broad set of codecs and container
+    formats and is a standard dependency for computer vision libraries
+    such as OpenCV, audio ML tools such as Whisper, and many data
+    science workflows that process multimedia files.
+  url:
+    docs: https://ffmpeg.org/documentation.html
+    package: https://packages.ubuntu.com/noble/ffmpeg
+    source: https://git.ffmpeg.org/ffmpeg.git
+file:
+  summary: Determines file type using magic numbers.
+  group: essential
+  description: |
+    The file command tests each argument in an attempt to classify it.
+    It uses a magic number database to identify file types.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/file.1.html
+    source: https://github.com/file/file
+fish:
+  summary: User-friendly interactive Unix shell.
+  group: optional
+  description: |
+    Fish (Friendly Interactive SHell) is a modern command-line shell
+    focused on user experience and interactivity. It offers features
+    like autosuggestions, syntax highlighting, and advanced tab
+    completion out of the box. Unlike traditional shells, fish is not
+    POSIX-compliant, which may affect compatibility with some scripts.
+    It is optional and primarily used by users seeking an enhanced
+    interactive shell experience.
+  url:
+    docs: https://fishshell.com/docs/current/
+    source: https://github.com/fish-shell/fish-shell
+  post_install: |
+    # Setup Fish
+    # - https://github.com/devcontainers/images/blob/0f13a9b8a31b9c81be78abfc404cc00748e946bb/src/universal/.devcontainer/Dockerfile#L85-L88
+    FISH_PROMPT="function fish_prompt\n    set_color green\n    echo -n (whoami)\n    set_color normal\n    echo -n \":\"\n    set_color blue\n    echo -n (pwd)\n    set_color normal\n    echo -n \"> \"\nend\n";
+    printf "$FISH_PROMPT" >> /etc/fish/functions/fish_prompt.fish;
+    printf "if type code-insiders > /dev/null 2>&1; and not type code > /dev/null 2>&1\n  alias code=code-insiders\nend" >> /etc/fish/conf.d/code_alias.fish;
+fontconfig:
+  summary: Font configuration and customization library.
+  group: essential
+  dependents: [ tex ]
+  description: |
+    Fontconfig is a library designed to provide system-wide font
+    configuration, customization, and application access. It is
+    essential for applications that require font discovery and
+    configuration, especially in graphical environments.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man5/fonts-conf.5.html
+fonts-freefont-otf:
+  summary: Free high-quality OpenType fonts covering the UCS character set.
+  group: optional
+  description: |
+    The 'fonts-freefont-otf' package provides the GNU FreeFont
+    collection, which includes FreeSerif, FreeSans, and FreeMono
+    OpenType fonts. These fonts offer extensive coverage of the
+    Unicode character set, supporting various scripts and symbols.
+    While valuable for applications requiring broad Unicode support,
+    this package is optional and primarily used in contexts where
+    comprehensive font coverage is necessary.
+  url:
+    docs: https://www.gnu.org/software/freefont/
+    package: https://packages.ubuntu.com/noble/fonts-freefont-otf
+    source: https://savannah.gnu.org/projects/freefont/
+  notes: |
+    Included in the [Sphinx Docker image](https://github.com/sphinx-doc/sphinx-docker-images/blob/master/latexpdf/Dockerfile).
+fuse-overlayfs:
+  summary: FUSE implementation of overlay+shiftfs file system.
+  group: recommended
+  description: |
+    Provides an efficient storage driver for rootless Podman.
+    Without it, Podman falls back to the 'vfs' driver which creates
+    a full copy of each layer, making image pulls extremely slow and
+    disk-intensive. fuse-overlayfs uses FUSE to implement overlay
+    filesystems in user space, eliminating the need for kernel-level
+    privileges.
+  url:
+    package: https://packages.ubuntu.com/noble/fuse-overlayfs
+    source: https://github.com/containers/fuse-overlayfs
+gdb:
+  summary: GNU Debugger for debugging applications.
+  group: essential
+  description: |
+    GDB is the GNU Project debugger, allowing developers to see what
+    is happening inside a program while it executes or what it was
+    doing at the moment it crashed. It supports various programming
+    languages, including C, C++, and Fortran. GDB is essential for
+    debugging applications and analyzing program behavior.
+  url:
+    docs: https://sourceware.org/gdb/documentation/
+    package: https://packages.ubuntu.com/noble/gdb
+    source: https://sourceware.org/git/binutils-gdb.git
+gettext:
+  summary: GNU Internationalization utilities.
+  group: essential
+  dependents: [ git ]
+  description: |
+    gettext provides a set of tools and libraries for internationalizing
+    and localizing software. It enables programs to be translated into
+    different languages, facilitating global software distribution.
+    This package is essential for developing applications that support
+    multiple languages and locales.
+  url:
+    docs: https://www.gnu.org/software/gettext/manual/
+    package: https://packages.ubuntu.com/noble/gettext
+    source: https://git.savannah.gnu.org/git/gettext.git
+ghostscript:
+  summary: Interpreter for PostScript and PDF formats.
+  group: recommended
+  dependents: [ tex ]
+  description: |
+    Ghostscript is a versatile processor for PostScript and PDF files,
+    enabling rendering, conversion, and printing tasks. It serves as a
+    backend for applications like ghostview and is capable of displaying
+    documents in X11 environments. Additionally, it can render files for
+    printing on non-PostScript printers, supporting various printer models.
+    While not essential for all development environments, it's recommended
+    for projects involving document processing or printing functionalities.
+  url:
+    docs: https://www.ghostscript.com/doc/current/
+    package: https://packages.ubuntu.com/noble/ghostscript
+    source: https://github.com/ArtifexSoftware/ghostpdl
+  notes: |
+    Required for eps conversion (see [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L26)).
+gnupg:
+  summary: GNU Privacy Guard - encryption and signing tool.
+  group: required
+  description: |
+    GnuPG is a complete and free implementation of the OpenPGP standard,
+    allowing for encryption and signing of data and communications.
+    It's crucial for verifying the integrity of downloaded packages
+    and repositories, especially when adding third-party sources
+    or installing software from external sources. The 'gnupg'
+    meta-package pulls in 'gpg', 'gpg-agent', and 'dirmngr' as
+    dependencies, so those sub-packages are not listed separately.
+  url:
+    docs: https://gnupg.org/documentation/index.html
+gnuplot-nox:
+  summary: Command-line driven interactive plotting program.
+  group: recommended
+  dependents: [ tex ]
+  description: |
+    gnuplot-nox is a terminal-based variant of the gnuplot utility,
+    designed for environments without an X server. It enables the
+    creation of 2D and 3D plots, supporting various output formats
+    such as PostScript, PDF, PNG, and SVG. This version excludes
+    graphical interfaces like X11 or Qt, making it suitable for
+    headless systems or automated workflows. It's particularly
+    beneficial in development environments where graphical output
+    isn't required, and plotting needs to be integrated into scripts
+    or pipelines.
+  url:
+    docs: https://gnuplot.info/documentation.html
+    package: https://packages.ubuntu.com/noble/gnuplot-nox
+    source: https://launchpad.net/ubuntu/noble/+source/gnuplot
+  notes: |
+    Required for 'gnuplot' backend of 'pgfplots' in TeX (see [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L32)).
+graphviz:
+  summary: Graph visualization software.
+  group: recommended
+  description: |
+    Graphviz is a powerful tool for creating visual
+    representations of abstract graphs and networks. It
+    automatically generates diagrams from textual descriptions
+    using the DOT language. This is particularly useful for
+    developers and researchers who need to visualize data
+    structures, workflows, or relationships. While not essential
+    for all development environments, it is recommended for
+    those requiring graphical representations of complex
+    systems.
+  url:
+    docs: https://graphviz.org/documentation/
+    package: https://packages.ubuntu.com/noble/graphviz
+    source: https://gitlab.com/graphviz/graphviz
+  notes: |
+    Included in the [Sphinx Docker image](https://github.com/sphinx-doc/sphinx-docker-images/blob/master/latexpdf/Dockerfile).
+htop:
+  summary: Interactive process viewer for Unix systems.
+  group: recommended
+  description: |
+    htop is an interactive process viewer that provides a
+    real-time, colorized display of system processes. It
+    allows users to scroll through the process list
+    vertically and horizontally, and to perform actions
+    such as killing or renicing processes without entering
+    their PIDs. While not essential, it is recommended for
+    users who require a more user-friendly alternative to
+    the traditional 'top' command.
+  url:
+    docs: https://htop.dev/
+    package: https://packages.ubuntu.com/noble/htop
+    source: https://github.com/htop-dev/htop
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+imagemagick:
+  summary: Image manipulation tools.
+  group: recommended
+  description: |
+    ImageMagick is a software suite to create, edit, compose, or
+    convert bitmap images. It can read and write images in a variety
+    of formats.
+  url:
+    docs: https://imagemagick.org/script/resources.php
+    package: https://packages.ubuntu.com/noble/imagemagick
+    source: https://github.com/ImageMagick/ImageMagick
+  notes: |
+    Included in the [Sphinx Docker image](https://github.com/sphinx-doc/sphinx-docker-images/blob/master/latexpdf/Dockerfile).
+init-system-helpers:
+  summary: Tools for managing compatibility across init systems.
+  group: essential
+  description: |
+    Provides key scripts (`service`, `invoke-rc.d`, etc.) used by
+    Debian-based systems to manage services and maintain
+    compatibility across different init systems (systemd, SysV,
+    etc.). Essential for correct package installation and service
+    handling during boot and runtime.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man8/service.8.html
+    package: https://packages.ubuntu.com/noble/init-system-helpers
+    source: https://salsa.debian.org/debian/init-system-helpers
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+inotify-tools:
+  summary: Command-line utilities for inotify.
+  group: recommended
+  description: |
+    inotify-tools provides command-line programs for using inotify,
+    a Linux kernel subsystem that monitors file system events. Tools
+    like inotifywait and inotifywatch allow scripts and applications
+    to respond to file changes in real-time. This package is recommended
+    for automating tasks that depend on file system events.
+  url:
+    docs: https://github.com/inotify-tools/inotify-tools
+    package: https://packages.ubuntu.com/noble/inotify-tools
+    source: https://github.com/inotify-tools/inotify-tools
+iproute2:
+  summary: Networking and traffic control utilities.
+  group: required
+  description: |
+    Provides tools like 'ip' and 'tc' for configuring network
+    interfaces and managing routing. Essential for network setup and
+    diagnostics.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/ip.8.html
+    package: https://packages.ubuntu.com/noble/iproute2
+    source: https://git.kernel.org/pub/scm/network/iproute2/iproute2.git
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+jq:
+  summary: Command-line JSON processor.
+  group: required
+  description: |
+    jq is a lightweight and flexible command-line tool for processing
+    JSON data. It allows for parsing, filtering, mapping, and
+    transforming structured JSON input, making it invaluable for
+    developers and system administrators working with APIs, logs, or
+    configuration files. jq's powerful query language enables complex
+    data manipulations directly from the command line. It is essential
+    in environments where JSON data handling is a routine task.
+  url:
+    docs: https://stedolan.github.io/jq/manual/
+    package: https://packages.ubuntu.com/noble/jq
+    source: https://github.com/stedolan/jq
+less:
+  summary: Terminal pager for viewing text one screen at a time.
+  group: essential
+  description: |
+    The 'less' command is a terminal pager that allows users to
+    view the contents of text files one screen at a time. Unlike
+    traditional text editors, 'less' does not load the entire file
+    into memory, making it efficient for viewing large files. It
+    supports both forward and backward navigation, search
+    functionality, and various display options. 'less' is commonly
+    used in conjunction with other commands to paginate output,
+    making it an essential tool for command-line environments.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/less.1.html
+    package: https://packages.ubuntu.com/noble/less
+    source: https://github.com/gwsw/less
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libatk-bridge2.0-0:
+  summary: AT-SPI 2 toolkit bridge.
+  group: recommended
+  description: |
+    libatk-bridge2.0-0 provides a bridge between ATK (Accessibility Toolkit)
+    and the Assistive Technology Service Provider Interface (AT-SPI).
+    It enables accessibility tools to interact with applications using the ATK framework.
+    This package is required for accessibility support in GTK applications.
+  url:
+    docs: https://wiki.gnome.org/Accessibility
+    package: https://packages.ubuntu.com/noble/libatk-bridge2.0-0
+    source: https://gitlab.gnome.org/GNOME/at-spi2-atk
+libatk1.0-0:
+  summary: ATK accessibility toolkit.
+  group: recommended
+  description: |
+    libatk1.0-0 provides the ATK (Accessibility Toolkit) library,
+    which offers a set of interfaces for accessibility.
+    It allows assistive technologies to interact with applications.
+    This package is required for applications that support accessibility features.
+  url:
+    docs: https://developer.gnome.org/atk/
+    package: https://packages.ubuntu.com/noble/libatk1.0-0
+    source: https://gitlab.gnome.org/GNOME/atk
+libbz2-dev:
+  summary: Development files for the bzip2 compression library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for the
+    bzip2 compression library, which implements the Burrows-Wheeler
+    block-sorting text compression algorithm. It's essential for
+    compiling software that uses bzip2 compression, commonly found in
+    source archives and data processing tools.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man3/bzlib.3.html
+    package: https://packages.ubuntu.com/noble/libbz2-dev
+    source: https://sourceware.org/git/bzip2.git
+libcups2:
+  summary: Common UNIX Printing System library.
+  group: recommended
+  description: |
+    libcups2 provides the core printing functionality for Unix-like
+    systems, enabling applications to print documents via the CUPS
+    printing system. While not essential for most development
+    environments, it is recommended for applications that require
+    printing capabilities.
+  url:
+    docs: https://www.cups.org/doc/
+    package: https://packages.ubuntu.com/noble/libcups2
+    source: https://github.com/OpenPrinting/cups
+libcurl4-openssl-dev:
+  summary: Development files for libcurl with OpenSSL support.
+  group: essential
+  dependents: [ git ]
+  description: |
+    This package provides the development files for libcurl compiled
+    with OpenSSL support. libcurl is a client-side URL transfer
+    library supporting various protocols, including HTTP, HTTPS, FTP,
+    and more. It's widely used in applications that require data
+    transfer capabilities.
+  url:
+    docs: https://curl.se/libcurl/
+    package: https://packages.ubuntu.com/noble/libcurl4-openssl-dev
+    source: https://github.com/curl/curl
+libcurl4t64:
+  summary: OpenSSL-based client-side URL transfer library for Ubuntu Noble.
+  group: required
+  dependents: [ tex ]
+  description: |
+    libcurl4t64 is the OpenSSL-flavored variant of libcurl provided in
+    Ubuntu 24.04 (Noble). It supports a wide array of protocols,
+    including HTTP, HTTPS, FTP, FTPS, SCP, SFTP, LDAP, and more. This
+    package is part of the transition to the t64 ABI, ensuring
+    compatibility with 64-bit time_t, which is crucial for applications
+    that handle dates beyond 2038. It replaces the older libcurl4
+    package and is essential for network-enabled applications,
+    development tools, and build processes that rely on libcurl for
+    data transfer capabilities.
+  url:
+    docs: https://curl.se/libcurl/
+    source: https://github.com/curl/curl
+libdb-dev:
+  summary: Development files for the Berkeley DB library.
+  group: optional
+  description: |
+    This package provides the headers and static libraries for the
+    Berkeley DB library, a high-performance embedded database library.
+    It's used in applications that require a lightweight database
+    engine. Its inclusion depends on specific project requirements.
+  url:
+    docs: https://www.oracle.com/database/technologies/related/berkeleydb.html
+    source: https://github.com/berkeleydb/libdb
+libdigest-perl-md5-perl:
+  summary: Pure Perl implementation of the MD5 algorithm.
+  group: recommended
+  dependents: [ tex ]
+  description: |
+    This package provides a Perl-only implementation of the MD5
+    hashing algorithm. It serves as a fallback when the faster
+    Digest::MD5 module, which relies on compiled C code, is
+    unavailable. It's primarily useful in environments lacking a
+    C compiler or where installing compiled modules is not feasible.
+  url:
+    docs: https://metacpan.org/pod/Digest::Perl::MD5
+    package: https://packages.ubuntu.com/noble/libdigest-perl-md5-perl
+    source: https://github.com/mschilli/digest-perl-md5
+libevent-dev:
+  summary: Development files for the libevent library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for
+    libevent, an asynchronous event notification library.
+    It's useful for developing networked applications
+    that require high performance and scalability.
+  url:
+    docs: https://libevent.org/
+    source: https://github.com/libevent/libevent
+libexpat1-dev:
+  summary: Development files for the Expat XML parser library.
+  group: required
+  dependents: [ git ]
+  description: |
+    The 'libexpat1-dev' package provides the header files and
+    development libraries for Expat, a fast, stream-oriented XML
+    parser written in C. It enables developers to build
+    applications that parse XML documents efficiently by
+    registering handlers that are called when the parser
+    encounters specific structures in the XML. This package is
+    essential for compiling software that depends on Expat for
+    XML parsing functionality.
+  url:
+    docs: https://libexpat.github.io/
+    package: https://packages.ubuntu.com/noble/libexpat1-dev
+    source: https://launchpad.net/ubuntu/noble/+source/expat
+libffi-dev:
+  summary: Development files for the Foreign Function Interface library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for libffi,
+    which allows code written in one language to call code written in
+    another language. It's commonly used in dynamic language
+    interpreters and is essential for building such environments.
+  url:
+    docs: https://sourceware.org/libffi/
+    source: https://github.com/libffi/libffi
+libfile-homedir-perl:
+  summary: Perl module for locating user directories across platforms.
+  group: essential
+  dependents: [ tex ]
+  description: |
+    This package provides the File::HomeDir Perl module, which offers
+    a cross-platform method to locate user directories such as home,
+    desktop, and documents. It's useful for Perl applications that
+    need to interact with user-specific directories in a
+    platform-independent manner.
+  url:
+    docs: https://metacpan.org/pod/File::HomeDir
+    source: https://salsa.debian.org/perl-team/modules/packages/libfile-homedir-perl.git
+  notes: |
+    Required for `latexindent` (see [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L24))
+libgbm1:
+  summary: Generic Buffer Management API.
+  group: recommended
+  description: |
+    libgbm1 provides an abstraction for graphics buffer management,
+    facilitating efficient rendering operations. It is recommended
+    for applications that perform off-screen rendering or require
+    direct rendering capabilities.
+  url:
+    docs: https://docs.mesa3d.org/gbm.html
+    package: https://packages.ubuntu.com/noble/libgbm1
+    source: https://gitlab.freedesktop.org/mesa/mesa
+libgcc-s1:
+  summary: GCC low-level runtime library.
+  group: required
+  description: |
+    The 'libgcc-s1' package provides GCC's low-level runtime support
+    library, offering routines for exception handling, stack unwinding,
+    and other compiler-internal operations. It replaced the transitional
+    'libgcc1' package starting from Ubuntu 22.04 and is required for
+    running programs compiled with GCC. The package is pulled in
+    transitively by 'build-essential', but is listed here explicitly
+    as it is directly depended on by many runtime environments.
+  url:
+    docs: https://gcc.gnu.org/onlinedocs/
+    source: https://gcc.gnu.org/git/gcc.git
+libgdbm6t64:
+  summary: GNU dbm database library with 64-bit time_t support.
+  group: required
+  description: |
+    The 'libgdbm6t64' package provides the GNU dbm (GDBM) database
+    library, compiled with 64-bit time_t support to accommodate the
+    time_t transition in Ubuntu 24.04 (Noble Numbat). This library
+    offers a simple database engine for storing key-value pairs,
+    commonly used by various applications and programming languages
+    for persistent storage. The 't64' variant ensures compatibility
+    with systems and applications that utilize 64-bit time
+    representations, making it a required component in the Ubuntu
+    Noble environment.
+  url:
+    docs: https://www.gnu.org.ua/software/gdbm/manual/
+    package: https://packages.ubuntu.com/noble/libgdbm6t64
+    source: https://git.savannah.gnu.org/git/gdbm.git
+  notes: |
+    Recommended by `zsh` and included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libgdbm-dev:
+  summary: Development files for the GNU dbm database library.
+  group: optional
+  description: |
+    This package provides the headers and static libraries for the GNU
+    dbm (gdbm) database library, which offers a simple database engine
+    using extendible hashing. It's used in applications that require
+    simple key-value storage.
+  url:
+    docs: https://www.gnu.org/software/gdbm/
+    source: https://git.savannah.gnu.org/git/gdbm.git
+libgdiplus:
+  summary: Open-source implementation of the GDI+ API for Unix-like systems.
+  group: recommended
+  description: |
+    libgdiplus is a Mono library that provides a GDI+-compatible API on
+    non-Windows operating systems. It enables applications developed
+    with .NET's System.Drawing namespace to function on Unix-like
+    systems by leveraging the Cairo graphics library for rendering.
+    This package is particularly useful for cross-platform .NET
+    applications that require graphical capabilities. While not
+    essential for all development environments, it is recommended for
+    projects involving Mono or cross-platform graphical applications.
+  url:
+    docs: https://www.mono-project.com/docs/gui/libgdiplus/
+    source: https://github.com/mono/libgdiplus
+  notes: |
+    Included in the dev container [universal image](https://github.com/devcontainers/images/blob/main/src/universal/.devcontainer/Dockerfile).
+libgetopt-long-descriptive-perl:
+  summary: Perl module for command-line option parsing with usage text.
+  group: essential
+  dependents: [ tex ]
+  description: |
+    This Perl module provides a wrapper for Getopt::Long, allowing
+    for easy definition of options and automatic generation of usage
+    messages. It's useful for Perl scripts that require complex
+    command-line option parsing with descriptive help text.
+  url:
+    docs: https://metacpan.org/pod/Getopt::Long::Descriptive
+    source: https://github.com/deepin-community/libgetopt-long-descriptive-perl
+libglib2.0-dev:
+  summary: Development files for the GLib library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for GLib,
+    a low-level core library that forms the basis for projects such
+    as GTK+ and GNOME. It provides data structure handling, portability
+    wrappers, and interfaces for such runtime functionality as an event
+    loop, threads, dynamic loading, and an object system.
+  url:
+    docs: https://developer.gnome.org/glib/
+    source: https://gitlab.gnome.org/GNOME/glib
+libglut3.12:
+  summary: OpenGL Utility Toolkit for rendering graphical interfaces.
+  group: recommended
+  dependents: [ tex ]
+  post_install: |
+    LIBDIR="$(find /usr/lib -maxdepth 1 -type d -name '*-linux-*' | grep -v '/config-' | head -n1)";
+    ln -sf "${LIBDIR}/libglut.so.3.12" "${LIBDIR}/libglut.so.3";
+  description: |
+    libglut3.12 provides the OpenGL Utility Toolkit (GLUT) library,
+    facilitating the development of OpenGL applications by handling
+    windowing, input, and other tasks. In Ubuntu 24.04 (Noble), this
+    package replaces the older freeglut3, offering version 3.4.0.
+    Notably, it installs shared libraries like libglut.so.3.12 and
+    libglut.so.3.12.0, but omits the legacy symlink libglut.so.3,
+    which some applications may expect. To address this, users can
+    manually create the symlink or install the libglut-dev package,
+    which provides the necessary development files and symlinks.
+  url:
+    docs: https://freeglut.sourceforge.net
+  notes: |
+    Required for `asymptote` in TeX (see [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L34)).
+    The post processing creates a symlink to `libglut.so.3`,
+    which other packages may expect. This is a workaround for the
+    missing symlink in the libglut3.12 package (cf.
+    [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L39-42)
+    and [ask-ubuntu](https://askubuntu.com/questions/1526992/is-there-a-reason-24-04-lts-noble-numbat-does-not-provide-libglut-so-3)
+    ).
+libgmp-dev:
+  summary: Development files for the GNU Multiple Precision Arithmetic Library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for GMP,
+    a library for arbitrary-precision arithmetic, operating on signed
+    integers, rational numbers, and floating-point numbers. It's used
+    in applications that require high-precision arithmetic operations.
+  url:
+    docs: https://gmplib.org/manual/
+    source: https://gmplib.org/repo/gmp/
+libhdf5-dev:
+  summary: Development files for the HDF5 scientific data format library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for HDF5,
+    the Hierarchical Data Format version 5, a file format and library
+    for storing and managing large, complex datasets. It is used by
+    TensorFlow, Keras, h5py, PyTables, and other scientific computing
+    and machine learning libraries that persist array data.
+  url:
+    docs: https://docs.hdfgroup.org/hdf5/
+    package: https://packages.ubuntu.com/noble/libhdf5-dev
+    source: https://github.com/HDFGroup/hdf5
+libgssapi-krb5-2:
+  summary: MIT Kerberos runtime libraries - GSSAPI support.
+  group: essential
+  description: |
+    The 'libgssapi-krb5-2' package provides the GSSAPI (Generic
+    Security Services Application Program Interface) support library
+    for the MIT Kerberos implementation. It is used by applications
+    that require Kerberos authentication, such as SSH and other secure
+    communication tools. This package is essential for environments
+    that utilize Kerberos for authentication.
+  url:
+    docs: https://web.mit.edu/kerberos/krb5-1.20/doc/
+    source: https://github.com/krb5/krb5
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libgtk-3-0:
+  summary: GTK+ graphical user interface library.
+  group: recommended
+  description: |
+    libgtk-3-0 is the GTK+ 3 GUI toolkit used for creating graphical
+    user interfaces. It is recommended for applications that require
+    a graphical interface but is not essential for headless or
+    command-line environments.
+  url:
+    docs: https://docs.gtk.org/gtk3/
+    package: https://packages.ubuntu.com/noble/libgtk-3-0
+    source: https://gitlab.gnome.org/GNOME/gtk
+libicu:
+  summary: International Components for Unicode library.
+  group: required
+  spec:
+    name: libicu[0-9][0-9]
+  description: |
+    The 'libicu72' package provides the International Components
+    for Unicode (ICU) libraries, which offer robust and full-featured
+    Unicode services. These services include character set conversions,
+    collation, date/time formatting, and more. It is essential for
+    applications that require comprehensive Unicode support, such as
+    internationalized software and platforms like .NET and R.
+  url:
+    docs: https://icu.unicode.org/
+    package: https://packages.ubuntu.com/noble/libicu72
+    source: https://github.com/unicode-org/icu
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libjpeg-dev:
+  summary: Development files for the JPEG image compression library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for the
+    JPEG image compression library. It's essential for developing
+    applications that handle JPEG image encoding and decoding.
+  url:
+    docs: https://libjpeg.sourceforge.io/
+    source: https://github.com/libjpeg-turbo/libjpeg-turbo
+libkrb5-3:
+  summary: MIT Kerberos runtime libraries.
+  group: required
+  description: |
+    The 'libkrb5-3' package provides the core runtime libraries for
+    the MIT Kerberos 5 authentication system. It is essential for
+    applications and services that require secure authentication
+    mechanisms, such as SSH, NFS, and various enterprise-level
+    services. In Ubuntu Noble, it ensures compatibility with the
+    64-bit time_t transition, making it a required component for
+    systems and applications that depend on Kerberos functionality.
+  url:
+    docs: https://web.mit.edu/kerberos/krb5-1.20/
+    package: https://packages.ubuntu.com/noble/libkrb5-3
+    source: https://gitlab.com/ubuntu/krb5
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libkrb5-dev:
+  summary: Development files for MIT Kerberos authentication system.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for the MIT
+    implementation of Kerberos, a network authentication protocol. It's
+    recommended for developing applications that require secure
+    authentication mechanisms.
+  url:
+    docs: https://web.mit.edu/kerberos/krb5-1.20/
+    source: https://github.com/krb5/krb5
+liblapack-dev:
+  summary: Development files for the LAPACK linear algebra library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for LAPACK
+    (Linear Algebra PACKage), providing routines for solving systems
+    of simultaneous linear equations, least-squares solutions, matrix
+    factorizations, and eigenvalue problems. It is required by SciPy,
+    scikit-learn, and other scientific computing and machine learning
+    libraries that rely on optimized linear algebra operations.
+  url:
+    docs: https://netlib.org/lapack/
+    package: https://packages.ubuntu.com/noble/liblapack-dev
+    source: https://github.com/Reference-LAPACK/lapack
+liblzma-dev:
+  summary: Development files for the LZMA compression library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for the
+    LZMA compression library, used for high-ratio data compression.
+    It's essential for developing applications that handle .xz
+    compressed files.
+  url:
+    docs: https://tukaani.org/xz/
+liblttng-ust:
+  summary: LTTng Userspace Tracer library.
+  group: optional
+  spec:
+    name: liblttng-ust[0-9]
+  description: |
+    The 'liblttng-ust1' package provides the LTTng Userspace Tracer
+    library, enabling low-overhead tracing of user-space applications.
+    It allows developers to instrument applications for performance
+    analysis and debugging by emitting tracepoints. While not essential
+    for all development environments, it is recommended for those
+    requiring detailed tracing capabilities.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man3/lttng-ust.3.html
+    package: https://packages.ubuntu.com/noble/liblttng-ust1
+    source: https://git.lttng.org/?p=lttng-ust.git
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libmagickcore-dev:
+  summary: Development files for ImageMagick's core libraries.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for
+    ImageMagick's core functionalities, such as image processing and
+    manipulation. It's recommended for developing applications that
+    require direct access to ImageMagick's core features.
+  url:
+    docs: https://imagemagick.org/script/resources.php
+    source: https://github.com/ImageMagick/ImageMagick
+libmagickwand-dev:
+  summary: Development files for ImageMagick's MagickWand API.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for
+    ImageMagick's MagickWand API, a C API for image processing. It's
+    recommended for developing applications that utilize ImageMagick's
+    functionalities through the MagickWand interface.
+  url:
+    docs: https://imagemagick.org/script/magick-wand.php
+    source: https://github.com/ImageMagick/ImageMagick
+libmaxminddb-dev:
+  summary: Development files for the MaxMind DB library.
+  group: optional
+  description: |
+    This package provides the headers and static libraries for the
+    MaxMind DB library, used for IP geolocation. It's optional and
+    primarily used in applications that require geolocation features.
+  url:
+    docs: https://dev.maxmind.com/geoip/docs/
+    source: https://github.com/maxmind/libmaxminddb
+libncurses-dev:
+  summary: Development files for the ncurses terminal handling library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for the
+    ncurses terminal handling library (both narrow and wide-character
+    variants). It is the canonical development package for ncurses on
+    Ubuntu 22.04+, replacing the older transitional packages
+    'libncurses5-dev' and 'libncursesw5-dev', which now point to this
+    package. It is essential for developing terminal-based applications.
+  url:
+    docs: https://invisible-island.net/ncurses/
+    package: https://packages.ubuntu.com/noble/libncurses-dev
+    source: https://invisible-island.net/datafiles/release/ncurses.tar.gz
+libncurses6:
+  summary: Shared libraries for terminal handling.
+  group: essential
+  dependents: [ tex ]
+  description: |
+    This package contains the shared libraries necessary for programs
+    that use the ncurses library to manage terminal interfaces. It
+    provides a terminal-independent method of updating character
+    screens with reasonable optimization. It's essential for running
+    applications that rely on terminal-based user interfaces.
+  url:
+    docs: https://invisible-island.net/ncurses/
+    source: https://invisible-island.net/datafiles/release/ncurses.tar.gz
+libncursesw6:
+  summary: Terminal handling library with wide character support.
+  group: required
+  description: |
+    The 'libncursesw6' package provides the ncurses library
+    routines, offering a terminal-independent method of updating
+    character screens with reasonable optimization. This version
+    includes support for wide characters, enabling applications to
+    handle internationalized text and Unicode characters. It is
+    essential for programs that require advanced terminal handling
+    capabilities, such as text editors, interface tools, and
+    console-based applications.
+  url:
+    docs: https://invisible-island.net/ncurses/man/ncurses.3x.html
+    package: https://packages.ubuntu.com/noble/libncursesw6
+    source: https://invisible-island.net/ncurses/
+  notes: |
+    Recommended by `zsh` and included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libopenblas-dev:
+  summary: Development files for the OpenBLAS optimized BLAS library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for
+    OpenBLAS, a highly optimized open-source implementation of the
+    BLAS (Basic Linear Algebra Subprograms) and LAPACK routines. It
+    is required by NumPy, SciPy, PyTorch (from source), and many
+    other scientific computing and machine learning libraries that
+    depend on fast matrix operations.
+  url:
+    docs: https://www.openblas.net/
+    package: https://packages.ubuntu.com/noble/libopenblas-dev
+    source: https://github.com/OpenMathLib/OpenBLAS
+libnspr4:
+  summary: Netscape Portable Runtime library.
+  group: recommended
+  description: |
+    libnspr4 provides a platform-neutral API
+    for system-level and libc-like functions.
+    It is used by the Network Security Services (NSS) libraries
+    and other applications.
+    This package is required for applications that depend on NSPR for portability.
+  url:
+    docs: https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSPR
+    package: https://packages.ubuntu.com/noble/libnspr4
+    source: https://hg.mozilla.org/projects/nspr
+libnss3:
+  summary: Network Security Services library.
+  group: recommended
+  description: |
+    libnss3 provides a set of libraries designed
+    to support cross-platform development
+    of security-enabled client and server applications.
+    It supports SSL, TLS, and other security standards.
+    This package is required for applications that perform secure network communications.
+  url:
+    docs: https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS
+    package: https://packages.ubuntu.com/noble/libnss3
+    source: https://hg.mozilla.org/projects/nss
+libpango-1.0-0:
+  summary: Layout and rendering of internationalized text.
+  group: recommended
+  description: |
+    libpango-1.0-0 provides facilities for layout and rendering of
+    text, with an emphasis on internationalization. It is recommended
+    for applications that need to display text in multiple languages
+    and scripts.
+  url:
+    docs: https://developer.gnome.org/pango/
+    package: https://packages.ubuntu.com/noble/libpango-1.0-0
+    source: https://gitlab.gnome.org/GNOME/pango
+libpangocairo-1.0-0:
+  summary: Pango library with Cairo backend.
+  group: recommended
+  description: |
+    libpangocairo-1.0-0 provides the Pango library with a Cairo backend,
+    enabling high-quality text rendering.
+    It is used for laying out and rendering text in various scripts and languages.
+    This package is required for applications that need advanced text layout and rendering.
+  url:
+    docs: https://developer.gnome.org/pango/
+    package: https://packages.ubuntu.com/noble/libpangocairo-1.0-0
+    source: https://gitlab.gnome.org/GNOME/pango
+libpcre2-8-0:
+  summary: PCRE2 regular expression library (8-bit)
+  group: required
+  description: |
+    The 'libpcre2-8-0' package provides the 8-bit runtime library
+    for PCRE2 (Perl Compatible Regular Expressions, version 2),
+    which offers functions to support regular expressions with
+    syntax and semantics similar to Perl 5. This library is
+    essential for applications that require pattern matching
+    capabilities, such as text processing tools and programming
+    languages. In Ubuntu Noble (24.04), 'libpcre2-8-0' is the
+    preferred library over the older 'pcre3' library.
+  url:
+    docs: https://pcre.org/current/doc/html/
+    package: https://packages.ubuntu.com/noble/libpcre2-8-0
+    source: https://launchpad.net/ubuntu/+source/pcre2
+  notes: |
+    Recommended by `zsh` and included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libpcre2-dev:
+  summary: Development files for PCRE2 – Perl-compatible regular expressions.
+  group: required
+  dependents: [ git ]
+  description: |
+    The 'libpcre2-dev' package provides the development files for
+    PCRE2 (Perl Compatible Regular Expressions, version 2), a
+    library of functions that implement regular expression pattern
+    matching using the same syntax and semantics as Perl 5. This
+    package includes header files, static libraries, and
+    documentation necessary for compiling applications that use
+    PCRE2. It is essential for developers who need to build
+    software with advanced regular expression capabilities.
+  url:
+    docs: https://pcre.org/current/doc/html/
+    package: https://packages.ubuntu.com/noble/libpcre2-dev
+    source: https://launchpad.net/ubuntu/noble/+source/pcre2
+libpcre2-posix3:
+  summary: PCRE2 POSIX-compatible regular expression runtime library.
+  group: essential
+  dependents: [ git ]
+  description: |
+    The 'libpcre2-posix3' package provides a POSIX-compatible API
+    for the PCRE2 (Perl Compatible Regular Expressions) library.
+    It allows applications to utilize regular expressions with
+    syntax and semantics similar to Perl 5, through a POSIX-style
+    interface. This package is particularly useful for software
+    that relies on POSIX regex functions but benefits from the
+    enhanced capabilities of PCRE2. It is recommended for
+    applications requiring POSIX-compatible regular expression
+    support.
+  url:
+    docs: https://pcre.org/current/doc/html/
+    package: https://packages.ubuntu.com/noble/libpcre2-posix3
+    source: https://github.com/PhilipHazel/pcre2
+  notes: |
+    Included in the [`git`](https://github.com/devcontainers/features/blob/8895eb3d161d28ada3a8de761a83135e811cae3d/src/git/install.sh#L257C24-L257C39) feature.
+libpng-dev:
+  summary: Development files for the PNG image format library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for the
+    libpng library, used for handling PNG image files. It's essential
+    for developing applications that read or write PNG images.
+  url:
+    docs: http://www.libpng.org/pub/png/libpng.html
+    source: https://github.com/glennrp/libpng
+libprotobuf-dev:
+  summary: Development files for Protocol Buffers.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for
+    Protocol Buffers (protobuf), Google's language-neutral,
+    platform-neutral extensible mechanism for serializing structured
+    data. It is required by TensorFlow, PyTorch, ONNX, gRPC, and
+    many other ML frameworks and tools that use protobuf for model
+    serialization and inter-process communication.
+  url:
+    docs: https://protobuf.dev/
+    package: https://packages.ubuntu.com/noble/libprotobuf-dev
+    source: https://github.com/protocolbuffers/protobuf
+libpq-dev:
+  summary: Development files for PostgreSQL client library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for the
+    PostgreSQL client library, used for connecting to PostgreSQL
+    databases. It's essential for developing applications that
+    interact with PostgreSQL.
+  url:
+    docs: https://www.postgresql.org/docs/current/libpq.html
+    source: https://git.postgresql.org/gitweb/?p=postgresql.git
+libreadline-dev:
+  summary: Development files for the GNU readline and history libraries.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for the GNU
+    readline and history libraries, which facilitate command-line editing
+    and history capabilities. It's essential for developing interactive
+    command-line applications that require consistent user interfaces.
+  url:
+    docs: https://tiswww.case.edu/php/chet/readline/readline.html
+    source: https://git.savannah.gnu.org/git/readline.git
+libsecret-1-dev:
+  summary: Development files for libsecret, GNOME's secret storage library.
+  group: essential
+  description: |
+    This package provides headers and development files for libsecret,
+    which implements the Secret Service API for storing and retrieving
+    sensitive data like passwords. It's commonly used in applications
+    that integrate with GNOME Keyring or other compatible key storage.
+    Essential for building secure apps that handle credentials.
+  url:
+    docs: https://developer.gnome.org/libsecret/
+    package: https://packages.ubuntu.com/noble/libsecret-1-dev
+    source: https://gitlab.gnome.org/GNOME/libsecret
+libsndfile1-dev:
+  summary: Development files for the libsndfile audio file I/O library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for
+    libsndfile, a C library for reading and writing audio files in
+    various formats including WAV, FLAC, OGG, and AIFF. It is
+    required by audio ML libraries such as librosa, soundfile, and
+    audioread that process audio data for speech recognition, music
+    analysis, and other audio AI pipelines.
+  url:
+    docs: https://libsndfile.github.io/libsndfile/api.html
+    package: https://packages.ubuntu.com/noble/libsndfile1-dev
+    source: https://github.com/libsndfile/libsndfile
+libsm6:
+  summary: X11 Session Management library.
+  group: essential
+  dependents: [ tex ]
+  description: |
+    libsm6 provides the main interface to the X11 Session Management
+    library, enabling applications to manage sessions and interact
+    with session managers to save and restore their state. It is
+    essential for GUI applications that require session management
+    capabilities, particularly in X11 environments. Additionally,
+    it is a common dependency for graphical libraries such as OpenCV,
+    making it important in development environments involving GUI
+    applications or image processing.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man3/SM.3.html
+    package: https://packages.ubuntu.com/noble/libsm6
+    source: https://gitlab.freedesktop.org/xorg/lib/libsm
+  notes: |
+    Required for `metafont` (see [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L28)).
+libsqlite3-dev:
+  summary: Development files for the SQLite 3 database engine.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for SQLite 3,
+    a lightweight, disk-based database engine. It's essential for
+    developing applications that require embedded database functionality
+    without the overhead of a separate server process.
+  url:
+    docs: https://www.sqlite.org/docs.html
+    source: https://www.sqlite.org/src
+libssl3t64:
+  summary: OpenSSL 3.0 shared libraries with 64-bit time_t support.
+  group: required
+  description: |
+    The 'libssl3t64' package provides the shared libraries for OpenSSL 3.0,
+    compiled with 64-bit time_t support. This ensures compatibility with
+    systems and applications that use 64-bit time representations, aligning
+    with the time_t transition in Ubuntu Noble (24.04). It is essential for
+    applications that require secure communication over the Internet using
+    SSL and TLS protocols, and that are built against the 64-bit time_t ABI.
+  url:
+    docs: https://www.openssl.org/docs/
+    package: https://packages.ubuntu.com/noble/libssl3t64
+    source: https://launchpad.net/ubuntu/+source/openssl
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+libssl-dev:
+  summary: Development files for the OpenSSL library.
+  group: essential
+  dependents: [ git ]
+  description: |
+    This package provides the headers and static libraries for OpenSSL,
+    implementing the SSL and TLS protocols. It's essential for developing
+    applications that require secure communication over networks.
+  url:
+    docs: https://www.openssl.org/docs/
+    source: https://github.com/openssl/openssl
+libtirpc3t64:
+  summary: Transport Independent RPC library (t64 variant).
+  group: required
+  description: |
+    The 'libtirpc3t64' package provides the Transport Independent
+    Remote Procedure Call (TI-RPC) library, which is a replacement
+    for the traditional SunRPC library. It offers support for both
+    IPv4 and IPv6 and is essential for applications that rely on
+    RPC mechanisms, such as NFS and certain network services. The
+    't64' variant ensures compatibility with the 64-bit time_t
+    transition in Ubuntu Noble, making it a required component for
+    systems and applications that depend on RPC functionality.
+  url:
+    docs: https://man7.org/linux/man-pages/man3/tirpc.3.html
+    package: https://packages.ubuntu.com/noble/libtirpc3t64
+    source: https://github.com/libtirpc/libtirpc
+libtool:
+  summary: Generic library support script.
+  group: essential
+  description: |
+    Libtool is a generic library support script that abstracts the
+    complexity of using shared libraries across different platforms.
+    It's essential for developing portable software that builds shared
+    libraries.
+  url:
+    docs: https://www.gnu.org/software/libtool/manual/
+    source: https://git.savannah.gnu.org/git/libtool.git
+libunicode-linebreak-perl:
+  summary: Perl module implementing the Unicode Line Breaking Algorithm.
+  group: recommended
+  dependents: [ tex ]
+  description: |
+    This package provides the Unicode::LineBreak Perl module, which
+    implements the Unicode Line Breaking Algorithm as described in
+    UAX #14. It's used in text processing applications that require
+    proper line breaking of Unicode text.
+  url:
+    docs: https://metacpan.org/pod/Unicode::LineBreak
+    package: https://packages.ubuntu.com/noble/libunicode-linebreak-perl
+    source: https://salsa.debian.org/perl-team/modules/packages/libunicode-linebreak-perl.git
+  notes: |
+    Required for `latexindent` (see [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L24))
+libunwind8:
+  summary: Library for stack unwinding.
+  group: essential
+  description: |
+    The 'libunwind8' package provides a portable and efficient C
+    programming interface to determine the call-chain of a program.
+    It is used for stack unwinding, which is essential for exception
+    handling, debugging, and profiling. This package is essential for
+    applications that require backtrace capabilities.
+  url:
+    docs: https://www.nongnu.org/libunwind/
+    package: https://packages.ubuntu.com/noble/libunwind8
+    source: https://github.com/libunwind/libunwind
+libuuid1:
+  summary: Universally Unique Identifier library.
+  group: essential
+  description: |
+    The 'libuuid1' package provides a library for generating and
+    parsing UUIDs (Universally Unique Identifiers). It is used by
+    various applications and libraries to uniquely identify
+    information without significant central coordination. This package
+    is essential for systems and applications that require UUID
+    generation and handling.
+  url:
+    docs: https://man7.org/linux/man-pages/man3/uuid.3.html
+    package: https://packages.ubuntu.com/noble/libuuid1
+    source: https://github.com/util-linux/util-linux
+libwebp-dev:
+  summary: Development files for the WebP image format library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for libwebp,
+    a library for encoding and decoding images in the WebP format. It's
+    recommended for developing applications that handle modern image
+    formats with efficient compression.
+  url:
+    docs: https://developers.google.com/speed/webp/docs/
+    package: https://packages.ubuntu.com/noble/libwebp-dev
+    source: https://chromium.googlesource.com/webm/libwebp
+libx11-6:
+  summary: X11 client-side library.
+  group: recommended
+  description: |
+    libx11-6 provides the X11 client-side library,
+    which allows applications to communicate with the X Window System.
+    It is a fundamental component for graphical applications on Unix-like systems.
+    This package is required for any application that uses the X11 windowing system.
+  url:
+    docs: https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html
+    package: https://packages.ubuntu.com/noble/libx11-6
+    source: https://gitlab.freedesktop.org/xorg/lib/libx11
+libx11-xcb1:
+  summary: Xlib/XCB interface library.
+  group: recommended
+  description: |
+    libx11-xcb1 allows applications to use both Xlib and XCB
+    interfaces, facilitating better performance and integration.
+    It is recommended for applications that interact with the X
+    Window System but is not essential for all environments.
+  url:
+    docs: https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html
+    package: https://packages.ubuntu.com/noble/libx11-xcb1
+    source: https://gitlab.freedesktop.org/xorg/lib/libX11
+libxcomposite1:
+  summary: X11 Composite extension library.
+  group: optional
+  description: |
+    libxcomposite1 provides support for the X11 Composite extension,
+    allowing for advanced graphical effects like transparency and
+    off-screen rendering. It is optional and primarily used by
+    compositing window managers and applications requiring such
+    effects.
+  url:
+    docs: https://www.x.org/releases/X11R7.7/doc/libXcomposite/libXcomposite.txt
+    package: https://packages.ubuntu.com/noble/libxcomposite1
+    source: https://gitlab.freedesktop.org/xorg/lib/libXcomposite
+libxdamage1:
+  summary: X11 Damage extension library.
+  group: optional
+  description: |
+    libxdamage1 provides support for the X11 Damage extension,
+    which allows applications to track changes to drawable areas.
+    It is optional and mainly used by compositing window managers
+    and applications that need to monitor screen updates.
+  url:
+    docs: https://www.x.org/releases/X11R7.7/doc/libXdamage/libXdamage.txt
+    package: https://packages.ubuntu.com/noble/libxdamage1
+    source: https://gitlab.freedesktop.org/xorg/lib/libXdamage
+libxfixes3:
+  summary: X11 Fixes extension library.
+  group: optional
+  description: |
+    libxfixes3 provides support for the X11 Fixes extension,
+    offering enhancements and bug fixes to the core X11 protocol.
+    It is optional and used by applications that require these
+    specific extensions for improved functionality.
+  url:
+    docs: https://www.x.org/releases/X11R7.7/doc/libXfixes/libXfixes.txt
+    package: https://packages.ubuntu.com/noble/libxfixes3
+    source: https://gitlab.freedesktop.org/xorg/lib/libXfixes
+libxml2-dev:
+  summary: Development files for the GNOME XML library.
+  group: essential
+  description: |
+    This package provides the headers and static libraries for libxml2,
+    the GNOME XML library. It's essential for developing applications
+    that parse and manipulate XML documents.
+  url:
+    docs: http://xmlsoft.org/html/index.html
+    source: https://gitlab.gnome.org/GNOME/libxml2
+libxslt-dev:
+  summary: Development files for the XSLT 1.0 processing library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for libxslt,
+    a library for transforming XML documents into other formats using
+    XSLT. It's recommended for developing applications that require XML
+    transformations.
+  url:
+    docs: http://xmlsoft.org/XSLT/
+    package: https://packages.ubuntu.com/noble/libxslt1-dev
+    source: https://gitlab.gnome.org/GNOME/libxslt
+libyaml-dev:
+  summary: Development files for the YAML 1.1 parser and emitter library.
+  group: recommended
+  description: |
+    This package provides the headers and static libraries for libyaml,
+    a C library for parsing and emitting YAML. It's recommended for
+    developing applications that utilize YAML for configuration or data
+    serialization.
+  url:
+    docs: https://pyyaml.org/wiki/LibYAML
+    source: https://github.com/yaml/libyaml
+libyaml-tiny-perl:
+  summary: Perl module for reading and writing YAML files with minimal dependencies.
+  group: recommended
+  description: |
+    This package provides the YAML::Tiny Perl module, a lightweight
+    YAML reader and writer implemented in pure Perl. It's suitable for
+    applications that require basic YAML functionality without the
+    overhead of heavier YAML parsers. It's particularly useful in
+    environments where minimizing dependencies is important.
+  url:
+    docs: https://metacpan.org/pod/YAML::Tiny
+    package: https://packages.ubuntu.com/noble/libyaml-tiny-perl
+    source: https://salsa.debian.org/perl-team/modules/packages/libyaml-tiny-perl.git
+  notes: |
+    Required for `latexindent` (see [Island of Tex Dockerfile](https://gitlab.com/islandoftex/images/texlive/-/blob/72240db12e00510972aeea19cd0a08edc22c4152/Dockerfile.base#L24))
+lldb:
+  summary: Next-generation debugger from the LLVM project.
+  group: recommended
+  description: |
+    LLDB is a modern debugger that is part of the LLVM project. It is
+    designed to be highly modular and supports debugging of C, C++, and
+    Objective-C programs. LLDB is recommended for developers who use
+    Clang and LLVM toolchains.
+  url:
+    docs: https://lldb.llvm.org/
+    package: https://packages.ubuntu.com/noble/lldb
+    source: https://github.com/llvm/llvm-project
+llvm:
+  summary: Collection of modular and reusable compiler and toolchain technologies.
+  group: essential
+  description: |
+    LLVM is a collection of modular and reusable compiler and toolchain
+    technologies. It is used to develop compiler front ends and back
+    ends. LLVM is essential for projects that require custom compiler
+    development or advanced code analysis tools.
+  url:
+    docs: https://llvm.org/docs/
+    package: https://packages.ubuntu.com/noble/llvm
+    source: https://github.com/llvm/llvm-project
+locales:
+  summary: GNU C Library locale data and generation tools.
+  group: essential
+  description: |
+    The 'locales' package provides the infrastructure for
+    managing language and regional settings on Ubuntu systems.
+    It includes utilities like 'locale' and 'locale-gen' to
+    display and generate locale data, respectively. These
+    settings influence various aspects of system behavior,
+    such as language, character encoding, and formatting of
+    dates and numbers. This package is essential for
+    configuring and supporting internationalization in
+    applications and the system environment.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man7/locale.7.html
+    package: https://packages.ubuntu.com/noble/locales
+    source: https://salsa.debian.org/glibc-team/glibc
+  post_install: |
+    # Ensure at least the en_US.UTF-8 UTF-8 locale is available = common need for both applications and things like the agnoster ZSH theme.
+    # - https://github.com/devcontainers/features/blob/8895eb3d161d28ada3a8de761a83135e811cae3d/src/common-utils/main.sh#L145C5-L150C7
+    if ! grep -o -E '^\s*en_US.UTF-8\s+UTF-8' /etc/locale.gen > /dev/null; then
+        echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen;
+        locale-gen;
+    fi
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+lsb-release:
+  summary: Linux Standard Base version reporting utility.
+  group: essential
+  description: |
+    The 'lsb-release' package provides the 'lsb_release' command,
+    which outputs distribution-specific information. In Ubuntu
+    Noble, it offers a minimal implementation that retrieves data
+    from '/etc/os-release'. It is recommended for scripts and
+    tools that need to identify the distribution.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/lsb_release.1.html
+    package: https://packages.ubuntu.com/noble/lsb-release
+    source: https://launchpad.net/ubuntu/+source/lsb-release-minimal
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+lsof:
+  summary: List open files.
+  group: recommended
+  description: |
+    Lists information about files opened by processes. Useful for
+    debugging and monitoring, but not essential for all environments.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/lsof.8.html
+    package: https://packages.ubuntu.com/noble/lsof
+    source: https://github.com/lsof-org/lsof
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+man-db:
+  summary: On-disk database and utilities for Unix manual pages.
+  group: essential
+  description: |
+    Installs and manages the manual page database and utilities
+    such as `man`. It allows users to read documentation about
+    installed commands, libraries, and APIs. It is essential for
+    accessing reference material in CLI environments.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/man.1.html
+    package: https://packages.ubuntu.com/noble/man-db
+    source: https://salsa.debian.org/man-db-team/man-db
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+manpages:
+  summary: Unix manual pages for user-level commands.
+  group: recommended
+  description: |
+    Provides a large collection of manual pages describing standard
+    user commands, file formats, and tools. Recommended for user and
+    developer reference, but not strictly necessary to run software.
+  url:
+    docs: https://man7.org/linux/man-pages/
+    package: https://packages.ubuntu.com/noble/manpages
+    source: https://salsa.debian.org/manpages-team/manpages
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+manpages-dev:
+  summary: Developer-oriented manpages for C programming and system APIs.
+  group: recommended
+  description: |
+    Contains man pages for C library functions, system calls,
+    headers, and development tools. Recommended for programmers and
+    developers working on C/C++ or system-level code who want to
+    look up function definitions and usage.
+  url:
+    docs: https://man7.org/linux/man-pages/
+    package: https://packages.ubuntu.com/noble/manpages-dev
+    source: https://salsa.debian.org/manpages-team/manpages-dev
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+mercurial:
+  summary: Scalable distributed version control system.
+  group: required
+  description: |
+    A distributed version control system like Git.
+    Mercurial is needed for building certain packages
+    from source code.
+  url:
+    docs: https://www.mercurial-scm.org/guide
+moreutils:
+  summary: Collection of additional Unix utilities complementing core tools.
+  group: recommended
+  description: |
+    The 'moreutils' package offers a suite of command-line utilities
+    that extend the functionality of standard Unix tools.
+    It is required for TypeScript, and includes
+    programs like 'chronic', 'combine', 'errno', 'ifdata', 'ifne',
+    'isutf8', 'lckdo', 'mispipe', 'parallel', 'pee', 'sponge', 'ts',
+    'vidir', 'vipe', and 'zrun'. These tools are designed to handle
+    specific tasks more efficiently or provide functionality not
+    available in the traditional core utilities. For instance, 'sponge'
+    allows for safe in-place editing of files, and 'parallel' enables
+    the execution of jobs in parallel. While not essential for all
+    environments, 'moreutils' is recommended for users seeking enhanced
+    command-line capabilities.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/moreutils.1.html
+    package: https://packages.ubuntu.com/noble/moreutils
+    source: https://launchpad.net/ubuntu/noble/+source/moreutils
+  notes: |
+    **Conflict warning**: 'moreutils' ships its own `parallel` binary
+    that conflicts with the `parallel` package (GNU parallel). Both
+    cannot be co-installed without workarounds (e.g., renaming one
+    binary). Do not add `parallel` (GNU parallel) to this package list.
+nano:
+  summary: Small, friendly text editor inspired by Pico.
+  group: essential
+  description: |
+    GNU nano is a user-friendly, terminal-based text editor
+    designed as a free replacement for Pico. It offers features
+    like syntax highlighting, undo/redo, line numbering, and
+    search-and-replace with regex support. Its simplicity makes
+    it ideal for editing configuration files and writing scripts,
+    making it an essential tool for system administrators and
+    developers working in command-line environments.
+  url:
+    docs: https://www.nano-editor.org/docs.php
+    package: https://packages.ubuntu.com/noble/nano
+    source: https://git.savannah.gnu.org/git/nano.git
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+ncdu:
+  summary: Interactive disk usage analyzer with ncurses interface.
+  group: recommended
+  description: |
+    ncdu (NCurses Disk Usage) is a terminal-based disk usage
+    analyzer that provides a fast and user-friendly interface
+    for exploring directory sizes. It allows users to navigate
+    through directories, sort by size, and delete files or
+    directories directly from the interface. This tool is
+    particularly useful for identifying large files and
+    directories that consume significant disk space. While not
+    essential for all environments, it is recommended for users
+    who need an efficient way to manage disk usage.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/ncdu.1.html
+    package: https://packages.ubuntu.com/noble/ncdu
+    source: https://g.blicky.net/ncdu.git/
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+netbase:
+  summary: Basic TCP/IP networking configuration.
+  group: required
+  description: |
+    netbase provides essential networking configuration files such as
+    /etc/services, /etc/protocols, and /etc/rpc. These files are
+    fundamental for the proper operation of network services and are
+    required by various networking tools and daemons to function
+    correctly.
+openssh-client:
+  summary: Secure shell client for encrypted network connections.
+  group: required
+  description: |
+    The OpenSSH client provides secure encrypted communications
+    between hosts over an insecure network.
+    It is commonly used for remote login and command execution.
+    In development containers, it facilitates secure access
+    to remote servers, code repositories, and other network resources.
+  url:
+    docs: https://www.openssh.com/manual.html
+patch:
+  summary: Apply a diff file to an original.
+  group: essential
+  description: |
+    Patch is a utility that applies changes to files based on differences
+    described in a diff file. It's essential for applying updates or
+    modifications to source code during development.
+  url:
+    docs: https://www.gnu.org/software/diffutils/manual/
+    source: https://savannah.gnu.org/git/?group=diffutils
+perl:
+  summary: Highly capable, feature-rich programming language.
+  group: essential
+  dependents: [ tex ]
+  description: |
+    Perl is a versatile programming language known for its text
+    processing capabilities. It supports multiple programming
+    paradigms and is widely used for system administration, web
+    development, and more. It's essential for many scripts and
+    tools in Unix-like environments.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/perl.1.html
+protobuf-compiler:
+  summary: Protocol Buffers compiler.
+  group: recommended
+  description: |
+    The Protocol Buffers compiler (protoc) generates source code from
+    .proto IDL files for various target languages. It is required for
+    building and working with TensorFlow, PyTorch, ONNX, gRPC, and
+    other ML frameworks that define their APIs using Protocol Buffers.
+  url:
+    docs: https://protobuf.dev/reference/
+    package: https://packages.ubuntu.com/noble/protobuf-compiler
+    source: https://github.com/protocolbuffers/protobuf
+procps:
+  summary: Utilities for monitoring and managing system processes.
+  group: essential
+  description: |
+    The procps package includes command-line utilities such as ps,
+    top, vmstat, and others for monitoring and managing system
+    processes. These tools are vital for observing system performance,
+    diagnosing issues, and managing processes within development
+    environments.
+  url:
+    source: https://gitlab.com/procps-ng/procps
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+podman:
+  summary: Daemonless, rootless OCI container engine.
+  group: recommended
+  description: |
+    Podman is a daemonless container engine for developing, managing,
+    and running OCI containers. Unlike Docker, it requires no
+    background daemon and runs containers as the calling user (rootless),
+    making it safe to use inside a devcontainer without privileged mode.
+    Used here for running the openjournals/inara image to build JOSS papers.
+  url:
+    docs: https://docs.podman.io/
+    package: https://packages.ubuntu.com/noble/podman
+    source: https://github.com/containers/podman
+psmisc:
+  summary: Utilities for managing processes on Unix systems.
+  group: recommended
+  description: |
+    The 'psmisc' package provides a set of utilities for
+    managing processes, including 'killall', 'fuser',
+    'pstree', and 'peekfd'. These tools assist in
+    identifying and controlling processes and their
+    resource usage. It is recommended for users who need
+    additional tools beyond the basic process management
+    commands.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/killall.1.html
+    package: https://packages.ubuntu.com/noble/psmisc
+    source: https://gitlab.com/psmisc/psmisc
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+python-is-python3:
+  summary: Symlink /usr/bin/python to Python 3 interpreter.
+  group: required
+  dependents: [ tex ]
+  description: |
+    This package creates a symbolic link from /usr/bin/python to the
+    default Python 3 interpreter. It ensures compatibility with scripts
+    and tools that invoke 'python' expecting Python 3, aligning with
+    modern conventions and reducing ambiguity in environments where
+    both Python 2 and Python 3 may be present.
+python3:
+  summary: Default Python 3 interpreter package for Ubuntu Noble.
+  group: required
+  dependents: [ tex ]
+  description: |
+    This package provides the default Python 3 interpreter for Ubuntu
+    24.04 LTS (Noble Numbat), currently Python 3.12. It includes the
+    standard interpreter and essential components, serving as the
+    foundation for Python 3 development and execution in the system.
+  url:
+    docs: https://docs.python.org/3/
+python3-dev:
+  summary: Header files and static libraries for Python 3 development.
+  group: essential
+  description: |
+    The 'python3-dev' package provides the header files and static
+    libraries necessary for building Python 3 modules and extensions.
+    It is essential for developing Python C extensions and embedding
+    Python in C applications.
+  url:
+    docs: https://docs.python.org/3/extending/
+    package: https://packages.ubuntu.com/noble/python3-dev
+    source: https://github.com/python/cpython
+python3-pip:
+  summary: Python package installer for Python 3.
+  group: essential
+  description: |
+    python3-pip is the standard package manager for Python 3,
+    enabling the installation and management of Python packages
+    from the Python Package Index (PyPI) and other indexes. It
+    provides the 'pip3' command-line tool, which allows users to
+    install, upgrade, and remove Python packages. This package is
+    essential for Python development environments, facilitating
+    the integration of third-party libraries and tools necessary
+    for various projects.
+  url:
+    docs: https://pip.pypa.io/en/stable/
+    package: https://packages.ubuntu.com/noble/python3-pip
+    source: https://github.com/pypa/pip
+python3-pip-whl:
+  summary: Wheel archive of the pip installer for Python.
+  group: required
+  description: |
+    The 'python-pip-whl' package provides the pip installer for Python
+    in the form of a wheel (.whl) archive. This package is used during
+    the bootstrapping process of pip in Python environments, allowing
+    for the installation of pip without requiring an existing pip
+    installation. It is essential for setting up Python package
+    management in environments where pip is not yet available.
+  url:
+    docs: https://pip.pypa.io/en/stable/
+    package: https://packages.ubuntu.com/noble/python-pip-whl
+    source: https://github.com/pypa/pip
+python3-pygments:
+  summary: Syntax highlighting package written in Python 3.
+  group: recommended
+  dependents: [ tex ]
+  description: |
+    Pygments is a generic syntax highlighter suitable for use in code
+    hosting, documentation, and other applications requiring code
+    formatting. This package provides the Python 3 version of Pygments,
+    supporting a wide range of programming languages and markup formats.
+  url:
+    docs: https://pygments.org/docs/
+    package: https://packages.ubuntu.com/noble/python3-pygments
+    source: https://github.com/pygments/pygments
+python3-venv:
+  summary: Module for creating isolated Python 3 virtual environments.
+  group: required
+  description: |
+    The 'python3-venv' package provides the 'venv' module for creating
+    lightweight Python virtual environments. On Ubuntu Noble, this
+    module is not bundled with 'python3' and must be installed
+    separately. It is required for any workflow that uses
+    `python -m venv`, including pip-based toolchains and many CI/CD
+    pipelines.
+  url:
+    docs: https://docs.python.org/3/library/venv.html
+    package: https://packages.ubuntu.com/noble/python3-venv
+    source: https://github.com/python/cpython
+rsync:
+  summary: Fast, versatile tool for local and remote file synchronization.
+  group: required
+  dependents: [ tex ]
+  description: |
+    rsync is a powerful utility for efficiently transferring and
+    synchronizing files across local and remote systems. It employs a
+    delta-transfer algorithm that minimizes data transfer by only
+    sending differences between source and destination files.
+    rsync supports various features, including compression, recursion,
+    symbolic link preservation, and SSH-based encrypted transfers.
+    It is widely used for backups, mirroring, and as an enhanced
+    alternative to traditional copy commands. Given its capabilities
+    and common usage in development and deployment workflows,
+    rsync is considered essential in many environments.
+  url:
+    docs: https://rsync.samba.org/documentation.html
+    source: https://github.com/WayneD/rsync
+software-properties-common:
+  summary: Manage software repositories and PPAs.
+  group: required
+  description: |
+    The 'software-properties-common' package provides an abstraction
+    of the used apt repositories. It allows you to easily manage your
+    distribution and independent software vendor software sources. It
+    includes the 'add-apt-repository' command-line tool. This package
+    is essential for adding and managing PPAs and other software
+    sources.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/add-apt-repository.1.html
+    package: https://packages.ubuntu.com/noble/software-properties-common
+    source: https://git.launchpad.net/software-properties
+  post_install: |
+    add-apt-repository universe;
+sq:
+  summary: Sequoia PGP command-line tool for OpenPGP key management.
+  group: required
+  description: |
+    'sq' is the Sequoia PGP command-line tool providing a modern,
+    memory-safe implementation of OpenPGP in Rust. It supports key
+    generation, encryption, decryption, signing, and verification,
+    and serves as a replacement for the traditional 'gpg' CLI in
+    workflows requiring OpenPGP operations. On Debian-based systems
+    (including Ubuntu 24.04), the package is simply named 'sq' and
+    is available in the standard apt repositories.
+  url:
+    docs: https://book.sequoia-pgp.org/
+    package: https://packages.ubuntu.com/noble/sq
+    source: https://gitlab.com/sequoia-pgp/sequoia-sq
+sqlite3:
+  summary: Command-line interface for SQLite 3.
+  group: essential
+  description: |
+    The 'sqlite3' package provides a command-line interface for
+    interacting with SQLite 3 databases. It allows users to create,
+    modify, and query SQLite databases directly from the terminal.
+    This package is essential for developers and administrators who
+    need to manage SQLite databases.
+  url:
+    docs: https://www.sqlite.org/docs.html
+    package: https://packages.ubuntu.com/noble/sqlite3
+    source: https://www.sqlite.org/src
+strace:
+  summary: Diagnostic tool for tracing system calls.
+  group: recommended
+  description: |
+    strace is used to monitor and debug interactions between programs
+    and the Linux kernel by tracing system calls and signals. It's a
+    vital tool for diagnosing runtime issues, especially in debugging,
+    security auditing, and reverse engineering. Recommended for
+    developers and sysadmins.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/strace.1.html
+    package: https://packages.ubuntu.com/noble/strace
+    source: https://github.com/strace/strace
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+sudo:
+  summary: Execute commands with elevated privileges.
+  group: required
+  description: |
+    The 'sudo' package provides the 'sudo' command, allowing
+    authorized users to execute commands with the security
+    privileges of another user, typically the superuser. It is
+    essential for performing administrative tasks without logging
+    in as the root user, thereby enhancing system security and
+    auditability. In Ubuntu, the root account is disabled by
+    default, making 'sudo' indispensable for system management.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/sudo.8.html
+    package: https://packages.ubuntu.com/noble/sudo
+    source: https://launchpad.net/ubuntu/+source/sudo
+swig:
+  summary: Tool for generating scripting language interfaces to C/C++ code.
+  group: required
+  description: |
+    SWIG (Simplified Wrapper and Interface Generator) is a tool that
+    connects programs written in C and C++ with various high-level
+    programming languages, including Python, Perl, Ruby, and others.
+    It automates the generation of the necessary wrapper code,
+    facilitating the integration of C/C++ code into scripting languages.
+    In Ubuntu 24.04 (Noble), the 'swig' package provides version 4.0,
+    which includes improved features and broader language support
+    compared to previous versions. This package is required for
+    installing projects that require interfacing C/C++ code with scripting languages.
+  url:
+    docs: https://www.swig.org/Doc4.0/
+    package: https://packages.ubuntu.com/noble/swig
+    source: https://github.com/swig/swig
+tar:
+  summary: GNU tar – archiving utility for combining multiple files into a single archive.
+  group: essential
+  dependents: [ git ]
+  description: |
+    GNU tar is a standard Unix utility used to create, maintain, modify, and extract files from archives. It supports various compression methods, including gzip, bzip2, and xz, facilitating efficient storage and distribution of files. Commonly used for backups and software packaging, tar is an essential tool in Unix-like environments.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tar.1.html
+    package: https://packages.ubuntu.com/noble/tar
+    source: https://launchpad.net/ubuntu/+source/tar
+tk-dev:
+  summary: Development files for the Tk GUI toolkit.
+  group: essential
+  description: |
+    tk-dev provides the header files and libraries necessary for
+    developing applications using the Tk GUI toolkit, which is often
+    used with the Tcl scripting language. It is essential for building
+    graphical applications that utilize Tk for their user interface.
+  url:
+    docs: https://www.tcl.tk/doc/
+    package: https://packages.ubuntu.com/noble/tk-dev
+    source: https://core.tcl-lang.org/tk
+tmux:
+  summary: Terminal multiplexer for persistent and split terminal sessions.
+  group: recommended
+  description: |
+    tmux is a terminal multiplexer that allows a single terminal window
+    to be split into multiple panes and sessions that persist even when
+    the client disconnects. It is particularly useful in development
+    containers for running long training jobs, background services, or
+    multiple simultaneous shell sessions without losing state.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tmux.1.html
+    package: https://packages.ubuntu.com/noble/tmux
+    source: https://github.com/tmux/tmux
+tree:
+  summary: Display directories and files in a tree-like format.
+  group: recommended
+  description: |
+    The 'tree' command provides a recursive, depth-indented listing
+    of files and directories, visualizing the structure in a
+    tree-like format. It is particularly useful for understanding
+    complex directory hierarchies and for documentation purposes.
+    While not essential for all environments, it is recommended for
+    users who need to visualize directory structures effectively.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tree.1.html
+    package: https://packages.ubuntu.com/noble/tree
+    source: https://gitlab.com/OldManProgrammer/unix-tree
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+tzdata:
+  summary: Time zone and daylight-saving time data.
+  group: required
+  description: |
+    tzdata provides the time zone and daylight-saving time data used by
+    the system to correctly handle time conversions and representations.
+    It's essential for applications that rely on accurate timekeeping,
+    ensuring consistency across different regions and systems.
+unixodbc-dev:
+  summary: Development files for the unixODBC ODBC driver manager.
+  group: essential
+  description: |
+    Provides the headers and static libraries
+    necessary for developing applications that utilize the unixODBC
+    driver manager. It is required for Microsoft SQL Server,
+    and includes files like 'sql.h' and 'sqlext.h',
+    enabling compilation of programs that interface with various
+    databases through the ODBC API. This package is essential for
+    building software that requires database connectivity via ODBC,
+    ensuring compatibility across different database systems.
+  url:
+    docs: https://www.unixodbc.org/doc/
+    package: https://packages.ubuntu.com/noble/unixodbc-dev
+    source: https://github.com/lurcher/unixODBC
+unzip:
+  summary: De-archiver for .zip files.
+  group: required
+  description: |
+    Unzip is a utility for extracting files from .zip archives. It's
+    essential for handling compressed files, especially when dealing with
+    source code or resources distributed in .zip format.
+  url:
+    docs: https://infozip.sourceforge.net/UnZip.html
+    package: https://packages.ubuntu.com/noble/unzip
+    source: https://github.com/Info-ZIP/UnZip
+uidmap:
+  summary: Programs providing newuidmap and newgidmap for user namespaces.
+  group: recommended
+  description: |
+    Provides the newuidmap and newgidmap utilities, which are required
+    for rootless containers (Podman) to map a range of UIDs/GIDs from
+    /etc/subuid and /etc/subgid into a user namespace. Without this,
+    rootless Podman cannot run containers that need more than a single UID.
+  url:
+    package: https://packages.ubuntu.com/noble/uidmap
+    source: https://github.com/shadow-maint/shadow
+uuid-dev:
+  summary: Development files for UUID generation library.
+  group: essential
+  description: |
+    uuid-dev provides the headers and static libraries for developing
+    applications that generate and manipulate Universally Unique
+    Identifiers (UUIDs). It is essential for building software that
+    requires unique identifiers, such as database keys or session tokens.
+  url:
+    docs: https://man7.org/linux/man-pages/man3/uuid.3.html
+    package: https://packages.ubuntu.com/noble/uuid-dev
+    source: https://github.com/util-linux/util-linux
+valgrind:
+  summary: Instrumentation framework for building dynamic analysis tools.
+  group: recommended
+  description: |
+    Valgrind is a programming tool for memory debugging, memory leak
+    detection, and profiling. It helps to detect memory management and
+    threading bugs, making it recommended for developers who need to
+    ensure the correctness and performance of their applications.
+  url:
+    docs: https://valgrind.org/docs/manual/manual.html
+    package: https://packages.ubuntu.com/noble/valgrind
+    source: https://sourceware.org/git/valgrind.git
+vim:
+  summary: Vi IMproved – enhanced vi text editor.
+  group: essential
+  description: |
+    Vim is a highly configurable text editor built to make creating
+    and changing any kind of text very efficient. It is an improved
+    version of the Unix editor vi and is widely used by developers for
+    editing source code. It is essential in CLI-based development
+    environments.
+  url:
+    docs: https://vimhelp.org/
+    package: https://packages.ubuntu.com/noble/vim
+    source: https://github.com/vim/vim
+wget:
+  summary: Non-interactive network downloader.
+  group: required
+  description: |
+    A command-line utility for downloading files from the web,
+    supporting HTTP, HTTPS, and FTP protocols. It's particularly useful
+    for automated scripts and tasks that require fetching resources
+    without user interaction, making it a staple in many development
+    and deployment workflows.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/wget.1.html
+    source: https://www.gnu.org/software/wget/
+xtail:
+  summary: Monitor multiple files like `tail -f`, even if they are rotated.
+  group: recommended
+  description: |
+    xtail allows users to watch the growth of multiple files at once,
+    much like `tail -f`, but with support for files that get rotated
+    (like logs). It's recommended for monitoring log files and useful
+    in debugging and operations environments.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/xtail.1.html
+    package: https://packages.ubuntu.com/noble/xtail
+    source: https://github.com/pbrady/xtail
+xz-utils:
+  summary: Utilities for .xz compression.
+  group: essential
+  description: |
+    XZ Utils provide tools for compressing and decompressing files using
+    the .xz format, which utilizes the LZMA2 compression algorithm. It's
+    essential for handling .xz compressed files, commonly used in source
+    distributions.
+  url:
+    docs: https://tukaani.org/xz/
+    source: https://git.tukaani.org/?p=xz.git
+  notes: |
+    Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
+zip:
+  summary: Command-line utility for creating ZIP archives.
+  group: essential
+  description: |
+    The 'zip' package provides the 'zip' command-line utility, which
+    allows users to compress files and directories into ZIP archive
+    files. It supports various features, including recursive directory
+    compression, exclusion patterns, and encryption. The utility is
+    widely used for packaging files for distribution, backup, and
+    efficient storage. Its compatibility with other ZIP tools across
+    different operating systems makes it a versatile choice for file
+    compression needs in development and production environments.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/zip.1.html
+    package: https://packages.ubuntu.com/noble/zip
+    source: https://launchpad.net/ubuntu/noble/+source/zip
+zlib1g-dev:
+  summary: Development files for the zlib compression library.
+  group: essential
+  dependents: [ git ]
+  description: |
+    This package provides the headers and static libraries for zlib, a
+    compression library implementing the deflate algorithm. It's
+    essential for developing applications that require data compression.
+  url:
+    docs: https://zlib.net/manual.html
+    source: https://github.com/madler/zlib
+zsh:
+  summary: Z Shell – advanced interactive shell.
+  group: recommended
+  description: |
+    Zsh is a powerful and highly customizable Unix shell that
+    incorporates features from bash, ksh, and tcsh. It offers
+    advanced features like improved tab completion, spell
+    correction, and theming support. While not essential for
+    system operation, it is a popular alternative for users
+    seeking enhanced interactive shell experiences.
+  url:
+    docs: https://zsh.sourceforge.io/Doc/
+    package: https://packages.ubuntu.com/noble/zsh
+    source: https://sourceforge.net/p/zsh/code/ci/master/tree/
