@@ -385,6 +385,7 @@ install_completion() {
 
 resolve_bin_dir
 check_root_requirement
+_download_deps__install
 resolve_pixi_version
 
 # Version-match idempotency check: only compare against the requested install

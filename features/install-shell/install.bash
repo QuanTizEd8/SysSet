@@ -531,6 +531,8 @@ _SKEL_DIR="${_FILES_DIR}/skel"
 
 os__require_root
 
+_download_deps__install
+
 if [[ "$INSTALL_ZSH" == true ]]; then
   if command -v zsh > /dev/null 2>&1; then
     echo "ℹ️  Zsh already installed — skipping." >&2

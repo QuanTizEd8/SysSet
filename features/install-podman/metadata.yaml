@@ -51,21 +51,22 @@ options:
     description: |-
       Additional usernames to register subuid/subgid ranges and write Podman storage config for.
 dependencies:
-  base:
-    packages:
-      - podman
-      - ca-certificates
-      # rootless networking — passt is the new default on Fedora; slirp4netns still required on Debian/Ubuntu
-      - passt
-      - slirp4netns
+  run:
+    base:
+      packages:
+        - podman
+        - ca-certificates
+        # rootless networking — passt is the new default on Fedora; slirp4netns still required on Debian/Ubuntu
+        - passt
+        - slirp4netns
 
-    # UID/GID mapping tools — package name varies by distro
-    apt:
-      packages:
-        - uidmap
-    dnf:
-      packages:
-        - shadow-utils
-    apk:
-      packages:
-        - shadow-uidmap
+      # UID/GID mapping tools — package name varies by distro
+      apt:
+        packages:
+          - uidmap
+      dnf:
+        packages:
+          - shadow-utils
+      apk:
+        packages:
+          - shadow-uidmap

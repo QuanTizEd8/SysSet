@@ -159,30 +159,40 @@ options:
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/setup-user
 dependencies:
-  base:
-    packages:
-      - git
-      - curl
-      - ca-certificates
-      - fontconfig
+  run:
+    base:
+      packages:
+        - git
+        - ca-certificates
+        - fontconfig
 
-    apt:
-      packages:
-        - xz-utils
-        # Locale: generate en_US.UTF-8 so LANG/LC_ALL set in /etc/shellenv resolve correctly.
-        - locales
-    apk:
-      packages:
-        - xz
-        - musl-locales
-        - musl-locales-lang
-    dnf:
-      packages:
-        - xz
-        - glibc-langpack-en
+      apt:
+        packages:
+          # Locale: generate en_US.UTF-8 so LANG/LC_ALL set in /etc/shellenv resolve correctly.
+          - locales
+      apk:
+        packages:
+          - musl-locales
+          - musl-locales-lang
+      dnf:
+        packages:
+          - glibc-langpack-en
 
-    scripts: |
-      if command -v dpkg > /dev/null 2>&1; then
-        sed -i 's/^# \(en_US\.UTF-8\)/\1/' /etc/locale.gen
-        locale-gen
-      fi
+      scripts: |
+        if command -v dpkg > /dev/null 2>&1; then
+          sed -i 's/^# \(en_US\.UTF-8\)/\1/' /etc/locale.gen
+          locale-gen
+        fi
+  build:
+    download:
+      packages:
+        - curl
+      apt:
+        packages:
+          - xz-utils
+      apk:
+        packages:
+          - xz
+      dnf:
+        packages:
+          - xz

@@ -124,7 +124,7 @@ fi
 # Sudo access
 # ---------------------------------------------------------------------------
 if [ "$SUDO_ACCESS" = "true" ]; then
-  ospkg__run --manifest "${_SELF_DIR}/dependencies/sudo.yaml" --skip_installed
+  _sudo_deps__install
   mkdir -p "$SUDOERS_DIR"
   echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > "${SUDOERS_DIR}/${USERNAME}"
   chmod 0440 "${SUDOERS_DIR}/${USERNAME}"

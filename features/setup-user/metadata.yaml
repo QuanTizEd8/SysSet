@@ -52,13 +52,14 @@ options:
     description: Directory for the sudoers drop-in file.
     type: string
 dependencies:
-  base:
-    # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,
-    # but requires the shadow package on Alpine.
-    apk:
+  run:
+    base:
+      # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,
+      # but requires the shadow package on Alpine.
+      apk:
+        packages:
+          - shadow
+    sudo:
+      # Installed only when sudo_access=true.
       packages:
-        - shadow
-  sudo:
-    # Installed only when sudo_access=true.
-    packages:
-      - sudo
+        - sudo

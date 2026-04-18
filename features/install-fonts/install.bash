@@ -201,6 +201,8 @@ fi
 # ---------------------------------------------------------------------------
 # Step 1 — Powerlevel10k MesloLGS NF fonts (highest priority)
 # ---------------------------------------------------------------------------
+_download_deps__install
+
 if [[ "$P10K_FONTS" == true ]]; then
   echo "ℹ️  Installing Powerlevel10k MesloLGS NF fonts..." >&2
   _P10K_FONT_FILES=(

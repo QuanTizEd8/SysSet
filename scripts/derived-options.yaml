@@ -15,6 +15,15 @@ keep_cache:
     By default, the package manager cache is removed after installation to reduce image layer size.
     Set this flag to true to keep the cache, which may speed up subsequent installations at the cost of larger image layers.
 
+keep_build_deps:
+  type: boolean
+  default: false
+  inject: build-deps
+  description: >-
+    Keep install-time-only packages (build tools, download utilities) after installation.
+    By default these are removed to reduce image layer size.
+    Set to true if you need them at runtime (e.g. compiling native Node.js modules).
+
 debug:
   type: boolean
   default: false

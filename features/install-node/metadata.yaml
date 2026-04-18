@@ -225,69 +225,73 @@ options:
     - latest
     - 1.22.22
 dependencies:
-  base:
-    packages:
-      - ca-certificates
-      - curl
-  binary:
-    # Dependencies for extracting Node.js .tar.xz archives (method=binary).
-    packages:
-      - tar
-    apt:
+  run:
+    base:
       packages:
-        - xz-utils
-    apk:
+        - ca-certificates
+  build:
+    download:
       packages:
-        - xz
-    dnf:
+        - curl
+    binary:
+      # Dependencies for extracting Node.js .tar.xz archives (method=binary).
       packages:
-        - xz
-    brew:
-      packages: []
-  node-gyp:
-    # Build tools for compiling native Node.js add-ons via node-gyp.
-    # On Alpine with method=nvm, make/gcc/g++/python3 are already provided
-    # by the nvm manifest and this manifest is skipped.
-    packages:
-      - make
-    apt:
+        - tar
+      apt:
+        packages:
+          - xz-utils
+      apk:
+        packages:
+          - xz
+      dnf:
+        packages:
+          - xz
+      brew:
+        packages: []
+    node-gyp:
+      # Build tools for compiling native Node.js add-ons via node-gyp.
+      # On Alpine with method=nvm, make/gcc/g++/python3 are already provided
+      # by the nvm manifest and this manifest is skipped.
       packages:
-        - g++
-        - gcc
-        - python3-minimal
-    apk:
-      packages: []
-    dnf:
-      packages:
-        - gcc
-        - gcc-c++
-        - python3
-    brew:
-      packages: []
-  nvm:
-    # nvm prerequisites.
-    # On Alpine Linux, also installs the full build toolchain required by
-    # nvm to compile Node.js from source (nvm install -s).
-    packages:
-      - bash
-    apk:
+        - make
+      apt:
+        packages:
+          - g++
+          - gcc
+          - python3-minimal
+      apk:
+        packages: []
+      dnf:
+        packages:
+          - gcc
+          - gcc-c++
+          - python3
+      brew:
+        packages: []
+    nvm:
+      # nvm prerequisites.
+      # On Alpine Linux, also installs the full build toolchain required by
+      # nvm to compile Node.js from source (nvm install -s).
       packages:
         - bash
-        - binutils
-        - ca-certificates
-        - coreutils
-        - curl
-        - findutils
-        - g++
-        - gcc
-        - grep
-        - libgcc
-        - linux-headers
-        - make
-        - ncurses
-        - openssl
-        - python3
-        - util-linux
+      apk:
+        packages:
+          - bash
+          - binutils
+          - ca-certificates
+          - coreutils
+          - curl
+          - findutils
+          - g++
+          - gcc
+          - grep
+          - libgcc
+          - linux-headers
+          - make
+          - ncurses
+          - openssl
+          - python3
+          - util-linux
 containerEnv:
   NVM_DIR: /usr/local/share/nvm
   NVM_SYMLINK_CURRENT: 'true'

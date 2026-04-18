@@ -232,7 +232,7 @@ _git__install_package() {
     # shellcheck disable=SC2059
     ospkg__run --manifest "$(printf 'packages:\n  - name: git\n    version: "%s"\n' "${VERSION}")"
   else
-    ospkg__run --manifest "${_BASE_DIR}/dependencies/os-pkg.yaml"
+    _os_pkg_deps__install
   fi
   return 0
 }
@@ -444,7 +444,7 @@ _git__install_source() {
   fi
 
   # 4. Install build dependencies.
-  ospkg__run --manifest "${_BASE_DIR}/dependencies/source-build.yaml"
+  _source_build_deps__install
 
   # 5. Download and verify tarball.
   _git__source_fetch_verify "${_resolved_ver}"

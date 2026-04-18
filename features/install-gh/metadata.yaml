@@ -159,7 +159,12 @@ options:
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 dependencies:
-  base:
-    packages:
-      - ca-certificates
-      - curl
+  run:
+    base:
+      packages:
+        - ca-certificates
+  build:
+    download:
+      packages:
+        - curl
+        - gnupg

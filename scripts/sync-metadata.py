@@ -175,21 +175,27 @@ def generate_json(data: dict) -> str:
     """
     # Determine whether this feature uses ospkg (dependencies key is present,
     # even if empty) to decide whether to inject the keep_cache option.
+    # has_build_deps is true when the feature has a `dependencies.build` sub-map.
     has_ospkg: bool = data.get("dependencies") is not None
+    deps = data.get("dependencies") or {}
+    has_build_deps: bool = bool(deps.get("build"))
 
     # Build a patched data dict with derived options stripped from the raw
     # options dict and replaced with canonical synthetic definitions.
     # keep_cache is only stripped when has_ospkg (it will be re-injected);
-    # for features without ospkg, keep_cache may be a legitimate declared option.
+    # keep_build_deps is only stripped when has_build_deps (it will be re-injected);
+    # for features without those characteristics, they may be legitimate declared options.
     raw_options: dict = data.get("options") or {}
-    always_strip = _DERIVED_OPTION_KEYS - {"keep_cache"}
-    keys_to_strip = always_strip | ({"keep_cache"} if has_ospkg else set())
+    always_strip = _DERIVED_OPTION_KEYS - {"keep_cache", "keep_build_deps"}
+    keys_to_strip = always_strip | ({"keep_cache"} if has_ospkg else set()) | ({"keep_build_deps"} if has_build_deps else set())
     core_options: dict = {
         k: v for k, v in raw_options.items() if k not in keys_to_strip
     }
     synthetic_options: dict = {}
     if has_ospkg:
         synthetic_options["keep_cache"] = _synthetic("keep_cache")
+    if has_build_deps:
+        synthetic_options["keep_build_deps"] = _synthetic("keep_build_deps")
     synthetic_options["debug"] = _synthetic("debug")
     synthetic_options["logfile"] = _synthetic("logfile")
 

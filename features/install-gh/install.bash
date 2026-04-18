@@ -99,7 +99,6 @@ _gh__install_repos() {
 _gh__repos_debian() {
   echo "↪️ Function entry: _gh__repos_debian" >&2
   ospkg__update
-  ospkg__install gnupg curl
   mkdir -p /etc/apt/keyrings
   net__fetch_url_file \
     "https://cli.github.com/packages/githubcli-archive-keyring.gpg" \
@@ -544,6 +543,8 @@ if [ "${VERSION}" = "latest" ] && command -v gh > /dev/null 2>&1; then
 fi
 
 os__require_root
+
+_download_deps__install
 
 if [ -z "${PREFIX-}" ] || [ "${PREFIX}" = "auto" ]; then
   if [ "$(id -u)" = "0" ]; then

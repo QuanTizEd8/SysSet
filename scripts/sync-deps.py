@@ -50,41 +50,43 @@ def main() -> int:
 
         dep_dir = feature_dir / "dependencies"
 
-        for dep_name, dep_content in deps.items():
-            dep_path = dep_dir / f"{dep_name}.yaml"
-            expected_text = _dump(dep_content)
+        for lifecycle in ("run", "build"):
+            groups = deps.get(lifecycle) or {}
+            for dep_name, dep_content in groups.items():
+                dep_path = dep_dir / lifecycle / f"{dep_name}.yaml"
+                expected_text = _dump(dep_content)
 
-            if check_mode:
-                if not dep_path.exists():
-                    print(
-                        f"⛔ {feature_id}: dependencies/{dep_name}.yaml is missing",
-                        file=sys.stderr,
-                    )
-                    any_stale = True
-                elif dep_path.read_text(encoding="utf-8") != expected_text:
-                    print(
-                        f"⛔ {feature_id}: dependencies/{dep_name}.yaml is stale",
-                        file=sys.stderr,
-                    )
-                    any_stale = True
+                if check_mode:
+                    if not dep_path.exists():
+                        print(
+                            f"⛔ {feature_id}: dependencies/{lifecycle}/{dep_name}.yaml is missing",
+                            file=sys.stderr,
+                        )
+                        any_stale = True
+                    elif dep_path.read_text(encoding="utf-8") != expected_text:
+                        print(
+                            f"⛔ {feature_id}: dependencies/{lifecycle}/{dep_name}.yaml is stale",
+                            file=sys.stderr,
+                        )
+                        any_stale = True
+                    else:
+                        print(
+                            f"✅ {feature_id}: dependencies/{lifecycle}/{dep_name}.yaml in sync",
+                            file=sys.stderr,
+                        )
                 else:
-                    print(
-                        f"✅ {feature_id}: dependencies/{dep_name}.yaml in sync",
-                        file=sys.stderr,
-                    )
-            else:
-                dep_dir.mkdir(parents=True, exist_ok=True)
-                if dep_path.exists() and dep_path.read_text(encoding="utf-8") == expected_text:
-                    print(
-                        f"✅ {feature_id}: dependencies/{dep_name}.yaml unchanged",
-                        file=sys.stderr,
-                    )
-                else:
-                    dep_path.write_text(expected_text, encoding="utf-8")
-                    print(
-                        f"✅ {feature_id}: dependencies/{dep_name}.yaml updated",
-                        file=sys.stderr,
-                    )
+                    (dep_dir / lifecycle).mkdir(parents=True, exist_ok=True)
+                    if dep_path.exists() and dep_path.read_text(encoding="utf-8") == expected_text:
+                        print(
+                            f"✅ {feature_id}: dependencies/{lifecycle}/{dep_name}.yaml unchanged",
+                            file=sys.stderr,
+                        )
+                    else:
+                        dep_path.write_text(expected_text, encoding="utf-8")
+                        print(
+                            f"✅ {feature_id}: dependencies/{lifecycle}/{dep_name}.yaml updated",
+                            file=sys.stderr,
+                        )
 
     if check_mode and any_stale:
         print("", file=sys.stderr)

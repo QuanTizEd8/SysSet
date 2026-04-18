@@ -766,8 +766,126 @@ end
   return 0
 }
 
+# ── Private: build-dep tracking ──────────────────────────────────────────────
+# _ospkg_build_deps_dir — returns the directory used for build-dep sidecar files.
+_ospkg_build_deps_dir() {
+  printf '%s' "$(logging__tmpdir "ospkg/build-deps")"
+  return
+}
+
+# _ospkg_snapshot_packages <dest-file> — writes a sorted list of installed
+# package names (one per line) to <dest-file>.
+_ospkg_snapshot_packages() {
+  local _dest="$1"
+  case "$_OSPKG_PKG_MNGR" in
+    apt-get) dpkg-query -W -f='${Package}\n' 2> /dev/null | sort > "$_dest" ;;
+    apk) apk info 2> /dev/null | sort > "$_dest" ;;
+    dnf | yum | microdnf) rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort > "$_dest" ;;
+    zypper) rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort > "$_dest" ;;
+    pacman) pacman -Qq 2> /dev/null | sort > "$_dest" ;;
+    brew) brew list 2> /dev/null | sort > "$_dest" ;;
+    *) : > "$_dest" ;;
+  esac
+  return 0
+}
+
+# _ospkg_mark_build_group <group-id> <before-file> — diff current state against
+# <before-file>, apply PM-native removable marking to newly-installed packages,
+# and write the sidecar tracking file.
+_ospkg_mark_build_group() {
+  local _group_id="$1" _before_file="$2"
+  local _deps_dir _after_file _sidecar
+  _deps_dir="$(_ospkg_build_deps_dir)"
+  _after_file="${_deps_dir}/${_group_id//\//_}.after"
+  _sidecar="${_deps_dir}/${_group_id//\//_}"
+  _ospkg_snapshot_packages "$_after_file"
+  local -a _new_pkgs=()
+  mapfile -t _new_pkgs < <(comm -13 "$_before_file" "$_after_file" 2> /dev/null)
+  rm -f "$_after_file"
+  if [[ ${#_new_pkgs[@]} -eq 0 ]]; then
+    echo "ℹ️  Build group '${_group_id}': no new packages installed — nothing to track." >&2
+    : > "$_sidecar"
+    return 0
+  fi
+  echo "ℹ️  Build group '${_group_id}': tracking ${#_new_pkgs[@]} package(s): ${_new_pkgs[*]}" >&2
+  printf '%s\n' "${_new_pkgs[@]}" > "$_sidecar"
+  # Apply PM-native removable marking to newly-installed packages only.
+  case "$_OSPKG_PKG_MNGR" in
+    apt-get)
+      apt-mark auto "${_new_pkgs[@]}" >&2 || true
+      ;;
+    dnf | yum)
+      dnf mark remove "${_new_pkgs[@]}" >&2 || true
+      ;;
+    pacman)
+      pacman -D --asdeps "${_new_pkgs[@]}" >&2 || true
+      ;;
+    *) ;;
+  esac
+  return 0
+}
+
+# _ospkg_remove_build_group <group-id> — remove previously-installed build-only
+# packages using PM-native mechanisms based on the sidecar tracking file.
+_ospkg_remove_build_group() {
+  local _group_id="$1"
+  local _deps_dir _sidecar
+  _deps_dir="$(_ospkg_build_deps_dir)"
+  _sidecar="${_deps_dir}/${_group_id//\//_}"
+  if [[ ! -f "$_sidecar" ]]; then
+    echo "ℹ️  Build group '${_group_id}': sidecar not found — nothing to remove." >&2
+    return 0
+  fi
+  local -a _pkgs=()
+  mapfile -t _pkgs < "$_sidecar"
+  if [[ ${#_pkgs[@]} -eq 0 ]]; then
+    echo "ℹ️  Build group '${_group_id}': sidecar empty — nothing to remove." >&2
+    return 0
+  fi
+  echo "🗑️  Build group '${_group_id}': removing ${#_pkgs[@]} package(s): ${_pkgs[*]}" >&2
+  case "$_OSPKG_PKG_MNGR" in
+    apt-get)
+      # Packages were marked 'auto' at install time; autoremove handles transitive removal.
+      apt-get -y --purge autoremove >&2 || true
+      ;;
+    apk)
+      apk del "${_pkgs[@]}" >&2 || true
+      ;;
+    dnf | yum)
+      # Packages were marked 'removable' at install time.
+      dnf autoremove -y >&2 || true
+      ;;
+    microdnf)
+      microdnf remove "${_pkgs[@]}" >&2 || true
+      ;;
+    zypper)
+      zypper --non-interactive remove --clean-deps "${_pkgs[@]}" >&2 || true
+      ;;
+    pacman)
+      # Packages were marked asdeps at install time; remove orphans.
+      local _orphans
+      _orphans="$(pacman -Qdtq 2> /dev/null)" || _orphans=""
+      if [[ -n "$_orphans" ]]; then
+        echo "$_orphans" | xargs pacman -Rs --noconfirm >&2 || true
+      fi
+      ;;
+    brew)
+      local _pkg
+      for _pkg in "${_pkgs[@]}"; do
+        if [[ -z "$(brew uses --installed "$_pkg" 2> /dev/null)" ]]; then
+          _ospkg_brew_run remove "$_pkg" >&2 || true
+        else
+          echo "ℹ️  brew: keeping '$_pkg' (still in use)." >&2
+        fi
+      done
+      ;;
+  esac
+  rm -f "$_sidecar"
+  return 0
+}
+
 # ── Public: ospkg__run ───────────────────────────────────────────────────────
-# @brief ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] — Run the full installation pipeline from a manifest.
+# @brief ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>] — Run the full installation pipeline from a manifest.
 #
 # Full pipeline: detect → root check → parse manifest → prescript → keys →
 # repos → PM setup → update → install → casks → script.
@@ -776,16 +894,20 @@ end
 # (e.g. via the _on_exit trap) when you want to purge the package manager cache.
 #
 # Args:
-#   --manifest <f>     Path to the YAML manifest file.
-#   --update <bool>    Run package index update before installing (default: true).
-#   --keep_repos       Do not remove added third-party repo files after installation.
-#   --dry_run          Print what would be installed without doing it.
-#   --skip_installed   Skip packages that are already installed.
-#   --interactive      Preserve TTY for interactive package prompts.
+#   --manifest <f>          Path to the YAML manifest file.
+#   --update <bool>         Run package index update before installing (default: true).
+#   --keep_repos            Do not remove added third-party repo files after installation.
+#   --dry_run               Print what would be installed without doing it.
+#   --skip_installed        Skip packages that are already installed.
+#   --interactive           Preserve TTY for interactive package prompts.
+#   --build-group <id>      Mark all newly-installed packages as build-only and record
+#                           them in a sidecar file for later cleanup. Requires --manifest.
+#   --remove-build-group <id>  Remove previously-installed build-only packages using
+#                              PM-native mechanisms. Does not require --manifest.
 ospkg__run() {
   local _manifest='' _update=true _keep_repos=false
   local _lists_max_age=300 _dry_run=false _skip_installed=false _interactive=false
-  local _prefer_linuxbrew=false
+  local _prefer_linuxbrew=false _build_group='' _remove_build_group=''
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -824,6 +946,16 @@ ospkg__run() {
         shift
         _prefer_linuxbrew=true
         ;;
+      --build-group)
+        shift
+        _build_group="$1"
+        shift
+        ;;
+      --remove-build-group)
+        shift
+        _remove_build_group="$1"
+        shift
+        ;;
       *)
         echo "⛔ ospkg__run: unknown option: $1" >&2
         return 1
@@ -833,6 +965,16 @@ ospkg__run() {
 
   if ! [[ "$_lists_max_age" =~ ^[0-9]+$ ]]; then
     echo "⛔ ospkg__run: invalid lists_max_age value: '$_lists_max_age'." >&2
+    return 1
+  fi
+
+  if [[ -n "$_build_group" && -z "$_manifest" ]]; then
+    echo "⛔ ospkg__run: --build-group requires --manifest." >&2
+    return 1
+  fi
+
+  if [[ -n "$_remove_build_group" && (-n "$_build_group" || -n "$_manifest") ]]; then
+    echo "⛔ ospkg__run: --remove-build-group must be used alone (no --manifest or --build-group)." >&2
     return 1
   fi
 
@@ -846,6 +988,16 @@ ospkg__run() {
   # Root check: brew is exempt (it manages its own user/root logic via _ospkg_brew_run).
   if [[ "$_dry_run" == false && "$_OSPKG_PKG_MNGR" != "brew" ]]; then
     os__require_root
+  fi
+
+  # --remove-build-group: cleanup build-only packages and return immediately.
+  if [[ -n "$_remove_build_group" ]]; then
+    if [[ "$_dry_run" == true ]]; then
+      echo "🔍 [dry-run] remove-build-group '${_remove_build_group}' — would remove build-only packages." >&2
+      return 0
+    fi
+    _ospkg_remove_build_group "$_remove_build_group"
+    return 0
   fi
 
   if [[ "$_OSPKG_PKG_MNGR" = "apt-get" && "$_interactive" == false ]]; then
@@ -864,6 +1016,16 @@ ospkg__run() {
       echo "⛔ Manifest file not found: '$_manifest'" >&2
       return 1
     fi
+  fi
+
+  # Take a package snapshot before installation when build-group tracking is enabled.
+  local _before_snapshot_file=''
+  if [[ -n "$_build_group" && "$_dry_run" == false ]]; then
+    local _bd_dir
+    _bd_dir="$(_ospkg_build_deps_dir)"
+    _before_snapshot_file="${_bd_dir}/${_build_group//\//_}.before"
+    echo "ℹ️  Build group '${_build_group}': recording pre-install package snapshot." >&2
+    _ospkg_snapshot_packages "$_before_snapshot_file"
   fi
 
   # ── YAML / JSON manifest path ──────────────────────────────────────────────
@@ -1273,6 +1435,12 @@ ospkg__run() {
       fi
     elif [[ "$_yaml_repo_added" == true ]]; then
       echo "ℹ️  Keeping added repositories (--keep_repos)." >&2
+    fi
+
+    # Apply build-group tracking: diff against pre-install snapshot, mark new packages.
+    if [[ -n "$_build_group" && -n "$_before_snapshot_file" ]]; then
+      _ospkg_mark_build_group "$_build_group" "$_before_snapshot_file"
+      rm -f "$_before_snapshot_file"
     fi
 
   fi # end manifest processing

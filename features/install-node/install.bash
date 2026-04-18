@@ -670,11 +670,11 @@ fi
 _node_resolve_nvm_dir
 
 # =============================================================================
-# OS base dependencies (always — ensures curl is available for binary method)
+# OS base dependencies (always — ensures curl is available for download)
 # =============================================================================
 
 echo "ℹ️ Installing base OS dependencies..." >&2
-ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
+_download_deps__install
 
 # =============================================================================
 # Pre-install check
@@ -701,7 +701,7 @@ _node_check_if_exists
 
 if [ "$METHOD" = "nvm" ]; then
   echo "ℹ️ Installing nvm OS dependencies..." >&2
-  ospkg__run --manifest "${_BASE_DIR}/dependencies/nvm.yaml" --skip_installed
+  _nvm_deps__install
 fi
 
 if [ "$NODE_GYP_DEPS" = "true" ]; then
@@ -710,7 +710,7 @@ if [ "$NODE_GYP_DEPS" = "true" ]; then
     echo "ℹ️ Alpine+nvm detected — node-gyp build tools already provided by nvm.yaml; skipping node-gyp.yaml." >&2
   else
     echo "ℹ️ Installing node-gyp build dependencies..." >&2
-    ospkg__run --manifest "${_BASE_DIR}/dependencies/node-gyp.yaml" --skip_installed
+    _node_gyp_deps__install
     if [ "$(os__platform)" = "macos" ]; then
       echo "ℹ️ node-gyp build dependencies on macOS require Xcode Command Line Tools." >&2
       echo "   Install them with: xcode-select --install" >&2
@@ -725,7 +725,7 @@ if [ "$METHOD" = "binary" ]; then
     exit 1
   fi
   echo "ℹ️ Installing binary extraction OS dependencies..." >&2
-  ospkg__run --manifest "${_BASE_DIR}/dependencies/binary.yaml" --skip_installed
+  _binary_deps__install
 fi
 
 # =============================================================================

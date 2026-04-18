@@ -8,7 +8,7 @@ _BREW_UNINSTALLER_URL="${_BREW_INSTALL_BASE_URL}/uninstall.sh"
 install_linux_deps() {
   echo "↪️ Function entry: install_linux_deps" >&2
   echo "📦 Installing Homebrew build dependencies." >&2
-  ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
+  _linux_build_deps__install
   echo "↩️ Function exit: install_linux_deps" >&2
   return 0
 }
