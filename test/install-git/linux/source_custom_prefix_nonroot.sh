@@ -24,8 +24,8 @@ bash "${REPO_ROOT}/src/install-git/install.bash" \
 # Assertions: git installed to prefix, symlink in ~/.local/bin, NOT in /usr/local/bin.
 check "git binary at /opt/git/bin/git" test -x /opt/git/bin/git
 check "git --version succeeds" /opt/git/bin/git --version
-check "~/.local/bin/git symlink created" test -L "${HOME}/.local/bin/git"
-check "~/.local/bin/git resolves to /opt/git/bin/git" \
+check "\$HOME/.local/bin/git symlink created" test -L "${HOME}/.local/bin/git"
+check "\$HOME/.local/bin/git resolves to /opt/git/bin/git" \
   bash -c '[ "$(readlink -f "${HOME}/.local/bin/git")" = "$(readlink -f /opt/git/bin/git)" ]'
 check "no /usr/local/bin/git symlink created" bash -c '! test -e /usr/local/bin/git'
 
