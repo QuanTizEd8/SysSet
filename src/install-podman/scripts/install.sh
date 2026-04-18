@@ -4,25 +4,137 @@ set -euo pipefail
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
-# ---------------------------------------------------------------------------
-# Debug / logging
-# ---------------------------------------------------------------------------
-if [ "${DEBUG:-false}" = "true" ]; then
-  set -x
-fi
-
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-
 logging__setup
-trap 'logging__cleanup' EXIT
+echo "↪️ Script entry: Rootless Podman" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Rootless Podman script finished successfully." >&2
+  else
+    echo "❌ Rootless Podman script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
 
-# ---------------------------------------------------------------------------
-# 1. Install packages
-# ---------------------------------------------------------------------------
-ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml"
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --add_current_user {true,false}    Whether to configure Podman for the current non-root user (`SUDO_USER` if run via `sudo`, otherwise `whoami`). No effect when the current user is root. (default: "true")
+  --add_remote_user {true,false}     Whether to configure Podman for the `_REMOTE_USER` set by the devcontainer tooling. No effect when running standalone. (default: "true")
+  --add_container_user {true,false}  Whether to configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone. (default: "true")
+  --add_users <value>  (repeatable)  Additional usernames to register subuid/subgid ranges and write Podman storage config for.
+  --debug {true,false}               Enable debug output. (default: "false")
+  --logfile <value>                  Log all output (stdout + stderr) to this file in addition to console.
+  -h, --help                         Show this help
+EOF
+  return
+}
+
+if [ "$#" -gt 0 ]; then
+  echo "ℹ️ Script called with arguments: $*" >&2
+  ADD_CURRENT_USER=true
+  ADD_REMOTE_USER=true
+  ADD_CONTAINER_USER=true
+  ADD_USERS=()
+  DEBUG=false
+  LOGFILE=""
+  while [ "$#" -gt 0 ]; do
+    case $1 in
+      --add_current_user)
+        shift
+        ADD_CURRENT_USER="$1"
+        echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+        shift
+        ;;
+      --add_remote_user)
+        shift
+        ADD_REMOTE_USER="$1"
+        echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+        shift
+        ;;
+      --add_container_user)
+        shift
+        ADD_CONTAINER_USER="$1"
+        echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+        shift
+        ;;
+      --add_users)
+        shift
+        ADD_USERS+=("$1")
+        echo "📩 Read argument 'add_users': '$1'" >&2
+        shift
+        ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
+      *)
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
+        ;;
+    esac
+  done
+else
+  echo "ℹ️ Script called with no arguments. Read environment variables." >&2
+  [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
+  [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
+  [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
+  if [ "${ADD_USERS+defined}" ]; then
+    if [ -n "${ADD_USERS-}" ]; then
+      mapfile -t ADD_USERS < <(printf '%s\n' "${ADD_USERS}" | grep -v '^$')
+      for _item in "${ADD_USERS[@]}"; do
+        echo "📩 Read argument 'add_users': '$_item'" >&2
+      done
+    else
+      ADD_USERS=()
+    fi
+  fi
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+fi
+
+[[ "${DEBUG:-}" == true ]] && set -x
+
+# Apply defaults.
+[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
+[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_USERS+defined}" ] || ADD_USERS=()
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
+
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 # END OF AUTOGENERATED BLOCK
 

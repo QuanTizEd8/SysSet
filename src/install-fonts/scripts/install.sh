@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -9,61 +8,109 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-
 logging__setup
-trap 'logging__cleanup' EXIT
+echo "↪️ Script entry: Font Installation" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Font Installation script finished successfully." >&2
+  else
+    echo "❌ Font Installation script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
+
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --nerd_fonts <value>  (repeatable)        Nerd Fonts archive names to install (e.g. `Meslo`, `FiraCode`, `Hack`). Leave empty to skip Nerd Font downloads.
+  --font_urls <value>  (repeatable)         Direct URLs to download. Font files (`.ttf`, `.otf`, `.woff`, `.woff2`) and archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) are installed under a namespaced path derived from the URL. Fonts are deduplicated by PostScript name.
+  --gh_release_fonts <value>  (repeatable)  GitHub slugs in `owner/repo` or `owner/repo@tag` form. All font and archive assets from the release are installed under `gh/<owner>/<repo>/<tag>/<id>/`. Without a tag, the latest release is used. Fonts are deduplicated by PostScript name.
+  --p10k_fonts {true,false}                 Install the four MesloLGS NF fonts required by Powerlevel10k under `p10k/MesloLGS-NF/`. (default: "false")
+  --overwrite {true,false}                  When a font with the same PostScript name is already installed, overwrite it instead of skipping. Default is to skip and log. (default: "false")
+  --font_dir <value>                        Font installation directory. Leave empty to auto-detect: root/container -> /usr/share/fonts; Linux user -> $XDG_DATA_HOME/fonts; macOS user -> ~/Library/Fonts.
+  --debug {true,false}                      Enable debug output. (default: "false")
+  --logfile <value>                         Log all output (stdout + stderr) to this file in addition to console.
+  -h, --help                                Show this help
+EOF
+  return
+}
 
 if [ "$#" -gt 0 ]; then
-  NERD_FONTS=""
-  FONT_URLS=""
-  GH_RELEASE_FONTS=""
+  echo "ℹ️ Script called with arguments: $*" >&2
+  NERD_FONTS=()
+  FONT_URLS=()
+  GH_RELEASE_FONTS=()
+  P10K_FONTS=false
+  OVERWRITE=false
   FONT_DIR=""
-  P10K_FONTS=""
-  OVERWRITE=""
-  DEBUG=""
+  DEBUG=false
   LOGFILE=""
-
-  while [[ $# -gt 0 ]]; do
+  while [ "$#" -gt 0 ]; do
     case $1 in
       --nerd_fonts)
         shift
-        NERD_FONTS="$1"
+        NERD_FONTS+=("$1")
+        echo "📩 Read argument 'nerd_fonts': '$1'" >&2
         shift
         ;;
       --font_urls)
         shift
-        FONT_URLS="$1"
+        FONT_URLS+=("$1")
+        echo "📩 Read argument 'font_urls': '$1'" >&2
         shift
         ;;
       --gh_release_fonts)
         shift
-        GH_RELEASE_FONTS="$1"
-        shift
-        ;;
-      --font_dir)
-        shift
-        FONT_DIR="$1"
+        GH_RELEASE_FONTS+=("$1")
+        echo "📩 Read argument 'gh_release_fonts': '$1'" >&2
         shift
         ;;
       --p10k_fonts)
         shift
         P10K_FONTS="$1"
+        echo "📩 Read argument 'p10k_fonts': '${P10K_FONTS}'" >&2
         shift
         ;;
       --overwrite)
-        OVERWRITE=true
+        shift
+        OVERWRITE="$1"
+        echo "📩 Read argument 'overwrite': '${OVERWRITE}'" >&2
+        shift
+        ;;
+      --font_dir)
+        shift
+        FONT_DIR="$1"
+        echo "📩 Read argument 'font_dir': '${FONT_DIR}'" >&2
         shift
         ;;
       --debug)
-        DEBUG=true
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
         shift
         ;;
       --logfile)
         shift
         LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
         shift
         ;;
-      --help | -h) __usage__ ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
         exit 1
@@ -74,18 +121,56 @@ if [ "$#" -gt 0 ]; then
         ;;
     esac
   done
+else
+  echo "ℹ️ Script called with no arguments. Read environment variables." >&2
+  if [ "${NERD_FONTS+defined}" ]; then
+    if [ -n "${NERD_FONTS-}" ]; then
+      mapfile -t NERD_FONTS < <(printf '%s\n' "${NERD_FONTS}" | grep -v '^$')
+      for _item in "${NERD_FONTS[@]}"; do
+        echo "📩 Read argument 'nerd_fonts': '$_item'" >&2
+      done
+    else
+      NERD_FONTS=()
+    fi
+  fi
+  if [ "${FONT_URLS+defined}" ]; then
+    if [ -n "${FONT_URLS-}" ]; then
+      mapfile -t FONT_URLS < <(printf '%s\n' "${FONT_URLS}" | grep -v '^$')
+      for _item in "${FONT_URLS[@]}"; do
+        echo "📩 Read argument 'font_urls': '$_item'" >&2
+      done
+    else
+      FONT_URLS=()
+    fi
+  fi
+  if [ "${GH_RELEASE_FONTS+defined}" ]; then
+    if [ -n "${GH_RELEASE_FONTS-}" ]; then
+      mapfile -t GH_RELEASE_FONTS < <(printf '%s\n' "${GH_RELEASE_FONTS}" | grep -v '^$')
+      for _item in "${GH_RELEASE_FONTS[@]}"; do
+        echo "📩 Read argument 'gh_release_fonts': '$_item'" >&2
+      done
+    else
+      GH_RELEASE_FONTS=()
+    fi
+  fi
+  [ "${P10K_FONTS+defined}" ] && echo "📩 Read argument 'p10k_fonts': '${P10K_FONTS}'" >&2
+  [ "${OVERWRITE+defined}" ] && echo "📩 Read argument 'overwrite': '${OVERWRITE}'" >&2
+  [ "${FONT_DIR+defined}" ] && echo "📩 Read argument 'font_dir': '${FONT_DIR}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
 
-: "${NERD_FONTS=Meslo,JetBrainsMono}"
-: "${FONT_URLS=}"
-: "${GH_RELEASE_FONTS=}"
-: "${FONT_DIR=}" # empty → auto-detect below
-: "${P10K_FONTS:=false}"
-: "${OVERWRITE:=false}"
-: "${DEBUG:=false}"
-: "${LOGFILE=}"
-
 [[ "${DEBUG:-}" == true ]] && set -x
+
+# Apply defaults.
+[ "${NERD_FONTS+defined}" ] || mapfile -t NERD_FONTS < <(printf '%s' $'Meslo\nJetBrainsMono' | grep -v '^$')
+[ "${FONT_URLS+defined}" ] || FONT_URLS=()
+[ "${GH_RELEASE_FONTS+defined}" ] || GH_RELEASE_FONTS=()
+[ "${P10K_FONTS+defined}" ] || P10K_FONTS=false
+[ "${OVERWRITE+defined}" ] || OVERWRITE=false
+[ "${FONT_DIR+defined}" ] || FONT_DIR=""
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
 
 ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 

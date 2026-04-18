@@ -2,76 +2,87 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "${_SELF_DIR}/.." && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
 # shellcheck source=lib/ospkg.sh
-. "${_SELF_DIR}/_lib/ospkg.sh"
+. "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
-. "${_SELF_DIR}/_lib/logging.sh"
-
+. "$_SELF_DIR/_lib/logging.sh"
 logging__setup
-echo "↪️ Script entry: Pixi Installation Devcontainer Feature Installer" >&2
-trap '__cleanup__' EXIT
+echo "↪️ Script entry: Pixi" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Pixi script finished successfully." >&2
+  else
+    echo "❌ Pixi script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
+
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --version <value>                          Version of Pixi to install (e.g. '0.67.0'). (default: "latest")
+  --prefix <value>                           Installation prefix for pixi. The 'pixi' binary is placed at '$prefix/bin/pixi'. (default: "auto")
+  --if_exists {skip|fail|reinstall|update}   What to do when a pixi binary already exists at $prefix/bin. (default: "skip")
+  --installer_dir <value>                    Directory to download the pixi .tar.gz archive and its .tar.gz.sha256 sidecar to. (default: "/tmp/pixi-installer")
+  --arch <value>                             Override the detected CPU architecture when selecting a release asset.
+  --home_dir <value>                         Set PIXI_HOME -- the directory where pixi stores global environments (pixi global install) and configuration.
+  --download_url <value>                     Override the binary download URL for the pixi .tar.gz archive.
+  --netrc <value>                            Path to a .netrc file for authenticating the download request.
+  --export_path <value>                      Controls which shell startup files receive the PATH export for $prefix/bin. (default: "auto")
+  --export_pixi_home <value>                 Controls which shell startup files receive 'export PIXI_HOME=<home_dir>'. (default: "auto")
+  --symlink {true,false}                     Create a symlink from the canonical bin directory to $prefix/bin/pixi when prefix resolves to a non-default path. (default: "true")
+  --shell_completions <value>  (repeatable)  Shell names to write pixi completion eval blocks for.
+  --keep_installer {true,false}              Keep the downloaded .tar.gz archive and .tar.gz.sha256 sidecar file after installation. (default: "false")
+  --debug {true,false}                       Enable debug output (set -x). (default: "false")
+  --logfile <value>                          Log all output (stdout + stderr) to this file in addition to the console.
+  -h, --help                                 Show this help
+EOF
+  return
+}
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
+  VERSION="latest"
+  PREFIX="auto"
+  IF_EXISTS="skip"
+  INSTALLER_DIR="/tmp/pixi-installer"
   ARCH=""
-  PREFIX=""
-  DEBUG=""
+  HOME_DIR=""
   DOWNLOAD_URL=""
+  NETRC=""
   EXPORT_PATH="auto"
   EXPORT_PIXI_HOME="auto"
-  HOME_DIR=""
-  IF_EXISTS=""
-  INSTALLER_DIR=""
-  KEEP_INSTALLER=""
+  SYMLINK=true
+  SHELL_COMPLETIONS=()
+  KEEP_INSTALLER=false
+  DEBUG=false
   LOGFILE=""
-  NETRC=""
-  SHELL_COMPLETIONS=""
-  SYMLINK=""
-  VERSION=""
   while [ "$#" -gt 0 ]; do
     case $1 in
-      --arch)
+      --version)
         shift
-        ARCH="$1"
-        echo "📩 Read argument 'arch': '${ARCH}'" >&2
+        VERSION="$1"
+        echo "📩 Read argument 'version': '${VERSION}'" >&2
         shift
         ;;
       --prefix)
         shift
         PREFIX="$1"
         echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-        shift
-        ;;
-      --debug)
-        shift
-        DEBUG="$1"
-        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-        shift
-        ;;
-      --download_url)
-        shift
-        DOWNLOAD_URL="$1"
-        echo "📩 Read argument 'download_url': '${DOWNLOAD_URL}'" >&2
-        shift
-        ;;
-      --export_path)
-        shift
-        EXPORT_PATH="$1"
-        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-        shift
-        ;;
-      --export_pixi_home)
-        shift
-        EXPORT_PIXI_HOME="$1"
-        echo "📩 Read argument 'export_pixi_home': '${EXPORT_PIXI_HOME}'" >&2
-        shift
-        ;;
-      --home_dir)
-        shift
-        HOME_DIR="$1"
-        echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2
         shift
         ;;
       --if_exists)
@@ -86,16 +97,22 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
         shift
         ;;
-      --keep_installer)
+      --arch)
         shift
-        KEEP_INSTALLER="$1"
-        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+        ARCH="$1"
+        echo "📩 Read argument 'arch': '${ARCH}'" >&2
         shift
         ;;
-      --logfile)
+      --home_dir)
         shift
-        LOGFILE="$1"
-        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        HOME_DIR="$1"
+        echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2
+        shift
+        ;;
+      --download_url)
+        shift
+        DOWNLOAD_URL="$1"
+        echo "📩 Read argument 'download_url': '${DOWNLOAD_URL}'" >&2
         shift
         ;;
       --netrc)
@@ -104,10 +121,16 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'netrc': '${NETRC}'" >&2
         shift
         ;;
-      --shell_completions)
+      --export_path)
         shift
-        SHELL_COMPLETIONS="$1"
-        echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
+        EXPORT_PATH="$1"
+        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+        shift
+        ;;
+      --export_pixi_home)
+        shift
+        EXPORT_PIXI_HOME="$1"
+        echo "📩 Read argument 'export_pixi_home': '${EXPORT_PIXI_HOME}'" >&2
         shift
         ;;
       --symlink)
@@ -116,13 +139,34 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
         shift
         ;;
-      --version)
+      --shell_completions)
         shift
-        VERSION="$1"
-        echo "📩 Read argument 'version': '${VERSION}'" >&2
+        SHELL_COMPLETIONS+=("$1")
+        echo "📩 Read argument 'shell_completions': '$1'" >&2
         shift
         ;;
-      --help | -h) __usage__ ;;
+      --keep_installer)
+        shift
+        KEEP_INSTALLER="$1"
+        echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+        shift
+        ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
         exit 1
@@ -134,49 +178,57 @@ if [ "$#" -gt 0 ]; then
     esac
   done
 else
-  echo "ℹ️ Script called with no arguments. Reading environment variables." >&2
-  [ "${ARCH+defined}" ] && echo "📩 Read argument 'arch': '${ARCH}'" >&2
+  echo "ℹ️ Script called with no arguments. Read environment variables." >&2
+  [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
   [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${DOWNLOAD_URL+defined}" ] && echo "📩 Read argument 'download_url': '${DOWNLOAD_URL}'" >&2
-  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${EXPORT_PIXI_HOME+defined}" ] && echo "📩 Read argument 'export_pixi_home': '${EXPORT_PIXI_HOME}'" >&2
-  [ "${HOME_DIR+defined}" ] && echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
-  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+  [ "${ARCH+defined}" ] && echo "📩 Read argument 'arch': '${ARCH}'" >&2
+  [ "${HOME_DIR+defined}" ] && echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2
+  [ "${DOWNLOAD_URL+defined}" ] && echo "📩 Read argument 'download_url': '${DOWNLOAD_URL}'" >&2
   [ "${NETRC+defined}" ] && echo "📩 Read argument 'netrc': '${NETRC}'" >&2
-  [ "${SHELL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
+  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+  [ "${EXPORT_PIXI_HOME+defined}" ] && echo "📩 Read argument 'export_pixi_home': '${EXPORT_PIXI_HOME}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
-  [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
+  if [ "${SHELL_COMPLETIONS+defined}" ]; then
+    if [ -n "${SHELL_COMPLETIONS-}" ]; then
+      mapfile -t SHELL_COMPLETIONS < <(printf '%s\n' "${SHELL_COMPLETIONS}" | grep -v '^$')
+      for _item in "${SHELL_COMPLETIONS[@]}"; do
+        echo "📩 Read argument 'shell_completions': '$_item'" >&2
+      done
+    else
+      SHELL_COMPLETIONS=()
+    fi
+  fi
+  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
 
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ -z "${ARCH-}" ] && ARCH=""
-[ -z "${PREFIX-}" ] && PREFIX="auto"
-[ -z "${DEBUG-}" ] && DEBUG=false
-[ -z "${DOWNLOAD_URL-}" ] && DOWNLOAD_URL=""
-# EXPORT_PATH and EXPORT_PIXI_HOME: test for unset (not empty) so explicit "" is honoured.
+[ "${VERSION+defined}" ] || VERSION="latest"
+[ "${PREFIX+defined}" ] || PREFIX="auto"
+[ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
+[ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/pixi-installer"
+[ "${ARCH+defined}" ] || ARCH=""
+[ "${HOME_DIR+defined}" ] || HOME_DIR=""
+[ "${DOWNLOAD_URL+defined}" ] || DOWNLOAD_URL=""
+[ "${NETRC+defined}" ] || NETRC=""
 [ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
 [ "${EXPORT_PIXI_HOME+defined}" ] || EXPORT_PIXI_HOME="auto"
-[ -z "${HOME_DIR-}" ] && HOME_DIR=""
-[ -z "${IF_EXISTS-}" ] && IF_EXISTS="skip"
-[ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/pixi-installer"
-[ -z "${KEEP_INSTALLER-}" ] && KEEP_INSTALLER=false
-[ -z "${LOGFILE-}" ] && LOGFILE=""
-[ -z "${NETRC-}" ] && NETRC=""
-[ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS=""
-[ -z "${SYMLINK-}" ] && SYMLINK=true
-[ -z "${VERSION-}" ] && VERSION="latest"
+[ "${SYMLINK+defined}" ] || SYMLINK=true
+[ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS=()
+[ "${KEEP_INSTALLER+defined}" ] || KEEP_INSTALLER=false
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
 
-# Validate enums early (fail fast before any install steps).
+# Validate enum options.
 case "${IF_EXISTS}" in
   skip | fail | reinstall | update) ;;
   *)
-    echo "⛔ Unknown if_exists value: '${IF_EXISTS}' (expected: skip, fail, reinstall, update)" >&2
+    echo "⛔ Invalid value for 'if_exists': '${IF_EXISTS}' (expected: skip, fail, reinstall, update)" >&2
     exit 1
     ;;
 esac

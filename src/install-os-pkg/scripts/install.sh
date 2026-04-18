@@ -2,34 +2,78 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
+
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging__setup
-echo "↪️ Script entry: System Package Installation" >&2
-trap 'logging__cleanup' EXIT
+echo "↪️ Script entry: OS Package Installer" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ OS Package Installer script finished successfully." >&2
+  else
+    echo "❌ OS Package Installer script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
+
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --debug {true,false}                                   Enable debug output. (default: "false")
+  --install_self {true,false}                            Install the 'install-os-pkg' system command. (default: "false")
+  --interactive {true,false}                             Run in interactive mode. (default: "false")
+  --keep_repos {true,false}                              Keep added repositories after installation. (default: "false")
+  --lifecycle_hook {|onCreate|updateContent|postCreate}  Defer package installation to a devcontainer lifecycle hook.
+  --logfile <value>                                      Log all output (stdout + stderr) to this file in addition to console.
+  --keep_cache {true,false}                              Keep the package manager cache after installation. (default: "false")
+  --manifest <value>                                     Inline manifest content or path to a manifest file.
+  --update {true,false}                                  Update package lists before installation. (default: "true")
+  --lists_max_age <value>                                Maximum age of package lists (in seconds) before an update is considered necessary. (default: "300")
+  --dry_run {true,false}                                 Print what would be installed/fetched without making any changes. (default: "false")
+  --skip_installed {true,false}                          Skip packages that are already available in PATH. (default: "false")
+  --prefer_linuxbrew {true,false}                        Prefer Homebrew over the native Linux package manager. (default: "false")
+  -h, --help                                             Show this help
+EOF
+  return
+}
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  DEBUG=""
-  INTERACTIVE=""
-  KEEP_REPOS=""
+  DEBUG=false
+  INSTALL_SELF=false
+  INTERACTIVE=false
+  KEEP_REPOS=false
   LIFECYCLE_HOOK=""
   LOGFILE=""
+  KEEP_CACHE=false
   MANIFEST=""
-  KEEP_CACHE=""
-  UPDATE=""
-  LISTS_MAX_AGE=""
-  DRY_RUN=""
-  SKIP_INSTALLED=""
-  PREFER_LINUXBREW=""
-  while [[ $# -gt 0 ]]; do
+  UPDATE=true
+  LISTS_MAX_AGE="300"
+  DRY_RUN=false
+  SKIP_INSTALLED=false
+  PREFER_LINUXBREW=false
+  while [ "$#" -gt 0 ]; do
     case $1 in
       --debug)
         shift
-        DEBUG=true
+        DEBUG="$1"
         echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
         ;;
       --install_self)
         shift
@@ -39,13 +83,15 @@ if [ "$#" -gt 0 ]; then
         ;;
       --interactive)
         shift
-        INTERACTIVE=true
+        INTERACTIVE="$1"
         echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
+        shift
         ;;
       --keep_repos)
         shift
-        KEEP_REPOS=true
+        KEEP_REPOS="$1"
         echo "📩 Read argument 'keep_repos': '${KEEP_REPOS}'" >&2
+        shift
         ;;
       --lifecycle_hook)
         shift
@@ -59,16 +105,17 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --manifest)
         shift
         MANIFEST="$1"
         echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
         shift
-        ;;
-      --keep_cache)
-        shift
-        KEEP_CACHE=true
-        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
         ;;
       --update)
         shift
@@ -84,18 +131,25 @@ if [ "$#" -gt 0 ]; then
         ;;
       --dry_run)
         shift
-        DRY_RUN=true
+        DRY_RUN="$1"
         echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
+        shift
         ;;
       --skip_installed)
         shift
-        SKIP_INSTALLED=true
+        SKIP_INSTALLED="$1"
         echo "📩 Read argument 'skip_installed': '${SKIP_INSTALLED}'" >&2
+        shift
         ;;
       --prefer_linuxbrew)
         shift
-        PREFER_LINUXBREW=true
+        PREFER_LINUXBREW="$1"
         echo "📩 Read argument 'prefer_linuxbrew': '${PREFER_LINUXBREW}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
         ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
@@ -115,8 +169,8 @@ else
   [ "${KEEP_REPOS+defined}" ] && echo "📩 Read argument 'keep_repos': '${KEEP_REPOS}'" >&2
   [ "${LIFECYCLE_HOOK+defined}" ] && echo "📩 Read argument 'lifecycle_hook': '${LIFECYCLE_HOOK}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-  [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
   [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+  [ "${MANIFEST+defined}" ] && echo "📩 Read argument 'manifest': '${MANIFEST}'" >&2
   [ "${UPDATE+defined}" ] && echo "📩 Read argument 'update': '${UPDATE}'" >&2
   [ "${LISTS_MAX_AGE+defined}" ] && echo "📩 Read argument 'lists_max_age': '${LISTS_MAX_AGE}'" >&2
   [ "${DRY_RUN+defined}" ] && echo "📩 Read argument 'dry_run': '${DRY_RUN}'" >&2
@@ -125,19 +179,30 @@ else
 fi
 
 [[ "${DEBUG:-}" == true ]] && set -x
-: "${DEBUG:=false}"
-: "${INSTALL_SELF:=false}"
-: "${MANIFEST:=}"
-: "${INTERACTIVE:=false}"
-: "${KEEP_REPOS:=false}"
-: "${LIFECYCLE_HOOK:=}"
-: "${LOGFILE:=}"
-: "${KEEP_CACHE:=false}"
-: "${UPDATE:=true}"
-: "${LISTS_MAX_AGE:=300}"
-: "${DRY_RUN:=false}"
-: "${SKIP_INSTALLED:=false}"
-: "${PREFER_LINUXBREW:=false}"
+
+# Apply defaults.
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${INSTALL_SELF+defined}" ] || INSTALL_SELF=false
+[ "${INTERACTIVE+defined}" ] || INTERACTIVE=false
+[ "${KEEP_REPOS+defined}" ] || KEEP_REPOS=false
+[ "${LIFECYCLE_HOOK+defined}" ] || LIFECYCLE_HOOK=""
+[ "${LOGFILE+defined}" ] || LOGFILE=""
+[ "${KEEP_CACHE+defined}" ] || KEEP_CACHE=false
+[ "${MANIFEST+defined}" ] || MANIFEST=""
+[ "${UPDATE+defined}" ] || UPDATE=true
+[ "${LISTS_MAX_AGE+defined}" ] || LISTS_MAX_AGE="300"
+[ "${DRY_RUN+defined}" ] || DRY_RUN=false
+[ "${SKIP_INSTALLED+defined}" ] || SKIP_INSTALLED=false
+[ "${PREFER_LINUXBREW+defined}" ] || PREFER_LINUXBREW=false
+
+# Validate enum options.
+case "${LIFECYCLE_HOOK}" in
+  '' | onCreate | updateContent | postCreate) ;;
+  *)
+    echo "⛔ Invalid value for 'lifecycle_hook': '${LIFECYCLE_HOOK}' (expected: '', onCreate, updateContent, postCreate)" >&2
+    exit 1
+    ;;
+esac
 
 # END OF AUTOGENERATED BLOCK
 

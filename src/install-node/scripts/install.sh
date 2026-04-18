@@ -2,40 +2,88 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
-_BASE_DIR="$(cd "${_SELF_DIR}/.." && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
-# shellcheck source=scripts/_lib/ospkg.sh
-. "${_SELF_DIR}/_lib/ospkg.sh"
-# shellcheck source=scripts/_lib/logging.sh
-. "${_SELF_DIR}/_lib/logging.sh"
-
+# shellcheck source=lib/ospkg.sh
+. "$_SELF_DIR/_lib/ospkg.sh"
+# shellcheck source=lib/logging.sh
+. "$_SELF_DIR/_lib/logging.sh"
 logging__setup
-echo "↪️ Script entry: install-node/scripts/install.sh" >&2
-trap '__cleanup__' EXIT
+echo "↪️ Script entry: Node.js" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Node.js script finished successfully." >&2
+  else
+    echo "❌ Node.js script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
+
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --method {nvm|binary}                        Installation method. (default: "nvm")
+  --version <value>                            Version of Node.js to install. (default: "lts/*")
+  --additional_versions <value>  (repeatable)  Additional Node.js versions to install via nvm alongside the primary 'version', without setting them as the nvm default.
+  --nvm_version <value>                        Version of nvm to install. Only used when method=nvm. (default: "latest")
+  --nvm_dir <value>                            Directory where nvm is installed ($NVM_DIR). Only used when method=nvm. (default: "auto")
+  --prefix <value>                             Installation prefix for method=binary (Node.js binaries land in $prefix/bin). Only used when method=binary. (default: "auto")
+  --arch <value>                               Override the CPU architecture used when selecting a prebuilt binary (method=binary only).
+  --installer_dir <value>                      Temporary directory for downloading the Node.js tarball and checksum sidecar (method=binary) or the nvm install script (method=nvm). (default: "/tmp/node-installer")
+  --if_exists {skip|fail|reinstall}            What to do when a 'node' binary is already found in PATH before installation begins. (default: "skip")
+  --export_path <value>                        Controls which shell startup files receive PATH export blocks for the Node.js binary directory. (default: "auto")
+  --add_current_user {true,false}              Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list. (default: "true")
+  --add_remote_user {true,false}               Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list. (default: "true")
+  --add_container_user {true,false}            Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list. (default: "true")
+  --add_users <value>  (repeatable)            Additional usernames to include in the resolved user list.
+  --set_permissions {true,false}               Create a dedicated group (name set by 'group', default 'nvm'), set group-write and setgid bits on 'nvm_dir', add all resolved users to that group, and run the nvm installer as the first resolved user rather than root. (default: "true")
+  --group <value>                              Name of the group created to own 'nvm_dir' when set_permissions=true. (default: "nvm")
+  --symlink {true,false}                       Create symlinks that ensure the containerEnv-declared paths always resolve to the actual installation. (default: "true")
+  --node_gyp_deps {true,false}                 Install OS build dependencies required to compile native Node.js modules via node-gyp: 'make', 'gcc'/'g++', and 'python3'. (default: "true")
+  --pnpm_version <value>                       Version of pnpm to install globally via 'npm install -g pnpm@VERSION' after Node.js is installed. (default: "none")
+  --yarn_version <value>                       Version of Yarn to install globally after Node.js is installed. (default: "none")
+  --debug {true,false}                         Enable debug output (set -x). (default: "false")
+  --logfile <value>                            Append install log to this file path.
+  -h, --help                                   Show this help
+EOF
+  return
+}
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  METHOD=""
-  VERSION=""
-  ADDITIONAL_VERSIONS=""
-  NVM_VERSION=""
-  NVM_DIR=""
-  PREFIX=""
+  METHOD="nvm"
+  VERSION="lts/*"
+  ADDITIONAL_VERSIONS=()
+  NVM_VERSION="latest"
+  NVM_DIR="auto"
+  PREFIX="auto"
   ARCH=""
-  INSTALLER_DIR=""
-  IF_EXISTS=""
-  EXPORT_PATH=""
-  ADD_CURRENT_USER=""
-  ADD_REMOTE_USER=""
-  ADD_CONTAINER_USER=""
-  ADD_USERS=""
-  SET_PERMISSIONS=""
-  GROUP=""
-  SYMLINK=""
-  NODE_GYP_DEPS=""
-  PNPM_VERSION=""
-  YARN_VERSION=""
-  DEBUG=""
+  INSTALLER_DIR="/tmp/node-installer"
+  IF_EXISTS="skip"
+  EXPORT_PATH="auto"
+  ADD_CURRENT_USER=true
+  ADD_REMOTE_USER=true
+  ADD_CONTAINER_USER=true
+  ADD_USERS=()
+  SET_PERMISSIONS=true
+  GROUP="nvm"
+  SYMLINK=true
+  NODE_GYP_DEPS=true
+  PNPM_VERSION="none"
+  YARN_VERSION="none"
+  DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
     case $1 in
@@ -53,8 +101,8 @@ if [ "$#" -gt 0 ]; then
         ;;
       --additional_versions)
         shift
-        ADDITIONAL_VERSIONS="$1"
-        echo "📩 Read argument 'additional_versions': '${ADDITIONAL_VERSIONS}'" >&2
+        ADDITIONAL_VERSIONS+=("$1")
+        echo "📩 Read argument 'additional_versions': '$1'" >&2
         shift
         ;;
       --nvm_version)
@@ -119,8 +167,8 @@ if [ "$#" -gt 0 ]; then
         ;;
       --add_users)
         shift
-        ADD_USERS="$1"
-        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+        ADD_USERS+=("$1")
+        echo "📩 Read argument 'add_users': '$1'" >&2
         shift
         ;;
       --set_permissions)
@@ -171,9 +219,17 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
         shift
         ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
+      --*)
+        echo "⛔ Unknown option: '${1}'" >&2
+        exit 1
+        ;;
       *)
-        echo "⚠️ Unknown argument: '$1'" >&2
-        shift
+        echo "⛔ Unexpected argument: '${1}'" >&2
+        exit 1
         ;;
     esac
   done
@@ -181,7 +237,16 @@ else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
   [ "${METHOD+defined}" ] && echo "📩 Read argument 'method': '${METHOD}'" >&2
   [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
-  [ "${ADDITIONAL_VERSIONS+defined}" ] && echo "📩 Read argument 'additional_versions': '${ADDITIONAL_VERSIONS}'" >&2
+  if [ "${ADDITIONAL_VERSIONS+defined}" ]; then
+    if [ -n "${ADDITIONAL_VERSIONS-}" ]; then
+      mapfile -t ADDITIONAL_VERSIONS < <(printf '%s\n' "${ADDITIONAL_VERSIONS}" | grep -v '^$')
+      for _item in "${ADDITIONAL_VERSIONS[@]}"; do
+        echo "📩 Read argument 'additional_versions': '$_item'" >&2
+      done
+    else
+      ADDITIONAL_VERSIONS=()
+    fi
+  fi
   [ "${NVM_VERSION+defined}" ] && echo "📩 Read argument 'nvm_version': '${NVM_VERSION}'" >&2
   [ "${NVM_DIR+defined}" ] && echo "📩 Read argument 'nvm_dir': '${NVM_DIR}'" >&2
   [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
@@ -192,7 +257,16 @@ else
   [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
   [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
   [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
-  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+  if [ "${ADD_USERS+defined}" ]; then
+    if [ -n "${ADD_USERS-}" ]; then
+      mapfile -t ADD_USERS < <(printf '%s\n' "${ADD_USERS}" | grep -v '^$')
+      for _item in "${ADD_USERS[@]}"; do
+        echo "📩 Read argument 'add_users': '$_item'" >&2
+      done
+    else
+      ADD_USERS=()
+    fi
+  fi
   [ "${SET_PERMISSIONS+defined}" ] && echo "📩 Read argument 'set_permissions': '${SET_PERMISSIONS}'" >&2
   [ "${GROUP+defined}" ] && echo "📩 Read argument 'group': '${GROUP}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
@@ -203,16 +277,12 @@ else
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
 
-# =============================================================================
-# Defaults
-# =============================================================================
+[[ "${DEBUG:-}" == true ]] && set -x
 
-# +defined semantics for options where "" is a meaningful value distinct from
-# "not set" (EXPORT_PATH="" means skip writes; SYMLINK="" would be ambiguous
-# so we also use +defined for it to preserve an explicit false).
+# Apply defaults.
 [ "${METHOD+defined}" ] || METHOD="nvm"
 [ "${VERSION+defined}" ] || VERSION="lts/*"
-[ "${ADDITIONAL_VERSIONS+defined}" ] || ADDITIONAL_VERSIONS=""
+[ "${ADDITIONAL_VERSIONS+defined}" ] || ADDITIONAL_VERSIONS=()
 [ "${NVM_VERSION+defined}" ] || NVM_VERSION="latest"
 [ "${NVM_DIR+defined}" ] || NVM_DIR="auto"
 [ "${PREFIX+defined}" ] || PREFIX="auto"
@@ -220,36 +290,36 @@ fi
 [ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/node-installer"
 [ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
 [ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
-: "${ADD_CURRENT_USER:=true}"
-: "${ADD_REMOTE_USER:=true}"
-: "${ADD_CONTAINER_USER:=true}"
-: "${ADD_USERS:=}"
-[ "${SET_PERMISSIONS+defined}" ] || SET_PERMISSIONS="true"
+[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
+[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_USERS+defined}" ] || ADD_USERS=()
+[ "${SET_PERMISSIONS+defined}" ] || SET_PERMISSIONS=true
 [ "${GROUP+defined}" ] || GROUP="nvm"
-[ "${SYMLINK+defined}" ] || SYMLINK="true"
-[ "${NODE_GYP_DEPS+defined}" ] || NODE_GYP_DEPS="true"
+[ "${SYMLINK+defined}" ] || SYMLINK=true
+[ "${NODE_GYP_DEPS+defined}" ] || NODE_GYP_DEPS=true
 [ "${PNPM_VERSION+defined}" ] || PNPM_VERSION="none"
 [ "${YARN_VERSION+defined}" ] || YARN_VERSION="none"
-[ "${DEBUG+defined}" ] || DEBUG="false"
+[ "${DEBUG+defined}" ] || DEBUG=false
 [ "${LOGFILE+defined}" ] || LOGFILE=""
 
-[[ "${DEBUG}" == "true" ]] && set -x
-
-case "$METHOD" in
+# Validate enum options.
+case "${METHOD}" in
   nvm | binary) ;;
   *)
-    echo "⛔ Unknown method: '${METHOD}'. Valid values: nvm, binary." >&2
+    echo "⛔ Invalid value for 'method': '${METHOD}' (expected: nvm, binary)" >&2
+    exit 1
+    ;;
+esac
+case "${IF_EXISTS}" in
+  skip | fail | reinstall) ;;
+  *)
+    echo "⛔ Invalid value for 'if_exists': '${IF_EXISTS}' (expected: skip, fail, reinstall)" >&2
     exit 1
     ;;
 esac
 
-case "$IF_EXISTS" in
-  skip | fail | reinstall) ;;
-  *)
-    echo "⛔ Unknown if_exists: '${IF_EXISTS}'. Valid values: skip, fail, reinstall." >&2
-    exit 1
-    ;;
-esac
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 # END OF AUTOGENERATED BLOCK
 

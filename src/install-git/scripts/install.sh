@@ -8,91 +8,117 @@ _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-
 logging__setup
-echo "↪️ Script entry: Git Installation Devcontainer Feature Installer" >&2
-trap 'logging__cleanup' EXIT
+echo "↪️ Script entry: Git Installer" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Git Installer script finished successfully." >&2
+  else
+    echo "❌ Git Installer script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
+
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --method {package|source}                  Installation strategy. (default: "package")
+  --version <value>                          Version of git to install. (default: "latest")
+  --prefix <value>                           Installation prefix for source builds (passed as prefix= to make install). (default: "auto")
+  --sysconfdir <value>                       System configuration directory for source builds (passed as sysconfdir= to make). Git reads <sysconfdir>/gitconfig as its system-level config file. (default: "auto")
+  --installer_dir <value>                    Working directory for the source build: tarball download, extraction, and compilation happen here. (default: "/tmp/git-build")
+  --keep_installer {true,false}              Keep the source build directory (installer_dir) after a successful install. (default: "false")
+  --no_flags <value>  (repeatable)           Components to exclude from the source build (case-insensitive).
+  --make_flags <value>                       Additional flags appended verbatim last to the make invocation for source builds (space-separated KEY=VALUE pairs, e.g. 'NO_CURL=YesPlease OPENSSL_SHA256=YesPlease'). Appended after all computed flags including no_flags, so last-position values take effect. No validation — unknown flags are silently ignored by make. Silently ignored when method=package.
+  --export_path <value>                      Controls PATH and MANPATH export for source builds. (default: "auto")
+  --shell_completions <value>  (repeatable)  Shell names to install completion scripts for after a source build.
+  --if_exists {skip|fail|reinstall|update}   What to do when git is already present in PATH before installation begins. (default: "update")
+  --default_branch <value>                   Sets init.defaultBranch in the system-level gitconfig (/etc/gitconfig as root, $HOME/.config/git/config as non-root). Applies to all newly initialised repositories. Set to '' to skip writing this setting. (default: "main")
+  --safe_directory <value>                   Sets safe.directory in the system-level gitconfig. Use '*' (default) to trust all directories (useful in containers where the working directory may be owned by a different UID), a specific absolute path, or a newline-separated list of paths. Set to '' to skip writing this setting. (default: "*")
+  --system_gitconfig <value>                 Freeform content to append to the system-level gitconfig (as root: /etc/gitconfig; as non-root: $HOME/.config/git/config). Accepts standard gitconfig format, e.g. '[core]
+  --add_current_user {true,false}            Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for per-user gitconfig writes. (default: "true")
+  --add_remote_user {true,false}             Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for per-user gitconfig writes. (default: "true")
+  --add_container_user {true,false}          Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for per-user gitconfig writes. (default: "true")
+  --add_users <value>  (repeatable)          Additional usernames to include in the resolved user list for per-user gitconfig writes.
+  --user_name <value>                        Sets user.name in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting.
+  --user_email <value>                       Sets user.email in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting.
+  --user_gitconfig <value>                   Freeform content to append to the per-user gitconfig (~/.gitconfig) for all resolved users. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip.
+  --symlink {true,false}                     Create a symlink from the canonical bin directory to $prefix/bin/git when prefix resolves to a non-default path (source builds only). (default: "true")
+  --debug {true,false}                       Enable debug output (set -x). (default: "false")
+  --logfile <value>                          Append install log to this file path.
+  -h, --help                                 Show this help
+EOF
+  return
+}
 
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  DEBUG=""
-  DEFAULT_BRANCH=""
-  EXPORT_PATH="auto"
-  IF_EXISTS=""
-  SHELL_COMPLETIONS=""
-  INSTALLER_DIR=""
-  LOGFILE=""
+  METHOD="package"
+  VERSION="latest"
+  PREFIX="auto"
+  SYSCONFDIR="auto"
+  INSTALLER_DIR="/tmp/git-build"
+  KEEP_INSTALLER=false
+  NO_FLAGS=()
   MAKE_FLAGS=""
-  METHOD=""
-  KEEP_INSTALLER=""
-  NO_FLAGS=""
-  PREFIX=""
-  SAFE_DIRECTORY=""
-  SYMLINK=""
-  SYSCONFDIR=""
+  EXPORT_PATH="auto"
+  SHELL_COMPLETIONS=()
+  IF_EXISTS="update"
+  DEFAULT_BRANCH="main"
+  SAFE_DIRECTORY="*"
   SYSTEM_GITCONFIG=""
+  ADD_CURRENT_USER=true
+  ADD_REMOTE_USER=true
+  ADD_CONTAINER_USER=true
+  ADD_USERS=()
+  USER_NAME=""
   USER_EMAIL=""
   USER_GITCONFIG=""
-  USER_NAME=""
-  ADD_CURRENT_USER=""
-  ADD_REMOTE_USER=""
-  ADD_CONTAINER_USER=""
-  ADD_USERS=""
-  VERSION=""
+  SYMLINK=true
+  DEBUG=false
+  LOGFILE=""
   while [ "$#" -gt 0 ]; do
     case $1 in
-      --debug)
+      --method)
         shift
-        DEBUG="$1"
-        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-        shift
-        ;;
-      --default_branch)
-        shift
-        DEFAULT_BRANCH="$1"
-        echo "📩 Read argument 'default_branch': '${DEFAULT_BRANCH}'" >&2
+        METHOD="$1"
+        echo "📩 Read argument 'method': '${METHOD}'" >&2
         shift
         ;;
-      --export_path)
+      --version)
         shift
-        EXPORT_PATH="$1"
-        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-        shift
-        ;;
-      --if_exists)
-        shift
-        IF_EXISTS="$1"
-        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+        VERSION="$1"
+        echo "📩 Read argument 'version': '${VERSION}'" >&2
         shift
         ;;
-      --shell_completions)
+      --prefix)
         shift
-        SHELL_COMPLETIONS="$1"
-        echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
+        PREFIX="$1"
+        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
+        shift
+        ;;
+      --sysconfdir)
+        shift
+        SYSCONFDIR="$1"
+        echo "📩 Read argument 'sysconfdir': '${SYSCONFDIR}'" >&2
         shift
         ;;
       --installer_dir)
         shift
         INSTALLER_DIR="$1"
         echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
-        shift
-        ;;
-      --logfile)
-        shift
-        LOGFILE="$1"
-        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-        shift
-        ;;
-      --make_flags)
-        shift
-        MAKE_FLAGS="$1"
-        echo "📩 Read argument 'make_flags': '${MAKE_FLAGS}'" >&2
-        shift
-        ;;
-      --method)
-        shift
-        METHOD="$1"
-        echo "📩 Read argument 'method': '${METHOD}'" >&2
         shift
         ;;
       --keep_installer)
@@ -103,14 +129,38 @@ if [ "$#" -gt 0 ]; then
         ;;
       --no_flags)
         shift
-        NO_FLAGS="$1"
-        echo "📩 Read argument 'no_flags': '${NO_FLAGS}'" >&2
+        NO_FLAGS+=("$1")
+        echo "📩 Read argument 'no_flags': '$1'" >&2
         shift
         ;;
-      --prefix)
+      --make_flags)
         shift
-        PREFIX="$1"
-        echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
+        MAKE_FLAGS="$1"
+        echo "📩 Read argument 'make_flags': '${MAKE_FLAGS}'" >&2
+        shift
+        ;;
+      --export_path)
+        shift
+        EXPORT_PATH="$1"
+        echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+        shift
+        ;;
+      --shell_completions)
+        shift
+        SHELL_COMPLETIONS+=("$1")
+        echo "📩 Read argument 'shell_completions': '$1'" >&2
+        shift
+        ;;
+      --if_exists)
+        shift
+        IF_EXISTS="$1"
+        echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+        shift
+        ;;
+      --default_branch)
+        shift
+        DEFAULT_BRANCH="$1"
+        echo "📩 Read argument 'default_branch': '${DEFAULT_BRANCH}'" >&2
         shift
         ;;
       --safe_directory)
@@ -119,40 +169,10 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'safe_directory': '${SAFE_DIRECTORY}'" >&2
         shift
         ;;
-      --symlink)
-        shift
-        SYMLINK="$1"
-        echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
-        shift
-        ;;
-      --sysconfdir)
-        shift
-        SYSCONFDIR="$1"
-        echo "📩 Read argument 'sysconfdir': '${SYSCONFDIR}'" >&2
-        shift
-        ;;
       --system_gitconfig)
         shift
         SYSTEM_GITCONFIG="$1"
         echo "📩 Read argument 'system_gitconfig': '${SYSTEM_GITCONFIG}'" >&2
-        shift
-        ;;
-      --user_email)
-        shift
-        USER_EMAIL="$1"
-        echo "📩 Read argument 'user_email': '${USER_EMAIL}'" >&2
-        shift
-        ;;
-      --user_gitconfig)
-        shift
-        USER_GITCONFIG="$1"
-        echo "📩 Read argument 'user_gitconfig': '${USER_GITCONFIG}'" >&2
-        shift
-        ;;
-      --user_name)
-        shift
-        USER_NAME="$1"
-        echo "📩 Read argument 'user_name': '${USER_NAME}'" >&2
         shift
         ;;
       --add_current_user)
@@ -175,15 +195,49 @@ if [ "$#" -gt 0 ]; then
         ;;
       --add_users)
         shift
-        ADD_USERS="$1"
-        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+        ADD_USERS+=("$1")
+        echo "📩 Read argument 'add_users': '$1'" >&2
         shift
         ;;
-      --version)
+      --user_name)
         shift
-        VERSION="$1"
-        echo "📩 Read argument 'version': '${VERSION}'" >&2
+        USER_NAME="$1"
+        echo "📩 Read argument 'user_name': '${USER_NAME}'" >&2
         shift
+        ;;
+      --user_email)
+        shift
+        USER_EMAIL="$1"
+        echo "📩 Read argument 'user_email': '${USER_EMAIL}'" >&2
+        shift
+        ;;
+      --user_gitconfig)
+        shift
+        USER_GITCONFIG="$1"
+        echo "📩 Read argument 'user_gitconfig': '${USER_GITCONFIG}'" >&2
+        shift
+        ;;
+      --symlink)
+        shift
+        SYMLINK="$1"
+        echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+        shift
+        ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
         ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
@@ -197,72 +251,99 @@ if [ "$#" -gt 0 ]; then
   done
 else
   echo "ℹ️ Script called with no arguments. Read environment variables." >&2
-  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
-  [ "${DEFAULT_BRANCH+defined}" ] && echo "📩 Read argument 'default_branch': '${DEFAULT_BRANCH}'" >&2
-  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
-  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
-  [ "${SHELL_COMPLETIONS+defined}" ] && echo "📩 Read argument 'shell_completions': '${SHELL_COMPLETIONS}'" >&2
-  [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
-  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
-  [ "${MAKE_FLAGS+defined}" ] && echo "📩 Read argument 'make_flags': '${MAKE_FLAGS}'" >&2
   [ "${METHOD+defined}" ] && echo "📩 Read argument 'method': '${METHOD}'" >&2
-  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
-  [ "${NO_FLAGS+defined}" ] && echo "📩 Read argument 'no_flags': '${NO_FLAGS}'" >&2
+  [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
   [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
-  [ "${SAFE_DIRECTORY+defined}" ] && echo "📩 Read argument 'safe_directory': '${SAFE_DIRECTORY}'" >&2
-  [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
   [ "${SYSCONFDIR+defined}" ] && echo "📩 Read argument 'sysconfdir': '${SYSCONFDIR}'" >&2
+  [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
+  [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+  if [ "${NO_FLAGS+defined}" ]; then
+    if [ -n "${NO_FLAGS-}" ]; then
+      mapfile -t NO_FLAGS < <(printf '%s\n' "${NO_FLAGS}" | grep -v '^$')
+      for _item in "${NO_FLAGS[@]}"; do
+        echo "📩 Read argument 'no_flags': '$_item'" >&2
+      done
+    else
+      NO_FLAGS=()
+    fi
+  fi
+  [ "${MAKE_FLAGS+defined}" ] && echo "📩 Read argument 'make_flags': '${MAKE_FLAGS}'" >&2
+  [ "${EXPORT_PATH+defined}" ] && echo "📩 Read argument 'export_path': '${EXPORT_PATH}'" >&2
+  if [ "${SHELL_COMPLETIONS+defined}" ]; then
+    if [ -n "${SHELL_COMPLETIONS-}" ]; then
+      mapfile -t SHELL_COMPLETIONS < <(printf '%s\n' "${SHELL_COMPLETIONS}" | grep -v '^$')
+      for _item in "${SHELL_COMPLETIONS[@]}"; do
+        echo "📩 Read argument 'shell_completions': '$_item'" >&2
+      done
+    else
+      SHELL_COMPLETIONS=()
+    fi
+  fi
+  [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
+  [ "${DEFAULT_BRANCH+defined}" ] && echo "📩 Read argument 'default_branch': '${DEFAULT_BRANCH}'" >&2
+  [ "${SAFE_DIRECTORY+defined}" ] && echo "📩 Read argument 'safe_directory': '${SAFE_DIRECTORY}'" >&2
   [ "${SYSTEM_GITCONFIG+defined}" ] && echo "📩 Read argument 'system_gitconfig': '${SYSTEM_GITCONFIG}'" >&2
-  [ "${USER_EMAIL+defined}" ] && echo "📩 Read argument 'user_email': '${USER_EMAIL}'" >&2
-  [ "${USER_GITCONFIG+defined}" ] && echo "📩 Read argument 'user_gitconfig': '${USER_GITCONFIG}'" >&2
-  [ "${USER_NAME+defined}" ] && echo "📩 Read argument 'user_name': '${USER_NAME}'" >&2
   [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
   [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
   [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
-  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
-  [ "${VERSION+defined}" ] && echo "📩 Read argument 'version': '${VERSION}'" >&2
+  if [ "${ADD_USERS+defined}" ]; then
+    if [ -n "${ADD_USERS-}" ]; then
+      mapfile -t ADD_USERS < <(printf '%s\n' "${ADD_USERS}" | grep -v '^$')
+      for _item in "${ADD_USERS[@]}"; do
+        echo "📩 Read argument 'add_users': '$_item'" >&2
+      done
+    else
+      ADD_USERS=()
+    fi
+  fi
+  [ "${USER_NAME+defined}" ] && echo "📩 Read argument 'user_name': '${USER_NAME}'" >&2
+  [ "${USER_EMAIL+defined}" ] && echo "📩 Read argument 'user_email': '${USER_EMAIL}'" >&2
+  [ "${USER_GITCONFIG+defined}" ] && echo "📩 Read argument 'user_gitconfig': '${USER_GITCONFIG}'" >&2
+  [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
 
 [[ "${DEBUG:-}" == true ]] && set -x
 
 # Apply defaults.
-[ -z "${DEBUG-}" ] && DEBUG=false
-[ -z "${DEFAULT_BRANCH-}" ] && DEFAULT_BRANCH="main"
+[ "${METHOD+defined}" ] || METHOD="package"
+[ "${VERSION+defined}" ] || VERSION="latest"
+[ "${PREFIX+defined}" ] || PREFIX="auto"
+[ "${SYSCONFDIR+defined}" ] || SYSCONFDIR="auto"
+[ "${INSTALLER_DIR+defined}" ] || INSTALLER_DIR="/tmp/git-build"
+[ "${KEEP_INSTALLER+defined}" ] || KEEP_INSTALLER=false
+[ "${NO_FLAGS+defined}" ] || NO_FLAGS=()
+[ "${MAKE_FLAGS+defined}" ] || MAKE_FLAGS=""
 [ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
-[ -z "${IF_EXISTS-}" ] && IF_EXISTS="skip"
-[ "${SHELL_COMPLETIONS+defined}" ] || SHELL_COMPLETIONS="bash zsh"
-[ -z "${INSTALLER_DIR-}" ] && INSTALLER_DIR="/tmp/git-build"
-[ -z "${LOGFILE-}" ] && LOGFILE=""
-[ -z "${MAKE_FLAGS-}" ] && MAKE_FLAGS=""
-[ -z "${METHOD-}" ] && METHOD="package"
-[ -z "${KEEP_INSTALLER-}" ] && KEEP_INSTALLER=false
-[ -z "${NO_FLAGS-}" ] && NO_FLAGS=""
-[ -z "${PREFIX-}" ] && PREFIX="auto"
-[ -z "${SAFE_DIRECTORY-}" ] && SAFE_DIRECTORY=""
-[ -z "${SYMLINK-}" ] && SYMLINK=true
-[ -z "${SYSCONFDIR-}" ] && SYSCONFDIR="auto"
-[ -z "${SYSTEM_GITCONFIG-}" ] && SYSTEM_GITCONFIG=""
-[ -z "${USER_EMAIL-}" ] && USER_EMAIL=""
-[ -z "${USER_GITCONFIG-}" ] && USER_GITCONFIG=""
-[ -z "${USER_NAME-}" ] && USER_NAME=""
-: "${ADD_CURRENT_USER:=true}"
-: "${ADD_REMOTE_USER:=true}"
-: "${ADD_CONTAINER_USER:=true}"
-: "${ADD_USERS:=}"
-[ -z "${VERSION-}" ] && VERSION="latest"
+[ "${SHELL_COMPLETIONS+defined}" ] || mapfile -t SHELL_COMPLETIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
+[ "${IF_EXISTS+defined}" ] || IF_EXISTS="update"
+[ "${DEFAULT_BRANCH+defined}" ] || DEFAULT_BRANCH="main"
+[ "${SAFE_DIRECTORY+defined}" ] || SAFE_DIRECTORY="*"
+[ "${SYSTEM_GITCONFIG+defined}" ] || SYSTEM_GITCONFIG=""
+[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
+[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_USERS+defined}" ] || ADD_USERS=()
+[ "${USER_NAME+defined}" ] || USER_NAME=""
+[ "${USER_EMAIL+defined}" ] || USER_EMAIL=""
+[ "${USER_GITCONFIG+defined}" ] || USER_GITCONFIG=""
+[ "${SYMLINK+defined}" ] || SYMLINK=true
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
 
-# Validate enum options early (fail fast before any install steps).
+# Validate enum options.
 case "${METHOD}" in
   package | source) ;;
   *)
-    echo "⛔ Unknown method: '${METHOD}' (expected: package, source)" >&2
+    echo "⛔ Invalid value for 'method': '${METHOD}' (expected: package, source)" >&2
     exit 1
     ;;
 esac
 case "${IF_EXISTS}" in
   skip | fail | reinstall | update) ;;
   *)
-    echo "⛔ Unknown if_exists value: '${IF_EXISTS}' (expected: skip, fail, reinstall, update)" >&2
+    echo "⛔ Invalid value for 'if_exists': '${IF_EXISTS}' (expected: skip, fail, reinstall, update)" >&2
     exit 1
     ;;
 esac

@@ -4,35 +4,74 @@ set -euo pipefail
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 _BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
 
-# ospkg.sh is sourced for net::* and os::* access.
-# ospkg__detect (lazy) is only called on Linux, not macOS.
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
-
 logging__setup
-echo "↪️ Script entry: Homebrew Installation Devcontainer Feature Installer" >&2
-trap 'logging__cleanup' EXIT
+echo "↪️ Script entry: Install Homebrew" >&2
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ Install Homebrew script finished successfully." >&2
+  else
+    echo "❌ Install Homebrew script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
 
-# ── Argument parsing (dual-mode: env vars or CLI flags) ───────────────────────
-if [[ "$#" -gt 0 ]]; then
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --install_user <value>              User to own the Homebrew installation.
+  --prefix <value>                    Override the Homebrew installation prefix (`HOMEBREW_PREFIX`).
+  --if_exists {skip|fail|reinstall}   What to do when Homebrew is already installed at the resolved prefix. (default: "skip")
+  --update {true,false}               Run 'brew update' after installation to fetch the latest formula index. (default: "true")
+  --export_path <value>               Controls which shell startup files receive 'eval "$(brew shellenv)"'. (default: "auto")
+  --add_current_user {true,false}     Include the current user (the user running the installer, or SUDO_USER if set) in the resolved user list for shellenv exports and init-file writes. (default: "true")
+  --add_remote_user {true,false}      Include the devcontainer remoteUser (from the _REMOTE_USER env var) in the resolved user list for shellenv exports and init-file writes. (default: "true")
+  --add_container_user {true,false}   Include the devcontainer containerUser (from the _CONTAINER_USER env var) in the resolved user list for shellenv exports and init-file writes. (default: "true")
+  --add_users <value>  (repeatable)   Additional usernames to include in the resolved user list for shellenv exports and init-file writes.
+  --write_group <value>               OS group for shared write access to the Homebrew prefix. (default: "brew")
+  --brew_git_remote <value>           Override `HOMEBREW_BREW_GIT_REMOTE` — the git remote for the `Homebrew/brew` repository.
+  --core_git_remote <value>           Override `HOMEBREW_CORE_GIT_REMOTE` — the git remote for the `homebrew-core` tap.
+  --no_install_from_api {true,false}  Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation. (default: "false")
+  --debug {true,false}                Enable debug output (set -x). (default: "false")
+  --logfile <value>                   Append install log to this file path.
+  -h, --help                          Show this help
+EOF
+  return
+}
+
+if [ "$#" -gt 0 ]; then
+  echo "ℹ️ Script called with arguments: $*" >&2
   INSTALL_USER=""
   PREFIX=""
-  IF_EXISTS=""
-  UPDATE=""
-  unset EXPORT_PATH
-  ADD_CURRENT_USER=""
-  ADD_REMOTE_USER=""
-  ADD_CONTAINER_USER=""
-  ADD_USERS=""
-  WRITE_GROUP=""
+  IF_EXISTS="skip"
+  UPDATE=true
+  EXPORT_PATH="auto"
+  ADD_CURRENT_USER=true
+  ADD_REMOTE_USER=true
+  ADD_CONTAINER_USER=true
+  ADD_USERS=()
+  WRITE_GROUP="brew"
   BREW_GIT_REMOTE=""
   CORE_GIT_REMOTE=""
-  NO_INSTALL_FROM_API=""
-  DEBUG=""
+  NO_INSTALL_FROM_API=false
+  DEBUG=false
   LOGFILE=""
-  while [[ $# -gt 0 ]]; do
+  while [ "$#" -gt 0 ]; do
     case $1 in
       --install_user)
         shift
@@ -84,8 +123,8 @@ if [[ "$#" -gt 0 ]]; then
         ;;
       --add_users)
         shift
-        ADD_USERS="$1"
-        echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+        ADD_USERS+=("$1")
+        echo "📩 Read argument 'add_users': '$1'" >&2
         shift
         ;;
       --write_group)
@@ -124,6 +163,10 @@ if [[ "$#" -gt 0 ]]; then
         echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
         shift
         ;;
+      -h | --help)
+        __usage__
+        exit 0
+        ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
         exit 1
@@ -135,7 +178,7 @@ if [[ "$#" -gt 0 ]]; then
     esac
   done
 else
-  echo "ℹ️ Script called with no arguments. Reading environment variables." >&2
+  echo "ℹ️ Script called with no arguments. Read environment variables." >&2
   [ "${INSTALL_USER+defined}" ] && echo "📩 Read argument 'install_user': '${INSTALL_USER}'" >&2
   [ "${PREFIX+defined}" ] && echo "📩 Read argument 'prefix': '${PREFIX}'" >&2
   [ "${IF_EXISTS+defined}" ] && echo "📩 Read argument 'if_exists': '${IF_EXISTS}'" >&2
@@ -144,7 +187,16 @@ else
   [ "${ADD_CURRENT_USER+defined}" ] && echo "📩 Read argument 'add_current_user': '${ADD_CURRENT_USER}'" >&2
   [ "${ADD_REMOTE_USER+defined}" ] && echo "📩 Read argument 'add_remote_user': '${ADD_REMOTE_USER}'" >&2
   [ "${ADD_CONTAINER_USER+defined}" ] && echo "📩 Read argument 'add_container_user': '${ADD_CONTAINER_USER}'" >&2
-  [ "${ADD_USERS+defined}" ] && echo "📩 Read argument 'add_users': '${ADD_USERS}'" >&2
+  if [ "${ADD_USERS+defined}" ]; then
+    if [ -n "${ADD_USERS-}" ]; then
+      mapfile -t ADD_USERS < <(printf '%s\n' "${ADD_USERS}" | grep -v '^$')
+      for _item in "${ADD_USERS[@]}"; do
+        echo "📩 Read argument 'add_users': '$_item'" >&2
+      done
+    else
+      ADD_USERS=()
+    fi
+  fi
   [ "${WRITE_GROUP+defined}" ] && echo "📩 Read argument 'write_group': '${WRITE_GROUP}'" >&2
   [ "${BREW_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
   [ "${CORE_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
@@ -153,56 +205,35 @@ else
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
 
-[[ "${DEBUG-}" == true ]] && set -x
+[[ "${DEBUG:-}" == true ]] && set -x
 
-[ -z "${INSTALL_USER-}" ] && {
-  echo "ℹ️ Argument 'INSTALL_USER' set to default value ''." >&2
-  INSTALL_USER=""
-}
-[ -z "${PREFIX-}" ] && {
-  echo "ℹ️ Argument 'PREFIX' set to default value ''." >&2
-  PREFIX=""
-}
-[ -z "${IF_EXISTS-}" ] && {
-  echo "ℹ️ Argument 'IF_EXISTS' set to default value 'skip'." >&2
-  IF_EXISTS="skip"
-}
-[ -z "${UPDATE-}" ] && {
-  echo "ℹ️ Argument 'UPDATE' set to default value 'true'." >&2
-  UPDATE=true
-}
-[ -z "${EXPORT_PATH+x}" ] && {
-  echo "ℹ️ Argument 'EXPORT_PATH' set to default value 'auto'." >&2
-  EXPORT_PATH="auto"
-}
-: "${ADD_CURRENT_USER:=true}"
-: "${ADD_REMOTE_USER:=true}"
-: "${ADD_CONTAINER_USER:=true}"
-: "${ADD_USERS:=}"
-[ -z "${WRITE_GROUP+x}" ] && {
-  echo "ℹ️ Argument 'WRITE_GROUP' set to default value 'brew'." >&2
-  WRITE_GROUP="brew"
-}
-[ -z "${BREW_GIT_REMOTE-}" ] && {
-  echo "ℹ️ Argument 'BREW_GIT_REMOTE' set to default value ''." >&2
-  BREW_GIT_REMOTE=""
-}
-[ -z "${CORE_GIT_REMOTE-}" ] && {
-  echo "ℹ️ Argument 'CORE_GIT_REMOTE' set to default value ''." >&2
-  CORE_GIT_REMOTE=""
-}
-[ -z "${NO_INSTALL_FROM_API-}" ] && {
-  echo "ℹ️ Argument 'NO_INSTALL_FROM_API' set to default value 'false'." >&2
-  NO_INSTALL_FROM_API=false
-}
-[ -z "${DEBUG-}" ] && {
-  echo "ℹ️ Argument 'DEBUG' set to default value 'false'." >&2
-  DEBUG=false
-}
-[ -z "${LOGFILE-}" ] && {
-  echo "ℹ️ Argument 'LOGFILE' set to default value ''." >&2
-  LOGFILE=""
-}
+# Apply defaults.
+[ "${INSTALL_USER+defined}" ] || INSTALL_USER=""
+[ "${PREFIX+defined}" ] || PREFIX=""
+[ "${IF_EXISTS+defined}" ] || IF_EXISTS="skip"
+[ "${UPDATE+defined}" ] || UPDATE=true
+[ "${EXPORT_PATH+defined}" ] || EXPORT_PATH="auto"
+[ "${ADD_CURRENT_USER+defined}" ] || ADD_CURRENT_USER=true
+[ "${ADD_REMOTE_USER+defined}" ] || ADD_REMOTE_USER=true
+[ "${ADD_CONTAINER_USER+defined}" ] || ADD_CONTAINER_USER=true
+[ "${ADD_USERS+defined}" ] || ADD_USERS=()
+[ "${WRITE_GROUP+defined}" ] || WRITE_GROUP="brew"
+[ "${BREW_GIT_REMOTE+defined}" ] || BREW_GIT_REMOTE=""
+[ "${CORE_GIT_REMOTE+defined}" ] || CORE_GIT_REMOTE=""
+[ "${NO_INSTALL_FROM_API+defined}" ] || NO_INSTALL_FROM_API=false
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
+
+# Validate enum options.
+case "${IF_EXISTS}" in
+  skip | fail | reinstall) ;;
+  *)
+    echo "⛔ Invalid value for 'if_exists': '${IF_EXISTS}' (expected: skip, fail, reinstall)" >&2
+    exit 1
+    ;;
+esac
+
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 # END OF AUTOGENERATED BLOCK
 

@@ -2,92 +2,146 @@
 set -euo pipefail
 
 _SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+_BASE_DIR="$(cd "$_SELF_DIR/.." && pwd)"
+
 # shellcheck source=lib/ospkg.sh
 . "$_SELF_DIR/_lib/ospkg.sh"
 # shellcheck source=lib/logging.sh
 . "$_SELF_DIR/_lib/logging.sh"
 logging__setup
-
 echo "↪️ Script entry: User Setup" >&2
-trap 'logging__cleanup' EXIT
+# Override _cleanup_hook in the hand-written section for feature-specific
+# cleanup (e.g. removing temp files). Do NOT call logging__cleanup there;
+# _on_exit owns that call and guarantees it runs exactly once, last.
+# shellcheck disable=SC2329
+_cleanup_hook() { return; }
+# shellcheck disable=SC2329
+_on_exit() {
+  local _rc=$?
+  _cleanup_hook
+  if [[ $_rc -eq 0 ]]; then
+    echo "✅ User Setup script finished successfully." >&2
+  else
+    echo "❌ User Setup script exited with error ${_rc}." >&2
+  fi
+  logging__cleanup
+  return
+}
+trap '_on_exit' EXIT
 
-# ---------------------------------------------------------------------------
-# Argument parsing (CLI invocation — not used by devcontainer tooling)
-# ---------------------------------------------------------------------------
+__usage__() {
+  cat << 'EOF'
+Usage: install.sh [OPTIONS]
+
+Options:
+  --username <value>                    Username to create. (default: "vscode")
+  --user_id <value>                     UID to assign to the user. Must be a non-negative integer. (default: "1000")
+  --group_id <value>                    GID to assign to the user's primary group. Must be a non-negative integer. (default: "1000")
+  --group_name <value>                  Name for the user's primary group. Defaults to the `username` when left empty.
+  --home_dir <value>                    Home directory for the user. Defaults to `/home/<username>` when left empty.
+  --user_shell <value>                  Login shell for the user. The path must exist and be executable on the image. (default: "/bin/bash")
+  --sudo_access {true,false}            Grant the user passwordless `sudo` access. Installs `sudo` if not already present. (default: "true")
+  --extra_groups <value>  (repeatable)  Supplementary groups to add the user to. Groups must already exist.
+  --replace_existing {true,false}       When true, any user or group occupying the requested UID/GID is removed first (home directories are preserved). When false, a conflict causes the script to fail unless the user is already correctly configured. (default: "true")
+  --sudoers_dir <value>                 Directory for the sudoers drop-in file. (default: "/etc/sudoers.d")
+  --debug {true,false}                  Enable debug output. (default: "false")
+  --logfile <value>                     Log all output (stdout + stderr) to this file in addition to console.
+  -h, --help                            Show this help
+EOF
+  return
+}
+
 if [ "$#" -gt 0 ]; then
   echo "ℹ️ Script called with arguments: $*" >&2
-  DEBUG=""
-  EXTRA_GROUPS=""
-  GROUP_ID=""
+  USERNAME="vscode"
+  USER_ID="1000"
+  GROUP_ID="1000"
   GROUP_NAME=""
   HOME_DIR=""
+  USER_SHELL="/bin/bash"
+  SUDO_ACCESS=true
+  EXTRA_GROUPS=()
+  REPLACE_EXISTING=true
+  SUDOERS_DIR="/etc/sudoers.d"
+  DEBUG=false
   LOGFILE=""
-  REPLACE_EXISTING=""
-  SUDO_ACCESS=""
-  SUDOERS_DIR=""
-  USER_ID=""
-  USER_SHELL=""
-  USERNAME=""
-  while [[ $# -gt 0 ]]; do
+  while [ "$#" -gt 0 ]; do
     case $1 in
-      --debug)
+      --username)
         shift
-        DEBUG=true
-        ;;
-      --extra_groups)
-        shift
-        EXTRA_GROUPS="$1"
-        shift
-        ;;
-      --group_id)
-        shift
-        GROUP_ID="$1"
-        shift
-        ;;
-      --group_name)
-        shift
-        GROUP_NAME="$1"
-        shift
-        ;;
-      --home_dir)
-        shift
-        HOME_DIR="$1"
-        shift
-        ;;
-      --logfile)
-        shift
-        LOGFILE="$1"
-        shift
-        ;;
-      --replace_existing)
-        shift
-        REPLACE_EXISTING="$1"
-        shift
-        ;;
-      --sudo_access)
-        shift
-        SUDO_ACCESS="$1"
-        shift
-        ;;
-      --sudoers_dir)
-        shift
-        SUDOERS_DIR="$1"
+        USERNAME="$1"
+        echo "📩 Read argument 'username': '${USERNAME}'" >&2
         shift
         ;;
       --user_id)
         shift
         USER_ID="$1"
+        echo "📩 Read argument 'user_id': '${USER_ID}'" >&2
+        shift
+        ;;
+      --group_id)
+        shift
+        GROUP_ID="$1"
+        echo "📩 Read argument 'group_id': '${GROUP_ID}'" >&2
+        shift
+        ;;
+      --group_name)
+        shift
+        GROUP_NAME="$1"
+        echo "📩 Read argument 'group_name': '${GROUP_NAME}'" >&2
+        shift
+        ;;
+      --home_dir)
+        shift
+        HOME_DIR="$1"
+        echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2
         shift
         ;;
       --user_shell)
         shift
         USER_SHELL="$1"
+        echo "📩 Read argument 'user_shell': '${USER_SHELL}'" >&2
         shift
         ;;
-      --username)
+      --sudo_access)
         shift
-        USERNAME="$1"
+        SUDO_ACCESS="$1"
+        echo "📩 Read argument 'sudo_access': '${SUDO_ACCESS}'" >&2
         shift
+        ;;
+      --extra_groups)
+        shift
+        EXTRA_GROUPS+=("$1")
+        echo "📩 Read argument 'extra_groups': '$1'" >&2
+        shift
+        ;;
+      --replace_existing)
+        shift
+        REPLACE_EXISTING="$1"
+        echo "📩 Read argument 'replace_existing': '${REPLACE_EXISTING}'" >&2
+        shift
+        ;;
+      --sudoers_dir)
+        shift
+        SUDOERS_DIR="$1"
+        echo "📩 Read argument 'sudoers_dir': '${SUDOERS_DIR}'" >&2
+        shift
+        ;;
+      --debug)
+        shift
+        DEBUG="$1"
+        echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+        shift
+        ;;
+      --logfile)
+        shift
+        LOGFILE="$1"
+        echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
+        shift
+        ;;
+      -h | --help)
+        __usage__
+        exit 0
         ;;
       --*)
         echo "⛔ Unknown option: '${1}'" >&2
@@ -100,28 +154,47 @@ if [ "$#" -gt 0 ]; then
     esac
   done
 else
-  echo "ℹ️ Script called with no arguments — reading environment variables." >&2
+  echo "ℹ️ Script called with no arguments. Read environment variables." >&2
+  [ "${USERNAME+defined}" ] && echo "📩 Read argument 'username': '${USERNAME}'" >&2
+  [ "${USER_ID+defined}" ] && echo "📩 Read argument 'user_id': '${USER_ID}'" >&2
+  [ "${GROUP_ID+defined}" ] && echo "📩 Read argument 'group_id': '${GROUP_ID}'" >&2
+  [ "${GROUP_NAME+defined}" ] && echo "📩 Read argument 'group_name': '${GROUP_NAME}'" >&2
+  [ "${HOME_DIR+defined}" ] && echo "📩 Read argument 'home_dir': '${HOME_DIR}'" >&2
+  [ "${USER_SHELL+defined}" ] && echo "📩 Read argument 'user_shell': '${USER_SHELL}'" >&2
+  [ "${SUDO_ACCESS+defined}" ] && echo "📩 Read argument 'sudo_access': '${SUDO_ACCESS}'" >&2
+  if [ "${EXTRA_GROUPS+defined}" ]; then
+    if [ -n "${EXTRA_GROUPS-}" ]; then
+      mapfile -t EXTRA_GROUPS < <(printf '%s\n' "${EXTRA_GROUPS}" | grep -v '^$')
+      for _item in "${EXTRA_GROUPS[@]}"; do
+        echo "📩 Read argument 'extra_groups': '$_item'" >&2
+      done
+    else
+      EXTRA_GROUPS=()
+    fi
+  fi
+  [ "${REPLACE_EXISTING+defined}" ] && echo "📩 Read argument 'replace_existing': '${REPLACE_EXISTING}'" >&2
+  [ "${SUDOERS_DIR+defined}" ] && echo "📩 Read argument 'sudoers_dir': '${SUDOERS_DIR}'" >&2
+  [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
+  [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
 
-# ---------------------------------------------------------------------------
-# Apply defaults
-# ---------------------------------------------------------------------------
-DEBUG="${DEBUG:-false}"
-EXTRA_GROUPS="${EXTRA_GROUPS:-}"
-GROUP_ID="${GROUP_ID:-1000}"
-GROUP_NAME="${GROUP_NAME:-}"
-HOME_DIR="${HOME_DIR:-}"
-LOGFILE="${LOGFILE:-}"
-REPLACE_EXISTING="${REPLACE_EXISTING:-true}"
-SUDO_ACCESS="${SUDO_ACCESS:-true}"
-SUDOERS_DIR="${SUDOERS_DIR:-/etc/sudoers.d}"
-USER_ID="${USER_ID:-1000}"
-USER_SHELL="${USER_SHELL:-/bin/bash}"
-USERNAME="${USERNAME:-vscode}"
+[[ "${DEBUG:-}" == true ]] && set -x
 
-[[ "$DEBUG" == "true" ]] && set -x
+# Apply defaults.
+[ "${USERNAME+defined}" ] || USERNAME="vscode"
+[ "${USER_ID+defined}" ] || USER_ID="1000"
+[ "${GROUP_ID+defined}" ] || GROUP_ID="1000"
+[ "${GROUP_NAME+defined}" ] || GROUP_NAME=""
+[ "${HOME_DIR+defined}" ] || HOME_DIR=""
+[ "${USER_SHELL+defined}" ] || USER_SHELL="/bin/bash"
+[ "${SUDO_ACCESS+defined}" ] || SUDO_ACCESS=true
+[ "${EXTRA_GROUPS+defined}" ] || EXTRA_GROUPS=()
+[ "${REPLACE_EXISTING+defined}" ] || REPLACE_EXISTING=true
+[ "${SUDOERS_DIR+defined}" ] || SUDOERS_DIR="/etc/sudoers.d"
+[ "${DEBUG+defined}" ] || DEBUG=false
+[ "${LOGFILE+defined}" ] || LOGFILE=""
 
-ospkg__run --manifest "${_SELF_DIR}/../dependencies/base.yaml" --skip_installed
+ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed
 
 # END OF AUTOGENERATED BLOCK
 
