@@ -6,6 +6,7 @@ __pycache__/
 src/**/_lib/
 src/*/install.sh
 src/*/devcontainer-feature.json
+src/*/dependencies/
 
 # Distribution artifacts — built by build-artifacts.sh.
 /dist/
