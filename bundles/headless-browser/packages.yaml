@@ -1,0 +1,68 @@
+# All packages in this bundle are Linux/apt-only.
+# Browser automation frameworks (Playwright, Puppeteer, Selenium) require
+# these native shared libraries when running Chromium, Firefox, or WebKit
+# in headless mode inside a container.
+when: {pm: apt}
+
+packages:
+  # ── Packages with the same name on all supported Ubuntu/Debian versions ───
+  - libcairo2
+  - libcairo-gobject2
+  - libdbus-1-3
+  - libdbus-glib-1-2
+  - libdrm2
+  - libgbm1
+  - libgdk-pixbuf-2.0-0
+  - libnspr4
+  - libnss3
+  - libpango-1.0-0
+  - libpangocairo-1.0-0
+  - libwayland-client0
+  - libx11-6
+  - libx11-xcb1
+  - libxcb1
+  - libxcb-shm0
+  - libxcomposite1
+  - libxcursor1
+  - libxdamage1
+  - libxext6
+  - libxfixes3
+  - libxi6
+  - libxkbcommon0
+  - libxrandr2
+  - libxrender1
+  - libxtst6
+
+  # ── Ubuntu Noble (24.04) and Debian Trixie (13) — t64 ABI variants ───────
+  # These distros transitioned to 64-bit time_t; the old non-t64 packages
+  # were replaced by their t64 equivalents.
+  - name: libasound2t64
+    when: {version_codename: [noble, trixie]}
+  - name: libatk-bridge2.0-0t64
+    when: {version_codename: [noble, trixie]}
+  - name: libatk1.0-0t64
+    when: {version_codename: [noble, trixie]}
+  - name: libatspi2.0-0t64
+    when: {version_codename: [noble, trixie]}
+  - name: libcups2t64
+    when: {version_codename: [noble, trixie]}
+  - name: libglib2.0-0t64
+    when: {version_codename: [noble, trixie]}
+  - name: libgtk-3-0t64
+    when: {version_codename: [noble, trixie]}
+
+  # ── Ubuntu Focal (20.04), Jammy (22.04), Debian Bullseye (11), Bookworm (12)
+  - name: libasound2
+    when: {version_codename: [focal, jammy, bullseye, bookworm]}
+  - name: libatk-bridge2.0-0
+    when: {version_codename: [focal, jammy, bullseye, bookworm]}
+  - name: libatk1.0-0
+    when: {version_codename: [focal, jammy, bullseye, bookworm]}
+  - name: libatspi2.0-0
+    when: {version_codename: [focal, jammy, bullseye, bookworm]}
+  - name: libcups2
+    when: {version_codename: [focal, jammy, bullseye, bookworm]}
+  - name: libglib2.0-0
+    when: {version_codename: [focal, jammy, bullseye, bookworm]}
+  - name: libgtk-3-0
+    when: {version_codename: [focal, jammy, bullseye, bookworm]}

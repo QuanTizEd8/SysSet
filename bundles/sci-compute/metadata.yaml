@@ -1,0 +1,75 @@
+libsndfile1-dev:
+  summary: Development files for libsndfile (audio file I/O).
+  description: |
+    Headers and static libraries for libsndfile, a C library for reading and
+    writing audio files in WAV, FLAC, OGG, AIFF, and other formats. Required
+    by librosa, soundfile, and audioread for audio ML pipelines.
+  url:
+    docs: https://libsndfile.github.io/libsndfile/api.html
+    source: https://github.com/libsndfile/libsndfile
+
+libhdf5-dev:
+  summary: Development files for the HDF5 scientific data format library.
+  description: |
+    Headers and static libraries for HDF5 (Hierarchical Data Format v5),
+    a file format for storing and managing large, complex datasets. Required
+    by h5py, PyTables, Keras, and TensorFlow for array data persistence.
+  url:
+    docs: https://docs.hdfgroup.org/hdf5/
+    source: https://github.com/HDFGroup/hdf5
+
+libopenblas-dev:
+  summary: Development files for OpenBLAS (optimised BLAS/LAPACK).
+  description: |
+    Headers and static libraries for OpenBLAS, a highly optimised BLAS and
+    LAPACK implementation using SIMD and threading. Required to build NumPy,
+    SciPy, PyTorch (from source), and other scientific computing libraries
+    that depend on fast matrix operations.
+  url:
+    docs: https://www.openblas.net/
+    source: https://github.com/OpenMathLib/OpenBLAS
+
+liblapack-dev:
+  summary: Development files for LAPACK (linear algebra routines).
+  description: |
+    Headers and static libraries for LAPACK (Linear Algebra PACKage),
+    providing routines for linear systems, least-squares, eigenvalues, and
+    matrix factorisations. Required by SciPy and scikit-learn.
+  url:
+    docs: https://netlib.org/lapack/
+    source: https://github.com/Reference-LAPACK/lapack
+
+libprotobuf-dev:
+  summary: Development files for Protocol Buffers (protobuf).
+  description: |
+    Headers and static libraries for Protocol Buffers, Google's language-neutral
+    mechanism for serializing structured data. Required by TensorFlow, PyTorch,
+    ONNX, gRPC, and many ML frameworks.
+  url:
+    docs: https://protobuf.dev/
+    source: https://github.com/protocolbuffers/protobuf
+
+protobuf-compiler:
+  summary: Protocol Buffers compiler (protoc).
+  description: |
+    The protoc compiler generates source code from .proto IDL files for C++,
+    Python, Java, Go, and other target languages. Required for building gRPC
+    services and ML framework APIs. The Homebrew protobuf formula provides
+    both the library and the compiler.
+  url:
+    docs: https://protobuf.dev/reference/
+    source: https://github.com/protocolbuffers/protobuf
+
+ffmpeg:
+  summary: Complete solution to record, convert, and stream audio/video.
+  description: |
+    FFmpeg provides a broad set of codecs and container formats. Required by
+    OpenCV, PyAV, Whisper, and data science workflows that process multimedia
+    files or frame-level video data.
+  url:
+    docs: https://ffmpeg.org/documentation.html
+    source: https://git.ffmpeg.org/ffmpeg.git
+  notes: |
+    On some platforms ffmpeg pulls in a large set of codec dependencies.
+    Consider installing only the specific codec libraries your project needs
+    if image size is a concern.

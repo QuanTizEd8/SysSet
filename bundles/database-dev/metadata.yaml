@@ -1,0 +1,61 @@
+libpq-dev:
+  summary: Development files for the PostgreSQL client library (libpq).
+  description: |
+    Headers and static libraries for libpq, the C API for connecting to
+    PostgreSQL servers. Required for building psycopg2, asyncpg, SQLAlchemy
+    (psycopg2 backend), and any application that talks directly to PostgreSQL.
+    The Homebrew formula is keg-only; set CFLAGS/LDFLAGS accordingly.
+  url:
+    docs: https://www.postgresql.org/docs/current/libpq.html
+    source: https://git.postgresql.org/gitweb/?p=postgresql.git
+  notes: |
+    On Alpine (apk) the package name is 'libpq-dev' — same as apt.
+    On pacman (Arch) the package is 'postgresql-libs'.
+
+default-libmysqlclient-dev:
+  summary: MySQL/MariaDB client development files.
+  description: |
+    Headers and static libraries for connecting to MySQL-compatible databases.
+    On Debian/Ubuntu, default-libmysqlclient-dev points to the MariaDB client.
+    Required for mysqlclient, PyMySQL (C extension path), and SQLAlchemy MySQL
+    backends.
+  url:
+    docs: https://dev.mysql.com/doc/
+    source: https://salsa.debian.org/mariadb-team/mysql-defaults
+  notes: |
+    On Alpine, apk package is 'mariadb-dev'. On Fedora: 'mariadb-connector-c-devel'.
+    On openSUSE: 'mariadb-devel'. On Arch: 'mariadb-libs'.
+
+libsqlite3-dev:
+  summary: Development files for SQLite 3.
+  description: |
+    Headers and static libraries for SQLite 3. Required for building Python
+    (sqlite3 module), Ruby, and applications that embed SQLite as their
+    database engine.
+  url:
+    docs: https://www.sqlite.org/docs.html
+    source: https://www.sqlite.org/src
+
+sqlite3:
+  summary: Command-line interface for SQLite 3.
+  description: |
+    The sqlite3 shell allows interactive querying, inspection, and management
+    of SQLite database files. Useful for debugging, data exploration, and
+    one-off queries.
+  url:
+    docs: https://www.sqlite.org/docs.html
+  notes: |
+    On zypper (openSUSE) the package is 'sqlite3'. On all other PMs it
+    is 'sqlite' (brew, apk, dnf, pacman).
+
+unixodbc-dev:
+  summary: Development files for the unixODBC driver manager.
+  description: |
+    Headers (sql.h, sqlext.h) and static libraries for unixODBC. Required for
+    building pyodbc, which is the standard Python ODBC bridge for Microsoft
+    SQL Server, Oracle, and other ODBC-accessible databases.
+  url:
+    docs: https://www.unixodbc.org/doc/
+    source: https://github.com/lurcher/unixODBC
+  notes: |
+    On Fedora (dnf) the package name is 'unixODBC-devel' (mixed case).

@@ -1,0 +1,50 @@
+packages:
+  # ── Audio / signal processing ─────────────────────────────────────────────
+  - name: libsndfile1-dev
+    brew: libsndfile
+    apk: libsndfile-dev
+    dnf: libsndfile-devel
+    zypper: libsndfile-devel
+    pacman: libsndfile
+
+  # ── HDF5 (array/dataset storage) ─────────────────────────────────────────
+  - name: libhdf5-dev
+    brew: hdf5
+    apk: hdf5-dev
+    dnf: hdf5-devel
+    zypper: hdf5-devel
+    pacman: hdf5
+
+  # ── Linear algebra (BLAS / LAPACK) ───────────────────────────────────────
+  - name: libopenblas-dev
+    brew: openblas
+    apk: openblas-dev
+    dnf: openblas-devel
+    zypper: openblas-devel
+    pacman: openblas
+
+  - name: liblapack-dev
+    brew: lapack
+    apk: lapack-dev
+    dnf: lapack-devel
+    zypper: lapack-devel
+    pacman: lapack
+
+  # ── Protocol Buffers ─────────────────────────────────────────────────────
+  # Both entries map to the same 'protobuf' formula on Homebrew (idempotent).
+  - name: libprotobuf-dev
+    brew: protobuf
+    apk: protobuf-dev
+    dnf: protobuf-devel
+    zypper: protobuf-devel
+    pacman: protobuf
+
+  - name: protobuf-compiler
+    brew: protobuf
+    apk: protobuf
+    dnf: protobuf-compiler
+    zypper: protobuf
+    pacman: protobuf
+
+  # ── Multimedia / video ────────────────────────────────────────────────────
+  - name: ffmpeg

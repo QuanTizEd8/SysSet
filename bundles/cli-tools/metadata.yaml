@@ -1,0 +1,250 @@
+curl:
+  summary: Command-line tool for transferring data with URL syntax.
+  description: |
+    curl is a versatile tool for transferring data using various protocols
+    including HTTP, HTTPS, FTP, and more. Indispensable for fetching
+    dependencies, interacting with APIs, and testing web services.
+  url:
+    docs: https://curl.se/docs/
+    source: https://github.com/curl/curl
+
+wget:
+  summary: Non-interactive network downloader.
+  description: |
+    wget downloads files from the web using HTTP, HTTPS, and FTP. Particularly
+    useful for automated scripts and tasks that require fetching resources
+    without user interaction.
+  url:
+    docs: https://www.gnu.org/software/wget/
+
+rsync:
+  summary: Fast, versatile tool for local and remote file synchronization.
+  description: |
+    rsync efficiently transfers and synchronizes files using a delta-transfer
+    algorithm. Widely used for backups, mirroring, and as an enhanced
+    alternative to cp with SSH-based encrypted transfers.
+  url:
+    docs: https://rsync.samba.org/documentation.html
+    source: https://github.com/WayneD/rsync
+
+jq:
+  summary: Command-line JSON processor.
+  description: |
+    jq is a lightweight, flexible tool for parsing, filtering, mapping, and
+    transforming JSON data from the command line. Essential for working with
+    APIs, configuration files, and log processing.
+  url:
+    docs: https://stedolan.github.io/jq/manual/
+    source: https://github.com/stedolan/jq
+
+less:
+  summary: Terminal pager for viewing text one screen at a time.
+  description: |
+    less allows viewing large files and command output one screen at a time,
+    with bidirectional navigation and search. More efficient than more(1) for
+    large inputs.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/less.1.html
+    source: https://github.com/gwsw/less
+
+nano:
+  summary: Small, friendly text editor inspired by Pico.
+  description: |
+    GNU nano is a user-friendly terminal text editor with syntax highlighting,
+    undo/redo, and search-and-replace. Ideal for quick edits to config files
+    and scripts in headless environments.
+  url:
+    docs: https://www.nano-editor.org/docs.php
+    source: https://git.savannah.gnu.org/git/nano.git
+
+vim:
+  summary: Vi IMproved – enhanced vi text editor.
+  description: |
+    Vim is a highly configurable text editor widely used by developers for
+    editing source code. An improved version of vi with syntax highlighting,
+    plugins, and powerful editing commands.
+  url:
+    docs: https://vimhelp.org/
+    source: https://github.com/vim/vim
+
+tmux:
+  summary: Terminal multiplexer for persistent and split terminal sessions.
+  description: |
+    tmux allows a single terminal to be split into multiple panes and sessions
+    that persist across disconnects. Useful in devcontainers for running long
+    jobs or multiple shells simultaneously.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tmux.1.html
+    source: https://github.com/tmux/tmux
+
+htop:
+  summary: Interactive process viewer for Unix systems.
+  description: |
+    htop provides a real-time, colorized display of system processes with
+    scrolling, sorting, and process management. A more user-friendly
+    alternative to top(1).
+  url:
+    docs: https://htop.dev/
+    source: https://github.com/htop-dev/htop
+
+tree:
+  summary: Display directories and files in a tree-like format.
+  description: |
+    tree produces a recursive, depth-indented listing of files and directories.
+    Useful for visualizing project structures and for documentation.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/tree.1.html
+    source: https://gitlab.com/OldManProgrammer/unix-tree
+
+ncdu:
+  summary: Interactive disk usage analyzer with ncurses interface.
+  description: |
+    ncdu (NCurses Disk Usage) is a fast terminal-based disk usage analyzer that
+    lets you navigate directories, sort by size, and delete items directly.
+    Useful for identifying space hogs in containers.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/ncdu.1.html
+    source: https://g.blicky.net/ncdu.git/
+
+dialog:
+  summary: Display user-friendly dialog boxes from shell scripts.
+  description: |
+    dialog presents interactive dialog boxes (menus, input boxes, message boxes)
+    in terminal scripts. Useful for installer and configuration scripts that
+    require user interaction.
+  url:
+    docs: https://invisible-island.net/dialog/dialog.html
+
+moreutils:
+  summary: Collection of additional Unix utilities complementing core tools.
+  description: |
+    moreutils provides tools like sponge (safe in-place file editing), ts
+    (timestamp stdin lines), vidir (edit directories), vipe (insert editor into
+    a pipeline), and others. Note: conflicts with GNU parallel package.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/moreutils.1.html
+    source: https://launchpad.net/ubuntu/noble/+source/moreutils
+  notes: |
+    Conflicts with the `parallel` (GNU parallel) package on some PMs — both
+    ship a `parallel` binary. Do not install both in the same manifest.
+
+lsof:
+  summary: List open files and the processes using them.
+  description: |
+    lsof lists information about files opened by processes. Useful for
+    debugging port conflicts, tracking file descriptor leaks, and monitoring
+    application behaviour.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/lsof.8.html
+    source: https://github.com/lsof-org/lsof
+
+unzip:
+  summary: De-archiver for .zip files.
+  description: |
+    unzip extracts files from .zip archives. Essential for handling compressed
+    sources and assets distributed in the ZIP format.
+  url:
+    docs: https://infozip.sourceforge.net/UnZip.html
+
+zip:
+  summary: Command-line utility for creating ZIP archives.
+  description: |
+    zip creates and manages .zip archive files with support for recursion,
+    exclusion patterns, and encryption. Widely used for packaging files for
+    distribution and backup.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/zip.1.html
+
+xz-utils:
+  summary: Utilities for .xz compression.
+  description: |
+    XZ Utils provide tools for compressing and decompressing files using the
+    .xz format (LZMA2 algorithm). Essential for source tarballs and container
+    image layers.
+  url:
+    docs: https://tukaani.org/xz/
+    source: https://git.tukaani.org/?p=xz.git
+
+mercurial:
+  summary: Distributed version control system.
+  description: |
+    Mercurial (hg) is a distributed VCS with an emphasis on simplicity and
+    performance. Some projects still use Mercurial as their primary VCS, and
+    certain build scripts require it to fetch source dependencies.
+  url:
+    docs: https://www.mercurial-scm.org/guide
+  notes: |
+    Merits a dedicated `install-mercurial` feature if advanced configuration
+    (extensions, auth) is needed. Included here for basic availability.
+
+gnupg:
+  summary: GNU Privacy Guard — encryption and signing tool.
+  description: |
+    GnuPG implements the OpenPGP standard for encryption and signing. Required
+    for verifying package signing keys and adding third-party repositories.
+  url:
+    docs: https://gnupg.org/documentation/index.html
+
+bash-completion:
+  summary: Programmable completion for the Bash shell.
+  description: |
+    Adds intelligent tab-completion for many Bash commands and their arguments.
+    Useful for interactive shell users. Homebrew formula is bash-completion@2
+    (the v2 rewrite).
+  url:
+    docs: https://github.com/scop/bash-completion
+
+openssh-client:
+  summary: Secure shell client for encrypted network connections.
+  description: |
+    The OpenSSH client provides encrypted SSH connections to remote hosts.
+    Used for remote login, tunnelling, and accessing private git repositories
+    inside devcontainers.
+  url:
+    docs: https://www.openssh.com/manual.html
+
+file:
+  summary: Determines file type using magic numbers.
+  description: |
+    The file command identifies the type of files using a magic number
+    database. Linux-only — macOS provides /usr/bin/file as part of the OS.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/file.1.html
+    source: https://github.com/file/file
+
+strace:
+  summary: Diagnostic tool for tracing Linux system calls.
+  description: |
+    strace monitors interactions between programs and the Linux kernel by
+    tracing system calls and signals. Linux-only. Vital for diagnosing
+    runtime issues, debugging, and security auditing.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/strace.1.html
+    source: https://github.com/strace/strace
+
+inotify-tools:
+  summary: Command-line utilities for the Linux inotify filesystem API.
+  description: |
+    inotify-tools provides inotifywait and inotifywatch for monitoring
+    filesystem events in real-time using the Linux kernel inotify subsystem.
+    Linux-only — macOS uses FSEvents.
+  url:
+    docs: https://github.com/inotify-tools/inotify-tools
+    source: https://github.com/inotify-tools/inotify-tools
+
+procps:
+  summary: Utilities for monitoring and managing system processes.
+  description: |
+    procps provides ps, top, vmstat, and related tools for observing system
+    performance and managing processes. Linux-only.
+  url:
+    source: https://gitlab.com/procps-ng/procps
+
+psmisc:
+  summary: Utilities for managing processes — killall, fuser, pstree.
+  description: |
+    psmisc provides killall, fuser, pstree, and peekfd for identifying and
+    controlling processes. Linux-only.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/killall.1.html
+    source: https://gitlab.com/psmisc/psmisc

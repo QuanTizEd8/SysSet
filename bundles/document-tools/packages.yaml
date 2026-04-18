@@ -1,0 +1,53 @@
+packages:
+  # ── PostScript / PDF ──────────────────────────────────────────────────────
+  - ghostscript
+
+  # ── Graph / diagram rendering ─────────────────────────────────────────────
+  - graphviz
+
+  # ── Plotting ──────────────────────────────────────────────────────────────
+  # On apt, gnuplot-nox is the headless (no-X11) variant; all other PMs ship
+  # a single 'gnuplot' package.
+  - name: gnuplot-nox
+    brew: gnuplot
+    apk: gnuplot
+    dnf: gnuplot
+    zypper: gnuplot
+    pacman: gnuplot
+
+  # ── Image manipulation ────────────────────────────────────────────────────
+  # Capital 'I' and 'M' on Fedora (dnf) and openSUSE (zypper).
+  - name: imagemagick
+    dnf: ImageMagick
+    zypper: ImageMagick
+
+  # ── Font infrastructure ───────────────────────────────────────────────────
+  - fontconfig
+
+  # ── Scripting (Perl) ──────────────────────────────────────────────────────
+  - perl
+
+  # ── Syntax highlighting ───────────────────────────────────────────────────
+  - name: python3-pygments
+    brew: pygments
+    apk: py3-pygments
+    dnf: python3-pygments
+    zypper: python3-Pygments
+    pacman: python-pygments
+
+# ── apt-only packages ─────────────────────────────────────────────────────
+# ImageMagick dev headers (other PMs bundle headers with the main package)
+# and TeX Live / latexindent dependencies that only exist as Debian packages.
+apt:
+  packages:
+    - libmagickcore-dev
+    - libmagickwand-dev
+    - fonts-freefont-otf
+    # Required by latexindent (part of TeX Live)
+    - libyaml-tiny-perl
+    - libfile-homedir-perl
+    - libunicode-linebreak-perl
+    - libgetopt-long-descriptive-perl
+    - libdigest-perl-md5-perl
+    # Required for TeX Live dependency management
+    - equivs

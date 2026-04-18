@@ -1,0 +1,267 @@
+libasound2:
+  summary: ALSA sound library (Linux audio).
+  description: |
+    libasound2 provides the ALSA (Advanced Linux Sound Architecture) userspace
+    library. Required by Chromium and Firefox for audio playback in headless
+    mode. On Ubuntu Noble/Debian Trixie, the package is 'libasound2t64'.
+  url:
+    package: https://packages.ubuntu.com/noble/libasound2t64
+
+libatk-bridge2.0-0:
+  summary: AT-SPI 2 toolkit bridge (accessibility).
+  description: |
+    ATK-Bridge connects GTK applications to the AT-SPI accessibility bus.
+    Required by Chromium's accessibility stack. t64 variant on Noble/Trixie.
+  url:
+    package: https://packages.ubuntu.com/noble/libatk-bridge2.0-0t64
+
+libatk1.0-0:
+  summary: ATK accessibility toolkit library.
+  description: |
+    ATK provides a set of accessibility interfaces for GNOME applications.
+    Required by Chromium and GTK-based browsers. t64 variant on Noble/Trixie.
+  url:
+    package: https://packages.ubuntu.com/noble/libatk1.0-0t64
+
+libatspi2.0-0:
+  summary: AT-SPI 2 assistive technology service provider.
+  description: |
+    AT-SPI 2 is the Assistive Technology Service Provider Interface used for
+    accessibility. Required by browsers running in headless mode. t64 variant
+    on Noble/Trixie.
+  url:
+    package: https://packages.ubuntu.com/noble/libatspi2.0-0t64
+
+libcairo2:
+  summary: Cairo 2D vector graphics library.
+  description: |
+    Cairo provides a 2D vector graphics API with hardware-accelerated backend
+    support. Required by Firefox, WebKit, and GTK-based rendering stacks.
+  url:
+    docs: https://www.cairographics.org/documentation/
+
+libcairo-gobject2:
+  summary: Cairo GObject integration library.
+  description: |
+    Provides GObject bindings for Cairo. Required by GTK and gdk-pixbuf for
+    rendering. Needed by Firefox.
+  url:
+    docs: https://www.cairographics.org/
+
+libcups2:
+  summary: CUPS printing system shared library.
+  description: |
+    libcups2 is required by Chromium even in headless mode (printing path).
+    t64 variant on Ubuntu Noble and Debian Trixie.
+  url:
+    package: https://packages.ubuntu.com/noble/libcups2t64
+
+libdbus-1-3:
+  summary: D-Bus inter-process communication library.
+  description: |
+    D-Bus is a message bus for IPC. Browsers use it for desktop integration,
+    notifications, and sandbox communication on Linux.
+  url:
+    docs: https://www.freedesktop.org/wiki/Software/dbus/
+
+libdbus-glib-1-2:
+  summary: GLib-based D-Bus bindings.
+  description: |
+    Provides GLib bindings for D-Bus. Required by Firefox's D-Bus integration
+    layer.
+  url:
+    docs: https://dbus.freedesktop.org/doc/dbus-glib/
+
+libdrm2:
+  summary: Direct Rendering Manager userspace library.
+  description: |
+    libdrm provides userspace access to the Linux kernel DRM subsystem,
+    used by Chromium's GPU process for hardware-accelerated rendering.
+  url:
+    docs: https://dri.freedesktop.org/
+
+libgbm1:
+  summary: Generic Buffer Management API.
+  description: |
+    GBM provides an abstraction for GPU buffer allocation, used by the
+    Chromium GPU sandbox and Wayland compositors.
+  url:
+    docs: https://docs.mesa3d.org/gbm.html
+
+libgdk-pixbuf-2.0-0:
+  summary: GDK pixbuf image loading library.
+  description: |
+    gdk-pixbuf loads and renders images in many formats (PNG, JPEG, etc.).
+    Required by GTK and Firefox's theme rendering.
+  url:
+    docs: https://docs.gtk.org/gdk-pixbuf/
+
+libglib2.0-0:
+  summary: GLib core library.
+  description: |
+    GLib provides data structures, portability wrappers, and the GObject
+    type system. A fundamental dependency of GTK, Chromium, and Firefox.
+    t64 variant on Ubuntu Noble and Debian Trixie.
+  url:
+    docs: https://developer.gnome.org/glib/
+
+libgtk-3-0:
+  summary: GTK 3 graphical toolkit.
+  description: |
+    GTK 3 is the widget toolkit used by Firefox. Also required by some
+    Chromium UI paths. t64 variant on Ubuntu Noble and Debian Trixie.
+  url:
+    docs: https://docs.gtk.org/gtk3/
+
+libnspr4:
+  summary: Netscape Portable Runtime library.
+  description: |
+    NSPR provides a platform-neutral API for low-level system functions.
+    Used by NSS (Network Security Services) and Firefox.
+  url:
+    docs: https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSPR
+
+libnss3:
+  summary: Network Security Services library.
+  description: |
+    NSS provides a set of libraries for cross-platform security-enabled
+    clients and servers (SSL, TLS). Required by Chromium and Firefox for
+    HTTPS certificate handling.
+  url:
+    docs: https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS
+
+libpango-1.0-0:
+  summary: Pango text layout and rendering library.
+  description: |
+    Pango handles layout and rendering of internationalized text. Used by
+    Chromium and GTK for text rendering.
+  url:
+    docs: https://developer.gnome.org/pango/
+
+libpangocairo-1.0-0:
+  summary: Pango Cairo backend.
+  description: |
+    Pango backend that renders text via Cairo. Required by Firefox's text
+    rendering path.
+  url:
+    docs: https://developer.gnome.org/pango/
+
+libwayland-client0:
+  summary: Wayland client library.
+  description: |
+    Provides the Wayland client protocol library. Required by Chromium and
+    Firefox for Wayland display server support in containerized environments.
+  url:
+    docs: https://wayland.freedesktop.org/
+
+libx11-6:
+  summary: X11 client-side library.
+  description: |
+    Core X11 library for communicating with X display servers. Required by
+    all X11-based browser rendering paths.
+  url:
+    docs: https://www.x.org/
+
+libx11-xcb1:
+  summary: Xlib/XCB interface library.
+  description: |
+    Allows applications to use both the Xlib and XCB interfaces. Required by
+    Firefox for better X performance.
+  url:
+    docs: https://www.x.org/
+
+libxcb1:
+  summary: X protocol C-language Binding library.
+  description: |
+    XCB is a low-overhead replacement for Xlib. Required by Chromium and
+    Firefox X11 rendering backends.
+  url:
+    docs: https://xcb.freedesktop.org/
+
+libxcb-shm0:
+  summary: XCB MIT-SHM extension library.
+  description: |
+    XCB binding for the MIT Shared Memory Extension. Required by Firefox for
+    efficient shared memory image transfers.
+  url:
+    docs: https://xcb.freedesktop.org/
+
+libxcomposite1:
+  summary: X11 Composite extension library.
+  description: |
+    Provides the X Composite extension for off-screen rendering and
+    compositing. Required by Chromium.
+  url:
+    docs: https://www.x.org/
+
+libxcursor1:
+  summary: X11 cursor library.
+  description: |
+    Provides themed cursor support for X11. Required by Firefox's cursor
+    rendering.
+  url:
+    docs: https://www.x.org/
+
+libxdamage1:
+  summary: X11 Damage extension library.
+  description: |
+    Tracks damaged (changed) areas of drawables. Used by compositing paths
+    in Chromium and Firefox.
+  url:
+    docs: https://www.x.org/
+
+libxext6:
+  summary: X11 miscellaneous extensions library.
+  description: |
+    Provides a range of X11 protocol extensions. Required by browsers and
+    most X11 applications.
+  url:
+    docs: https://www.x.org/
+
+libxfixes3:
+  summary: X11 Fixes extension library.
+  description: |
+    Provides bug fixes and enhancements to the core X11 protocol. Required
+    by Chromium.
+  url:
+    docs: https://www.x.org/
+
+libxi6:
+  summary: X11 Input extension library.
+  description: |
+    Provides support for multi-pointer and extended input devices. Required
+    by Firefox for input handling.
+  url:
+    docs: https://www.x.org/
+
+libxkbcommon0:
+  summary: XKB keyboard description library.
+  description: |
+    libxkbcommon parses XKB keyboard maps and handles keyboard state. Required
+    by Chromium (Ozone/Wayland) and Firefox for key event processing.
+  url:
+    docs: https://xkbcommon.org/
+
+libxrandr2:
+  summary: X11 RandR extension library.
+  description: |
+    Provides the XRandR (Resize and Rotate) extension for managing display
+    configuration. Required by Chromium for screen geometry queries.
+  url:
+    docs: https://www.x.org/
+
+libxrender1:
+  summary: X11 Render extension library.
+  description: |
+    Provides the XRender extension for anti-aliased drawing and compositing.
+    Required by Firefox's rendering pipeline.
+  url:
+    docs: https://www.x.org/
+
+libxtst6:
+  summary: X11 Testing and Record extension library.
+  description: |
+    Provides XTest and Record extensions for simulating input events. Required
+    by Firefox and Selenium WebDriver for browser automation.
+  url:
+    docs: https://www.x.org/

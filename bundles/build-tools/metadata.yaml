@@ -1,0 +1,126 @@
+build-essential:
+  summary: Meta-package for essential compilation tools (GCC, make, libc headers).
+  description: |
+    On Debian/Ubuntu, build-essential installs GCC, g++, make, and libc6-dev.
+    Equivalent groups are installed via build-base (apk), the development-tools
+    group (dnf/yum), devel_basis pattern (zypper), or base-devel group (pacman).
+    On macOS, Xcode Command Line Tools provide the equivalent.
+  url:
+    docs: https://packages.ubuntu.com/noble/build-essential
+
+cmake:
+  summary: Cross-platform build system generator.
+  description: |
+    CMake manages the build process in an OS- and compiler-independent manner,
+    generating native build environments (Makefiles, Ninja, Xcode, etc.).
+    Essential for building most modern C/C++ projects.
+  url:
+    docs: https://cmake.org/documentation/
+    source: https://gitlab.kitware.com/cmake/cmake
+
+autoconf:
+  summary: Tool for generating configure scripts.
+  description: |
+    Autoconf produces shell scripts that automatically configure source packages
+    for Unix-like systems. Required for building software that uses the GNU
+    Autotools build system.
+  url:
+    docs: https://www.gnu.org/software/autoconf/manual/autoconf.html
+    source: https://git.savannah.gnu.org/git/autoconf.git
+
+automake:
+  summary: Tool for automatically generating Makefile.in files.
+  description: |
+    Automake generates Makefile.in files compliant with the GNU Coding
+    Standards. Used with Autoconf to create portable, configurable build
+    systems.
+  url:
+    docs: https://www.gnu.org/software/automake/manual/automake.html
+    source: https://git.savannah.gnu.org/git/automake.git
+
+libtool:
+  summary: Generic library support script.
+  description: |
+    libtool abstracts the complexity of building and using shared libraries
+    across different platforms. Required by many Autotools-based projects.
+  url:
+    docs: https://www.gnu.org/software/libtool/manual/
+    source: https://git.savannah.gnu.org/git/libtool.git
+
+gettext:
+  summary: GNU Internationalization utilities.
+  description: |
+    gettext provides tools and libraries for internationalizing and localizing
+    software. Required by many source builds (including Git) for i18n support.
+  url:
+    docs: https://www.gnu.org/software/gettext/manual/
+    source: https://git.savannah.gnu.org/git/gettext.git
+
+gdb:
+  summary: GNU Debugger.
+  description: |
+    GDB lets developers inspect what a program is doing at any point during
+    execution. Supports C, C++, Fortran, and more. Essential for debugging
+    compiled applications.
+  url:
+    docs: https://sourceware.org/gdb/documentation/
+    source: https://sourceware.org/git/binutils-gdb.git
+
+lldb:
+  summary: LLVM next-generation debugger.
+  description: |
+    LLDB is the debugger component of the LLVM project. Highly modular and
+    tightly integrated with Clang. On macOS, provided by the llvm Homebrew
+    formula.
+  url:
+    docs: https://lldb.llvm.org/
+    source: https://github.com/llvm/llvm-project
+
+cppcheck:
+  summary: Static analysis tool for C/C++ code.
+  description: |
+    Cppcheck detects bugs and undefined behaviour in C/C++ code without
+    requiring compilation. Focuses on finding dangerous constructs that
+    compilers typically miss.
+  url:
+    docs: https://cppcheck.sourceforge.io/manual.pdf
+    source: https://github.com/danmar/cppcheck
+
+clang:
+  summary: C, C++, and Objective-C compiler based on LLVM.
+  description: |
+    Clang is a fast, standards-compliant compiler for C/C++/Objective-C with
+    expressive diagnostics. On macOS, the Homebrew llvm formula provides clang
+    as a keg-only newer version alongside the Xcode CLT clang.
+  url:
+    docs: https://clang.llvm.org/docs/
+    source: https://github.com/llvm/llvm-project
+
+swig:
+  summary: Tool for generating scripting language bindings for C/C++ code.
+  description: |
+    SWIG (Simplified Wrapper and Interface Generator) automatically generates
+    wrapper code connecting C/C++ libraries to Python, Perl, Ruby, and other
+    high-level languages.
+  url:
+    docs: https://www.swig.org/Doc4.0/
+    source: https://github.com/swig/swig
+
+patch:
+  summary: Apply a diff file to an original.
+  description: |
+    patch applies changes described in diff/unified-diff files. Essential for
+    applying upstream patches during source builds. On macOS, Homebrew provides
+    GNU patch as gpatch (the system patch is BSD patch).
+  url:
+    docs: https://www.gnu.org/software/diffutils/manual/
+    source: https://savannah.gnu.org/git/?group=diffutils
+
+valgrind:
+  summary: Instrumentation framework for memory debugging and profiling.
+  description: |
+    Valgrind detects memory leaks, invalid memory accesses, and threading bugs.
+    Linux-only — does not run on macOS due to kernel differences.
+  url:
+    docs: https://valgrind.org/docs/manual/manual.html
+    source: https://sourceware.org/git/valgrind.git

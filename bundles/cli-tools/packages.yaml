@@ -1,0 +1,71 @@
+packages:
+  # Downloading / transfer
+  - curl
+  - wget
+  - rsync
+
+  # Data processing
+  - jq
+
+  # Pager / editors
+  - less
+  - nano
+  - vim
+
+  # Terminal multiplexer / monitoring
+  - tmux
+  - htop
+  - tree
+  - ncdu
+
+  # Interactive utilities
+  - dialog
+  - moreutils
+  - lsof
+
+  # Archive utilities
+  - unzip
+  - zip
+  - name: xz-utils
+    brew: xz
+    apk: xz
+    dnf: xz
+    zypper: xz
+    pacman: xz
+
+  # VCS
+  - mercurial
+
+  # Cryptography
+  - name: gnupg
+    dnf: gnupg2
+    zypper: gpg2
+
+  # Shell completions
+  - name: bash-completion
+    brew: bash-completion@2
+
+  # Secure shell client
+  - name: openssh-client
+    brew: openssh
+    dnf: openssh-clients
+    zypper: openssh
+    pacman: openssh
+
+  # Linux-only utilities
+  - name: file
+    when: {kernel: linux}
+
+  - name: strace
+    when: {kernel: linux}
+
+  - name: inotify-tools
+    when: {kernel: linux}
+
+  - name: procps
+    when: {kernel: linux}
+    dnf: procps-ng
+    pacman: procps-ng
+
+  - name: psmisc
+    when: {kernel: linux}

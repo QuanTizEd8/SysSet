@@ -1,0 +1,55 @@
+# Compiler toolchain equivalents per PM
+apt:
+  packages:
+    - build-essential
+
+apk:
+  packages:
+    - build-base
+
+dnf:
+  groups:
+    - development-tools
+
+yum:
+  groups:
+    - development-tools
+
+# zypper: install the devel_basis pattern
+# pacman: install the base-devel group
+groups:
+  - name: devel_basis
+    when: {pm: zypper}
+  - name: base-devel
+    when: {pm: pacman}
+
+packages:
+  # Build system
+  - cmake
+  - autoconf
+  - automake
+  - libtool
+  - gettext
+
+  # Debuggers
+  - gdb
+  - name: lldb
+    brew: llvm
+
+  # Static analysis
+  - cppcheck
+
+  # Compiler (LLVM/Clang)
+  - name: clang
+    brew: llvm
+
+  # Wrapper/binding generators
+  - swig
+
+  # Patching
+  - name: patch
+    brew: gpatch
+
+  # Memory analysis (Linux-only — Valgrind does not run on macOS)
+  - name: valgrind
+    when: {kernel: linux}

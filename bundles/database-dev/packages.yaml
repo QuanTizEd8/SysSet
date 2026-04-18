@@ -1,0 +1,40 @@
+packages:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  - name: libpq-dev
+    brew: libpq
+    # apk name is also 'libpq-dev' — no override needed
+    dnf: libpq-devel
+    zypper: postgresql-devel
+    pacman: postgresql-libs
+
+  # ── MySQL / MariaDB ───────────────────────────────────────────────────────
+  - name: default-libmysqlclient-dev
+    brew: mysql-client
+    apk: mariadb-dev
+    dnf: mariadb-connector-c-devel
+    zypper: mariadb-devel
+    pacman: mariadb-libs
+
+  # ── SQLite ────────────────────────────────────────────────────────────────
+  - name: libsqlite3-dev
+    brew: sqlite
+    apk: sqlite-dev
+    dnf: sqlite-devel
+    zypper: sqlite3-devel
+    pacman: sqlite
+
+  # sqlite3 CLI — same name on all PMs except zypper (sqlite3)
+  - name: sqlite3
+    brew: sqlite
+    apk: sqlite
+    dnf: sqlite
+    zypper: sqlite3
+    pacman: sqlite
+
+  # ── ODBC ──────────────────────────────────────────────────────────────────
+  - name: unixodbc-dev
+    brew: unixodbc
+    apk: unixodbc-dev
+    dnf: unixODBC-devel
+    zypper: unixodbc-devel
+    pacman: unixodbc

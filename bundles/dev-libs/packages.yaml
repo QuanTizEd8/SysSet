@@ -1,0 +1,184 @@
+packages:
+  # ── Compression ───────────────────────────────────────────────────────────
+  - name: zlib1g-dev
+    brew: zlib
+    apk: zlib-dev
+    dnf: zlib-devel
+    zypper: zlib-devel
+    pacman: zlib
+
+  - name: libbz2-dev
+    brew: bzip2
+    apk: bzip2-dev
+    dnf: bzip2-devel
+    zypper: libbz2-devel
+    pacman: bzip2
+
+  - name: liblzma-dev
+    brew: xz
+    apk: xz-dev
+    dnf: xz-devel
+    zypper: xz-devel
+    pacman: xz
+
+  # ── Crypto / TLS ──────────────────────────────────────────────────────────
+  - name: libssl-dev
+    brew: openssl@3
+    apk: openssl-dev
+    dnf: openssl-devel
+    zypper: libopenssl-devel
+    pacman: openssl
+
+  - name: libkrb5-dev
+    brew: krb5
+    apk: krb5-dev
+    dnf: krb5-devel
+    zypper: krb5-devel
+    pacman: krb5
+
+  # ── Secret storage ────────────────────────────────────────────────────────
+  - name: libsecret-1-dev
+    brew: libsecret
+    apk: libsecret-dev
+    dnf: libsecret-devel
+    zypper: libsecret-devel
+    pacman: libsecret
+
+  # ── Network / HTTP ────────────────────────────────────────────────────────
+  - name: libcurl4-openssl-dev
+    brew: curl
+    apk: curl-dev
+    dnf: libcurl-devel
+    zypper: libcurl-devel
+    pacman: curl
+
+  - name: libevent-dev
+    brew: libevent
+    apk: libevent-dev
+    dnf: libevent-devel
+    zypper: libevent-devel
+    pacman: libevent
+
+  # ── FFI / Dynamic loading ─────────────────────────────────────────────────
+  - name: libffi-dev
+    brew: libffi
+    apk: libffi-dev
+    dnf: libffi-devel
+    zypper: libffi-devel
+    pacman: libffi
+
+  # ── Terminal / readline ───────────────────────────────────────────────────
+  - name: libreadline-dev
+    brew: readline
+    apk: readline-dev
+    dnf: readline-devel
+    zypper: readline-devel
+    pacman: readline
+
+  - name: libncurses-dev
+    brew: ncurses
+    apk: ncurses-dev
+    dnf: ncurses-devel
+    zypper: ncurses-devel
+    pacman: ncurses
+
+  # ── SQLite dev headers ────────────────────────────────────────────────────
+  - name: libsqlite3-dev
+    brew: sqlite
+    apk: sqlite-dev
+    dnf: sqlite-devel
+    zypper: sqlite3-devel
+    pacman: sqlite
+
+  # ── UUID ──────────────────────────────────────────────────────────────────
+  # macOS provides UUID in the system SDK; install only on Linux
+  - name: uuid-dev
+    when: {kernel: linux}
+    apk: util-linux-dev
+    dnf: libuuid-devel
+    zypper: libuuid-devel
+    pacman: util-linux
+
+  # ── GLib ──────────────────────────────────────────────────────────────────
+  - name: libglib2.0-dev
+    brew: glib
+    apk: glib-dev
+    dnf: glib2-devel
+    zypper: glib2-devel
+    pacman: glib2
+
+  # ── XML / Parsing ─────────────────────────────────────────────────────────
+  - name: libxml2-dev
+    brew: libxml2
+    apk: libxml2-dev
+    dnf: libxml2-devel
+    zypper: libxml2-devel
+    pacman: libxml2
+
+  # apt package name is libxslt1-dev; all others follow a consistent pattern
+  - name: libxslt1-dev
+    brew: libxslt
+    apk: libxslt-dev
+    dnf: libxslt-devel
+    zypper: libxslt-devel
+    pacman: libxslt
+
+  - name: libyaml-dev
+    brew: libyaml
+    apk: yaml-dev
+    dnf: libyaml-devel
+    zypper: libyaml-devel
+    pacman: libyaml
+
+  - name: libexpat1-dev
+    brew: expat
+    apk: expat-dev
+    dnf: expat-devel
+    zypper: libexpat-devel
+    pacman: expat
+
+  # ── Regular expressions ───────────────────────────────────────────────────
+  - name: libpcre2-dev
+    brew: pcre2
+    apk: pcre2-dev
+    dnf: pcre2-devel
+    zypper: pcre2-devel
+    pacman: pcre2
+
+  # ── Arbitrary-precision arithmetic ───────────────────────────────────────
+  - name: libgmp-dev
+    brew: gmp
+    apk: gmp-dev
+    dnf: gmp-devel
+    zypper: gmp-devel
+    pacman: gmp
+
+  # ── Image formats ─────────────────────────────────────────────────────────
+  - name: libpng-dev
+    brew: libpng
+    apk: libpng-dev
+    dnf: libpng-devel
+    zypper: libpng16-compat-devel
+    pacman: libpng
+
+  - name: libjpeg-dev
+    brew: libjpeg-turbo
+    apk: libjpeg-turbo-dev
+    dnf: libjpeg-turbo-devel
+    zypper: libjpeg8-devel
+    pacman: libjpeg-turbo
+
+  - name: libwebp-dev
+    brew: webp
+    apk: libwebp-dev
+    dnf: libwebp-devel
+    zypper: libwebp-devel
+    pacman: libwebp
+
+  # ── Tcl/Tk GUI toolkit ────────────────────────────────────────────────────
+  - name: tk-dev
+    brew: tcl-tk@8
+    apk: tk-dev
+    dnf: tk-devel
+    zypper: tk-devel
+    pacman: tk

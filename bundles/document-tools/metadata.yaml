@@ -1,0 +1,146 @@
+ghostscript:
+  summary: Interpreter for PostScript and PDF.
+  description: |
+    Ghostscript renders, converts, and prints PostScript and PDF files. Used
+    as a backend for PDF viewers and by TeX toolchains for EPS conversion and
+    DVI/PS→PDF pipelines.
+  url:
+    docs: https://www.ghostscript.com/doc/current/
+    source: https://github.com/ArtifexSoftware/ghostpdl
+
+graphviz:
+  summary: Graph visualization software.
+  description: |
+    Graphviz automatically generates diagrams from DOT-language textual
+    descriptions. Used by Sphinx (dot directive), Doxygen, Jupyter notebooks
+    with graphviz, and scientific papers that visualize graphs or workflows.
+  url:
+    docs: https://graphviz.org/documentation/
+    source: https://gitlab.com/graphviz/graphviz
+
+gnuplot-nox:
+  summary: Headless command-line plotting program.
+  description: |
+    gnuplot creates 2D and 3D plots in formats including PostScript, PDF, PNG,
+    and SVG. The -nox variant (apt only) excludes X11/Qt GUIs — all other PMs
+    ship a single 'gnuplot' package. Used as a backend for pgfplots in TeX.
+  url:
+    docs: https://gnuplot.info/documentation.html
+
+imagemagick:
+  summary: Image manipulation tools.
+  description: |
+    ImageMagick creates, edits, composes, and converts bitmap images in many
+    formats. Used by Sphinx (image conversion), Pandoc, and document pipelines.
+    Note: on dnf (Fedora) and zypper (openSUSE) the package is 'ImageMagick'
+    (capital I and M).
+  url:
+    docs: https://imagemagick.org/script/resources.php
+    source: https://github.com/ImageMagick/ImageMagick
+
+fontconfig:
+  summary: Font configuration and customization library.
+  description: |
+    fontconfig provides system-wide font configuration and discovery.
+    Required by document processing tools (LaTeX, Sphinx) and PDF renderers
+    that embed or select fonts.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man5/fonts-conf.5.html
+
+perl:
+  summary: Perl programming language interpreter.
+  description: |
+    Perl is a versatile scripting language widely used in text processing and
+    system administration. Required by TeX Live utilities (latexindent, etc.)
+    and many document-processing scripts.
+  url:
+    docs: https://perldoc.perl.org/
+
+python3-pygments:
+  summary: Python syntax highlighting library.
+  description: |
+    Pygments is a generic syntax highlighter supporting hundreds of languages.
+    Required by Sphinx (code-block directives), MkDocs, and LaTeX minted
+    package for formatted code listings.
+  url:
+    docs: https://pygments.org/docs/
+    source: https://github.com/pygments/pygments
+
+libmagickcore-dev:
+  summary: Development files for ImageMagick core (apt only).
+  description: |
+    Headers for ImageMagick's core image-processing library. Debian/Ubuntu
+    only — on other platforms installing imagemagick/ImageMagick includes the
+    headers.
+  url:
+    source: https://github.com/ImageMagick/ImageMagick
+
+libmagickwand-dev:
+  summary: Development files for ImageMagick MagickWand C API (apt only).
+  description: |
+    Headers for the MagickWand C API, a high-level interface to ImageMagick.
+    Required for building applications that call ImageMagick programmatically
+    via the Wand API. Debian/Ubuntu only.
+  url:
+    docs: https://imagemagick.org/script/magick-wand.php
+    source: https://github.com/ImageMagick/ImageMagick
+
+fonts-freefont-otf:
+  summary: GNU FreeFont OpenType fonts (apt only).
+  description: |
+    The GNU FreeFont collection (FreeSerif, FreeSans, FreeMono) in OpenType
+    format, providing broad Unicode coverage. Used by Sphinx PDF builds and
+    TeX documents requiring comprehensive Unicode font support.
+  url:
+    docs: https://www.gnu.org/software/freefont/
+
+libyaml-tiny-perl:
+  summary: Perl module for minimal YAML reading/writing (apt only).
+  description: |
+    YAML::Tiny is a lightweight pure-Perl YAML reader/writer. Required by
+    latexindent (part of TeX Live) on Debian/Ubuntu. Not available as a
+    cross-platform package.
+  url:
+    docs: https://metacpan.org/pod/YAML::Tiny
+
+libfile-homedir-perl:
+  summary: Perl module for cross-platform home directory location (apt only).
+  description: |
+    File::HomeDir provides a portable API for locating user home and
+    application directories. Required by latexindent on Debian/Ubuntu.
+  url:
+    docs: https://metacpan.org/pod/File::HomeDir
+
+libunicode-linebreak-perl:
+  summary: Perl Unicode Line Breaking Algorithm module (apt only).
+  description: |
+    Unicode::LineBreak implements UAX #14. Required by latexindent for
+    proper Unicode text wrapping in LaTeX source files.
+  url:
+    docs: https://metacpan.org/pod/Unicode::LineBreak
+
+libgetopt-long-descriptive-perl:
+  summary: Perl Getopt::Long wrapper with usage generation (apt only).
+  description: |
+    Getopt::Long::Descriptive wraps Getopt::Long with automatic usage/help
+    text generation. Required by latexindent on Debian/Ubuntu.
+  url:
+    docs: https://metacpan.org/pod/Getopt::Long::Descriptive
+
+libdigest-perl-md5-perl:
+  summary: Pure-Perl MD5 implementation (apt only).
+  description: |
+    Digest::Perl::MD5 is a fallback MD5 implementation for environments where
+    the compiled Digest::MD5 C extension is unavailable. Required by some
+    TeX Live scripts on Debian/Ubuntu.
+  url:
+    docs: https://metacpan.org/pod/Digest::Perl::MD5
+
+equivs:
+  summary: Tool for creating stub Debian packages to satisfy dependencies (apt only).
+  description: |
+    equivs creates minimal Debian metapackages used to declare or override
+    package dependencies. Required for the TeX Live installation workflow on
+    Debian/Ubuntu to satisfy apt dependency checks.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man1/equivs-build.1.html

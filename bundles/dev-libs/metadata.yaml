@@ -1,0 +1,239 @@
+zlib1g-dev:
+  summary: Development files for the zlib compression library.
+  description: |
+    Headers and static libraries for zlib (deflate/INFLATE). Required to
+    compile Python, Ruby, Git, and most software that handles compressed data.
+  url:
+    docs: https://zlib.net/manual.html
+    source: https://github.com/madler/zlib
+
+libbz2-dev:
+  summary: Development files for the bzip2 compression library.
+  description: |
+    Headers and static libraries for bzip2 (Burrows-Wheeler block-sorting
+    compression). Required for building Python with bz2 module support, and
+    for software that reads .bz2 archives.
+  url:
+    docs: https://manpages.ubuntu.com/manpages/noble/en/man3/bzlib.3.html
+    source: https://sourceware.org/git/bzip2.git
+
+liblzma-dev:
+  summary: Development files for the LZMA/XZ compression library.
+  description: |
+    Headers and static libraries for liblzma (LZMA2/XZ compression). Required
+    for building Python with lzma module support and software that handles
+    .xz archives.
+  url:
+    docs: https://tukaani.org/xz/
+
+libssl-dev:
+  summary: Development files for the OpenSSL library.
+  description: |
+    Headers and static libraries for OpenSSL (SSL/TLS). Required for building
+    Python with ssl module support, Git with HTTPS support, and virtually any
+    software that performs encrypted network I/O. Homebrew formula: openssl@3.
+  url:
+    docs: https://www.openssl.org/docs/
+    source: https://github.com/openssl/openssl
+
+libkrb5-dev:
+  summary: Development files for MIT Kerberos authentication.
+  description: |
+    Headers and static libraries for the MIT Kerberos 5 authentication system.
+    Required for building software that integrates with Kerberos/GSSAPI
+    authentication.
+  url:
+    docs: https://web.mit.edu/kerberos/krb5-1.20/
+    source: https://github.com/krb5/krb5
+
+libsecret-1-dev:
+  summary: Development files for libsecret (GNOME secret storage).
+  description: |
+    Headers for libsecret, which implements the Secret Service API for
+    storing and retrieving credentials. Used by applications that integrate
+    with GNOME Keyring or other compatible credential stores (e.g. git
+    credential helpers).
+  url:
+    docs: https://developer.gnome.org/libsecret/
+    source: https://gitlab.gnome.org/GNOME/libsecret
+  notes: |
+    Primarily useful on Linux desktop and devcontainer environments with a
+    running Secret Service daemon.
+
+libcurl4-openssl-dev:
+  summary: Development files for libcurl (OpenSSL variant).
+  description: |
+    Headers and static libraries for libcurl, the client-side URL transfer
+    library supporting HTTP, HTTPS, FTP, and more. Required for building
+    Git with HTTP support and many other networked applications.
+  url:
+    docs: https://curl.se/libcurl/
+    source: https://github.com/curl/curl
+
+libevent-dev:
+  summary: Development files for libevent (async event notification).
+  description: |
+    Headers and static libraries for libevent, an asynchronous event
+    notification library. Required by tmux (for builds from source), Tor,
+    Memcached, and high-performance networked applications.
+  url:
+    docs: https://libevent.org/
+    source: https://github.com/libevent/libevent
+
+libffi-dev:
+  summary: Development files for the Foreign Function Interface library.
+  description: |
+    Headers for libffi, which lets code call functions in other languages
+    at runtime. Required for building Python (ctypes module), Ruby, PyPy,
+    and many language runtimes.
+  url:
+    docs: https://sourceware.org/libffi/
+    source: https://github.com/libffi/libffi
+
+libreadline-dev:
+  summary: Development files for GNU readline.
+  description: |
+    Headers and static libraries for the GNU readline and history libraries.
+    Required for building Python with interactive line editing, as well as
+    PostgreSQL, Ruby, and shells.
+  url:
+    docs: https://tiswww.case.edu/php/chet/readline/readline.html
+    source: https://git.savannah.gnu.org/git/readline.git
+
+libncurses-dev:
+  summary: Development files for the ncurses terminal handling library.
+  description: |
+    Headers and static libraries for ncurses (both narrow and wide-character
+    variants). Required for building terminal applications such as vim, tmux,
+    Python (curses module), and any TUI framework.
+  url:
+    docs: https://invisible-island.net/ncurses/
+    source: https://invisible-island.net/datafiles/release/ncurses.tar.gz
+
+libsqlite3-dev:
+  summary: Development files for SQLite 3.
+  description: |
+    Headers and static libraries for SQLite 3. Required for building Python
+    with sqlite3 module support, Ruby, and countless applications that embed
+    SQLite as their database engine.
+  url:
+    docs: https://www.sqlite.org/docs.html
+    source: https://www.sqlite.org/src
+
+uuid-dev:
+  summary: Development files for UUID generation (util-linux).
+  description: |
+    Headers for the libuuid library (from util-linux), which generates and
+    parses UUIDs. macOS provides uuid.h in the system SDK. Linux-only install.
+    Package name varies: util-linux-dev (apk), libuuid-devel (dnf/zypper),
+    util-linux (pacman).
+  url:
+    docs: https://man7.org/linux/man-pages/man3/uuid.3.html
+    source: https://github.com/util-linux/util-linux
+
+libglib2.0-dev:
+  summary: Development files for GLib.
+  description: |
+    Headers and static libraries for GLib, the low-level core library behind
+    GTK and GNOME. Provides data structures, portability wrappers, an event
+    loop, dynamic loading, and the GObject type system.
+  url:
+    docs: https://developer.gnome.org/glib/
+    source: https://gitlab.gnome.org/GNOME/glib
+
+libxml2-dev:
+  summary: Development files for the libxml2 XML parser.
+  description: |
+    Headers and static libraries for libxml2 (GNOME XML library). Required
+    for building Python (lxml), Ruby (nokogiri), and applications that parse
+    or generate XML.
+  url:
+    docs: http://xmlsoft.org/html/index.html
+    source: https://gitlab.gnome.org/GNOME/libxml2
+
+libxslt1-dev:
+  summary: Development files for the libxslt XSLT processing library.
+  description: |
+    Headers and static libraries for libxslt (XSLT 1.0 processor). Required
+    for lxml and other libraries that perform XML transformations. The apt
+    package is named libxslt1-dev; other PMs use libxslt or libxslt-devel.
+  url:
+    docs: http://xmlsoft.org/XSLT/
+    source: https://gitlab.gnome.org/GNOME/libxslt
+
+libyaml-dev:
+  summary: Development files for libyaml (YAML 1.1 parser/emitter).
+  description: |
+    Headers and static libraries for libyaml. Required for building PyYAML
+    with C extension support, Ruby (Psych), and C programs that parse YAML.
+  url:
+    docs: https://pyyaml.org/wiki/LibYAML
+    source: https://github.com/yaml/libyaml
+
+libexpat1-dev:
+  summary: Development files for the Expat XML parser.
+  description: |
+    Headers and static libraries for Expat, a fast stream-oriented XML parser
+    in C. Required for building Python (xml.parsers.expat module) and Git.
+  url:
+    docs: https://libexpat.github.io/
+    source: https://launchpad.net/ubuntu/noble/+source/expat
+
+libpcre2-dev:
+  summary: Development files for PCRE2 regular expression library.
+  description: |
+    Headers and static libraries for PCRE2 (Perl Compatible Regular
+    Expressions v2). Required for building Git, Nginx, and many other tools
+    that use advanced regex matching.
+  url:
+    docs: https://pcre.org/current/doc/html/
+    source: https://github.com/PhilipHazel/pcre2
+
+libgmp-dev:
+  summary: Development files for the GNU Multiple Precision Arithmetic Library.
+  description: |
+    Headers and static libraries for GMP, which provides arbitrary-precision
+    arithmetic for integers, rationals, and floating-point numbers. Required
+    by GnuTLS, Ruby (bignum), and cryptographic software.
+  url:
+    docs: https://gmplib.org/manual/
+    source: https://gmplib.org/repo/gmp/
+
+libpng-dev:
+  summary: Development files for the PNG image format library.
+  description: |
+    Headers and static libraries for libpng. Required for building PIL/Pillow,
+    matplotlib (for PNG output), and any application that reads or writes PNG
+    images.
+  url:
+    docs: http://www.libpng.org/pub/png/libpng.html
+    source: https://github.com/glennrp/libpng
+
+libjpeg-dev:
+  summary: Development files for the libjpeg-turbo JPEG library.
+  description: |
+    Headers and static libraries for libjpeg-turbo, an optimised SIMD
+    implementation of the JPEG codec. Required for Pillow, OpenCV, and
+    applications that encode/decode JPEG images.
+  url:
+    docs: https://libjpeg-turbo.org/
+    source: https://github.com/libjpeg-turbo/libjpeg-turbo
+
+libwebp-dev:
+  summary: Development files for the WebP image format library.
+  description: |
+    Headers and static libraries for libwebp. Required for Pillow (WebP
+    support), browsers, and applications that handle modern WebP images.
+    Homebrew formula: webp.
+  url:
+    docs: https://developers.google.com/speed/webp/docs/
+    source: https://chromium.googlesource.com/webm/libwebp
+
+tk-dev:
+  summary: Development files for the Tk GUI toolkit.
+  description: |
+    Headers and libraries for Tk (the Tcl/Tk GUI toolkit). Required for
+    building Python with the tkinter module. Homebrew formula: tcl-tk@8.
+  url:
+    docs: https://www.tcl.tk/doc/
+    source: https://core.tcl-lang.org/tk
