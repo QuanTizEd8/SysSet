@@ -35,6 +35,37 @@ SCRIPT_DIR = Path(__file__).parent
 SRC_DIR = SCRIPT_DIR.parent / "src"
 
 # ---------------------------------------------------------------------------
+# Synthetic (derived) options — auto-injected based on metadata structure
+# ---------------------------------------------------------------------------
+
+# keep_cache: injected when the `dependencies` key is present in metadata.yaml
+# (the feature uses ospkg; cache management is relevant).
+_SYNTHETIC_KEEP_CACHE: dict = {
+    "type": "boolean",
+    "default": True,
+    "description": (
+        "Keep the package manager cache after installation. "
+        "Set to false to run ospkg__clean at script exit, removing cached "
+        "package index and downloaded packages to reduce image layer size."
+    ),
+}
+# debug / logfile: always injected for every feature.
+_SYNTHETIC_DEBUG: dict = {
+    "type": "boolean",
+    "default": False,
+    "description": "Enable debug output.",
+}
+_SYNTHETIC_LOGFILE: dict = {
+    "type": "string",
+    "default": "",
+    "description": "Log all output (stdout + stderr) to this file in addition to console.",
+}
+
+# Option keys that must not appear in the raw metadata and are replaced by the
+# synthetic definitions above.
+_DERIVED_OPTION_KEYS: frozenset[str] = frozenset({"debug", "logfile", "keep_cache"})
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -105,6 +136,25 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     If *dependencies* contains a ``base`` key, an ``ospkg__run`` call is
     emitted as the last statement before the end marker.
     """
+    # ── Derive has_ospkg and build the final options dict ────────────────────
+    # has_ospkg is true when the metadata has a `dependencies` key (even empty),
+    # which signals that this feature uses ospkg for package management.
+    has_ospkg: bool = dependencies is not None
+
+    # Strip any derived keys from the raw options (they should not be in the
+    # metadata anymore, but guard defensively) and append canonical synthetics.
+    core_options: dict = {
+        k: v for k, v in options.items() if k not in _DERIVED_OPTION_KEYS
+    }
+    final_options: dict = dict(core_options)
+    if has_ospkg:
+        final_options["keep_cache"] = _SYNTHETIC_KEEP_CACHE
+    final_options["debug"] = _SYNTHETIC_DEBUG
+    final_options["logfile"] = _SYNTHETIC_LOGFILE
+
+    # All code generation below uses final_options (not the raw options dict).
+    options = final_options
+
     lines: list[str] = []
 
     # ── shebang + strict mode ────────────────────────────────────────────────
@@ -135,6 +185,8 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     lines.append("_on_exit() {")
     lines.append("  local _rc=$?")
     lines.append("  _cleanup_hook")
+    if has_ospkg:
+        lines.append('  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean')
     lines.append("  if [[ $_rc -eq 0 ]]; then")
     lines.append(
         f'    echo "\u2705 {feature_name} script finished successfully." >&2'
@@ -452,7 +504,7 @@ def main() -> int:
         options: dict = meta.get("options", {})
         if not isinstance(options, dict):
             options = {}
-        dependencies: dict = meta.get("dependencies") or {}
+        dependencies: dict | None = meta.get("dependencies")
 
         new_block = generate_block(feature_name, options, dependencies)
 

@@ -137,6 +137,40 @@ def _process_value(key: str, value: object) -> object:
     return value
 
 
+# ---------------------------------------------------------------------------
+# Synthetic (derived) options injected by the generator
+# ---------------------------------------------------------------------------
+
+# These options are NOT declared in metadata.yaml — the generator auto-injects
+# them based on the structure of the metadata:
+#   - keep_cache: injected when the `dependencies` key is present (the feature
+#     uses ospkg to install OS packages, so cache management is relevant).
+#   - debug / logfile: injected unconditionally for every feature.
+
+_SYNTHETIC_KEEP_CACHE: dict = {
+    "type": "boolean",
+    "default": True,
+    "description": (
+        "Keep the package manager cache after installation. "
+        "Set to false to run ospkg__clean at script exit, removing cached "
+        "package index and downloaded packages to reduce image layer size."
+    ),
+}
+_SYNTHETIC_DEBUG: dict = {
+    "type": "boolean",
+    "default": False,
+    "description": "Enable debug output.",
+}
+_SYNTHETIC_LOGFILE: dict = {
+    "type": "string",
+    "default": "",
+    "description": "Log all output (stdout + stderr) to this file in addition to console.",
+}
+
+# Options that are stripped from the raw metadata before JSON generation and
+# re-injected as synthetic definitions.
+_DERIVED_OPTION_KEYS: frozenset[str] = frozenset({"debug", "logfile", "keep_cache"})
+
 # Keys in metadata.yaml that are internal to this project and must not be
 # written to devcontainer-feature.json (which follows the devcontainer spec).
 _INTERNAL_KEYS: frozenset[str] = frozenset({"dependencies"})
@@ -156,7 +190,24 @@ def generate_json(data: dict) -> str:
 
     Returns the JSON string (with trailing newline).
     """
-    processed = {k: _process_value(k, v) for k, v in data.items()}
+    # Determine whether this feature uses ospkg (dependencies key is present,
+    # even if empty) to decide whether to inject the keep_cache option.
+    has_ospkg: bool = data.get("dependencies") is not None
+
+    # Build a patched data dict with derived options stripped from the raw
+    # options dict and replaced with canonical synthetic definitions.
+    raw_options: dict = data.get("options") or {}
+    core_options: dict = {
+        k: v for k, v in raw_options.items() if k not in _DERIVED_OPTION_KEYS
+    }
+    synthetic_options: dict = {}
+    if has_ospkg:
+        synthetic_options["keep_cache"] = _SYNTHETIC_KEEP_CACHE
+    synthetic_options["debug"] = _SYNTHETIC_DEBUG
+    synthetic_options["logfile"] = _SYNTHETIC_LOGFILE
+
+    patched: dict = {**data, "options": {**core_options, **synthetic_options}}
+    processed = {k: _process_value(k, v) for k, v in patched.items()}
     clean = _drop_extensions(processed)
     return json.dumps(clean, indent=3, ensure_ascii=False) + "\n"
 
