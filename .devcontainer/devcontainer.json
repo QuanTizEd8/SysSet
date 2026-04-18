@@ -27,5 +27,5 @@
     "remoteUser": "node",
     "initializeCommand": "bash sync-lib.sh",
     "updateContentCommand": "npm install -g @devcontainers/cli lefthook",
-    "postCreateCommand": "sudo apt-get install -y --no-install-recommends shellcheck && sudo curl -fsSL https://github.com/mvdan/sh/releases/download/v3.10.0/shfmt_v3.10.0_linux_amd64 -o /usr/local/bin/shfmt && sudo chmod +x /usr/local/bin/shfmt && lefthook install"
+    "postCreateCommand": "bash scripts/setup-dev.sh && lefthook install"
 }
