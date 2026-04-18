@@ -196,6 +196,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     # ── __usage__ ───────────────────────────────────────────────────────────
     entries: list[tuple[str, str, str, bool]] = []
     for key, opt in options.items():
+        typ = opt.get("type", "string")
         flag_str = f"  {opt_to_flag(key)} {usage_type_hint(opt)}"
         typ = opt.get("type", "string")
         has_default = "default" in opt
@@ -258,10 +259,11 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         lines.append(f"      {flag})")
         lines.append("        shift")
         if typ == "boolean":
-            lines.append(f'        {vname}=true')
+            lines.append(f'        {vname}="$1"')
             lines.append(
-                f'        echo "\U0001f4e9 Read boolean flag \'{key}\'" >&2'
+                f'        echo "\U0001f4e9 Read argument \'{key}\': \'${{{vname}}}\'" >&2'
             )
+            lines.append("        shift")
         elif typ == "array":
             lines.append(f'        {vname}+=("$1")')
             lines.append(

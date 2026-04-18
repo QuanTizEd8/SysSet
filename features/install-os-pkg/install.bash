@@ -56,14 +56,14 @@ if [[ -n "$LIFECYCLE_HOOK" ]]; then
   fi
   _HOOK_OPTS="--manifest $(printf '%q' "$_MANIFEST_ARG")"
   [[ "$DEBUG" == true ]] && _HOOK_OPTS+=" --debug true"
-  [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive"
-  [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos"
+  [[ "$INTERACTIVE" == true ]] && _HOOK_OPTS+=" --interactive true"
+  [[ "$KEEP_REPOS" == true ]] && _HOOK_OPTS+=" --keep_repos true"
   [[ -n "$LOGFILE" ]] && _HOOK_OPTS+=" --logfile $(printf '%q' "$LOGFILE")"
   [[ "$UPDATE" == false ]] && _HOOK_OPTS+=" --update false"
   _HOOK_OPTS+=" --lists_max_age $LISTS_MAX_AGE"
-  [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run"
-  [[ "$SKIP_INSTALLED" == true ]] && _HOOK_OPTS+=" --skip_installed"
-  [[ "$PREFER_LINUXBREW" == true ]] && _HOOK_OPTS+=" --prefer_linuxbrew"
+  [[ "$DRY_RUN" == true ]] && _HOOK_OPTS+=" --dry_run true"
+  [[ "$SKIP_INSTALLED" == true ]] && _HOOK_OPTS+=" --skip_installed true"
+  [[ "$PREFER_LINUXBREW" == true ]] && _HOOK_OPTS+=" --prefer_linuxbrew true"
   _HOOK_OPTS+=" --keep_cache $KEEP_CACHE"
   case "$LIFECYCLE_HOOK" in
     onCreate) _HOOK_FILE="$_HOOK_DIR/on-create.sh" ;;
