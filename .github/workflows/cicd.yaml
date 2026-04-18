@@ -153,6 +153,7 @@ jobs:
       run_macos: ${{ needs.detect.outputs.run_macos }}
       macos_features: ${{ needs.detect.outputs.macos_features }}
       run_dist: ${{ needs.detect.outputs.run_dist }}
+      version: ${{ needs.detect.outputs.release_tag || github.sha }}
     secrets: inherit
 
   # ── Publish to GHCR + GitHub Release (only on release triggers) ───────────
