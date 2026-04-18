@@ -183,51 +183,51 @@ fi
 # Apply defaults.
 [ "${USERNAME+defined}" ] || {
   USERNAME="vscode"
-  echo "\u2139\ufe0f Argument 'username' set to default value 'vscode'." >&2
+  echo "ℹ️ Argument 'username' set to default value 'vscode'." >&2
 }
 [ "${USER_ID+defined}" ] || {
   USER_ID="1000"
-  echo "\u2139\ufe0f Argument 'user_id' set to default value '1000'." >&2
+  echo "ℹ️ Argument 'user_id' set to default value '1000'." >&2
 }
 [ "${GROUP_ID+defined}" ] || {
   GROUP_ID="1000"
-  echo "\u2139\ufe0f Argument 'group_id' set to default value '1000'." >&2
+  echo "ℹ️ Argument 'group_id' set to default value '1000'." >&2
 }
 [ "${GROUP_NAME+defined}" ] || {
   GROUP_NAME=""
-  echo "\u2139\ufe0f Argument 'group_name' set to default value ''." >&2
+  echo "ℹ️ Argument 'group_name' set to default value ''." >&2
 }
 [ "${HOME_DIR+defined}" ] || {
   HOME_DIR=""
-  echo "\u2139\ufe0f Argument 'home_dir' set to default value ''." >&2
+  echo "ℹ️ Argument 'home_dir' set to default value ''." >&2
 }
 [ "${USER_SHELL+defined}" ] || {
   USER_SHELL="/bin/bash"
-  echo "\u2139\ufe0f Argument 'user_shell' set to default value '/bin/bash'." >&2
+  echo "ℹ️ Argument 'user_shell' set to default value '/bin/bash'." >&2
 }
 [ "${SUDO_ACCESS+defined}" ] || {
   SUDO_ACCESS=true
-  echo "\u2139\ufe0f Argument 'sudo_access' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'sudo_access' set to default value 'true'." >&2
 }
 [ "${EXTRA_GROUPS+defined}" ] || {
   EXTRA_GROUPS=()
-  echo "\u2139\ufe0f Argument 'extra_groups' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'extra_groups' set to default value '(empty)'." >&2
 }
 [ "${REPLACE_EXISTING+defined}" ] || {
   REPLACE_EXISTING=true
-  echo "\u2139\ufe0f Argument 'replace_existing' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'replace_existing' set to default value 'true'." >&2
 }
 [ "${SUDOERS_DIR+defined}" ] || {
   SUDOERS_DIR="/etc/sudoers.d"
-  echo "\u2139\ufe0f Argument 'sudoers_dir' set to default value '/etc/sudoers.d'." >&2
+  echo "ℹ️ Argument 'sudoers_dir' set to default value '/etc/sudoers.d'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 
 ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed

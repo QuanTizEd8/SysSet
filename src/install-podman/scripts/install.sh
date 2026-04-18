@@ -129,27 +129,27 @@ fi
 # Apply defaults.
 [ "${ADD_CURRENT_USER+defined}" ] || {
   ADD_CURRENT_USER=true
-  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_current_user' set to default value 'true'." >&2
 }
 [ "${ADD_REMOTE_USER+defined}" ] || {
   ADD_REMOTE_USER=true
-  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_remote_user' set to default value 'true'." >&2
 }
 [ "${ADD_CONTAINER_USER+defined}" ] || {
   ADD_CONTAINER_USER=true
-  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_container_user' set to default value 'true'." >&2
 }
 [ "${ADD_USERS+defined}" ] || {
   ADD_USERS=()
-  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'add_users' set to default value '(empty)'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 
 ospkg__run --manifest "${_BASE_DIR}/dependencies/base.yaml" --skip_installed

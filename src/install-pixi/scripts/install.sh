@@ -210,63 +210,63 @@ fi
 # Apply defaults.
 [ "${VERSION+defined}" ] || {
   VERSION="latest"
-  echo "\u2139\ufe0f Argument 'version' set to default value 'latest'." >&2
+  echo "ℹ️ Argument 'version' set to default value 'latest'." >&2
 }
 [ "${PREFIX+defined}" ] || {
   PREFIX="auto"
-  echo "\u2139\ufe0f Argument 'prefix' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'prefix' set to default value 'auto'." >&2
 }
 [ "${IF_EXISTS+defined}" ] || {
   IF_EXISTS="skip"
-  echo "\u2139\ufe0f Argument 'if_exists' set to default value 'skip'." >&2
+  echo "ℹ️ Argument 'if_exists' set to default value 'skip'." >&2
 }
 [ "${INSTALLER_DIR+defined}" ] || {
   INSTALLER_DIR="/tmp/pixi-installer"
-  echo "\u2139\ufe0f Argument 'installer_dir' set to default value '/tmp/pixi-installer'." >&2
+  echo "ℹ️ Argument 'installer_dir' set to default value '/tmp/pixi-installer'." >&2
 }
 [ "${ARCH+defined}" ] || {
   ARCH=""
-  echo "\u2139\ufe0f Argument 'arch' set to default value ''." >&2
+  echo "ℹ️ Argument 'arch' set to default value ''." >&2
 }
 [ "${HOME_DIR+defined}" ] || {
   HOME_DIR=""
-  echo "\u2139\ufe0f Argument 'home_dir' set to default value ''." >&2
+  echo "ℹ️ Argument 'home_dir' set to default value ''." >&2
 }
 [ "${DOWNLOAD_URL+defined}" ] || {
   DOWNLOAD_URL=""
-  echo "\u2139\ufe0f Argument 'download_url' set to default value ''." >&2
+  echo "ℹ️ Argument 'download_url' set to default value ''." >&2
 }
 [ "${NETRC+defined}" ] || {
   NETRC=""
-  echo "\u2139\ufe0f Argument 'netrc' set to default value ''." >&2
+  echo "ℹ️ Argument 'netrc' set to default value ''." >&2
 }
 [ "${EXPORT_PATH+defined}" ] || {
   EXPORT_PATH="auto"
-  echo "\u2139\ufe0f Argument 'export_path' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'export_path' set to default value 'auto'." >&2
 }
 [ "${EXPORT_PIXI_HOME+defined}" ] || {
   EXPORT_PIXI_HOME="auto"
-  echo "\u2139\ufe0f Argument 'export_pixi_home' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'export_pixi_home' set to default value 'auto'." >&2
 }
 [ "${SYMLINK+defined}" ] || {
   SYMLINK=true
-  echo "\u2139\ufe0f Argument 'symlink' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'symlink' set to default value 'true'." >&2
 }
 [ "${SHELL_COMPLETIONS+defined}" ] || {
   SHELL_COMPLETIONS=()
-  echo "\u2139\ufe0f Argument 'shell_completions' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'shell_completions' set to default value '(empty)'." >&2
 }
 [ "${KEEP_INSTALLER+defined}" ] || {
   KEEP_INSTALLER=false
-  echo "\u2139\ufe0f Argument 'keep_installer' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 
 # Validate enum options.

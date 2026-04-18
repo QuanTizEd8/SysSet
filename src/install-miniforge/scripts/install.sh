@@ -264,83 +264,83 @@ fi
 # Apply defaults.
 [ "${VERSION+defined}" ] || {
   VERSION="latest"
-  echo "\u2139\ufe0f Argument 'version' set to default value 'latest'." >&2
+  echo "ℹ️ Argument 'version' set to default value 'latest'." >&2
 }
 [ "${IF_EXISTS+defined}" ] || {
   IF_EXISTS="skip"
-  echo "\u2139\ufe0f Argument 'if_exists' set to default value 'skip'." >&2
+  echo "ℹ️ Argument 'if_exists' set to default value 'skip'." >&2
 }
 [ "${PRESERVE_ENVS+defined}" ] || {
   PRESERVE_ENVS=true
-  echo "\u2139\ufe0f Argument 'preserve_envs' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'preserve_envs' set to default value 'true'." >&2
 }
 [ "${PRESERVE_CONFIG+defined}" ] || {
   PRESERVE_CONFIG=true
-  echo "\u2139\ufe0f Argument 'preserve_config' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'preserve_config' set to default value 'true'." >&2
 }
 [ "${UPDATE_BASE+defined}" ] || {
   UPDATE_BASE=false
-  echo "\u2139\ufe0f Argument 'update_base' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'update_base' set to default value 'false'." >&2
 }
 [ "${PREFIX+defined}" ] || {
   PREFIX="auto"
-  echo "\u2139\ufe0f Argument 'prefix' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'prefix' set to default value 'auto'." >&2
 }
 [ "${EXPORT_PATH+defined}" ] || {
   EXPORT_PATH="auto"
-  echo "\u2139\ufe0f Argument 'export_path' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'export_path' set to default value 'auto'." >&2
 }
 [ "${SYMLINK+defined}" ] || {
   SYMLINK=true
-  echo "\u2139\ufe0f Argument 'symlink' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'symlink' set to default value 'true'." >&2
 }
 [ "${SHELL_ACTIVATIONS+defined}" ] || {
   mapfile -t SHELL_ACTIVATIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
-  echo "\u2139\ufe0f Argument 'shell_activations' set to default value 'bash, zsh'." >&2
+  echo "ℹ️ Argument 'shell_activations' set to default value 'bash, zsh'." >&2
 }
 [ "${ACTIVATE_ENV+defined}" ] || {
   ACTIVATE_ENV="base"
-  echo "\u2139\ufe0f Argument 'activate_env' set to default value 'base'." >&2
+  echo "ℹ️ Argument 'activate_env' set to default value 'base'." >&2
 }
 [ "${WRITE_GROUP+defined}" ] || {
   WRITE_GROUP="conda"
-  echo "\u2139\ufe0f Argument 'write_group' set to default value 'conda'." >&2
+  echo "ℹ️ Argument 'write_group' set to default value 'conda'." >&2
 }
 [ "${ADD_CURRENT_USER+defined}" ] || {
   ADD_CURRENT_USER=true
-  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_current_user' set to default value 'true'." >&2
 }
 [ "${ADD_REMOTE_USER+defined}" ] || {
   ADD_REMOTE_USER=true
-  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_remote_user' set to default value 'true'." >&2
 }
 [ "${ADD_CONTAINER_USER+defined}" ] || {
   ADD_CONTAINER_USER=true
-  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_container_user' set to default value 'true'." >&2
 }
 [ "${ADD_USERS+defined}" ] || {
   ADD_USERS=()
-  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'add_users' set to default value '(empty)'." >&2
 }
 [ "${INTERACTIVE+defined}" ] || {
   INTERACTIVE=false
-  echo "\u2139\ufe0f Argument 'interactive' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'interactive' set to default value 'false'." >&2
 }
 [ "${INSTALLER_DIR+defined}" ] || {
   INSTALLER_DIR="/tmp/miniforge-installer"
-  echo "\u2139\ufe0f Argument 'installer_dir' set to default value '/tmp/miniforge-installer'." >&2
+  echo "ℹ️ Argument 'installer_dir' set to default value '/tmp/miniforge-installer'." >&2
 }
 [ "${KEEP_INSTALLER+defined}" ] || {
   KEEP_INSTALLER=false
-  echo "\u2139\ufe0f Argument 'keep_installer' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 
 # Validate enum options.

@@ -183,55 +183,55 @@ fi
 # Apply defaults.
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${INSTALL_SELF+defined}" ] || {
   INSTALL_SELF=false
-  echo "\u2139\ufe0f Argument 'install_self' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'install_self' set to default value 'false'." >&2
 }
 [ "${INTERACTIVE+defined}" ] || {
   INTERACTIVE=false
-  echo "\u2139\ufe0f Argument 'interactive' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'interactive' set to default value 'false'." >&2
 }
 [ "${KEEP_REPOS+defined}" ] || {
   KEEP_REPOS=false
-  echo "\u2139\ufe0f Argument 'keep_repos' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'keep_repos' set to default value 'false'." >&2
 }
 [ "${LIFECYCLE_HOOK+defined}" ] || {
   LIFECYCLE_HOOK=""
-  echo "\u2139\ufe0f Argument 'lifecycle_hook' set to default value ''." >&2
+  echo "ℹ️ Argument 'lifecycle_hook' set to default value ''." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 [ "${KEEP_CACHE+defined}" ] || {
   KEEP_CACHE=false
-  echo "\u2139\ufe0f Argument 'keep_cache' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'keep_cache' set to default value 'false'." >&2
 }
 [ "${MANIFEST+defined}" ] || {
   MANIFEST=""
-  echo "\u2139\ufe0f Argument 'manifest' set to default value ''." >&2
+  echo "ℹ️ Argument 'manifest' set to default value ''." >&2
 }
 [ "${UPDATE+defined}" ] || {
   UPDATE=true
-  echo "\u2139\ufe0f Argument 'update' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'update' set to default value 'true'." >&2
 }
 [ "${LISTS_MAX_AGE+defined}" ] || {
   LISTS_MAX_AGE="300"
-  echo "\u2139\ufe0f Argument 'lists_max_age' set to default value '300'." >&2
+  echo "ℹ️ Argument 'lists_max_age' set to default value '300'." >&2
 }
 [ "${DRY_RUN+defined}" ] || {
   DRY_RUN=false
-  echo "\u2139\ufe0f Argument 'dry_run' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'dry_run' set to default value 'false'." >&2
 }
 [ "${SKIP_INSTALLED+defined}" ] || {
   SKIP_INSTALLED=false
-  echo "\u2139\ufe0f Argument 'skip_installed' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'skip_installed' set to default value 'false'." >&2
 }
 [ "${PREFER_LINUXBREW+defined}" ] || {
   PREFER_LINUXBREW=false
-  echo "\u2139\ufe0f Argument 'prefer_linuxbrew' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'prefer_linuxbrew' set to default value 'false'." >&2
 }
 
 # Validate enum options.

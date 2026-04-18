@@ -264,79 +264,79 @@ fi
 # Apply defaults.
 [ "${VERSION+defined}" ] || {
   VERSION="latest"
-  echo "\u2139\ufe0f Argument 'version' set to default value 'latest'." >&2
+  echo "ℹ️ Argument 'version' set to default value 'latest'." >&2
 }
 [ "${METHOD+defined}" ] || {
   METHOD="repos"
-  echo "\u2139\ufe0f Argument 'method' set to default value 'repos'." >&2
+  echo "ℹ️ Argument 'method' set to default value 'repos'." >&2
 }
 [ "${PREFIX+defined}" ] || {
   PREFIX="auto"
-  echo "\u2139\ufe0f Argument 'prefix' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'prefix' set to default value 'auto'." >&2
 }
 [ "${SYMLINK+defined}" ] || {
   SYMLINK=true
-  echo "\u2139\ufe0f Argument 'symlink' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'symlink' set to default value 'true'." >&2
 }
 [ "${SHELL_COMPLETIONS+defined}" ] || {
   mapfile -t SHELL_COMPLETIONS < <(printf '%s' $'bash\nzsh' | grep -v '^$')
-  echo "\u2139\ufe0f Argument 'shell_completions' set to default value 'bash, zsh'." >&2
+  echo "ℹ️ Argument 'shell_completions' set to default value 'bash, zsh'." >&2
 }
 [ "${IF_EXISTS+defined}" ] || {
   IF_EXISTS="skip"
-  echo "\u2139\ufe0f Argument 'if_exists' set to default value 'skip'." >&2
+  echo "ℹ️ Argument 'if_exists' set to default value 'skip'." >&2
 }
 [ "${EXTENSIONS+defined}" ] || {
   EXTENSIONS=()
-  echo "\u2139\ufe0f Argument 'extensions' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'extensions' set to default value '(empty)'." >&2
 }
 [ "${ADD_CURRENT_USER+defined}" ] || {
   ADD_CURRENT_USER=true
-  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_current_user' set to default value 'true'." >&2
 }
 [ "${ADD_REMOTE_USER+defined}" ] || {
   ADD_REMOTE_USER=true
-  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_remote_user' set to default value 'true'." >&2
 }
 [ "${ADD_CONTAINER_USER+defined}" ] || {
   ADD_CONTAINER_USER=true
-  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_container_user' set to default value 'true'." >&2
 }
 [ "${ADD_USERS+defined}" ] || {
   ADD_USERS=()
-  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'add_users' set to default value '(empty)'." >&2
 }
 [ "${GIT_PROTOCOL+defined}" ] || {
   GIT_PROTOCOL=""
-  echo "\u2139\ufe0f Argument 'git_protocol' set to default value ''." >&2
+  echo "ℹ️ Argument 'git_protocol' set to default value ''." >&2
 }
 [ "${SETUP_GIT+defined}" ] || {
   SETUP_GIT=false
-  echo "\u2139\ufe0f Argument 'setup_git' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'setup_git' set to default value 'false'." >&2
 }
 [ "${SIGN_COMMITS+defined}" ] || {
   SIGN_COMMITS=""
-  echo "\u2139\ufe0f Argument 'sign_commits' set to default value ''." >&2
+  echo "ℹ️ Argument 'sign_commits' set to default value ''." >&2
 }
 [ "${GIT_HOSTNAME+defined}" ] || {
   GIT_HOSTNAME="github.com"
-  echo "\u2139\ufe0f Argument 'git_hostname' set to default value 'github.com'." >&2
+  echo "ℹ️ Argument 'git_hostname' set to default value 'github.com'." >&2
 }
 [ "${INSTALLER_DIR+defined}" ] || {
   INSTALLER_DIR="/tmp/gh-install"
-  echo "\u2139\ufe0f Argument 'installer_dir' set to default value '/tmp/gh-install'." >&2
+  echo "ℹ️ Argument 'installer_dir' set to default value '/tmp/gh-install'." >&2
 }
 [ "${KEEP_INSTALLER+defined}" ] || {
   KEEP_INSTALLER=false
-  echo "\u2139\ufe0f Argument 'keep_installer' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 
 # Validate enum options.

@@ -210,63 +210,63 @@ fi
 # Apply defaults.
 [ "${INSTALL_USER+defined}" ] || {
   INSTALL_USER=""
-  echo "\u2139\ufe0f Argument 'install_user' set to default value ''." >&2
+  echo "ℹ️ Argument 'install_user' set to default value ''." >&2
 }
 [ "${PREFIX+defined}" ] || {
   PREFIX=""
-  echo "\u2139\ufe0f Argument 'prefix' set to default value ''." >&2
+  echo "ℹ️ Argument 'prefix' set to default value ''." >&2
 }
 [ "${IF_EXISTS+defined}" ] || {
   IF_EXISTS="skip"
-  echo "\u2139\ufe0f Argument 'if_exists' set to default value 'skip'." >&2
+  echo "ℹ️ Argument 'if_exists' set to default value 'skip'." >&2
 }
 [ "${UPDATE+defined}" ] || {
   UPDATE=true
-  echo "\u2139\ufe0f Argument 'update' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'update' set to default value 'true'." >&2
 }
 [ "${EXPORT_PATH+defined}" ] || {
   EXPORT_PATH="auto"
-  echo "\u2139\ufe0f Argument 'export_path' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'export_path' set to default value 'auto'." >&2
 }
 [ "${ADD_CURRENT_USER+defined}" ] || {
   ADD_CURRENT_USER=true
-  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_current_user' set to default value 'true'." >&2
 }
 [ "${ADD_REMOTE_USER+defined}" ] || {
   ADD_REMOTE_USER=true
-  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_remote_user' set to default value 'true'." >&2
 }
 [ "${ADD_CONTAINER_USER+defined}" ] || {
   ADD_CONTAINER_USER=true
-  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_container_user' set to default value 'true'." >&2
 }
 [ "${ADD_USERS+defined}" ] || {
   ADD_USERS=()
-  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'add_users' set to default value '(empty)'." >&2
 }
 [ "${WRITE_GROUP+defined}" ] || {
   WRITE_GROUP="brew"
-  echo "\u2139\ufe0f Argument 'write_group' set to default value 'brew'." >&2
+  echo "ℹ️ Argument 'write_group' set to default value 'brew'." >&2
 }
 [ "${BREW_GIT_REMOTE+defined}" ] || {
   BREW_GIT_REMOTE=""
-  echo "\u2139\ufe0f Argument 'brew_git_remote' set to default value ''." >&2
+  echo "ℹ️ Argument 'brew_git_remote' set to default value ''." >&2
 }
 [ "${CORE_GIT_REMOTE+defined}" ] || {
   CORE_GIT_REMOTE=""
-  echo "\u2139\ufe0f Argument 'core_git_remote' set to default value ''." >&2
+  echo "ℹ️ Argument 'core_git_remote' set to default value ''." >&2
 }
 [ "${NO_INSTALL_FROM_API+defined}" ] || {
   NO_INSTALL_FROM_API=false
-  echo "\u2139\ufe0f Argument 'no_install_from_api' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'no_install_from_api' set to default value 'false'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 
 # Validate enum options.

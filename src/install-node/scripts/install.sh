@@ -282,91 +282,91 @@ fi
 # Apply defaults.
 [ "${METHOD+defined}" ] || {
   METHOD="nvm"
-  echo "\u2139\ufe0f Argument 'method' set to default value 'nvm'." >&2
+  echo "ℹ️ Argument 'method' set to default value 'nvm'." >&2
 }
 [ "${VERSION+defined}" ] || {
   VERSION="lts/*"
-  echo "\u2139\ufe0f Argument 'version' set to default value 'lts/*'." >&2
+  echo "ℹ️ Argument 'version' set to default value 'lts/*'." >&2
 }
 [ "${ADDITIONAL_VERSIONS+defined}" ] || {
   ADDITIONAL_VERSIONS=()
-  echo "\u2139\ufe0f Argument 'additional_versions' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'additional_versions' set to default value '(empty)'." >&2
 }
 [ "${NVM_VERSION+defined}" ] || {
   NVM_VERSION="latest"
-  echo "\u2139\ufe0f Argument 'nvm_version' set to default value 'latest'." >&2
+  echo "ℹ️ Argument 'nvm_version' set to default value 'latest'." >&2
 }
 [ "${NVM_DIR+defined}" ] || {
   NVM_DIR="auto"
-  echo "\u2139\ufe0f Argument 'nvm_dir' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'nvm_dir' set to default value 'auto'." >&2
 }
 [ "${PREFIX+defined}" ] || {
   PREFIX="auto"
-  echo "\u2139\ufe0f Argument 'prefix' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'prefix' set to default value 'auto'." >&2
 }
 [ "${ARCH+defined}" ] || {
   ARCH=""
-  echo "\u2139\ufe0f Argument 'arch' set to default value ''." >&2
+  echo "ℹ️ Argument 'arch' set to default value ''." >&2
 }
 [ "${INSTALLER_DIR+defined}" ] || {
   INSTALLER_DIR="/tmp/node-installer"
-  echo "\u2139\ufe0f Argument 'installer_dir' set to default value '/tmp/node-installer'." >&2
+  echo "ℹ️ Argument 'installer_dir' set to default value '/tmp/node-installer'." >&2
 }
 [ "${IF_EXISTS+defined}" ] || {
   IF_EXISTS="skip"
-  echo "\u2139\ufe0f Argument 'if_exists' set to default value 'skip'." >&2
+  echo "ℹ️ Argument 'if_exists' set to default value 'skip'." >&2
 }
 [ "${EXPORT_PATH+defined}" ] || {
   EXPORT_PATH="auto"
-  echo "\u2139\ufe0f Argument 'export_path' set to default value 'auto'." >&2
+  echo "ℹ️ Argument 'export_path' set to default value 'auto'." >&2
 }
 [ "${ADD_CURRENT_USER+defined}" ] || {
   ADD_CURRENT_USER=true
-  echo "\u2139\ufe0f Argument 'add_current_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_current_user' set to default value 'true'." >&2
 }
 [ "${ADD_REMOTE_USER+defined}" ] || {
   ADD_REMOTE_USER=true
-  echo "\u2139\ufe0f Argument 'add_remote_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_remote_user' set to default value 'true'." >&2
 }
 [ "${ADD_CONTAINER_USER+defined}" ] || {
   ADD_CONTAINER_USER=true
-  echo "\u2139\ufe0f Argument 'add_container_user' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'add_container_user' set to default value 'true'." >&2
 }
 [ "${ADD_USERS+defined}" ] || {
   ADD_USERS=()
-  echo "\u2139\ufe0f Argument 'add_users' set to default value '(empty)'." >&2
+  echo "ℹ️ Argument 'add_users' set to default value '(empty)'." >&2
 }
 [ "${SET_PERMISSIONS+defined}" ] || {
   SET_PERMISSIONS=true
-  echo "\u2139\ufe0f Argument 'set_permissions' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'set_permissions' set to default value 'true'." >&2
 }
 [ "${GROUP+defined}" ] || {
   GROUP="nvm"
-  echo "\u2139\ufe0f Argument 'group' set to default value 'nvm'." >&2
+  echo "ℹ️ Argument 'group' set to default value 'nvm'." >&2
 }
 [ "${SYMLINK+defined}" ] || {
   SYMLINK=true
-  echo "\u2139\ufe0f Argument 'symlink' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'symlink' set to default value 'true'." >&2
 }
 [ "${NODE_GYP_DEPS+defined}" ] || {
   NODE_GYP_DEPS=true
-  echo "\u2139\ufe0f Argument 'node_gyp_deps' set to default value 'true'." >&2
+  echo "ℹ️ Argument 'node_gyp_deps' set to default value 'true'." >&2
 }
 [ "${PNPM_VERSION+defined}" ] || {
   PNPM_VERSION="none"
-  echo "\u2139\ufe0f Argument 'pnpm_version' set to default value 'none'." >&2
+  echo "ℹ️ Argument 'pnpm_version' set to default value 'none'." >&2
 }
 [ "${YARN_VERSION+defined}" ] || {
   YARN_VERSION="none"
-  echo "\u2139\ufe0f Argument 'yarn_version' set to default value 'none'." >&2
+  echo "ℹ️ Argument 'yarn_version' set to default value 'none'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
-  echo "\u2139\ufe0f Argument 'debug' set to default value 'false'." >&2
+  echo "ℹ️ Argument 'debug' set to default value 'false'." >&2
 }
 [ "${LOGFILE+defined}" ] || {
   LOGFILE=""
-  echo "\u2139\ufe0f Argument 'logfile' set to default value ''." >&2
+  echo "ℹ️ Argument 'logfile' set to default value ''." >&2
 }
 
 # Validate enum options.
