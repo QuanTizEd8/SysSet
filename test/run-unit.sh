@@ -77,9 +77,6 @@ if [[ ! -x "$_BATS" ]]; then
   exit 1
 fi
 
-# Ensure generated _lib/ copies are up to date.
-"$BASH" "${_REPO_ROOT}/sync-lib.sh"
-
 # ── Build file list ──────────────────────────────────────────────────────────
 declare -a _test_files=()
 if [[ -n "$_module" ]]; then
