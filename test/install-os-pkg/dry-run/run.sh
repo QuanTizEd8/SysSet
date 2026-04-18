@@ -110,7 +110,7 @@ for case_dir in "$CASES_DIR"/*/; do
   fi
 
   # Run in a subshell so failures are caught without killing the runner.
-  output=$(bash "$INSTALL_SH" --manifest "$manifest" --dry_run --update false 2>&1) || {
+  output=$(bash "$INSTALL_SH" --manifest "$manifest" --dry_run true --update false 2>&1) || {
     echo "FAIL  $test_name (script exited non-zero)"
     echo "--- output ---"
     printf '%s\n' "$output"
