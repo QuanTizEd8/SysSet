@@ -103,14 +103,6 @@ options:
       Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation.
       Forces `homebrew-core` to be cloned as a full git repository rather than relying on the JSON API.
       Slower but useful in environments where the API endpoint is blocked.
-  debug:
-    type: boolean
-    default: false
-    description: Enable debug output (set -x).
-  logfile:
-    type: string
-    default: ''
-    description: Append install log to this file path.
 dependencies:
   base:
     # Build tools required by Homebrew on Linux.

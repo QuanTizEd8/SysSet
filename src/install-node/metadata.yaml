@@ -224,14 +224,6 @@ options:
     - none
     - latest
     - 1.22.22
-  debug:
-    type: boolean
-    default: false
-    description: Enable debug output (set -x).
-  logfile:
-    type: string
-    default: ''
-    description: Append install log to this file path.
 dependencies:
   base:
     packages:

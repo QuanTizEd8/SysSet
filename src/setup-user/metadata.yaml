@@ -51,14 +51,6 @@ options:
     default: /etc/sudoers.d
     description: Directory for the sudoers drop-in file.
     type: string
-  debug:
-    default: false
-    description: Enable debug output.
-    type: boolean
-  logfile:
-    default: ''
-    description: Log all output (stdout + stderr) to this file in addition to console.
-    type: string
 dependencies:
   base:
     # useradd/userdel/groupadd/groupdel/usermod — pre-installed on apt/dnf distros,

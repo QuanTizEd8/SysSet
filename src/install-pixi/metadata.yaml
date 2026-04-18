@@ -130,14 +130,6 @@ options:
     description: |
       Keep the downloaded .tar.gz archive and .tar.gz.sha256 sidecar file after installation.
       By default both files are removed from installer_dir on exit.
-  debug:
-    type: boolean
-    default: false
-    description: Enable debug output (set -x).
-  logfile:
-    type: string
-    default: ''
-    description: Log all output (stdout + stderr) to this file in addition to the console.
 mounts:
 - source: ${localWorkspaceFolderBasename}-pixi
   target: ${containerWorkspaceFolder}/.pixi

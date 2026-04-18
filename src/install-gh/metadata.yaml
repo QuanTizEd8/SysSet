@@ -156,14 +156,6 @@ options:
       Keep the installer_dir after a successful install when method=binary.
       Useful for debugging or inspecting the extracted archive.
       Ignored when method=repos.
-  debug:
-    type: boolean
-    default: false
-    description: Enable debug output (set -x).
-  logfile:
-    type: string
-    default: ''
-    description: Append install log to this file path.
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 dependencies:

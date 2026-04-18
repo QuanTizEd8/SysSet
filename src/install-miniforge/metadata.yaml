@@ -145,14 +145,6 @@ options:
     default: false
     description: Keep the Miniforge installer script and checksum after installation instead of removing them.
     type: boolean
-  debug:
-    default: false
-    description: Enable debug output.
-    type: boolean
-  logfile:
-    default: ''
-    description: Log all output (stdout + stderr) to this file in addition to console.
-    type: string
 containerEnv:
   PATH: ${HOME}/miniforge3/bin:/opt/conda/bin:${PATH}
 installsAfter: []

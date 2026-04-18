@@ -164,14 +164,6 @@ options:
       Root: creates /usr/local/bin/git -> $prefix/bin/git. Non-root: creates $HOME/.local/bin/git -> $prefix/bin/git.
       Ensures the containerEnv PATH entries always resolve to the installed binary regardless of the chosen prefix.
       No-op when method=package (git is already in /usr/bin), or when prefix already resolves to the canonical path (/usr/local for root, $HOME/.local for non-root).
-  debug:
-    type: boolean
-    default: false
-    description: Enable debug output (set -x).
-  logfile:
-    type: string
-    default: ''
-    description: Append install log to this file path.
 containerEnv:
   PATH: ${HOME}/.local/bin:${PATH}
 installsAfter: []

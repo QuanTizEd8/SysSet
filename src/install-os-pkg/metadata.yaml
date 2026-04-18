@@ -9,10 +9,6 @@ description: |-
   (Fedora/RHEL/CentOS), **microdnf**, **Zypper** (openSUSE), **Pacman** (Arch
   Linux), and **Homebrew** (macOS, Linuxbrew).
 options:
-  debug:
-    default: false
-    description: Enable debug output.
-    type: boolean
   install_self:
     default: false
     description: |
@@ -51,17 +47,6 @@ options:
     - updateContent
     - postCreate
     type: string
-  logfile:
-    default: ''
-    description: Log all output (stdout + stderr) to this file in addition to console.
-    type: string
-  keep_cache:
-    default: false
-    description: |
-      Keep the package manager cache after installation.
-      By default, the package manager's cache is cleaned after installation
-      to reduce image size. Set this flag to preserve the cache.
-    type: boolean
   manifest:
     default: ''
     description: |
@@ -123,6 +108,7 @@ options:
       the native package manager (apt, dnf, etc.).
       Has no effect on macOS (brew is always used there).
     type: boolean
+dependencies: {}
 installsAfter: []
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/install-homebrew
