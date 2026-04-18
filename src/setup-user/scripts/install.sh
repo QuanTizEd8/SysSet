@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ User Setup script finished successfully." >&2
   else
@@ -44,6 +45,7 @@ Options:
   --extra_groups <value>  (repeatable)  Supplementary groups to add the user to. Groups must already exist.
   --replace_existing {true,false}       When true, any user or group occupying the requested UID/GID is removed first (home directories are preserved). When false, a conflict causes the script to fail unless the user is already correctly configured. (default: "true")
   --sudoers_dir <value>                 Directory for the sudoers drop-in file. (default: "/etc/sudoers.d")
+  --keep_cache {true,false}             Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
   --debug {true,false}                  Enable debug output. (default: "false")
   --logfile <value>                     Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                            Show this help
@@ -63,6 +65,7 @@ if [ "$#" -gt 0 ]; then
   EXTRA_GROUPS=()
   REPLACE_EXISTING=true
   SUDOERS_DIR="/etc/sudoers.d"
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -127,6 +130,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'sudoers_dir': '${SUDOERS_DIR}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -174,6 +183,7 @@ else
   fi
   [ "${REPLACE_EXISTING+defined}" ] && echo "📩 Read argument 'replace_existing': '${REPLACE_EXISTING}'" >&2
   [ "${SUDOERS_DIR+defined}" ] && echo "📩 Read argument 'sudoers_dir': '${SUDOERS_DIR}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -220,6 +230,10 @@ fi
 [ "${SUDOERS_DIR+defined}" ] || {
   SUDOERS_DIR="/etc/sudoers.d"
   echo "ℹ️ Argument 'sudoers_dir' set to default value '/etc/sudoers.d'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

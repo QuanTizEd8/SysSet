@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ GitHub CLI Installer script finished successfully." >&2
   else
@@ -51,8 +52,9 @@ Options:
   --git_hostname <value>                     The hostname to configure as the git credential helper target when setup_git=true. (default: "github.com")
   --installer_dir <value>                    Working directory used for method=binary: the binary archive and checksums file are downloaded and extracted here. (default: "/tmp/gh-install")
   --keep_installer {true,false}              Keep the installer_dir after a successful install when method=binary. (default: "false")
-  --debug {true,false}                       Enable debug output (set -x). (default: "false")
-  --logfile <value>                          Append install log to this file path.
+  --keep_cache {true,false}                  Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
+  --debug {true,false}                       Enable debug output. (default: "false")
+  --logfile <value>                          Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                 Show this help
 EOF
   return
@@ -77,6 +79,7 @@ if [ "$#" -gt 0 ]; then
   GIT_HOSTNAME="github.com"
   INSTALLER_DIR="/tmp/gh-install"
   KEEP_INSTALLER=false
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -183,6 +186,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -255,6 +264,7 @@ else
   [ "${GIT_HOSTNAME+defined}" ] && echo "📩 Read argument 'git_hostname': '${GIT_HOSTNAME}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -329,6 +339,10 @@ fi
 [ "${KEEP_INSTALLER+defined}" ] || {
   KEEP_INSTALLER=false
   echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
@@ -484,8 +498,6 @@ EOF
   else
     ospkg__install "gh=${VERSION}"
   fi
-  apt-get clean
-  apt-get dist-clean 2> /dev/null || rm -rf /var/lib/apt/lists/*
   echo "↩️ Function exit: _gh__repos_debian" >&2
   return 0
 }

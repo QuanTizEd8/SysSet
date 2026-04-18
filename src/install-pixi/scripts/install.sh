@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ Pixi script finished successfully." >&2
   else
@@ -47,8 +48,9 @@ Options:
   --symlink {true,false}                     Create a symlink from the canonical bin directory to $prefix/bin/pixi when prefix resolves to a non-default path. (default: "true")
   --shell_completions <value>  (repeatable)  Shell names to write pixi completion eval blocks for.
   --keep_installer {true,false}              Keep the downloaded .tar.gz archive and .tar.gz.sha256 sidecar file after installation. (default: "false")
-  --debug {true,false}                       Enable debug output (set -x). (default: "false")
-  --logfile <value>                          Log all output (stdout + stderr) to this file in addition to the console.
+  --keep_cache {true,false}                  Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
+  --debug {true,false}                       Enable debug output. (default: "false")
+  --logfile <value>                          Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                 Show this help
 EOF
   return
@@ -69,6 +71,7 @@ if [ "$#" -gt 0 ]; then
   SYMLINK=true
   SHELL_COMPLETIONS=()
   KEEP_INSTALLER=false
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -151,6 +154,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -201,6 +210,7 @@ else
     fi
   fi
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -259,6 +269,10 @@ fi
 [ "${KEEP_INSTALLER+defined}" ] || {
   KEEP_INSTALLER=false
   echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

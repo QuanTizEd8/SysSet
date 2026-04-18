@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ Install Homebrew script finished successfully." >&2
   else
@@ -47,8 +48,9 @@ Options:
   --brew_git_remote <value>           Override `HOMEBREW_BREW_GIT_REMOTE` — the git remote for the `Homebrew/brew` repository.
   --core_git_remote <value>           Override `HOMEBREW_CORE_GIT_REMOTE` — the git remote for the `homebrew-core` tap.
   --no_install_from_api {true,false}  Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation. (default: "false")
-  --debug {true,false}                Enable debug output (set -x). (default: "false")
-  --logfile <value>                   Append install log to this file path.
+  --keep_cache {true,false}           Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
+  --debug {true,false}                Enable debug output. (default: "false")
+  --logfile <value>                   Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                          Show this help
 EOF
   return
@@ -69,6 +71,7 @@ if [ "$#" -gt 0 ]; then
   BREW_GIT_REMOTE=""
   CORE_GIT_REMOTE=""
   NO_INSTALL_FROM_API=false
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -151,6 +154,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -201,6 +210,7 @@ else
   [ "${BREW_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'brew_git_remote': '${BREW_GIT_REMOTE}'" >&2
   [ "${CORE_GIT_REMOTE+defined}" ] && echo "📩 Read argument 'core_git_remote': '${CORE_GIT_REMOTE}'" >&2
   [ "${NO_INSTALL_FROM_API+defined}" ] && echo "📩 Read argument 'no_install_from_api': '${NO_INSTALL_FROM_API}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -259,6 +269,10 @@ fi
 [ "${NO_INSTALL_FROM_API+defined}" ] || {
   NO_INSTALL_FROM_API=false
   echo "ℹ️ Argument 'no_install_from_api' set to default value 'false'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

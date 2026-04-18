@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ Miniforge Installer script finished successfully." >&2
   else
@@ -52,6 +53,7 @@ Options:
   --interactive {true,false}                 Run the installer in interactive mode. (default: "false")
   --installer_dir <value>                    Path to a directory to download the installer to. (default: "/tmp/miniforge-installer")
   --keep_installer {true,false}              Keep the Miniforge installer script and checksum after installation instead of removing them. (default: "false")
+  --keep_cache {true,false}                  Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
   --debug {true,false}                       Enable debug output. (default: "false")
   --logfile <value>                          Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                 Show this help
@@ -79,6 +81,7 @@ if [ "$#" -gt 0 ]; then
   INTERACTIVE=false
   INSTALLER_DIR="/tmp/miniforge-installer"
   KEEP_INSTALLER=false
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -191,6 +194,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -255,6 +264,7 @@ else
   [ "${INTERACTIVE+defined}" ] && echo "📩 Read argument 'interactive': '${INTERACTIVE}'" >&2
   [ "${INSTALLER_DIR+defined}" ] && echo "📩 Read argument 'installer_dir': '${INSTALLER_DIR}'" >&2
   [ "${KEEP_INSTALLER+defined}" ] && echo "📩 Read argument 'keep_installer': '${KEEP_INSTALLER}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -333,6 +343,10 @@ fi
 [ "${KEEP_INSTALLER+defined}" ] || {
   KEEP_INSTALLER=false
   echo "ℹ️ Argument 'keep_installer' set to default value 'false'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

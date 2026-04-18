@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ Rootless Podman script finished successfully." >&2
   else
@@ -38,6 +39,7 @@ Options:
   --add_remote_user {true,false}     Whether to configure Podman for the `_REMOTE_USER` set by the devcontainer tooling. No effect when running standalone. (default: "true")
   --add_container_user {true,false}  Whether to configure Podman for the `_CONTAINER_USER` set by the devcontainer tooling. No effect when running standalone. (default: "true")
   --add_users <value>  (repeatable)  Additional usernames to register subuid/subgid ranges and write Podman storage config for.
+  --keep_cache {true,false}          Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
   --debug {true,false}               Enable debug output. (default: "false")
   --logfile <value>                  Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                         Show this help
@@ -51,6 +53,7 @@ if [ "$#" -gt 0 ]; then
   ADD_REMOTE_USER=true
   ADD_CONTAINER_USER=true
   ADD_USERS=()
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -77,6 +80,12 @@ if [ "$#" -gt 0 ]; then
         shift
         ADD_USERS+=("$1")
         echo "📩 Read argument 'add_users': '$1'" >&2
+        shift
+        ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
         shift
         ;;
       --debug)
@@ -120,6 +129,7 @@ else
       ADD_USERS=()
     fi
   fi
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -142,6 +152,10 @@ fi
 [ "${ADD_USERS+defined}" ] || {
   ADD_USERS=()
   echo "ℹ️ Argument 'add_users' set to default value '(empty)'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

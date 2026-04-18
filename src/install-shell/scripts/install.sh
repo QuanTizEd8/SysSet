@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ Install Shell script finished successfully." >&2
   else
@@ -56,6 +57,7 @@ Options:
   --ohmyzsh_custom_dir <value>                 ZSH_CUSTOM directory for Oh My Zsh.
   --ohmybash_custom_dir <value>                OSH_CUSTOM directory for Oh My Bash.
   --user_config_mode {overwrite|augment|skip}  How to handle existing user dotfiles when configuring users. (default: "overwrite")
+  --keep_cache {true,false}                    Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
   --debug {true,false}                         Enable debug output. (default: "false")
   --logfile <value>                            Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                   Show this help
@@ -87,6 +89,7 @@ if [ "$#" -gt 0 ]; then
   OHMYZSH_CUSTOM_DIR=""
   OHMYBASH_CUSTOM_DIR=""
   USER_CONFIG_MODE="overwrite"
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -223,6 +226,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'user_config_mode': '${USER_CONFIG_MODE}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -309,6 +318,7 @@ else
   [ "${OHMYZSH_CUSTOM_DIR+defined}" ] && echo "📩 Read argument 'ohmyzsh_custom_dir': '${OHMYZSH_CUSTOM_DIR}'" >&2
   [ "${OHMYBASH_CUSTOM_DIR+defined}" ] && echo "📩 Read argument 'ohmybash_custom_dir': '${OHMYBASH_CUSTOM_DIR}'" >&2
   [ "${USER_CONFIG_MODE+defined}" ] && echo "📩 Read argument 'user_config_mode': '${USER_CONFIG_MODE}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -403,6 +413,10 @@ fi
 [ "${USER_CONFIG_MODE+defined}" ] || {
   USER_CONFIG_MODE="overwrite"
   echo "ℹ️ Argument 'user_config_mode' set to default value 'overwrite'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
@@ -672,5 +686,3 @@ if [[ "$SET_USER_SHELLS" != "none" ]] && [ ${#_RESOLVED_USERS[@]} -gt 0 ]; then
 
   users__set_login_shell "$_TARGET_SHELL" "${_RESOLVED_USERS[@]}"
 fi
-
-ospkg__clean

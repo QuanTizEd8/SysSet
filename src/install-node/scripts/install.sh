@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ Node.js script finished successfully." >&2
   else
@@ -54,8 +55,9 @@ Options:
   --node_gyp_deps {true,false}                 Install OS build dependencies required to compile native Node.js modules via node-gyp: 'make', 'gcc'/'g++', and 'python3'. (default: "true")
   --pnpm_version <value>                       Version of pnpm to install globally via 'npm install -g pnpm@VERSION' after Node.js is installed. (default: "none")
   --yarn_version <value>                       Version of Yarn to install globally after Node.js is installed. (default: "none")
-  --debug {true,false}                         Enable debug output (set -x). (default: "false")
-  --logfile <value>                            Append install log to this file path.
+  --keep_cache {true,false}                    Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
+  --debug {true,false}                         Enable debug output. (default: "false")
+  --logfile <value>                            Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                   Show this help
 EOF
   return
@@ -83,6 +85,7 @@ if [ "$#" -gt 0 ]; then
   NODE_GYP_DEPS=true
   PNPM_VERSION="none"
   YARN_VERSION="none"
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -207,6 +210,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'yarn_version': '${YARN_VERSION}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -273,6 +282,7 @@ else
   [ "${NODE_GYP_DEPS+defined}" ] && echo "📩 Read argument 'node_gyp_deps': '${NODE_GYP_DEPS}'" >&2
   [ "${PNPM_VERSION+defined}" ] && echo "📩 Read argument 'pnpm_version': '${PNPM_VERSION}'" >&2
   [ "${YARN_VERSION+defined}" ] && echo "📩 Read argument 'yarn_version': '${YARN_VERSION}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -359,6 +369,10 @@ fi
 [ "${YARN_VERSION+defined}" ] || {
   YARN_VERSION="none"
   echo "ℹ️ Argument 'yarn_version' set to default value 'none'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false

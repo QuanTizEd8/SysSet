@@ -19,6 +19,7 @@ _cleanup_hook() { return; }
 _on_exit() {
   local _rc=$?
   _cleanup_hook
+  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean
   if [[ $_rc -eq 0 ]]; then
     echo "✅ Git Installer script finished successfully." >&2
   else
@@ -56,8 +57,9 @@ Options:
   --user_email <value>                       Sets user.email in the per-user gitconfig (~/.gitconfig) for all resolved users. Set to '' to skip writing this setting.
   --user_gitconfig <value>                   Freeform content to append to the per-user gitconfig (~/.gitconfig) for all resolved users. Accepts standard gitconfig format. Written after user_name and user_email settings. Set to '' to skip.
   --symlink {true,false}                     Create a symlink from the canonical bin directory to $prefix/bin/git when prefix resolves to a non-default path (source builds only). (default: "true")
-  --debug {true,false}                       Enable debug output (set -x). (default: "false")
-  --logfile <value>                          Append install log to this file path.
+  --keep_cache {true,false}                  Keep the package manager cache after installation. Set to false to run ospkg__clean at script exit, removing cached package index and downloaded packages to reduce image layer size. (default: "true")
+  --debug {true,false}                       Enable debug output. (default: "false")
+  --logfile <value>                          Log all output (stdout + stderr) to this file in addition to console.
   -h, --help                                 Show this help
 EOF
   return
@@ -87,6 +89,7 @@ if [ "$#" -gt 0 ]; then
   USER_EMAIL=""
   USER_GITCONFIG=""
   SYMLINK=true
+  KEEP_CACHE=true
   DEBUG=false
   LOGFILE=""
   while [ "$#" -gt 0 ]; do
@@ -223,6 +226,12 @@ if [ "$#" -gt 0 ]; then
         echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
         shift
         ;;
+      --keep_cache)
+        shift
+        KEEP_CACHE="$1"
+        echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
+        shift
+        ;;
       --debug)
         shift
         DEBUG="$1"
@@ -300,6 +309,7 @@ else
   [ "${USER_EMAIL+defined}" ] && echo "📩 Read argument 'user_email': '${USER_EMAIL}'" >&2
   [ "${USER_GITCONFIG+defined}" ] && echo "📩 Read argument 'user_gitconfig': '${USER_GITCONFIG}'" >&2
   [ "${SYMLINK+defined}" ] && echo "📩 Read argument 'symlink': '${SYMLINK}'" >&2
+  [ "${KEEP_CACHE+defined}" ] && echo "📩 Read argument 'keep_cache': '${KEEP_CACHE}'" >&2
   [ "${DEBUG+defined}" ] && echo "📩 Read argument 'debug': '${DEBUG}'" >&2
   [ "${LOGFILE+defined}" ] && echo "📩 Read argument 'logfile': '${LOGFILE}'" >&2
 fi
@@ -394,6 +404,10 @@ fi
 [ "${SYMLINK+defined}" ] || {
   SYMLINK=true
   echo "ℹ️ Argument 'symlink' set to default value 'true'." >&2
+}
+[ "${KEEP_CACHE+defined}" ] || {
+  KEEP_CACHE=true
+  echo "ℹ️ Argument 'keep_cache' set to default value 'true'." >&2
 }
 [ "${DEBUG+defined}" ] || {
   DEBUG=false
@@ -646,8 +660,6 @@ _git__install_package() {
     if _git__ppa_check_codename; then
       _git__ppa_setup
       ospkg__install git
-      apt-get clean
-      apt-get dist-clean 2> /dev/null || rm -rf /var/lib/apt/lists/*
       return 0
     fi
     # PPA codename unsupported — fall through to standard repo.
