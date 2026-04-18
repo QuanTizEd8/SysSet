@@ -287,7 +287,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             if raw_default == "" or raw_default is None:
                 lines.append(
                     f'[ "${{{vname}+defined}}" ] || {{ {vname}=(); '
-                    f"echo \"\\u2139\\ufe0f Argument '{key}' set to default value '(empty)'.\" >&2; }}"
+                    f"echo \"\u2139\ufe0f Argument '{key}' set to default value '(empty)'.\" >&2; }}"
                 )
             else:
                 # Embed the default as an ANSI-C quoted string so newlines are preserved.
@@ -302,7 +302,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                 lines.append(
                     f'[ "${{{vname}+defined}}" ] || {{ '
                     f"mapfile -t {vname} < <(printf '%s' $'{escaped}' | grep -v '^$'); "
-                    f"echo \"\\u2139\\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
+                    f"echo \"\u2139\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
                 )
         else:
             rhs = shell_val(opt["default"], typ)
@@ -314,7 +314,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
                 disp = str(opt["default"])
             lines.append(
                 f'[ "${{{vname}+defined}}" ] || {{ {vname}={rhs}; '
-                f"echo \"\\u2139\\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
+                f"echo \"\u2139\ufe0f Argument '{key}' set to default value '{disp}'.\" >&2; }}"
             )
     # ── required argument checks ─────────────────────────────────────────────
     required_opts = [
