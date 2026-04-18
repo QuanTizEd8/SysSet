@@ -66,7 +66,7 @@ jobs:
           fi
 
           # ── Feature discovery helpers ──────────────────────────────────────
-          all_features=$(ls -1 src | jq -R . | jq -sc .)
+          all_features=$(ls -1 features | jq -R . | jq -sc .)
           macos_capable=$(find test -mindepth 3 -maxdepth 3 -name "*.sh" -path "*/macos/*" \
             | sed 's|test/||; s|/macos/.*||' | sort -u)
           macos_all=$(printf '%s\n' "$macos_capable" | grep -v '^$' | jq -R . | jq -sc .)
@@ -91,8 +91,8 @@ jobs:
             # run_lint: any shell file changed
             if echo "$changed" | grep -qE '\.(sh|bash|bats)$'; then run_lint=true; else run_lint=false; fi
 
-            # run_validate: any devcontainer-feature.json changed
-            if echo "$changed" | grep -q 'devcontainer-feature\.json'; then run_validate=true; else run_validate=false; fi
+            # run_validate: metadata.yaml changed (source for devcontainer-feature.json)
+            if echo "$changed" | grep -q 'metadata\.yaml'; then run_validate=true; else run_validate=false; fi
 
             # run_unit: lib/ or test/unit/ changed
             if echo "$changed" | grep -qE '^(lib/|test/unit/)'; then run_unit=true; else run_unit=false; fi
@@ -101,8 +101,8 @@ jobs:
             if echo "$changed" | grep -qE '^(bootstrap\.sh|lib/|test/lib/)'; then
               features="$all_features"
             else
-              features=$(ls -1 src | while IFS= read -r f; do
-                if echo "$changed" | grep -qE "^(src|test)/$f/"; then echo "$f"; fi
+              features=$(ls -1 features | while IFS= read -r f; do
+                if echo "$changed" | grep -qE "^(features|test)/$f/"; then echo "$f"; fi
               done | jq -R . | jq -sc .)
             fi
             if [[ "$features" != "[]" ]]; then run_features=true; else run_features=false; fi
@@ -112,13 +112,13 @@ jobs:
               macos_features="$macos_all"
             else
               macos_features=$(printf '%s\n' "$macos_capable" | grep -v '^$' | while IFS= read -r f; do
-                if echo "$changed" | grep -qE "^(src|test)/$f/"; then echo "$f"; fi
+                if echo "$changed" | grep -qE "^(features|test)/$f/"; then echo "$f"; fi
               done | jq -R . | jq -sc .)
             fi
             if [[ "$macos_features" != "[]" ]]; then run_macos=true; else run_macos=false; fi
 
             # run_dist: dist-related files changed
-            if echo "$changed" | grep -qE '^(bootstrap\.sh|get\.sh|sysset\.sh|build-artifacts\.sh|src/|lib/|test/dist/|test/lib/)'; then
+            if echo "$changed" | grep -qE '^(bootstrap\.sh|get\.sh|sysset\.sh|build-artifacts\.sh|features/|lib/|test/dist/|test/lib/)'; then
               run_dist=true
             else
               run_dist=false

@@ -99,7 +99,7 @@ jobs:
           if [[ "${INPUT_FEATURES:-}" == \[* ]]; then
             features="$INPUT_FEATURES"
           elif [[ -z "${INPUT_FEATURES:-}" ]]; then
-            features=$(ls -1 src | jq -R . | jq -sc .)
+            features=$(ls -1 features | jq -R . | jq -sc .)
           else
             features=$(printf '%s\n' "$INPUT_FEATURES" | tr ',' '\n' | tr -d ' ' \
               | grep -v '^$' | jq -R . | jq -sc .)
