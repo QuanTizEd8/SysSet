@@ -2,6 +2,10 @@
 
 **SysSet** is a project developing system setup tools (a.k.a features) that must work seamlessly on both macOS and various Linux distributions, both in containers and on bare-metal machines. These tools are distributed as both [**devcontainer features**](https://containers.dev/implementors/features/) (published to GHCR) and **standalone/bundled installers** (published to GitHub Releases). They provide users with a seamless experience for installing and configuring essential software in their environments, with rich configuration options that cater to a wide range of use cases and requirements. These tools must be robust, reliable, consistently designed, and thoroughly tested, with comprehensive documentation.
 
+## Rules and Constraints
+
+- When using conda, use `python` instead of `python3`; since `python3` is aliased to the system Python on some distros.
+
 ## Workspace Layout
 
 The workspace is a git repository with following key directories and files:
