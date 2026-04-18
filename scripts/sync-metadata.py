@@ -137,9 +137,18 @@ def _process_value(key: str, value: object) -> object:
     return value
 
 
+# Keys in metadata.yaml that are internal to this project and must not be
+# written to devcontainer-feature.json (which follows the devcontainer spec).
+_INTERNAL_KEYS: frozenset[str] = frozenset({"dependencies"})
+
+
 def _drop_extensions(data: dict) -> dict:
-    """Drop x_* custom extension fields (not valid in devcontainer-feature.json)."""
-    return {k: v for k, v in data.items() if not k.startswith("x_")}
+    """Drop x_* custom extension fields and internal-only keys."""
+    return {
+        k: v
+        for k, v in data.items()
+        if not k.startswith("x_") and k not in _INTERNAL_KEYS
+    }
 
 
 def generate_json(data: dict) -> str:
