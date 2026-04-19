@@ -444,7 +444,13 @@ _git__install_source() {
   fi
 
   # 4. Install build dependencies.
-  _source_build_deps__install
+  # Non-root installs cannot invoke the OS package manager; assume deps were
+  # preinstalled by the caller (e.g. Linux non-root test setup).
+  if [ "$(id -u)" = "0" ]; then
+    _source_build_deps__install
+  else
+    echo "ℹ️ Non-root mode: skipping build dependency installation; expecting required packages to be preinstalled." >&2
+  fi
 
   # 5. Download and verify tarball.
   _git__source_fetch_verify "${_resolved_ver}"

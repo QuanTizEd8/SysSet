@@ -272,13 +272,14 @@ detect_install_user() {
   else
     # Linux: Homebrew's installer refuses root in container environments where
     # /.dockerenv is absent (Docker BuildKit + cgroup v2 on modern GHA runners).
-    # Prefer an existing non-root user; fall back to creating a dedicated
-    # 'linuxbrew' user only when no real user is available.
+    # Prefer an existing non-root sudo user, allow _REMOTE_USER only when an
+    # explicit PREFIX is provided, and otherwise use a dedicated 'linuxbrew'
+    # account for the default /home/linuxbrew prefix.
     if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
       echo "ℹ️ Linux root: using SUDO_USER='${SUDO_USER}' as install_user." >&2
       echo "$SUDO_USER"
-    elif [ -n "${_REMOTE_USER-}" ] && [ "$_REMOTE_USER" != "root" ]; then
-      echo "ℹ️ Linux root: using _REMOTE_USER='${_REMOTE_USER}' as install_user." >&2
+    elif [ -n "${_REMOTE_USER-}" ] && [ "$_REMOTE_USER" != "root" ] && [ -n "${PREFIX-}" ]; then
+      echo "ℹ️ Linux root: using _REMOTE_USER='${_REMOTE_USER}' as install_user (explicit prefix set)." >&2
       echo "$_REMOTE_USER"
     else
       if ! id linuxbrew &> /dev/null; then

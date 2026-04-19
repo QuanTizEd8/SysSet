@@ -53,6 +53,27 @@ setup() {
 eve"
 }
 
+@test "users__resolve_list accepts newline-delimited ADD_USERS" {
+  ADD_CURRENT_USER=false \
+    ADD_REMOTE_USER=false \
+    ADD_CONTAINER_USER=false \
+    ADD_USERS=$'dave\neve' \
+    run users__resolve_list
+  assert_output "dave
+eve"
+}
+
+@test "users__resolve_list handles bash array ADD_USERS" {
+  ADD_CURRENT_USER=false
+  ADD_REMOTE_USER=false
+  ADD_CONTAINER_USER=false
+  ADD_USERS=(dave eve)
+
+  run users__resolve_list
+  assert_output "dave
+eve"
+}
+
 @test "users__resolve_list deduplicates users" {
   ADD_CURRENT_USER=false \
     ADD_REMOTE_USER=false \

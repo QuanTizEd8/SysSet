@@ -22,7 +22,8 @@ _USERS__LIB_LOADED=1
 #   ADD_CURRENT_USER   — "true" to include SUDO_USER / whoami (default: true)
 #   ADD_REMOTE_USER    — "true" to include _REMOTE_USER (default: true)
 #   ADD_CONTAINER_USER — "true" to include _CONTAINER_USER (default: true)
-#   ADD_USERS          — comma-separated extra usernames; root allowed here
+#   ADD_USERS          — extra usernames (bash array, newline-delimited string,
+#                        or comma-separated string); root allowed here
 #
 # Stdout: one username per line.
 #
@@ -43,6 +44,26 @@ users__resolve_list() {
     esac
     _seen="${_seen} ${_name}"
     _out="${_out} ${_name}"
+    return 0
+  }
+
+  # Accept both newline and comma separators in scalar values.
+  _users_add_from_text() {
+    local _raw="$1"
+    [ -z "$_raw" ] && return 0
+
+    local _normalized _old_ifs _extra
+    _normalized="$(printf '%s\n' "$_raw" | tr ',' '\n')"
+    _old_ifs="$IFS"
+    IFS='
+'
+    for _extra in $_normalized; do
+      # Trim leading/trailing spaces.
+      _extra="${_extra#"${_extra%%[! ]*}"}"
+      _extra="${_extra%"${_extra##*[! ]}"}"
+      _users_add "$_extra"
+    done
+    IFS="$_old_ifs"
     return 0
   }
 
@@ -72,16 +93,17 @@ users__resolve_list() {
 
   # ADD_USERS: explicit override list — root is allowed if deliberately
   # specified (e.g. configuring Podman rootless for the root user).
+  # The generated argparse header provides arrays in bash; support that first,
+  # then fall back to scalar parsing for POSIX sh callers.
   if [ -n "${ADD_USERS:-}" ]; then
-    local _old_ifs="$IFS"
-    IFS=','
-    for _extra in ${ADD_USERS}; do
-      # Trim leading/trailing spaces.
-      _extra="${_extra#"${_extra%%[! ]*}"}"
-      _extra="${_extra%"${_extra##*[! ]}"}"
-      _users_add "$_extra"
-    done
-    IFS="$_old_ifs"
+    if [ -n "${BASH_VERSION-}" ]; then
+      local _bash_items
+      # In bash, this safely serialises both scalar and array values.
+      _bash_items="$(eval 'printf "%s\n" "${ADD_USERS[@]}"' 2> /dev/null || true)"
+      _users_add_from_text "$_bash_items"
+    else
+      _users_add_from_text "${ADD_USERS}"
+    fi
   fi
 
   # Root fallback: if the build user was root and no other users were resolved,

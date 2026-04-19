@@ -38,7 +38,7 @@ tail -20 "$_LOGFILE" 2> /dev/null || echo "(missing)"
 check "logfile was created" test -f "$_LOGFILE"
 check "logfile is non-empty" test -s "$_LOGFILE"
 check "logfile contains install-homebrew header" grep -q 'install-homebrew' "$_LOGFILE"
-check "logfile contains success marker" grep -q 'Homebrew installation complete' "$_LOGFILE"
+check "logfile contains success marker" grep -q 'Install Homebrew script finished successfully' "$_LOGFILE"
 check "logfile contains brew prefix path" grep -qF "$_BREW_PREFIX" "$_LOGFILE"
 
 reportResults

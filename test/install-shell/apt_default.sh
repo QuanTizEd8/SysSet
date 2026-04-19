@@ -12,7 +12,6 @@ _OMB=/usr/local/share/oh-my-bash
 check "zsh is installed" command -v zsh
 check "bash is installed" command -v bash
 check "git is installed" command -v git
-check "curl is installed" command -v curl
 
 # --- Oh My Zsh ---
 check "oh-my-zsh install dir exists" test -d "$_OMZ"
