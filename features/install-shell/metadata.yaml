@@ -2,7 +2,7 @@ id: install-shell
 version: 0.1.0
 name: Install Shell
 description: >-
-  Install and configure Bash and Zsh with shell frameworks
+  Install and configure Bash and [Zsh](https://www.zsh.org/) with shell frameworks
   ([Oh My Zsh](https://ohmyz.sh/), [Oh My Bash](https://ohmybash.nntoan.com/))
   and the [Starship](https://starship.rs/) prompt. Deploys a layered set of
   system-wide and per-user configuration files that work correctly across all
