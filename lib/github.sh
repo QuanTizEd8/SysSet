@@ -61,18 +61,32 @@ github__fetch_release_json() {
 github__latest_tag() {
   local _repo="$1"
   local _tag
-  _tag="$(github__fetch_release_json "$_repo" |
+  _tag="$(github__fetch_release_json "$_repo" 2> /dev/null |
     grep '"tag_name"' | head -1 |
-    sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || {
-    echo "⛔ github__latest_tag: failed to reach GitHub API for '${_repo}'." >&2
-    return 1
-  }
-  [ -z "$_tag" ] && {
-    echo "⛔ github__latest_tag: could not parse tag_name for '${_repo}'." >&2
-    return 1
-  }
-  echo "$_tag"
-  return 0
+    sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || _tag=""
+  if [ -n "$_tag" ]; then
+    echo "$_tag"
+    return 0
+  fi
+
+  # Fallback: resolve tag via the /releases/latest redirect on github.com.
+  # This avoids unauthenticated GitHub API rate limits / 403 responses.
+  #
+  # Use the net module for curl/wget abstraction.
+  local _fallback_tag=""
+  _fallback_tag="$(
+    net__fetch_url_stdout "https://github.com/${_repo}/releases/latest" 2> /dev/null |
+      sed -n 's|.*href="/'"${_repo}"'/releases/tag/\\([^"?#]*\\)".*|\\1|p' |
+      head -1 || true
+  )"
+
+  if [ -n "$_fallback_tag" ]; then
+    echo "$_fallback_tag"
+    return 0
+  fi
+
+  echo "⛔ github__latest_tag: failed to resolve latest tag for '${_repo}' (GitHub API unreachable and redirect fallback failed)." >&2
+  return 1
 }
 
 # @brief github__release_tags <owner/repo> [--per_page N] — Print one release tag per line (newest first) from `/releases?per_page=N` (default 100).
@@ -403,7 +417,8 @@ _github__api_get() {
   # Use set -- to accumulate --header args (POSIX alternative to arrays).
   set -- \
     --header "Accept: application/vnd.github+json" \
-    --header "X-GitHub-Api-Version: 2022-11-28"
+    --header "X-GitHub-Api-Version: 2022-11-28" \
+    --header "User-Agent: sysset"
   [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" --header "Authorization: Bearer ${GITHUB_TOKEN}"
 
   local _ec=0
