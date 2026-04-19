@@ -43,12 +43,15 @@ options:
     description: 'Font installation directory. Leave empty to auto-detect: root/container -> /usr/share/fonts; Linux user -> $XDG_DATA_HOME/fonts; macOS user -> ~/Library/Fonts.'
     type: string
 dependencies:
+  run:
+    base:
+      packages:
+        - fontconfig
   build:
     download:
       packages:
         - ca-certificates
         - curl
-        - fontconfig
         - unzip
       apt:
         packages:
