@@ -13,6 +13,19 @@ _NET__LIB_LOADED=1
 _NET_FETCH_TOOL=
 _NET_CA_CERTS_OK=
 
+# _net__hdrs_with_default_ua <hdr_block> — Echo <hdr_block> unchanged if it
+# already contains a User-Agent line; otherwise prepend "User-Agent: sysset".
+# GitHub and some CDNs return 403 for curl's default anonymous User-Agent.
+_net__hdrs_with_default_ua() {
+  local _net__ua_in="$1"
+  if printf '%s\n' "$_net__ua_in" | grep -qi '^user-agent:'; then
+    printf '%s' "$_net__ua_in"
+  else
+    printf '%s%s' "User-Agent: sysset
+" "$_net__ua_in"
+  fi
+}
+
 # @brief net__fetch_with_retry [--retries N] [--delay N] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
 #
 # Does NOT require ospkg.sh. Prefer net__fetch_url_stdout / net__fetch_url_file
@@ -90,6 +103,7 @@ net__fetch_url_stdout() {
         ;;
     esac
   done
+  _hdrs="$(_net__hdrs_with_default_ua "$_hdrs")"
   _net__ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
@@ -152,6 +166,7 @@ net__fetch_url_file() {
         ;;
     esac
   done
+  _hdrs="$(_net__hdrs_with_default_ua "$_hdrs")"
   _net__ensure_fetch_tool
   if [ "$_NET_FETCH_TOOL" = "curl" ]; then
     set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused

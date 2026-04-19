@@ -162,6 +162,7 @@ EOF
   assert_output --partial "curl"
   assert_output --partial "--retry 60"
   assert_output --partial "--compressed"
+  assert_output --partial "User-Agent: sysset"
 }
 
 @test "net__fetch_url_stdout routes to wget when _NET_FETCH_TOOL=wget" {
@@ -206,6 +207,21 @@ EOF
   assert_output --partial "curl"
   assert_output --partial "--retry 60"
   assert_output --partial "--compressed"
+  assert_output --partial "User-Agent: sysset"
+}
+
+@test "net__fetch_url_stdout does not override an explicit User-Agent header" {
+  reload_lib net.sh
+  _NET_FETCH_TOOL=curl
+  _NET_CA_CERTS_OK=true
+  curl() {
+    printf '%s\n' "$@"
+    return 0
+  }
+  export -f curl
+  run net__fetch_url_stdout "https://example.com" --header "User-Agent: other/1"
+  assert_output --partial "User-Agent: other/1"
+  refute_output --partial "User-Agent: sysset"
 }
 
 @test "net__fetch_url_file routes to wget when _NET_FETCH_TOOL=wget" {
