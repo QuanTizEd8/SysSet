@@ -26,16 +26,6 @@ default-libmysqlclient-dev:
     On Alpine, apk package is 'mariadb-dev'. On Fedora: 'mariadb-connector-c-devel'.
     On openSUSE: 'mariadb-devel'. On Arch: 'mariadb-libs'.
 
-libsqlite3-dev:
-  summary: Development files for SQLite 3.
-  description: |
-    Headers and static libraries for SQLite 3. Required for building Python
-    (sqlite3 module), Ruby, and applications that embed SQLite as their
-    database engine.
-  url:
-    docs: https://www.sqlite.org/docs.html
-    source: https://www.sqlite.org/src
-
 sqlite3:
   summary: Command-line interface for SQLite 3.
   description: |

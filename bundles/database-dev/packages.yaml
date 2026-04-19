@@ -15,15 +15,8 @@ packages:
     zypper: mariadb-devel
     pacman: mariadb-libs
 
-  # ── SQLite ────────────────────────────────────────────────────────────────
-  - name: libsqlite3-dev
-    brew: sqlite
-    apk: sqlite-dev
-    dnf: sqlite-devel
-    zypper: sqlite3-devel
-    pacman: sqlite
-
-  # sqlite3 CLI — same name on all PMs except zypper (sqlite3)
+  # ── SQLite CLI ──────────────────────────────────────────────────────────────
+  # dev headers (libsqlite3-dev) live in the dev-libs bundle
   - name: sqlite3
     brew: sqlite
     apk: sqlite

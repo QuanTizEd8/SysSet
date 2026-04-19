@@ -53,3 +53,21 @@ packages:
   # Memory analysis (Linux-only — Valgrind does not run on macOS)
   - name: valgrind
     when: {kernel: linux}
+
+  # Build system helpers
+  - name: ninja-build
+    brew: ninja
+    apk: ninja
+    dnf: ninja-build
+    zypper: ninja
+    pacman: ninja
+
+  - meson
+
+  - ccache
+
+  - name: pkg-config
+    apk: pkgconf
+    dnf: pkgconf-pkg-config
+    zypper: pkgconf
+    pacman: pkgconf

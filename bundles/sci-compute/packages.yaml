@@ -1,11 +1,4 @@
 packages:
-  # ── Audio / signal processing ─────────────────────────────────────────────
-  - name: libsndfile1-dev
-    brew: libsndfile
-    apk: libsndfile-dev
-    dnf: libsndfile-devel
-    zypper: libsndfile-devel
-    pacman: libsndfile
 
   # ── HDF5 (array/dataset storage) ─────────────────────────────────────────
   - name: libhdf5-dev
@@ -46,5 +39,26 @@ packages:
     zypper: protobuf
     pacman: protobuf
 
-  # ── Multimedia / video ────────────────────────────────────────────────────
-  - name: ffmpeg
+  # ── Fourier analysis ────────────────────────────────────────────────────
+  - name: libfftw3-dev
+    brew: fftw
+    apk: fftw-dev
+    dnf: fftw-devel
+    zypper: fftw3-devel
+    pacman: fftw
+
+  # ── GNU Scientific Library ────────────────────────────────────────────────
+  - name: libgsl-dev
+    brew: gsl
+    apk: gsl-dev
+    dnf: gsl-devel
+    zypper: gsl-devel
+    pacman: gsl
+
+  # ── Eigen (C++ linear algebra, header-only) ───────────────────────────────
+  - name: libeigen3-dev
+    brew: eigen
+    apk: eigen-dev
+    dnf: eigen3-devel
+    zypper: eigen3-devel
+    pacman: eigen

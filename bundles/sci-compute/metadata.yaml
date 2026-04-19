@@ -1,13 +1,3 @@
-libsndfile1-dev:
-  summary: Development files for libsndfile (audio file I/O).
-  description: |
-    Headers and static libraries for libsndfile, a C library for reading and
-    writing audio files in WAV, FLAC, OGG, AIFF, and other formats. Required
-    by librosa, soundfile, and audioread for audio ML pipelines.
-  url:
-    docs: https://libsndfile.github.io/libsndfile/api.html
-    source: https://github.com/libsndfile/libsndfile
-
 libhdf5-dev:
   summary: Development files for the HDF5 scientific data format library.
   description: |
@@ -60,16 +50,41 @@ protobuf-compiler:
     docs: https://protobuf.dev/reference/
     source: https://github.com/protocolbuffers/protobuf
 
-ffmpeg:
-  summary: Complete solution to record, convert, and stream audio/video.
+libfftw3-dev:
+  summary: Development files for FFTW (Fastest Fourier Transform in the West).
   description: |
-    FFmpeg provides a broad set of codecs and container formats. Required by
-    OpenCV, PyAV, Whisper, and data science workflows that process multimedia
-    files or frame-level video data.
+    FFTW is the de-facto standard C library for computing discrete Fourier
+    transforms. Used by NumPy (optionally), SciPy, GNU Radio, and any
+    scientific code that requires fast FFT. Supports real/complex, arbitrary
+    sizes, and multi-threading.
   url:
-    docs: https://ffmpeg.org/documentation.html
-    source: https://git.ffmpeg.org/ffmpeg.git
+    docs: http://www.fftw.org/fftw3_doc/
+    source: https://github.com/FFTW/fftw3
   notes: |
-    On some platforms ffmpeg pulls in a large set of codec dependencies.
-    Consider installing only the specific codec libraries your project needs
-    if image size is a concern.
+    Package named 'libfftw3-dev' on apt; 'fftw-dev' on apk; 'fftw-devel' on
+    dnf; 'fftw3-devel' on zypper; 'fftw' on brew and pacman.
+
+libgsl-dev:
+  summary: Development files for the GNU Scientific Library.
+  description: |
+    GSL provides a collection of mathematical routines for C programs:
+    numerical integration, ODEs, random numbers, statistics, linear algebra,
+    FFTs, and more. Used by scientific simulation code and as a reference
+    implementation of many algorithms.
+  url:
+    docs: https://www.gnu.org/software/gsl/doc/html/
+    source: https://git.savannah.gnu.org/git/gsl.git
+
+libeigen3-dev:
+  summary: Development files for Eigen (header-only C++ linear algebra).
+  description: |
+    Eigen is a high-performance, header-only C++ template library for linear
+    algebra (matrices, vectors, numerical solvers). Used extensively in
+    robotics (ROS), computer vision (OpenCV), and ML frameworks (TensorFlow,
+    Ceres). No binary installation is required — all code is in headers.
+  url:
+    docs: https://eigen.tuxfamily.org/dox/
+    source: https://gitlab.com/libeigen/eigen
+  notes: |
+    Package named 'libeigen3-dev' on apt; 'eigen-dev' on apk; 'eigen3-devel'
+    on dnf and zypper; 'eigen' on brew and pacman.

@@ -1,0 +1,23 @@
+packages:
+  # ── Cross-platform ────────────────────────────────────────────────────────
+  - htop
+  - lsof
+
+  # ── Linux-only ────────────────────────────────────────────────────────────
+  # procps: ps, top, free, vmstat, uptime, pgrep, pkill
+  - name: procps
+    when: {kernel: linux}
+    dnf: procps-ng
+    pacman: procps-ng
+
+  # psmisc: killall, fuser, pstree, pmap
+  - name: psmisc
+    when: {kernel: linux}
+
+  # strace: system call tracer
+  - name: strace
+    when: {kernel: linux}
+
+  # inotify-tools: inotifywait / inotifywatch (filesystem events)
+  - name: inotify-tools
+    when: {kernel: linux}

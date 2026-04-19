@@ -1,0 +1,42 @@
+ffmpeg:
+  summary: Complete solution to record, convert, and stream audio/video.
+  description: |
+    FFmpeg handles virtually every audio and video format through its libav*
+    component libraries (libavcodec, libavformat, libswscale, etc.). Required
+    by OpenCV, PyAV, Whisper, moviepy, and any pipeline that processes
+    multimedia files or video frames.
+  url:
+    docs: https://ffmpeg.org/documentation.html
+    source: https://git.ffmpeg.org/ffmpeg.git
+  notes: |
+    On some platforms ffmpeg pulls in a large set of codec dependencies.
+    Consider installing only the specific codec dev libraries your project
+    needs (libx264-dev, libx265-dev, etc.) if image size is a concern.
+
+libsndfile1-dev:
+  summary: Development files for libsndfile (audio file I/O library).
+  description: |
+    Headers and static libraries for libsndfile, a C library for reading and
+    writing audio files in WAV, FLAC, OGG, AIFF, AU, and other formats.
+    Required by Python packages soundfile and audioread, and used by librosa
+    and other audio-ML libraries.
+  url:
+    docs: https://libsndfile.github.io/libsndfile/api.html
+    source: https://github.com/libsndfile/libsndfile
+  notes: |
+    Package named 'libsndfile1-dev' on apt; 'libsndfile' on brew; 'libsndfile-dev'
+    on apk; 'libsndfile-devel' on dnf/zypper; 'libsndfile' on pacman.
+
+libopus-dev:
+  summary: Development files for the Opus audio codec.
+  description: |
+    Opus is the IETF-standardised audio codec offering both speech and music
+    at low bitrates. Headers and static libraries are required for building
+    applications that encode or decode Opus directly (e.g. WebRTC stacks,
+    Discord bots, VoIP clients).
+  url:
+    docs: https://opus-codec.org/docs/
+    source: https://gitlab.xiph.org/xiph/opus
+  notes: |
+    Package named 'libopus-dev' on apt; 'opus' on brew/pacman; 'opus-dev' on
+    apk; 'opus-devel' on dnf; 'libopus-devel' on zypper.

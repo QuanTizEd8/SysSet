@@ -1,0 +1,63 @@
+htop:
+  summary: Interactive process viewer.
+  description: |
+    htop provides a real-time, colorized display of running processes with
+    scrolling, sorting, filtering, and process management. A more ergonomic
+    alternative to top(1) with mouse support.
+  url:
+    docs: https://htop.dev/
+    source: https://github.com/htop-dev/htop
+
+lsof:
+  summary: List open files and the processes using them.
+  description: |
+    lsof lists every open file descriptor on the system — regular files,
+    sockets, pipes, and devices — along with the owning process. Invaluable
+    for debugging port conflicts, file descriptor leaks, and detecting which
+    process holds a file open.
+  url:
+    docs: https://man7.org/linux/man-pages/man8/lsof.8.html
+    source: https://github.com/lsof-org/lsof
+
+procps:
+  summary: Utilities for monitoring system processes — ps, free, vmstat, pgrep.
+  description: |
+    procps (procps-ng on Fedora/Arch) provides ps, top, free, vmstat, uptime,
+    pgrep, pkill, slabtop, and w. These are the standard process-inspection
+    tools on Linux. Linux-only — macOS ships its own implementations.
+  url:
+    source: https://gitlab.com/procps-ng/procps
+  notes: |
+    Package named 'procps-ng' on Fedora (dnf) and Arch (pacman).
+
+psmisc:
+  summary: Utilities for managing processes — killall, fuser, pstree.
+  description: |
+    psmisc provides killall (signal processes by name), fuser (identify
+    processes using a file or socket), pstree (display process tree), and
+    pmap (report memory map). Linux-only.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/killall.1.html
+    source: https://gitlab.com/psmisc/psmisc
+
+strace:
+  summary: System call and signal tracer for Linux.
+  description: |
+    strace intercepts and records system calls made by a process and the
+    signals it receives. Indispensable for diagnosing runtime failures,
+    understanding I/O behaviour, and debugging inter-process communication.
+    Linux-only — macOS equivalent is dtruss/dtrace.
+  url:
+    docs: https://man7.org/linux/man-pages/man1/strace.1.html
+    source: https://github.com/strace/strace
+
+inotify-tools:
+  summary: Command-line utilities for the Linux inotify filesystem event API.
+  description: |
+    inotify-tools provides inotifywait (block until filesystem events occur)
+    and inotifywatch (count filesystem events). Used for file-watching in
+    test runners, live-reload scripts, and CI triggers. Linux-only — macOS
+    uses FSEvents.
+  url:
+    docs: https://github.com/inotify-tools/inotify-tools
+    source: https://github.com/inotify-tools/inotify-tools

@@ -1,0 +1,24 @@
+mercurial:
+  summary: Distributed version control system (Mercurial / hg).
+  description: |
+    Mercurial is a distributed VCS built for speed and simplicity. Some
+    established projects (Mozilla, Facebook's internal tools, certain Python
+    packages) still use Mercurial as their primary VCS. Also used by build
+    scripts that fetch source dependencies via hg clone.
+  url:
+    docs: https://www.mercurial-scm.org/guide
+    source: https://www.mercurial-scm.org/repo/hg
+  notes: |
+    Merits a dedicated feature if advanced configuration (extensions, auth,
+    hooks) is needed. Included here for basic availability.
+
+subversion:
+  summary: Centralized version control system (SVN).
+  description: |
+    Apache Subversion (svn) is a centralized VCS widely deployed in
+    enterprise environments. Required for projects hosted on SVN servers
+    and for tools that still vendor SVN checkouts (e.g. some CMake ExternalProject
+    setups or npm packages that pull from svn).
+  url:
+    docs: https://subversion.apache.org/docs/
+    source: https://svn.apache.org/repos/asf/subversion/trunk/

@@ -12,16 +12,14 @@ packages:
   - nano
   - vim
 
-  # Terminal multiplexer / monitoring
+  # Terminal multiplexer / disk usage
   - tmux
-  - htop
   - tree
   - ncdu
 
   # Interactive utilities
   - dialog
   - moreutils
-  - lsof
 
   # Archive utilities
   - unzip
@@ -32,9 +30,6 @@ packages:
     dnf: xz
     zypper: xz
     pacman: xz
-
-  # VCS
-  - mercurial
 
   # Cryptography
   - name: gnupg
@@ -54,18 +49,4 @@ packages:
 
   # Linux-only utilities
   - name: file
-    when: {kernel: linux}
-
-  - name: strace
-    when: {kernel: linux}
-
-  - name: inotify-tools
-    when: {kernel: linux}
-
-  - name: procps
-    when: {kernel: linux}
-    dnf: procps-ng
-    pacman: procps-ng
-
-  - name: psmisc
     when: {kernel: linux}

@@ -1,0 +1,19 @@
+packages:
+  # ── Swiss-army multimedia framework ──────────────────────────────────────
+  - ffmpeg
+
+  # ── Audio file I/O ────────────────────────────────────────────────────────
+  - name: libsndfile1-dev
+    brew: libsndfile
+    apk: libsndfile-dev
+    dnf: libsndfile-devel
+    zypper: libsndfile-devel
+    pacman: libsndfile
+
+  # ── Opus audio codec ─────────────────────────────────────────────────────
+  - name: libopus-dev
+    brew: opus
+    apk: opus-dev
+    dnf: opus-devel
+    zypper: libopus-devel
+    pacman: opus

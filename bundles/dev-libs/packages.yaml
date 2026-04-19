@@ -182,3 +182,15 @@ packages:
     dnf: tk-devel
     zypper: tk-devel
     pacman: tk
+  # ── Modern cryptography ──────────────────────────────────────────────────
+  - name: libsodium-dev
+    brew: libsodium
+    dnf: libsodium-devel
+    zypper: libsodium-devel
+    pacman: libsodium
+
+  # ── ImageMagick dev headers (apt-only; other PMs bundle headers) ───────────
+  - name: libmagickcore-dev
+    when: {pm: apt}
+  - name: libmagickwand-dev
+    when: {pm: apt}

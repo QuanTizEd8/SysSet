@@ -237,3 +237,35 @@ tk-dev:
   url:
     docs: https://www.tcl.tk/doc/
     source: https://core.tcl-lang.org/tk
+
+libsodium-dev:
+  summary: Development files for libsodium (modern cryptography library).
+  description: |
+    libsodium provides easy-to-use, hard-to-misuse implementations of common
+    cryptographic operations: authenticated encryption (XSalsa20-Poly1305),
+    signatures (Ed25519), key exchange (X25519), hashing, and more. Used by
+    ZeroMQ (libzmq), PyNaCl, libnacl, and security-conscious applications.
+  url:
+    docs: https://doc.libsodium.org/
+    source: https://github.com/jedisct1/libsodium
+
+libmagickcore-dev:
+  summary: Development files for the ImageMagick core library (apt only).
+  description: |
+    Headers for MagickCore, ImageMagick's low-level C API. Required on
+    Debian/Ubuntu for building software that embeds ImageMagick directly
+    (e.g. the Wand Python binding). On other platforms, installing the main
+    imagemagick/ImageMagick package includes the headers.
+  url:
+    source: https://github.com/ImageMagick/ImageMagick
+
+libmagickwand-dev:
+  summary: Development files for the ImageMagick MagickWand C API (apt only).
+  description: |
+    Headers for MagickWand, ImageMagick's higher-level C API. Required on
+    Debian/Ubuntu for building applications that use the Wand API (e.g.
+    PythonMagick, Wand-py). On other platforms, headers are bundled with the
+    main package.
+  url:
+    docs: https://imagemagick.org/script/magick-wand.php
+    source: https://github.com/ImageMagick/ImageMagick

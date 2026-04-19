@@ -77,16 +77,6 @@ tmux:
     docs: https://man7.org/linux/man-pages/man1/tmux.1.html
     source: https://github.com/tmux/tmux
 
-htop:
-  summary: Interactive process viewer for Unix systems.
-  description: |
-    htop provides a real-time, colorized display of system processes with
-    scrolling, sorting, and process management. A more user-friendly
-    alternative to top(1).
-  url:
-    docs: https://htop.dev/
-    source: https://github.com/htop-dev/htop
-
 tree:
   summary: Display directories and files in a tree-like format.
   description: |
@@ -128,16 +118,6 @@ moreutils:
     Conflicts with the `parallel` (GNU parallel) package on some PMs — both
     ship a `parallel` binary. Do not install both in the same manifest.
 
-lsof:
-  summary: List open files and the processes using them.
-  description: |
-    lsof lists information about files opened by processes. Useful for
-    debugging port conflicts, tracking file descriptor leaks, and monitoring
-    application behaviour.
-  url:
-    docs: https://man7.org/linux/man-pages/man8/lsof.8.html
-    source: https://github.com/lsof-org/lsof
-
 unzip:
   summary: De-archiver for .zip files.
   description: |
@@ -164,18 +144,6 @@ xz-utils:
   url:
     docs: https://tukaani.org/xz/
     source: https://git.tukaani.org/?p=xz.git
-
-mercurial:
-  summary: Distributed version control system.
-  description: |
-    Mercurial (hg) is a distributed VCS with an emphasis on simplicity and
-    performance. Some projects still use Mercurial as their primary VCS, and
-    certain build scripts require it to fetch source dependencies.
-  url:
-    docs: https://www.mercurial-scm.org/guide
-  notes: |
-    Merits a dedicated `install-mercurial` feature if advanced configuration
-    (extensions, auth) is needed. Included here for basic availability.
 
 gnupg:
   summary: GNU Privacy Guard — encryption and signing tool.
@@ -212,39 +180,3 @@ file:
     docs: https://manpages.ubuntu.com/manpages/noble/en/man1/file.1.html
     source: https://github.com/file/file
 
-strace:
-  summary: Diagnostic tool for tracing Linux system calls.
-  description: |
-    strace monitors interactions between programs and the Linux kernel by
-    tracing system calls and signals. Linux-only. Vital for diagnosing
-    runtime issues, debugging, and security auditing.
-  url:
-    docs: https://man7.org/linux/man-pages/man1/strace.1.html
-    source: https://github.com/strace/strace
-
-inotify-tools:
-  summary: Command-line utilities for the Linux inotify filesystem API.
-  description: |
-    inotify-tools provides inotifywait and inotifywatch for monitoring
-    filesystem events in real-time using the Linux kernel inotify subsystem.
-    Linux-only — macOS uses FSEvents.
-  url:
-    docs: https://github.com/inotify-tools/inotify-tools
-    source: https://github.com/inotify-tools/inotify-tools
-
-procps:
-  summary: Utilities for monitoring and managing system processes.
-  description: |
-    procps provides ps, top, vmstat, and related tools for observing system
-    performance and managing processes. Linux-only.
-  url:
-    source: https://gitlab.com/procps-ng/procps
-
-psmisc:
-  summary: Utilities for managing processes — killall, fuser, pstree.
-  description: |
-    psmisc provides killall, fuser, pstree, and peekfd for identifying and
-    controlling processes. Linux-only.
-  url:
-    docs: https://man7.org/linux/man-pages/man1/killall.1.html
-    source: https://gitlab.com/psmisc/psmisc

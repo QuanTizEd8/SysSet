@@ -1,0 +1,4 @@
+packages:
+  # Mercurial and Subversion have the same package name on all PMs.
+  - mercurial
+  - subversion
