@@ -665,8 +665,8 @@ _mock_snapshots() {
   export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-a"
-  printf 'git\n'  > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-b"
-  printf 'tar\n'  > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-c"
+  printf 'git\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-b"
+  printf 'tar\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-c"
 
   create_fake_bin "apt-get" ""
   prepend_fake_bin_path
