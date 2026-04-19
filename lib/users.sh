@@ -35,6 +35,9 @@ users__resolve_list() {
   # Track seen names in a local space-separated string for dedup.
   local _seen=""
   local _out=""
+  local _raw_add_users="${ADD_USERS-}"
+
+  echo "ℹ️  users__resolve_list: inputs ADD_CURRENT_USER='${ADD_CURRENT_USER:-true}' ADD_REMOTE_USER='${ADD_REMOTE_USER:-true}' ADD_CONTAINER_USER='${ADD_CONTAINER_USER:-true}' SUDO_USER='${SUDO_USER-}' _REMOTE_USER='${_REMOTE_USER-}' _CONTAINER_USER='${_CONTAINER_USER-}' _REMOTE_USER_HOME='${_REMOTE_USER_HOME-}' _CONTAINER_USER_HOME='${_CONTAINER_USER_HOME-}' ADD_USERS='${_raw_add_users}'" >&2
 
   _users_add() {
     local _name="$1"
@@ -110,6 +113,13 @@ users__resolve_list() {
   # include root so the feature has a target to configure.
   if [ "$_root_queued" = "true" ] && [ -z "$_out" ]; then
     _users_add "root"
+  fi
+
+  # Log final result (or explicit empty marker) to aid CI debugging.
+  if [ -n "$_out" ]; then
+    echo "ℹ️  users__resolve_list: resolved users='${_out# }'" >&2
+  else
+    echo "ℹ️  users__resolve_list: resolved users='(empty)'" >&2
   fi
 
   # Print one name per line (strip leading space from _out).
