@@ -24,7 +24,7 @@ check "root .shellenv exists" test -f "${_HOME}/.shellenv"
 check "root .shellrc exists" test -f "${_HOME}/.shellrc"
 
 # --- ZDOTDIR injected into .zshenv ---
-check ".zshenv has ZDOTDIR BEGIN marker" grep -qF '# BEGIN install-shell-zdotdir' "${_HOME}/.zshenv"
+check ".zshenv has ZDOTDIR block" grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
 check ".zshenv sets ZDOTDIR" grep -q 'ZDOTDIR=' "${_HOME}/.zshenv"
 check ".zshenv ZDOTDIR points to .config/zsh" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
 

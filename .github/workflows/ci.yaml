@@ -176,6 +176,7 @@ jobs:
         with:
           name: sysset-src
           path: src/
+          include-hidden-files: true
           retention-days: 1
 
       - name: Upload dist/ artifact

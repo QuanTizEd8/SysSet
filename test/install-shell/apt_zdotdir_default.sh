@@ -16,7 +16,7 @@ check ".zprofile NOT in HOME" bash -c '! test -f "${_HOME}/.zprofile"'
 check ".zlogin NOT in HOME" bash -c '! test -f "${_HOME}/.zlogin"'
 
 # ZDOTDIR injection block present in .zshenv
-check ".zshenv has ZDOTDIR block" grep -qF '# BEGIN install-shell-zdotdir' "${_HOME}/.zshenv"
+check ".zshenv has ZDOTDIR block" grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
 check ".zshenv ZDOTDIR value is .config/zsh" grep -qF "ZDOTDIR=\"${_ZDOTDIR}\"" "${_HOME}/.zshenv"
 
 # Zsh config files in ZDOTDIR

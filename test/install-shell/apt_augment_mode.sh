@@ -18,7 +18,7 @@ check "zshtheme written in augment mode" test -f "${_ZDOTDIR}/zshtheme"
 check "bashtheme written in augment mode" test -f "${_HOME}/.config/bash/bashtheme"
 
 # ZDOTDIR block in .zshenv
-check "ZDOTDIR block injected into .zshenv" grep -qF '# BEGIN install-shell-zdotdir' "${_HOME}/.zshenv"
+check "ZDOTDIR block injected into .zshenv" grep -qF '# >>> install-shell-zdotdir >>>' "${_HOME}/.zshenv"
 
 # Per-user custom dirs created
 check "per-user OMZ custom dir created" test -d "${_ZDOTDIR}/custom"
