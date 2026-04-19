@@ -191,7 +191,7 @@ _net__ensure_fetch_tool() {
       }
       echo "ℹ️  Neither curl nor wget found — installing curl." >&2
       ospkg__update
-      ospkg__install curl
+      ospkg__install_tracked "lib-net" curl
       _NET_FETCH_TOOL=curl
     fi
   fi
@@ -216,7 +216,7 @@ _net__ensure_ca_certs() {
     }
     echo "ℹ️  CA certificate bundle missing — installing ca-certificates." >&2
     ospkg__update
-    ospkg__install ca-certificates
+    ospkg__install_tracked "lib-net" ca-certificates
   fi
   _NET_CA_CERTS_OK=true
   return 0

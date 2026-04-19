@@ -403,6 +403,282 @@ _seed_apt_context_with_yq() {
   assert_failure
 }
 
+# ---------------------------------------------------------------------------
+# Build-dep tracking: ospkg__install_tracked / _ospkg_remove_build_group /
+#                     ospkg__cleanup_all_build_groups
+# ---------------------------------------------------------------------------
+
+# _seed_apt_build_context — seeds apt context + stubs needed for build-dep tests:
+#   · _SYSSET_TMPDIR  → BATS_TEST_TMPDIR (sidecars at a predictable path)
+#   · fake apt-get    (exit 0, no-op — real install skipped)
+#   · fake dpkg       (exit 1 — "not installed" so ospkg__install always proceeds)
+#   · fake apt-mark   (logs every invocation to ${BATS_TEST_TMPDIR}/apt-mark.log)
+#   · net__fetch_with_retry → passthrough so the fake apt-get is actually invoked
+# After this, call _mock_snapshots to control the before/after package lists.
+_seed_apt_build_context() {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\nexit 0\n' \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  printf '#!/bin/bash\nexit 1\n' \
+    > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  printf '#!/bin/bash\necho "$@" >> "%s/apt-mark.log"\n' \
+    "${BATS_TEST_TMPDIR}" > "${BATS_TEST_TMPDIR}/bin/apt-mark"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-mark"
+  prepend_fake_bin_path
+  # Passthrough: avoids the real retry loop and simply invokes the fake apt-get.
+  net__fetch_with_retry() { "$@" > /dev/null 2>&1 || true; }
+}
+
+# _mock_snapshots <before_pkgs_space_sep> <after_pkgs_space_sep>
+# Replaces _ospkg_snapshot_packages with a counter-based mock.  The first call
+# returns <before_pkgs> (one-per-line, sorted); all subsequent calls return
+# <after_pkgs>.  Uses a temp file for the counter to avoid bash closure issues.
+_mock_snapshots() {
+  export SNAP_BEFORE="$1"
+  export SNAP_AFTER="$2"
+  echo 0 > "${BATS_TEST_TMPDIR}/.snap_call"
+  _ospkg_snapshot_packages() {
+    local _dest="$1" _n
+    _n=$(cat "${BATS_TEST_TMPDIR}/.snap_call")
+    _n=$((_n + 1))
+    echo "$_n" > "${BATS_TEST_TMPDIR}/.snap_call"
+    if [[ $_n -le 1 ]]; then
+      echo "${SNAP_BEFORE}" | tr ' ' '\n' | grep -v '^$' | sort > "$_dest"
+    else
+      echo "${SNAP_AFTER}" | tr ' ' '\n' | grep -v '^$' | sort > "$_dest"
+    fi
+  }
+}
+
+# ── ospkg__install_tracked ────────────────────────────────────────────────────
+
+@test "ospkg__install_tracked: newly installed package is recorded in sidecar" {
+  _seed_apt_build_context
+  _mock_snapshots "curl" "curl newpkg"
+
+  ospkg__install_tracked "test-group" newpkg
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  assert_file_exists "$_sidecar"
+  grep -q "^newpkg$" "$_sidecar"
+}
+
+@test "ospkg__install_tracked: newly installed package is marked apt auto" {
+  _seed_apt_build_context
+  _mock_snapshots "curl" "curl newpkg"
+
+  ospkg__install_tracked "test-group" newpkg
+
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "auto newpkg" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "ospkg__install_tracked: pre-installed package produces empty sentinel sidecar" {
+  # Package is already present in the before-snapshot → diff is empty → sidecar
+  # created as empty sentinel (no content, no apt-mark call).
+  _seed_apt_build_context
+  _mock_snapshots "curl newpkg" "curl newpkg"
+
+  ospkg__install_tracked "test-group" newpkg
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  assert_file_exists "$_sidecar"
+  [[ ! -s "$_sidecar" ]]
+}
+
+@test "ospkg__install_tracked: pre-installed package — apt-mark auto not called" {
+  _seed_apt_build_context
+  _mock_snapshots "curl newpkg" "curl newpkg"
+
+  ospkg__install_tracked "test-group" newpkg
+
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]]
+}
+
+@test "ospkg__install_tracked: snapshot safety — pre-existing package never auto-marked" {
+  # Core correctness guarantee: a package already present before this call (e.g.
+  # a run.base package installed by the generated header) appears in the
+  # before-snapshot and is therefore absent from _new_pkgs — its 'manual' mark
+  # is never touched regardless of what apt-get install does.
+  _seed_apt_build_context
+  # git is pre-existing (in before); newpkg is genuinely new (only in after).
+  _mock_snapshots "curl git" "curl git newpkg"
+
+  ospkg__install_tracked "test-group" newpkg
+
+  # newpkg must be tracked and auto-marked.
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "auto newpkg" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  # git must never appear as an apt-mark target.
+  run grep "git" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  assert_failure
+}
+
+@test "ospkg__install_tracked: two calls with same group-id accumulate packages in sidecar" {
+  _seed_apt_build_context
+
+  _mock_snapshots "curl" "curl pkg1"
+  ospkg__install_tracked "test-group" pkg1
+
+  _mock_snapshots "curl pkg1" "curl pkg1 pkg2"
+  ospkg__install_tracked "test-group" pkg2
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  grep -q "^pkg1$" "$_sidecar"
+  grep -q "^pkg2$" "$_sidecar"
+}
+
+@test "ospkg__install_tracked: sort -u prevents duplicate entries across repeated calls" {
+  _seed_apt_build_context
+
+  _mock_snapshots "" "pkg1"
+  ospkg__install_tracked "test-group" pkg1
+
+  # Second call: pkg1 already in before (no-op install), should not duplicate.
+  _mock_snapshots "pkg1" "pkg1"
+  ospkg__install_tracked "test-group" pkg1
+
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+  [[ $(grep -c "^pkg1$" "$_sidecar") -eq 1 ]]
+}
+
+@test "ospkg__install_tracked: different group-ids create separate sidecars" {
+  _seed_apt_build_context
+
+  _mock_snapshots "" "pkg1"
+  ospkg__install_tracked "group-a" pkg1
+
+  _mock_snapshots "pkg1" "pkg1 pkg2"
+  ospkg__install_tracked "group-b" pkg2
+
+  local _bd="${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  assert_file_exists "${_bd}/group-a"
+  assert_file_exists "${_bd}/group-b"
+  grep -q "^pkg1$" "${_bd}/group-a"
+  grep -q "^pkg2$" "${_bd}/group-b"
+  # pkg2 must not bleed into group-a's sidecar.
+  run grep "pkg2" "${_bd}/group-a"
+  assert_failure
+}
+
+# ── _ospkg_remove_build_group ────────────────────────────────────────────────
+
+@test "_ospkg_remove_build_group: missing sidecar returns 0 with informational message" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+
+  run _ospkg_remove_build_group "nonexistent-group"
+
+  assert_success
+  assert_output --partial "nothing to remove"
+}
+
+@test "_ospkg_remove_build_group: empty sidecar returns 0 without invoking autoremove" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  : > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+
+  local _apt_log="${BATS_TEST_TMPDIR}/apt-get.log"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_apt_log" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  prepend_fake_bin_path
+
+  run _ospkg_remove_build_group "test-group"
+
+  assert_success
+  assert_output --partial "nothing to remove"
+  [[ ! -f "$_apt_log" ]]
+}
+
+@test "_ospkg_remove_build_group: apt — calls autoremove and deletes the sidecar" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'curl\nnewpkg\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group"
+
+  local _apt_log="${BATS_TEST_TMPDIR}/apt-get.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_apt_log" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  prepend_fake_bin_path
+
+  _ospkg_remove_build_group "test-group"
+
+  grep -q "autoremove" "$_apt_log"
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/test-group" ]]
+}
+
+# ── ospkg__cleanup_all_build_groups ──────────────────────────────────────────
+
+@test "ospkg__cleanup_all_build_groups: missing build-deps directory returns 0" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}/no_such_dir_xyz"
+
+  run ospkg__cleanup_all_build_groups
+
+  assert_success
+}
+
+@test "ospkg__cleanup_all_build_groups: .before and .after files are skipped" {
+  # Temp snapshot files left by an aborted run must not be treated as group
+  # sidecars — they must remain untouched after cleanup.
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  : > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.before"
+  : > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.after"
+
+  run ospkg__cleanup_all_build_groups
+
+  assert_success
+  assert_file_exists "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.before"
+  assert_file_exists "${BATS_TEST_TMPDIR}/ospkg/build-deps/group.after"
+}
+
+@test "ospkg__cleanup_all_build_groups: one group sidecar triggers apt autoremove and is deleted" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group"
+
+  local _apt_log="${BATS_TEST_TMPDIR}/apt-get.log"
+  printf '#!/bin/bash\necho "$@" >> "%s"\n' "$_apt_log" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  prepend_fake_bin_path
+
+  ospkg__cleanup_all_build_groups
+
+  grep -q "autoremove" "$_apt_log"
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/my-group" ]]
+}
+
+@test "ospkg__cleanup_all_build_groups: multiple group sidecars are all removed" {
+  _seed_apt_context
+  export _SYSSET_TMPDIR="${BATS_TEST_TMPDIR}"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-a"
+  printf 'git\n'  > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-b"
+  printf 'tar\n'  > "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-c"
+
+  create_fake_bin "apt-get" ""
+  prepend_fake_bin_path
+
+  ospkg__cleanup_all_build_groups
+
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-a" ]]
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-b" ]]
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/group-c" ]]
+}
+
+# ---------------------------------------------------------------------------
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   command -v jq > /dev/null 2>&1 || skip "jq not available"

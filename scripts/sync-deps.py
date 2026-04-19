@@ -50,11 +50,15 @@ def main() -> int:
 
         dep_dir = feature_dir / "dependencies"
 
+        # Track which files are expected so we can remove stale ones.
+        expected_files: set[Path] = set()
+
         for lifecycle in ("run", "build"):
             groups = deps.get(lifecycle) or {}
             for dep_name, dep_content in groups.items():
                 dep_path = dep_dir / lifecycle / f"{dep_name}.yaml"
                 expected_text = _dump(dep_content)
+                expected_files.add(dep_path)
 
                 if check_mode:
                     if not dep_path.exists():
@@ -85,6 +89,20 @@ def main() -> int:
                         dep_path.write_text(expected_text, encoding="utf-8")
                         print(
                             f"✅ {feature_id}: dependencies/{lifecycle}/{dep_name}.yaml updated",
+                            file=sys.stderr,
+                        )
+
+        # Remove stale files that are no longer declared in metadata.
+        if not check_mode and dep_dir.exists():
+            for lifecycle in ("run", "build"):
+                lc_dir = dep_dir / lifecycle
+                if not lc_dir.exists():
+                    continue
+                for existing in lc_dir.glob("*.yaml"):
+                    if existing not in expected_files:
+                        existing.unlink()
+                        print(
+                            f"🗑️  {feature_id}: removed stale dependencies/{lifecycle}/{existing.name}",
                             file=sys.stderr,
                         )
 

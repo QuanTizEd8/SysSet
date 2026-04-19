@@ -191,7 +191,7 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
         lines.append('  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean')
     if has_build_deps:
         lines.append(
-            '  [[ $_rc -eq 0 ]] && [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && _all_build_deps__cleanup'
+            '  [[ $_rc -eq 0 ]] && [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && ospkg__cleanup_all_build_groups'
         )
     lines.append("  if [[ $_rc -eq 0 ]]; then")
     lines.append(

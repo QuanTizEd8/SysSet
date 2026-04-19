@@ -700,7 +700,9 @@ _node_check_if_exists
 # =============================================================================
 
 if [ "$METHOD" = "nvm" ]; then
-  echo "ℹ️ Installing nvm OS dependencies..." >&2
+  echo "ℹ️ Installing nvm runtime dependencies..." >&2
+  _nvm_runtime_deps__install
+  echo "ℹ️ Installing nvm build dependencies..." >&2
   _nvm_deps__install
 fi
 

@@ -164,7 +164,6 @@ dependencies:
       packages:
         - git
         - ca-certificates
-        - fontconfig
 
       apt:
         packages:
@@ -187,12 +186,3 @@ dependencies:
     download:
       packages:
         - curl
-      apt:
-        packages:
-          - xz-utils
-      apk:
-        packages:
-          - xz
-      dnf:
-        packages:
-          - xz

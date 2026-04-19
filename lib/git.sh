@@ -57,6 +57,18 @@ git__clone() {
     return 0
   fi
 
+  # Auto-provision git if not yet available (idempotent if already installed).
+  if ! command -v git > /dev/null 2>&1; then
+    if [[ -n "${_OSPKG__LIB_LOADED-}" ]]; then
+      echo "ℹ️  git not found — installing." >&2
+      ospkg__detect
+      ospkg__install_tracked "lib-git" git
+    else
+      echo "⛔ git__clone: git is not installed and ospkg.sh is not loaded." >&2
+      return 1
+    fi
+  fi
+
   mkdir -p "$dir"
   local _clone_args=(--depth=1
     -c core.eol=lf

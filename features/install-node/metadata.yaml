@@ -229,6 +229,39 @@ dependencies:
     base:
       packages:
         - ca-certificates
+    nvm-runtime:
+      # Runtime dependencies required by Node.js and nvm on Alpine Linux.
+      # bash is sourced in every shell session by nvm.sh; libgcc/ncurses/openssl
+      # are shared libraries linked by the nvm-compiled Node.js binary.
+      # These must not be removed as build-only packages.
+      apk:
+        packages:
+          - bash
+          - libgcc
+          - ncurses
+          - openssl
+    node-gyp:
+      # Build tools for compiling native Node.js add-ons via node-gyp.
+      # On Alpine with method=nvm, make/gcc/g++/python3 are already provided
+      # by the nvm manifest and this manifest is skipped.
+      # These are runtime dependencies: needed whenever a user runs
+      # 'npm install' with native modules inside the container.
+      packages:
+        - make
+      apt:
+        packages:
+          - g++
+          - gcc
+          - python3-minimal
+      apk:
+        packages: []
+      dnf:
+        packages:
+          - gcc
+          - gcc-c++
+          - python3
+      brew:
+        packages: []
   build:
     download:
       packages:
@@ -248,48 +281,20 @@ dependencies:
           - xz
       brew:
         packages: []
-    node-gyp:
-      # Build tools for compiling native Node.js add-ons via node-gyp.
-      # On Alpine with method=nvm, make/gcc/g++/python3 are already provided
-      # by the nvm manifest and this manifest is skipped.
-      packages:
-        - make
-      apt:
-        packages:
-          - g++
-          - gcc
-          - python3-minimal
-      apk:
-        packages: []
-      dnf:
-        packages:
-          - gcc
-          - gcc-c++
-          - python3
-      brew:
-        packages: []
     nvm:
-      # nvm prerequisites.
-      # On Alpine Linux, also installs the full build toolchain required by
-      # nvm to compile Node.js from source (nvm install -s).
-      packages:
-        - bash
+      # nvm build prerequisites on Alpine Linux.
+      # Installs the full build toolchain required by nvm to compile Node.js
+      # from source (nvm install -s). Runtime libs are in run.nvm-runtime.
       apk:
         packages:
-          - bash
           - binutils
-          - ca-certificates
           - coreutils
-          - curl
           - findutils
           - g++
           - gcc
           - grep
-          - libgcc
           - linux-headers
           - make
-          - ncurses
-          - openssl
           - python3
           - util-linux
 containerEnv:

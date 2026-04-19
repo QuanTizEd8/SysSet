@@ -77,7 +77,7 @@ _ospkg_ensure_gpg() {
     dnf) _gpg_pkg=gnupg2 ;;
     *) _gpg_pkg=gnupg ;;
   esac
-  "${_OSPKG_INSTALL[@]}" "$_gpg_pkg"
+  ospkg__install_tracked "sysset-ospkg-internals" "$_gpg_pkg"
   return 0
 }
 
@@ -182,7 +182,7 @@ _ospkg_ensure_yq() {
   if ! command -v yq > /dev/null 2>&1; then
     echo "ℹ️  yq not found — attempting package manager install." >&2
     ospkg__update >&2 || true
-    ospkg__install yq >&2 || true
+    ospkg__install_tracked "sysset-ospkg-internals" yq >&2 || true
     # Re-test after potential install.
     if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
       _OSPKG_YQ_BIN="yq"
@@ -804,12 +804,21 @@ _ospkg_mark_build_group() {
   rm -f "$_after_file"
   if [[ ${#_new_pkgs[@]} -eq 0 ]]; then
     echo "ℹ️  Build group '${_group_id}': no new packages installed — nothing to track." >&2
-    : > "$_sidecar"
+    # Preserve an existing sidecar (may already list packages from a prior call
+    # with the same group ID).  Only create an empty sentinel if not yet present.
+    [[ ! -f "$_sidecar" ]] && : > "$_sidecar"
     return 0
   fi
   echo "ℹ️  Build group '${_group_id}': tracking ${#_new_pkgs[@]} package(s): ${_new_pkgs[*]}" >&2
-  printf '%s\n' "${_new_pkgs[@]}" > "$_sidecar"
+  # Append to the sidecar so that multiple calls with the same group ID
+  # accumulate all tracked packages (idempotent across repeat calls).
+  printf '%s\n' "${_new_pkgs[@]}" >> "$_sidecar"
+  sort -u "$_sidecar" -o "$_sidecar"
   # Apply PM-native removable marking to newly-installed packages only.
+  # Safety: _new_pkgs is derived from a before/after snapshot diff taken in
+  # ospkg__install_tracked, so it only contains packages that were absent before
+  # this call. Packages already installed (e.g. from run.base in the header)
+  # never appear here and their manual marks are therefore never disturbed.
   case "$_OSPKG_PKG_MNGR" in
     apt-get)
       apt-mark auto "${_new_pkgs[@]}" >&2 || true
@@ -881,6 +890,43 @@ _ospkg_remove_build_group() {
       ;;
   esac
   rm -f "$_sidecar"
+  return 0
+}
+
+# ── Public: ospkg__install_tracked ────────────────────────────────────────────
+# @brief ospkg__install_tracked <group-id> <pkg>... — Install packages and register
+# them as build-only under <group-id> for cleanup when keep_build_deps=false.
+# Idempotent: if all packages are already installed the sidecar is unchanged.
+# Requires ospkg__detect to have been called first.
+ospkg__install_tracked() {
+  local _group_id="$1"
+  shift
+  local _bd_dir _before_snapshot
+  _bd_dir="$(_ospkg_build_deps_dir)"
+  _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
+  _ospkg_snapshot_packages "$_before_snapshot"
+  ospkg__install "$@"
+  _ospkg_mark_build_group "$_group_id" "$_before_snapshot"
+  rm -f "$_before_snapshot"
+  return 0
+}
+
+# @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep
+# group (both feature-level groups and lib-level groups auto-created by
+# ospkg__install_tracked).  Scans the build-deps sidecar directory and calls
+# _ospkg_remove_build_group for each file found.
+ospkg__cleanup_all_build_groups() {
+  local _deps_dir
+  _deps_dir="$(_ospkg_build_deps_dir)"
+  [[ -d "$_deps_dir" ]] || return 0
+  local _sidecar _group_id
+  for _sidecar in "$_deps_dir"/*; do
+    [[ -f "$_sidecar" ]] || continue
+    _group_id="$(basename "$_sidecar")"
+    # Skip temporary snapshot files used during the tracking process.
+    [[ "$_group_id" == *.before || "$_group_id" == *.after ]] && continue
+    _ospkg_remove_build_group "$_group_id"
+  done
   return 0
 }
 
@@ -1036,7 +1082,7 @@ ospkg__run() {
     if ! command -v jq > /dev/null 2>&1; then
       echo "ℹ️  jq not found — installing." >&2
       ospkg__update --force
-      ospkg__install jq
+      ospkg__install_tracked "sysset-ospkg-internals" jq
     fi
 
     # yq is required to convert YAML to JSON.

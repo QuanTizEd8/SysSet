@@ -167,4 +167,3 @@ dependencies:
     download:
       packages:
         - curl
-        - gnupg
