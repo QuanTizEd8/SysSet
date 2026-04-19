@@ -19,7 +19,7 @@ setup() {
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS="" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "alice"
 }
 
@@ -29,7 +29,7 @@ setup() {
     ADD_REMOTE_USER=true \
     ADD_CONTAINER_USER=false \
     ADD_USERS="" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "bob"
 }
 
@@ -39,7 +39,7 @@ setup() {
     _CONTAINER_USER=carol \
     ADD_CONTAINER_USER=true \
     ADD_USERS="" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "carol"
 }
 
@@ -48,7 +48,7 @@ setup() {
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS="dave,eve" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "dave
 eve"
 }
@@ -58,7 +58,7 @@ eve"
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS=$'dave\neve' \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "dave
 eve"
 }
@@ -69,7 +69,7 @@ eve"
   ADD_CONTAINER_USER=false
   ADD_USERS=(dave eve)
 
-  run users__resolve_list
+  run --separate-stderr users__resolve_list
   assert_output "dave
 eve"
 }
@@ -79,7 +79,7 @@ eve"
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS="alice,alice,bob" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "alice
 bob"
 }
@@ -93,7 +93,7 @@ bob"
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS="" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "root"
   assert_success
 }
@@ -107,7 +107,7 @@ bob"
     _REMOTE_USER=alice \
     ADD_CONTAINER_USER=false \
     ADD_USERS="" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "alice"
   assert_success
 }
@@ -119,7 +119,7 @@ bob"
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS="root,alice" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "root
 alice"
 }
@@ -129,7 +129,7 @@ alice"
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS="" \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output ""
   assert_success
 }
@@ -139,7 +139,7 @@ alice"
     ADD_REMOTE_USER=false \
     ADD_CONTAINER_USER=false \
     ADD_USERS=" alice , bob " \
-    run users__resolve_list
+    run --separate-stderr users__resolve_list
   assert_output "alice
 bob"
 }

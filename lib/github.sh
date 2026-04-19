@@ -60,13 +60,18 @@ github__fetch_release_json() {
 # Stdout: the tag name (e.g. `v1.2.3`).
 github__latest_tag() {
   local _repo="$1"
-  local _tag
-  _tag="$(github__fetch_release_json "$_repo" 2> /dev/null |
+  local _json _tag
+  _json="$(github__fetch_release_json "$_repo" 2> /dev/null)" || true
+  _tag="$(printf '%s\n' "$_json" |
     grep '"tag_name"' | head -1 |
     sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || _tag=""
   if [ -n "$_tag" ]; then
     echo "$_tag"
     return 0
+  fi
+
+  if [ -n "$_json" ]; then
+    echo "⛔ github__latest_tag: could not parse tag_name from API response for '${_repo}'." >&2
   fi
 
   # Fallback: resolve tag via the /releases/latest redirect on github.com.
