@@ -497,15 +497,22 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
             lines.append("  return")
             lines.append("}")
 
-    # Auto-call run/base deps in header (always safe — base deps are unconditional
-    # runtime deps).  Build deps are NEVER auto-called; the feature body calls
-    # the generated _<group>_deps__install() helpers explicitly after any
-    # early-exit checks (e.g. if_exists=skip).
+    # Auto-call run/base deps in header when root: ospkg__run requires root for
+    # native Linux PMs. Non-root callers (e.g. tests with RUN_AS) must pre-install
+    # packages from dependencies/run/base.yaml. Build deps are NEVER auto-called;
+    # the feature body calls the generated _<group>_deps__install() helpers
+    # explicitly after any early-exit checks (e.g. if_exists=skip).
     lines.append("")
     if run_deps and "base" in run_deps:
+        lines.append("# Install dependencies/run/base.yaml when root (see sync-argparse.py).")
+        lines.append('if [ "$(id -u)" -eq 0 ]; then')
+        lines.append("  _base_deps__install")
+        lines.append("else")
         lines.append(
-            '_base_deps__install'
+            '  echo "\u2139\ufe0f Skipping base run-dependency install (not root); '
+            'ensure packages from dependencies/run/base.yaml are already installed." >&2'
         )
+        lines.append("fi")
         lines.append("")
 
     # ── end marker ────────────────────────────────────────────────────────────
