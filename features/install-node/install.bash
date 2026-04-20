@@ -56,22 +56,18 @@ _node_resolve_binary_version() {
   local _resolved=""
   case "$_spec" in
     "lts/*")
-      # First entry that is NOT "lts":false
-      _resolved="$(grep -v '"lts":false' "$_index" | grep -o '"version":"v[^"]*"' | head -1 | grep -o 'v[^"]*')"
+      _resolved="$(json__nodejs_index_version_stdin lts-first < "$_index")" || _resolved=""
       ;;
     "latest" | "node")
-      # First entry (highest version)
-      _resolved="$(grep -o '"version":"v[^"]*"' "$_index" | head -1 | grep -o 'v[^"]*')"
+      _resolved="$(json__nodejs_index_version_stdin head < "$_index")" || _resolved=""
       ;;
     [0-9]*)
-      # Bare major number: find first release starting with vN.
-      _resolved="$(grep -o "\"version\":\"v${_spec}\.[^\"]*\"" "$_index" | head -1 | grep -o 'v[^"]*')"
+      _resolved="$(json__nodejs_index_version_stdin major "$_spec" < "$_index")" || _resolved=""
       ;;
     v[0-9]*\.*\.[0-9]*)
       # Exact semver with leading v
       _resolved="$_spec"
-      # Verify it exists in index.json
-      if ! grep -q "\"version\":\"${_spec}\"" "$_index"; then
+      if ! json__nodejs_index_version_stdin exact "$_spec" < "$_index" >/dev/null; then
         echo "⛔ Node.js version '${_spec}' was not found in nodejs.org/dist/index.json." >&2
         return 1
       fi
@@ -79,7 +75,7 @@ _node_resolve_binary_version() {
     [0-9]*\.*\.[0-9]*)
       # Exact semver without leading v
       _resolved="v${_spec}"
-      if ! grep -q "\"version\":\"v${_spec}\"" "$_index"; then
+      if ! json__nodejs_index_version_stdin exact "v${_spec}" < "$_index" >/dev/null; then
         echo "⛔ Node.js version '${_spec}' was not found in nodejs.org/dist/index.json." >&2
         return 1
       fi

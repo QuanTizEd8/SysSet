@@ -63,8 +63,6 @@ setup() {
 
 @test "github__release_tags parses multiple tags from JSON array" {
   # net__fetch_url_stdout is used inside; override it to return canned JSON.
-  # Each object must be on its own line so that the grep/sed pipeline in
-  # github__release_tags extracts one tag per line correctly.
   net__fetch_url_stdout() {
     printf '{"tag_name":"v3.0.0"}\n'
     printf '{"tag_name":"v2.1.0"}\n'
@@ -190,6 +188,38 @@ v2.0.0"
 }
 
 # ---------------------------------------------------------------------------
+# github__release_json_tag_name / github__release_json_id (single-release file)
+# ---------------------------------------------------------------------------
+
+@test "github__release_json_tag_name and github__release_json_id parse minified JSON" {
+  _fixture="${BATS_TEST_TMPDIR}/release.json"
+  printf '%s' '{"url":"u","id":708,"author":{"id":9959},"tag_name":"v2.304.8","draft":false}' > "$_fixture"
+  run github__release_json_tag_name "$_fixture"
+  assert_success
+  assert_output "v2.304.8"
+  run github__release_json_id "$_fixture"
+  assert_success
+  assert_output "708"
+}
+
+@test "github__release_json_id reads root id when assets appear first (minified)" {
+  _fixture="${BATS_TEST_TMPDIR}/release-assets-first.json"
+  # Root id must not be confused with the first asset id in a one-line payload.
+  printf '%s' '{"assets":[{"id":111,"name":"a.zip"}],"tag_name":"v9.0","id":999888}' > "$_fixture"
+  run github__release_json_tag_name "$_fixture"
+  assert_success
+  assert_output "v9.0"
+  run github__release_json_id "$_fixture"
+  assert_success
+  assert_output "999888"
+}
+
+@test "github__release_json_tag_name fails for missing file" {
+  run github__release_json_tag_name "${BATS_TEST_TMPDIR}/does-not-exist.json"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
 # github__release_asset_urls  (--tag forwarding)
 # ---------------------------------------------------------------------------
 
@@ -229,6 +259,19 @@ v2.0.0"
   assert_output "v2.0.0
 v1.9.0"
   assert_success
+}
+
+@test "_github__api_list_field extracts every tag_name from minified one-line JSON" {
+  net__fetch_url_stdout() {
+    printf '%s' '[{"tag_name":"24.7.1-2","id":1},{"tag_name":"24.7.1-1","id":2},{"tag_name":"4.8.4-0","id":3}]'
+    return 0
+  }
+  export -f net__fetch_url_stdout
+  run _github__api_list_field "https://api.github.com/repos/conda-forge/miniforge/releases?per_page=100" "tag_name"
+  assert_success
+  assert_output "24.7.1-2
+24.7.1-1
+4.8.4-0"
 }
 
 @test "_github__api_list_field returns 1 when fetch fails" {

@@ -25,13 +25,16 @@ reload_lib() {
   # Clear all lib load guards.
   unset _OS__LIB_LOADED _SHELL__LIB_LOADED _OSPKG__LIB_LOADED \
     _NET__LIB_LOADED _GIT__LIB_LOADED _LOGGING__LIB_LOADED \
-    _CHECKSUM__LIB_LOADED _GITHUB__LIB_LOADED _USERS__LIB_LOADED
+    _CHECKSUM__LIB_LOADED _JSON__LIB_LOADED _GITHUB__LIB_LOADED _USERS__LIB_LOADED
 
   # Reset os.sh lazy-cached globals.
   unset _OS__KERNEL _OS__ARCH _OS__ID _OS__ID_LIKE _OS__CODENAME _OS__PLATFORM _OS__RELEASE_LOADED
 
   # Reset net.sh cached state.
   unset _NET_FETCH_TOOL _NET_CA_CERTS_OK
+
+  # Reset json.sh cached parser selection.
+  unset _JSON__ENSURE_PARSE_DONE _JSON__PARSE_TOOL
 
   # Reset ospkg.sh detection flag (sourcing ospkg.sh re-declares it as false).
   _OSPKG_DETECTED=false

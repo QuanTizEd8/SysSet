@@ -259,7 +259,7 @@ export_envs() {
   # then exclude the base dir (PREFIX itself).
   local env_paths
   env_paths="$("$CONDA_EXEC" env list --json 2> /dev/null |
-    grep '"' | sed 's/.*"\(.*\)".*/\1/' |
+    json__object_map_string_values_stdin envs |
     grep '^/' |
     grep -v "^${PREFIX}/*$")" || true
   if [[ -z "$env_paths" ]]; then
@@ -418,6 +418,8 @@ readonly _MAMBA_INIT_SCRIPT_RELPATH="etc/profile.d/mamba.sh"
 . "$_SELF_DIR/_lib/shell.sh"
 # shellcheck source=lib/github.sh
 . "$_SELF_DIR/_lib/github.sh"
+# shellcheck source=lib/json.sh
+. "$_SELF_DIR/_lib/json.sh"
 # shellcheck source=lib/checksum.sh
 . "$_SELF_DIR/_lib/checksum.sh"
 # shellcheck source=lib/users.sh

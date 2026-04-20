@@ -601,9 +601,10 @@ Module coverage:
 | `ospkg.bats` | `ospkg.sh` | 28 |
 | `logging.bats` | `logging.sh` | 6 |
 | `net.bats` | `net.sh` | 11 |
+| `json.bats` | `json.sh` | 7 |
 | `git.bats` | `git.sh` | 6 |
 | `checksum.bats` | `checksum.sh` | 6 |
-| `github.bats` | `github.sh` | 12 |
+| `github.bats` | `github.sh` | 47 |
 | `users.bats` | `users.sh` | 13 |
 
 ### Running unit tests

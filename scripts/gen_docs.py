@@ -53,6 +53,7 @@ LIB_MODULE_ORDER = [
     "os.sh",
     "ospkg.sh",
     "net.sh",
+    "json.sh",
     "git.sh",
     "shell.sh",
     "github.sh",

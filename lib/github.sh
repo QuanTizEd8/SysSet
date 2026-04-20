@@ -3,9 +3,30 @@
 # POSIX sh compatible — safe to source from sh and bash scripts alike.
 # Do not edit _lib/ copies directly — edit lib/ instead.
 #
-# Requires net.sh (and ospkg.sh) to have been sourced first.
+# Requires net.sh (and ospkg.sh) to have been sourced first. Loads json.sh from
+# the same lib directory (see _json_sh resolution below).
 
 [ -n "${_GITHUB__LIB_LOADED-}" ] && return 0
+
+if [ -z "${_JSON__LIB_LOADED-}" ]; then
+  _json_sh=""
+  if [ -n "${_SYSSET_LIB_DIR:-}" ] && [ -r "${_SYSSET_LIB_DIR}/json.sh" ]; then
+    _json_sh="${_SYSSET_LIB_DIR}/json.sh"
+  elif [ -n "${_SELF_DIR:-}" ] && [ -r "${_SELF_DIR}/_lib/json.sh" ]; then
+    _json_sh="${_SELF_DIR}/_lib/json.sh"
+  elif [ -n "${LIB_ROOT:-}" ] && [ -r "${LIB_ROOT}/json.sh" ]; then
+    _json_sh="${LIB_ROOT}/json.sh"
+  elif [ -n "${LIB_DIR:-}" ] && [ -r "${LIB_DIR}/json.sh" ]; then
+    _json_sh="${LIB_DIR}/json.sh"
+  fi
+  if [ -z "$_json_sh" ]; then
+    echo "⛔ github.sh: cannot find json.sh (set _SYSSET_LIB_DIR, _SELF_DIR, LIB_ROOT, or LIB_DIR)." >&2
+    return 1
+  fi
+  # shellcheck source=lib/json.sh
+  . "$_json_sh" || return $?
+fi
+
 _GITHUB__LIB_LOADED=1
 
 # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
@@ -52,6 +73,32 @@ github__fetch_release_json() {
   return $?
 }
 
+# @brief github__release_json_tag_name <file> — Print tag_name from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk).
+#
+# Prefers jq then python3 for correct parsing on minified or pretty JSON. Falls back to
+# grep -o for tag_name only (first root tag_name key).
+github__release_json_tag_name() {
+  local _f="$1"
+  local _line
+  [ -r "$_f" ] || return 1
+  if json__root_scalar_stdin tag_name < "$_f"; then
+    return 0
+  fi
+  _line="$(grep -o '"tag_name"[[:space:]]*:[[:space:]]*"[^"]*"' "$_f" | head -n 1)" || return 1
+  [ -n "$_line" ] || return 1
+  printf '%s\n' "$_line" | sed 's/^"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)"$/\1/'
+}
+
+# @brief github__release_json_id <file> — Print the root release numeric id from a single-release JSON file.
+#
+# Prefers jq then python3. A plain-text grep for the first "id" is unsafe on minified
+# responses (asset objects include "id" before the root release id).
+github__release_json_id() {
+  local _f="$1"
+  [ -r "$_f" ] || return 1
+  json__root_scalar_stdin id < "$_f"
+}
+
 # @brief github__latest_tag <owner/repo> — Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed.
 #
 # Args:
@@ -62,9 +109,12 @@ github__latest_tag() {
   local _repo="$1"
   local _json _tag
   _json="$(github__fetch_release_json "$_repo" 2> /dev/null)" || true
-  _tag="$(printf '%s\n' "$_json" |
-    grep '"tag_name"' | head -1 |
-    sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || _tag=""
+  _tag="$(printf '%s\n' "$_json" | json__root_scalar_stdin tag_name)" || _tag=""
+  if [ -z "$_tag" ]; then
+    _tag="$(printf '%s\n' "$_json" |
+      grep '"tag_name"' | head -1 |
+      sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')" || _tag=""
+  fi
   if [ -n "$_tag" ]; then
     echo "$_tag"
     return 0
@@ -214,8 +264,7 @@ github__release_asset_urls() {
   }
 
   local _urls
-  _urls="$(grep '"browser_download_url"' "$_tmpfile" |
-    grep -oE 'https://[^"]+')"
+  _urls="$(json__object_array_field_lines_stdin assets browser_download_url < "$_tmpfile")" || _urls=""
   rm -f "$_tmpfile"
 
   if [ -n "$_filter" ]; then
@@ -390,20 +439,19 @@ github__pick_release_asset() {
 # _github__api_list_field <url> <field>  (internal)
 #
 # Fetches a GitHub API list endpoint and extracts all values of the named JSON
-# field, printing one value per line.
+# field from each top-level array element, printing one value per line.
 # Returns 1 if the API call fails or the response is empty.
+#
+# Prefers jq then python3 (correct on minified one-line arrays and avoids nested
+# "name"/"tag_name" keys inside objects). Falls back to grep -o when neither is
+# available.
 _github__api_list_field() {
   local _url="$1"
   local _field="$2"
-  local _json _result
+  local _json
   _json="$(_github__api_get "$_url")" || return 1
   [ -z "$_json" ] && return 1
-  _result="$(printf '%s\n' "$_json" |
-    grep "\"${_field}\"" |
-    sed "s/.*\"${_field}\": *\"\([^\"]*\)\".*/\1/")"
-  [ -z "$_result" ] && return 1
-  printf '%s\n' "$_result"
-  return 0
+  printf '%s\n' "$_json" | json__array_field_lines_stdin "$_field"
 }
 
 # _github__api_get <url> [<dest_file>]  (internal)

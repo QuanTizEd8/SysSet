@@ -35,6 +35,7 @@ Source from `_SELF_DIR/_lib/` (the generated copy of `lib/`). **`ospkg.sh` must 
 ```bash
 . "$_SELF_DIR/_lib/ospkg.sh"      # Provides ospkg::*, os::*, net::* — source first
 . "$_SELF_DIR/_lib/logging.sh"    # Always include
+. "$_SELF_DIR/_lib/json.sh"       # Only if json::* helpers are needed without github (github.sh loads json.sh itself)
 . "$_SELF_DIR/_lib/github.sh"     # Only if github::* helpers are needed
 . "$_SELF_DIR/_lib/checksum.sh"   # Only if checksum::* helpers are needed
 . "$_SELF_DIR/_lib/users.sh"      # Only if users::* helpers are needed

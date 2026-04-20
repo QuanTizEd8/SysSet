@@ -33,6 +33,7 @@ library available to every script.
     - [`os.sh`](#ossh)
     - [`logging.sh`](#loggingsh)
     - [`net.sh`](#netsh)
+    - [`json.sh`](#jsonsh)
     - [`ospkg.sh`](#ospkgsh)
       - [Manifest format overview](#manifest-format-overview)
     - [`shell.sh`](#shellsh)
@@ -511,6 +512,20 @@ for `net__ensure_fetch_tool` and `net__ensure_ca_certs`).
 | `net__fetch_url_file` | `net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]...` | Download `<url>` to `<dest>` with retries. Auto-detects curl/wget. |
 <!-- END lib-net-table MARKER -->
 
+### `json.sh`
+
+Source when you need to parse JSON in shell without ad hoc `grep`/`sed` pipelines. Chooses **jq**, **mikefarah yq** (CLI probed with `yq -o=json`, not kislyuk’s `yq`), or **python3**, cached after the first call. If none are installed and **`ospkg.sh` is already sourced**, the first call can run **`ospkg__install_tracked lib-json jq`** (same pattern as `net.sh` installing curl). Helpers cover root scalars, top-level arrays, nested object arrays (e.g. GitHub `assets`), string maps (e.g. conda `envs`), and nodejs.org `index.json` version picks. `github.sh` sources this file automatically when it sits next to it under `_lib/`.
+
+<!-- START lib-json-table MARKER -->
+| Function | Signature | Description |
+|---|---|---|
+| `json__root_scalar_stdin` | `json__root_scalar_stdin <key>` | Read one JSON object from stdin; print .[key] when string or number. |
+| `json__array_field_lines_stdin` | `json__array_field_lines_stdin <field>` | Read JSON from stdin (expected: top-level array); print one line per element's .[field] when string or number. |
+| `json__object_array_field_lines_stdin` | `json__object_array_field_lines_stdin <arrayKey> <field>` | Read one JSON object from stdin; print one line per element of .[arrayKey][].[field] when string or number. |
+| `json__object_map_string_values_stdin` | `json__object_map_string_values_stdin [<objectKey>]` | Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object (e.g. conda env list --json "envs" map). |
+| `json__nodejs_index_version_stdin` | `json__nodejs_index_version_stdin <op> [arg]` | Read nodejs.org-style dist index.json (array of objects); print one version string. |
+<!-- END lib-json-table MARKER -->
+
 Typical download pattern:
 
 ```bash
@@ -539,7 +554,9 @@ net__fetch_with_retry curl \
 | `ospkg__install` | `ospkg__install <pkg>...` | Install one or more packages. Skips if all are already installed (APT, DNF/YUM). |
 | `ospkg__clean` | `ospkg__clean` | Remove the package manager cache to reduce image layer size. |
 | `ospkg__parse_manifest_yaml` | `ospkg__parse_manifest_yaml <json-file>` | Parse a YAML manifest (pre-converted to JSON by `yq`) and emit normalised installation records to stdout. |
-| `ospkg__run` | `ospkg__run [--manifest <f>] [--update <bool>] [--keep_cache] [--keep_repos] [--dry_run] [--skip_installed] [--interactive]` | Run the full installation pipeline from a manifest. |
+| `ospkg__install_tracked` | `ospkg__install_tracked <group-id> <pkg>...` | Install packages and register |
+| `ospkg__cleanup_all_build_groups` | `ospkg__cleanup_all_build_groups` | Remove every registered build-dep |
+| `ospkg__run` | `ospkg__run [--manifest <f>] [--update <bool>] [--keep_repos] [--dry_run] [--skip_installed] [--interactive] [--build-group <id>] [--remove-build-group <id>]` | Run the full installation pipeline from a manifest. |
 <!-- END lib-ospkg-table MARKER -->
 
 `ospkg__run` options:
@@ -607,12 +624,14 @@ manifest format, all selector keys, and examples.
 
 ### `github.sh`
 
-Source explicitly. Requires `net.sh` (and `ospkg.sh`) to have been sourced first. Respects the `GITHUB_TOKEN` environment variable for all API calls.
+Source explicitly. Requires `net.sh` (and `ospkg.sh`) to have been sourced first, and resolves `json.sh` from the same `_lib/` directory (via `_SELF_DIR`, `LIB_ROOT`, `LIB_DIR`, or `_SYSSET_LIB_DIR`). Respects the `GITHUB_TOKEN` environment variable for all API calls.
 
 <!-- START lib-github-table MARKER -->
 | Function | Signature | Description |
 |---|---|---|
 | `github__fetch_release_json` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` | Fetch GitHub Releases API JSON for a repository. |
+| `github__release_json_tag_name` | `github__release_json_tag_name <file>` | Print tag_name from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk). |
+| `github__release_json_id` | `github__release_json_id <file>` | Print the root release numeric id from a single-release JSON file. |
 | `github__latest_tag` | `github__latest_tag <owner/repo>` | Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
 | `github__release_tags` | `github__release_tags <owner/repo> [--per_page N]` | Print one release tag per line (newest first) from `/releases?per_page=N` (default 100). |
 | `github__tags` | `github__tags <owner/repo> [--per_page N]` | Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release. |

@@ -270,16 +270,20 @@ if [[ "${#GH_RELEASE_FONTS[@]}" -gt 0 ]]; then
       continue
     fi
 
-    # Extract tag_name and release id for namespace.
-    _tag_name="$(grep '"tag_name"' "$_API_RESPONSE" | grep -oE '"[^"]+"' | tail -1 | tr -d '"')"
-    _release_id="$(grep -m1 '"id"' "$_API_RESPONSE" | grep -oE '[0-9]+')"
+    # Extract tag_name and release id for namespace (minified JSON-safe).
+    _tag_name="$(github__release_json_tag_name "$_API_RESPONSE")" || _tag_name=""
+    _release_id="$(github__release_json_id "$_API_RESPONSE")" || _release_id=""
+    if [[ -z "$_tag_name" || -z "$_release_id" ]]; then
+      echo "⚠️  Could not parse tag_name or release id from GitHub response for '${_slug}' — setting to 0." >&2
+      _tag_name="0"
+      _release_id="0"
+    fi
     _NS="gh/${_owner}/${_repo_name}/${_tag_name}/${_release_id}"
 
     # Extract all font/archive asset URLs.
     mapfile -t _ALL_ASSET_URLS < <(
-      grep '"browser_download_url"' "$_API_RESPONSE" |
-        grep -oE 'https://[^"]+' |
-        grep -iE '\.(ttf|otf|woff2?|tar\.xz|tar\.gz|tgz|zip)$'
+      json__object_array_field_lines_stdin assets browser_download_url < "$_API_RESPONSE" |
+        grep -iE '\.(ttf|otf|woff2?|tar\.xz|tar\.gz|tgz|zip)$' || true
     )
     rm -f "$_API_RESPONSE"
 
