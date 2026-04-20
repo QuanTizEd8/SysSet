@@ -21,26 +21,26 @@ _json__ensure_parse_tool() {
     [ -n "${_JSON__PARSE_TOOL:-}" ]
     return $?
   fi
-  if command -v jq >/dev/null 2>&1; then
+  if command -v jq > /dev/null 2>&1; then
     _JSON__PARSE_TOOL=jq
     _JSON__ENSURE_PARSE_DONE=1
     return 0
   fi
-  if command -v yq >/dev/null 2>&1 && yq -o=json '.' /dev/null >/dev/null 2>&1; then
+  if command -v yq > /dev/null 2>&1 && yq -o=json '.' /dev/null > /dev/null 2>&1; then
     _JSON__PARSE_TOOL=yq
     _JSON__ENSURE_PARSE_DONE=1
     return 0
   fi
-  if command -v python3 >/dev/null 2>&1; then
+  if command -v python3 > /dev/null 2>&1; then
     _JSON__PARSE_TOOL=python
     _JSON__ENSURE_PARSE_DONE=1
     return 0
   fi
-  if command -v ospkg__install_tracked >/dev/null 2>&1 && [ -n "${_OSPKG__LIB_LOADED-}" ]; then
+  if command -v ospkg__install_tracked > /dev/null 2>&1 && [ -n "${_OSPKG__LIB_LOADED-}" ]; then
     echo "ℹ️  No JSON parser (jq, yq, python3) — installing jq." >&2
     ospkg__update >&2 || true
     ospkg__install_tracked "lib-json" jq >&2 || true
-    if command -v jq >/dev/null 2>&1; then
+    if command -v jq > /dev/null 2>&1; then
       _JSON__PARSE_TOOL=jq
       _JSON__ENSURE_PARSE_DONE=1
       return 0
@@ -359,7 +359,7 @@ sys.exit(1)
       return 1
       ;;
   esac
-  case "$_out" in ''|'null') return 1 ;; esac
+  case "$_out" in '' | 'null') return 1 ;; esac
   printf '%s\n' "$_out"
   return 0
 }

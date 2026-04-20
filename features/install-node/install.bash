@@ -67,7 +67,7 @@ _node_resolve_binary_version() {
     v[0-9]*\.*\.[0-9]*)
       # Exact semver with leading v
       _resolved="$_spec"
-      if ! json__nodejs_index_version_stdin exact "$_spec" < "$_index" >/dev/null; then
+      if ! json__nodejs_index_version_stdin exact "$_spec" < "$_index" > /dev/null; then
         echo "⛔ Node.js version '${_spec}' was not found in nodejs.org/dist/index.json." >&2
         return 1
       fi
@@ -75,7 +75,7 @@ _node_resolve_binary_version() {
     [0-9]*\.*\.[0-9]*)
       # Exact semver without leading v
       _resolved="v${_spec}"
-      if ! json__nodejs_index_version_stdin exact "v${_spec}" < "$_index" >/dev/null; then
+      if ! json__nodejs_index_version_stdin exact "v${_spec}" < "$_index" > /dev/null; then
         echo "⛔ Node.js version '${_spec}' was not found in nodejs.org/dist/index.json." >&2
         return 1
       fi
