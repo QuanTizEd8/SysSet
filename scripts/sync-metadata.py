@@ -5,7 +5,7 @@ Usage:
     python3 scripts/sync-metadata.py          # write/update all JSON files
     python3 scripts/sync-metadata.py --check  # verify JSON files are up to date (CI)
 
-Each src/*/metadata.yaml is the single source of truth for feature metadata.
+Each features/*/metadata.yaml is the single source of truth for feature metadata.
 devcontainer-feature.json is a generated artifact (git-ignored) produced by:
 
   1. Loading the YAML.

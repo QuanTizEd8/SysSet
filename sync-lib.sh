@@ -80,11 +80,27 @@ if [[ ${#_feature_dirs[@]} -eq 0 ]]; then
   exit 1
 fi
 
+_any_stale=false
+
+# ---------------------------------------------------------------------------
+# Step 6: Ensure metadata.yaml is never present in generated src/.
+# ---------------------------------------------------------------------------
+if [[ "$_check_mode" == true ]]; then
+  while IFS= read -r _src_meta; do
+    _feature_name="$(basename "$(dirname "$_src_meta")")"
+    echo "⛔ ${_feature_name}: src metadata.yaml must not exist (${_src_meta})" >&2
+    _any_stale=true
+  done < <(find "$_SRC_DIR" -maxdepth 2 -name "metadata.yaml" 2> /dev/null || true)
+else
+  while IFS= read -r _src_meta; do
+    rm -f "$_src_meta"
+    echo "🗑️  removed stale src metadata: ${_src_meta}" >&2
+  done < <(find "$_SRC_DIR" -maxdepth 2 -name "metadata.yaml" 2> /dev/null || true)
+fi
+
 # ---------------------------------------------------------------------------
 # Sync or check each feature.
 # ---------------------------------------------------------------------------
-_any_stale=false
-
 for _feature_dir in "${_feature_dirs[@]}"; do
   _name="$(basename "$_feature_dir")"
   _src_dir="${_SRC_DIR}/${_name}"
