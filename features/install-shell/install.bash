@@ -8,6 +8,10 @@
 . "$_SELF_DIR/_lib/git.sh"
 # shellcheck source=lib/net.sh
 . "$_SELF_DIR/_lib/net.sh"
+# shellcheck source=lib/github.sh
+. "$_SELF_DIR/_lib/github.sh"
+# shellcheck source=lib/checksum.sh
+. "$_SELF_DIR/_lib/checksum.sh"
 
 _GITHUB_BASE_URL="https://github.com"
 _OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/ohmyzsh/ohmyzsh"
@@ -127,6 +131,65 @@ install_ohmybash() {
   done
 
   echo "✅ Oh My Bash installation complete." >&2
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# install_fzf — Download fzf from GitHub Releases, verify checksum, install.
+# Uses: FZF_PREFIX.
+# ---------------------------------------------------------------------------
+install_fzf() {
+  local _bin_dir="${FZF_PREFIX}/bin"
+
+  if [ -x "${_bin_dir}/fzf" ]; then
+    echo "ℹ️  fzf already installed at '${_bin_dir}/fzf' — skipping." >&2
+    return 0
+  fi
+
+  local _version
+  _version="$(github__latest_tag "junegunn/fzf")" || {
+    echo "⛔ Failed to fetch latest fzf tag from GitHub." >&2
+    return 1
+  }
+  _version="${_version#v}"
+  echo "ℹ️  Installing fzf ${_version} to '${_bin_dir}'..." >&2
+
+  local _kernel _arch _os _fzf_arch
+  _kernel="$(os__kernel)"
+  _arch="$(os__arch)"
+  case "$_kernel" in
+    Linux) _os="linux" ;;
+    Darwin) _os="darwin" ;;
+    *)
+      echo "⛔ Unsupported kernel for fzf install: '${_kernel}'" >&2
+      return 1
+      ;;
+  esac
+  case "$_arch" in
+    x86_64) _fzf_arch="amd64" ;;
+    aarch64) _fzf_arch="arm64" ;;
+    *)
+      echo "⛔ Unsupported arch for fzf install: '${_arch}'" >&2
+      return 1
+      ;;
+  esac
+
+  local _filename="fzf-${_version}-${_os}_${_fzf_arch}.tar.gz"
+  local _base_url="https://github.com/junegunn/fzf/releases/download/v${_version}"
+  local _tmpdir
+  _tmpdir="$(logging__tmpdir "fzf")"
+  local _archive="${_tmpdir}/${_filename}"
+  local _sidecar="${_archive}.sha256"
+
+  net__fetch_url_file "${_base_url}/${_filename}" "$_archive"
+  net__fetch_url_file "${_base_url}/${_filename}.sha256" "$_sidecar"
+  checksum__verify_sha256_sidecar "$_archive" "$_sidecar"
+
+  mkdir -p "$_bin_dir"
+  tar -xzf "$_archive" -C "$_bin_dir" fzf
+  chmod 755 "${_bin_dir}/fzf"
+
+  echo "✅ fzf installed to '${_bin_dir}/fzf'." >&2
   return 0
 }
 
@@ -397,6 +460,18 @@ configure_user() {
     fi
   fi
 
+  # Append direnv hook for zsh.
+  if [[ "$INSTALL_DIRENV" == true ]]; then
+    # shellcheck disable=SC2016
+    _cu_zshtheme_content+='command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"'$'\n'
+  fi
+
+  # Append fzf key-bindings and completion for zsh.
+  if [[ "$INSTALL_FZF" == true ]]; then
+    # shellcheck disable=SC2016
+    _cu_zshtheme_content+='command -v fzf >/dev/null 2>&1 && eval "$(fzf --zsh)"'$'\n'
+  fi
+
   # Append Starship integration for zsh.
   if [[ "$_cu_starship_shells" == *zsh* ]]; then
     if ! command -v starship > /dev/null 2>&1 && [ ! -x "${_cu_bin_dir}/starship" ]; then
@@ -428,6 +503,19 @@ configure_user() {
   # ---------------------------------------------------------------------------
   local _cu_bashtheme="${_cu_xdg_config_home}/bash/bashtheme"
   local _cu_bashtheme_content=""
+
+  # Source bash-completion entry point for Homebrew.
+  # On Linux, the package installs to /etc/profile.d/ which is auto-sourced;
+  # on Homebrew the entry point lives at $HOMEBREW_PREFIX/etc/profile.d/ and
+  # must be sourced explicitly.
+  # Check for the actual installed file (not just brew presence) to avoid
+  # injecting the hook when brew exists but a different PM installed the pkg.
+  if [[ "$INSTALL_BASH_COMPLETION" == true ]] &&
+    command -v brew > /dev/null 2>&1 &&
+    [[ -f "$(brew --prefix)/etc/profile.d/bash_completion.sh" ]]; then
+    # shellcheck disable=SC2016
+    _cu_bashtheme_content+='[[ -n "${HOMEBREW_PREFIX:-}" ]] && [[ -s "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh" ]] && . "${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh"'$'\n'
+  fi
 
   if [[ "$_OMB_INSTALLED" == true ]]; then
     local _cu_omb_effective_custom_dir
@@ -489,6 +577,18 @@ configure_user() {
     fi
   fi
 
+  # Append direnv hook for bash.
+  if [[ "$INSTALL_DIRENV" == true ]]; then
+    # shellcheck disable=SC2016
+    _cu_bashtheme_content+='command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"'$'\n'
+  fi
+
+  # Append fzf key-bindings and completion for bash.
+  if [[ "$INSTALL_FZF" == true ]]; then
+    # shellcheck disable=SC2016
+    _cu_bashtheme_content+='command -v fzf >/dev/null 2>&1 && eval "$(fzf --bash)"'$'\n'
+  fi
+
   # Append Starship integration for bash.
   if [[ "$_cu_starship_shells" == *bash* ]]; then
     if ! command -v starship > /dev/null 2>&1 && [ ! -x "${_cu_bin_dir}/starship" ]; then
@@ -545,6 +645,28 @@ for _cmd in git curl; do
     exit 1
   fi
 done
+
+# ===================================================================
+# Step 2.5: Install shell tool integrations
+# ===================================================================
+if [[ "$INSTALL_BASH_COMPLETION" == true ]]; then
+  echo "📦 Installing bash-completion..." >&2
+  ospkg__run --manifest $'packages:\n  - name: bash-completion\n    brew: bash-completion@2'
+fi
+
+if [[ "$INSTALL_ZSH_COMPLETIONS" == true ]] && command -v zsh > /dev/null 2>&1; then
+  echo "📦 Installing zsh-completions..." >&2
+  ospkg__install zsh-completions
+fi
+
+if [[ "$INSTALL_DIRENV" == true ]]; then
+  echo "📦 Installing direnv..." >&2
+  ospkg__install direnv
+fi
+
+if [[ "$INSTALL_FZF" == true ]]; then
+  install_fzf
+fi
 
 # ===================================================================
 # Step 2: Install Oh My Zsh
@@ -645,6 +767,28 @@ if command -v zsh > /dev/null 2>&1; then
       echo "  ✅ ${_dest}" >&2
     fi
   done
+
+  # ===================================================================
+  # Step 5.5: Wire zsh-completions fpath (Homebrew only)
+  # ===================================================================
+  # On Homebrew, zsh-completions installs to a non-standard path that
+  # must be prepended to fpath before compinit runs.  The pre-compinit
+  # placeholder block is the correct injection site.
+  if [[ "$INSTALL_ZSH_COMPLETIONS" == true ]]; then
+    _zshrc_dest="${_ZSH_ETC}/zshrc"
+    if [ -f "$_zshrc_dest" ]; then
+      _brew_completions_fpath=""
+      # Detect brew prefix at runtime; no-op on non-brew systems.
+      _brew_completions_fpath="$(brew --prefix zsh-completions 2> /dev/null)/share/zsh-completions" || true
+      if [ -n "$_brew_completions_fpath" ] && [ -d "$_brew_completions_fpath" ]; then
+        shell__write_block \
+          --file "$_zshrc_dest" \
+          --marker "install-shell-pre-compinit" \
+          --content "fpath=( '${_brew_completions_fpath}' \${fpath[@]} )"
+        echo "  ✅ zsh-completions fpath → ${_zshrc_dest}" >&2
+      fi
+    fi
+  fi
 fi
 
 # ===================================================================

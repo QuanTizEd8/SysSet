@@ -203,5 +203,53 @@
                 "debug": true
             }
         }
+    },
+    "apt_shell_tools": {
+        "image": "debian:latest",
+        "features": {
+            "install-shell": {
+                "install_ohmyzsh": false,
+                "install_ohmybash": false,
+                "install_starship": false,
+                "debug": true
+            }
+        }
+    },
+    "apt_no_shell_tools": {
+        "image": "debian:latest",
+        "features": {
+            "install-shell": {
+                "install_bash_completion": false,
+                "install_zsh_completions": false,
+                "install_ohmyzsh": false,
+                "install_ohmybash": false,
+                "install_starship": false,
+                "debug": true
+            }
+        }
+    },
+    "apt_direnv": {
+        "image": "debian:latest",
+        "features": {
+            "install-shell": {
+                "install_direnv": true,
+                "install_ohmyzsh": false,
+                "install_ohmybash": false,
+                "install_starship": false,
+                "debug": true
+            }
+        }
+    },
+    "apt_fzf": {
+        "image": "debian:latest",
+        "features": {
+            "install-shell": {
+                "install_fzf": true,
+                "install_ohmyzsh": false,
+                "install_ohmybash": false,
+                "install_starship": false,
+                "debug": true
+            }
+        }
     }
 }

@@ -157,6 +157,10 @@ zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 # skip_global_compinit is an oh-my-zsh variable: when oh-my-zsh.sh is    #
 # sourced later it checks this flag and skips its own internal compinit   #
 # call.  This ensures compinit runs exactly once — here, not inside omz. #
+
+# >>> install-shell-pre-compinit >>>
+# <<< install-shell-pre-compinit <<<
+
 skip_global_compinit=1
 autoload -Uz compinit
 compinit

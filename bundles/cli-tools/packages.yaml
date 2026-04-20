@@ -36,10 +36,6 @@ packages:
     dnf: gnupg2
     zypper: gpg2
 
-  # Shell completions
-  - name: bash-completion
-    brew: bash-completion@2
-
   # Secure shell client
   - name: openssh-client
     brew: openssh

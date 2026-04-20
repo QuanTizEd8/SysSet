@@ -124,7 +124,7 @@ options:
        Applies to all users for whom configuration is being added, as determined by the `add_*_user_config` options. Raises an error if zsh is selected but zsh is not available or being installed.
   zdotdir:
     default: ''
-    description: |
+    description: |-
       Directory where Zsh looks for its per-user config files (`.zshrc`, `.zprofile`, `.zlogin`).
       Corresponds to the `ZDOTDIR` environment variable set in `~/.zshenv`.
       Leave empty to use the default: `${XDG_CONFIG_HOME}/zsh` (i.e. `~/.config/zsh`).
@@ -132,14 +132,14 @@ options:
     type: string
   ohmyzsh_custom_dir:
     default: ''
-    description: |
+    description: |-
       ZSH_CUSTOM directory for Oh My Zsh.
       Leave empty to use `${ZDOTDIR}/custom` (i.e. `~/.config/zsh/custom`) — per-user, themes and plugins are symlinked there from the system install.
       Set to an explicit path to override; `~`- and `$HOME`-prefixed values are expanded per user.
     type: string
   ohmybash_custom_dir:
     default: ''
-    description: |
+    description: |-
       OSH_CUSTOM directory for Oh My Bash.
       Leave empty to use `${XDG_CONFIG_HOME}/bash/custom` (i.e. `~/.config/bash/custom`) — per-user, themes and plugins are symlinked there from the system install.
       Set to an explicit path to override; `~`- and `$HOME`-prefixed values are expanded per user.
@@ -150,12 +150,41 @@ options:
     - overwrite
     - augment
     - skip
-    description: |
+    description: |-
       How to handle existing user dotfiles when configuring users.
       - `overwrite`: Replace all dotfiles from skel and re-inject framework blocks.
       - `augment`: Copy skel files only if they do not already exist; always refresh framework blocks.
       - `skip`: Do nothing if dotfiles already exist.
     type: string
+  install_bash_completion:
+    type: boolean
+    default: true
+    description: |-
+      Install [bash-completion](https://github.com/scop/bash-completion) (v2).
+      Provides programmable tab-completion for Bash commands and arguments.
+  install_zsh_completions:
+    type: boolean
+    default: true
+    description: |-
+      Install [zsh-completions](https://github.com/zsh-users/zsh-completions).
+      Adds extra completion definitions not yet in the zsh core.
+  install_direnv:
+    type: boolean
+    default: false
+    description: |-
+      Install [direnv](https://direnv.net/).
+      Automatically loads and unloads environment variables when entering a directory.
+      Shell hooks are injected per-user.
+  install_fzf:
+    type: boolean
+    default: false
+    description: |-
+      Install [fzf](https://github.com/junegunn/fzf) (fuzzy finder) from GitHub Releases.
+      Shell key-bindings and completion are injected per-user.
+  fzf_prefix:
+    type: string
+    default: /usr/local
+    description: Installation prefix for fzf. The binary is placed at `$fzf_prefix/bin/fzf`.
 # installsAfter:
 #   - ghcr.io/quantized8/sysset/setup-user
 dependencies:

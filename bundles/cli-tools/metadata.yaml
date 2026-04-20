@@ -153,15 +153,6 @@ gnupg:
   url:
     docs: https://gnupg.org/documentation/index.html
 
-bash-completion:
-  summary: Programmable completion for the Bash shell.
-  description: |
-    Adds intelligent tab-completion for many Bash commands and their arguments.
-    Useful for interactive shell users. Homebrew formula is bash-completion@2
-    (the v2 rewrite).
-  url:
-    docs: https://github.com/scop/bash-completion
-
 openssh-client:
   summary: Secure shell client for encrypted network connections.
   description: |
