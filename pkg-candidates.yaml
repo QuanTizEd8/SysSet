@@ -2082,17 +2082,3 @@ zlib1g-dev:
   url:
     docs: https://zlib.net/manual.html
     source: https://github.com/madler/zlib
-zsh:
-  summary: Z Shell – advanced interactive shell.
-  group: recommended
-  description: |
-    Zsh is a powerful and highly customizable Unix shell that
-    incorporates features from bash, ksh, and tcsh. It offers
-    advanced features like improved tab completion, spell
-    correction, and theming support. While not essential for
-    system operation, it is a popular alternative for users
-    seeking enhanced interactive shell experiences.
-  url:
-    docs: https://zsh.sourceforge.io/Doc/
-    package: https://packages.ubuntu.com/noble/zsh
-    source: https://sourceforge.net/p/zsh/code/ci/master/tree/
