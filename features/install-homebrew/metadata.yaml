@@ -24,17 +24,19 @@ options:
         SUDO_USER (if set and non-root) → first non-system user from dscl → error.
       On Linux, root is allowed only when explicitly set here (a warning is emitted);
       the install user is resolved as:
-        SUDO_USER (if set and non-root) → _REMOTE_USER (if set and non-root) → 'linuxbrew' (created if absent).
+        SUDO_USER (if set and non-root) → 'linuxbrew' (created if absent).
+      Note: _REMOTE_USER is not used for install ownership because the official
+      Homebrew installer hardcodes /home/linuxbrew/.linuxbrew on Linux and ignores
+      HOMEBREW_PREFIX. Shellenv for remoteUser is written by add_remote_user instead.
   prefix:
     type: string
     default: ''
     description: |
       Installation prefix (`HOMEBREW_PREFIX`).
       macOS defaults: `/opt/homebrew` (Apple Silicon) or `/usr/local` (Intel) — platform-pinned.
-      Linux default: `<install_user home>/.linuxbrew` — derived from the resolved install user
-        (e.g. `/home/vscode/.linuxbrew` when install_user resolves to `vscode`, or
-        `/home/linuxbrew/.linuxbrew` for the fallback `linuxbrew` user).
-      Leave empty to accept the platform/user default.
+      Linux default: `/home/linuxbrew/.linuxbrew` — hardcoded by the official Homebrew installer;
+        HOMEBREW_PREFIX env var is ignored on Linux by the installer itself.
+      Leave empty to accept the platform default.
   if_exists:
     type: string
     default: skip

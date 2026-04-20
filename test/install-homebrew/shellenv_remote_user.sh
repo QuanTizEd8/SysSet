@@ -8,7 +8,7 @@ set -e
 
 source dev-container-features-test-lib
 
-_BREW=/home/vscode/.linuxbrew/bin/brew
+_BREW=/home/linuxbrew/.linuxbrew/bin/brew
 _MARKER='brew shellenv (install-homebrew)'
 
 # --- brew is functional ---

@@ -126,22 +126,11 @@ resolve_prefix() {
     echo "↩️ Function exit: resolve_prefix" >&2
     return 0
   fi
-  # Linux: derive from the install user's home directory.
-  local _home
-  if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
-    # Conventional home for the not-yet-created linuxbrew system user.
-    _home="/home/linuxbrew"
-  elif [ "$_user" = "root" ]; then
-    _home="/root"
-  else
-    _home="$(getent passwd "$_user" | cut -d: -f6)"
-    if [ -z "$_home" ]; then
-      echo "⛔ Cannot determine home directory for user '${_user}'." >&2
-      exit 1
-    fi
-  fi
-  echo "ℹ️ Using user-derived prefix: '${_home}/.linuxbrew' (install_user='${_user}')." >&2
-  echo "${_home}/.linuxbrew"
+  # Linux: the official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
+  # at startup and ignores any HOMEBREW_PREFIX env var passed to it. Using any
+  # other path causes the permission check to fail for non-sudo users.
+  echo "ℹ️ Using Linux default prefix: '/home/linuxbrew/.linuxbrew'." >&2
+  echo "/home/linuxbrew/.linuxbrew"
   echo "↩️ Function exit: resolve_prefix" >&2
   return 0
 }
@@ -299,15 +288,17 @@ resolve_install_user() {
     echo "↩️ Function exit: resolve_install_user" >&2
     return 0
   fi
-  # 4. Root on Linux: priority chain — no prefix gate needed.
+  # 4. Root on Linux: use SUDO_USER when set (bare-metal sudo invocation),
+  # otherwise fall back to 'linuxbrew'. _REMOTE_USER is intentionally NOT used
+  # here — the official Homebrew installer hardcodes /home/linuxbrew/.linuxbrew
+  # and ignores HOMEBREW_PREFIX on Linux, so a remoteUser-derived prefix would
+  # fail the installer's permission check. Shellenv export for _REMOTE_USER is
+  # handled separately by export_shellenv_main via add_remote_user.
   if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
     echo "ℹ️ Linux root: using SUDO_USER='${SUDO_USER}' as install_user." >&2
     echo "$SUDO_USER"
-  elif [ -n "${_REMOTE_USER-}" ] && [ "$_REMOTE_USER" != "root" ]; then
-    echo "ℹ️ Linux root: using _REMOTE_USER='${_REMOTE_USER}' as install_user." >&2
-    echo "$_REMOTE_USER"
   else
-    echo "ℹ️ Linux root: no preferred user found; will use 'linuxbrew'." >&2
+    echo "ℹ️ Linux root: falling back to 'linuxbrew' as install_user." >&2
     echo "linuxbrew"
   fi
   echo "↩️ Function exit: resolve_install_user" >&2
