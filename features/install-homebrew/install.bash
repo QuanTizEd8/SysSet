@@ -20,7 +20,7 @@ run_brew_installer() {
   [ -n "${BREW_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_BREW_GIT_REMOTE=${BREW_GIT_REMOTE}")
   [ -n "${CORE_GIT_REMOTE-}" ] && _env_vars+=("HOMEBREW_CORE_GIT_REMOTE=${CORE_GIT_REMOTE}")
   [[ "${NO_INSTALL_FROM_API}" == true ]] && _env_vars+=("HOMEBREW_NO_INSTALL_FROM_API=1")
-  [ -n "${PREFIX-}" ] && _env_vars+=("HOMEBREW_PREFIX=${PREFIX}")
+  _env_vars+=("HOMEBREW_PREFIX=${RESOLVED_PREFIX}")
   local _tmpfile
   _tmpfile="$(mktemp /tmp/brew_install.XXXXXX.sh)"
   # shellcheck disable=SC2064
@@ -44,7 +44,9 @@ uninstall_brew() {
   trap "rm -f '${_tmpfile}'" RETURN
   net__fetch_url_file "$_BREW_UNINSTALLER_URL" "$_tmpfile"
   chmod a+r "$_tmpfile"
-  _brew_run_as_install_user env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$RESOLVED_PREFIX"
+  # Run as the current process (root when called from root) so it can remove
+  # files in a root-provisioned prefix regardless of who owns them.
+  env NONINTERACTIVE=1 /bin/bash "$_tmpfile" --path "$RESOLVED_PREFIX"
   echo "✅ Homebrew uninstalled." >&2
   echo "↩️ Function exit: uninstall_brew" >&2
   return 0
@@ -53,7 +55,7 @@ uninstall_brew() {
 export_shellenv_for_user() {
   echo "↪️ Function entry: export_shellenv_for_user" >&2
   local _user="$1"
-  # shellcheck disable=SC2016  # shellcheck disable=SC2016  local _brew_content='eval "$('''${RESOLVED_PREFIX}/bin/brew''' shellenv)"'
+  local _brew_content="$2"
   shell__sync_block \
     --files "$(shell__user_init_files --home "$(shell__resolve_home "$_user")")" \
     --marker "brew shellenv (install-homebrew)" \
@@ -89,14 +91,14 @@ export_shellenv_main() {
       --content "$_brew_content"
   else
     echo "ℹ️ Case B: user-scoped shellenv export." >&2
-    export_shellenv_for_user "$RESOLVED_INSTALL_USER"
+    export_shellenv_for_user "$RESOLVED_INSTALL_USER" "$_brew_content"
   fi
   # Resolved additional users
   local _u
   while IFS= read -r _u; do
     [[ -z "$_u" ]] && continue
     echo "ℹ️ Exporting shellenv for resolved user '${_u}'." >&2
-    export_shellenv_for_user "$_u"
+    export_shellenv_for_user "$_u" "$_brew_content"
   done < <(users__resolve_list)
   echo "↩️ Function exit: export_shellenv_main" >&2
   return 0
@@ -104,18 +106,43 @@ export_shellenv_main() {
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
-detect_brew_prefix() {
-  echo "↪️ Function entry: detect_brew_prefix" >&2
+resolve_prefix() {
+  echo "↪️ Function entry: resolve_prefix" >&2
+  local _user="$1"
+  # Explicit option always wins.
+  if [ -n "${PREFIX-}" ]; then
+    echo "ℹ️ Using explicit prefix: '${PREFIX}'." >&2
+    echo "$PREFIX"
+    echo "↩️ Function exit: resolve_prefix" >&2
+    return 0
+  fi
+  # macOS: Homebrew only officially supports these two paths.
   if [ "$(os__kernel)" = "Darwin" ]; then
     if [ "$(os__arch)" = "arm64" ]; then
       echo "/opt/homebrew"
     else
       echo "/usr/local"
     fi
-  else
-    echo "/home/linuxbrew/.linuxbrew"
+    echo "↩️ Function exit: resolve_prefix" >&2
+    return 0
   fi
-  echo "↩️ Function exit: detect_brew_prefix" >&2
+  # Linux: derive from the install user's home directory.
+  local _home
+  if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
+    # Conventional home for the not-yet-created linuxbrew system user.
+    _home="/home/linuxbrew"
+  elif [ "$_user" = "root" ]; then
+    _home="/root"
+  else
+    _home="$(getent passwd "$_user" | cut -d: -f6)"
+    if [ -z "$_home" ]; then
+      echo "⛔ Cannot determine home directory for user '${_user}'." >&2
+      exit 1
+    fi
+  fi
+  echo "ℹ️ Using user-derived prefix: '${_home}/.linuxbrew' (install_user='${_user}')." >&2
+  echo "${_home}/.linuxbrew"
+  echo "↩️ Function exit: resolve_prefix" >&2
   return 0
 }
 
@@ -235,23 +262,23 @@ _brew_run_as_install_user() {
   return 0
 }
 
-detect_install_user() {
-  echo "↪️ Function entry: detect_install_user" >&2
+resolve_install_user() {
+  echo "↪️ Function entry: resolve_install_user" >&2
+  # 1. Explicit option always wins (validation happens separately).
   if [ -n "${INSTALL_USER-}" ]; then
     echo "ℹ️ Using specified install_user: '${INSTALL_USER}'." >&2
     echo "$INSTALL_USER"
-    echo "↩️ Function exit: detect_install_user" >&2
+    echo "↩️ Function exit: resolve_install_user" >&2
     return 0
   fi
+  # 2. Non-root caller: always use self.
   if [ "$(id -u)" != "0" ]; then
     id -nu
-    echo "↩️ Function exit: detect_install_user" >&2
+    echo "↩️ Function exit: resolve_install_user" >&2
     return 0
   fi
-  # Running as root.
+  # 3. Root on macOS: must find a non-root user; root installs are forbidden.
   if [ "$(os__kernel)" = "Darwin" ]; then
-    # The official Homebrew installer refuses to run as root on macOS.
-    # We must find a non-root user to install as.
     if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
       echo "ℹ️ macOS root: using SUDO_USER='${SUDO_USER}' as install_user." >&2
       echo "$SUDO_USER"
@@ -269,33 +296,105 @@ detect_install_user() {
         exit 1
       fi
     fi
-  else
-    # Linux: Homebrew's installer refuses root in container environments where
-    # /.dockerenv is absent (Docker BuildKit + cgroup v2 on modern GHA runners).
-    # Prefer an existing non-root sudo user, allow _REMOTE_USER only when an
-    # explicit PREFIX is provided, and otherwise use a dedicated 'linuxbrew'
-    # account for the default /home/linuxbrew prefix.
-    if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
-      echo "ℹ️ Linux root: using SUDO_USER='${SUDO_USER}' as install_user." >&2
-      echo "$SUDO_USER"
-    elif [ -n "${_REMOTE_USER-}" ] && [ "$_REMOTE_USER" != "root" ] && [ -n "${PREFIX-}" ]; then
-      echo "ℹ️ Linux root: using _REMOTE_USER='${_REMOTE_USER}' as install_user (explicit prefix set)." >&2
-      echo "$_REMOTE_USER"
-    else
-      if ! id linuxbrew &> /dev/null; then
-        echo "ℹ️ Linux root: creating 'linuxbrew' user for Homebrew installation." >&2
-        useradd --create-home --shell /bin/bash linuxbrew
-        # Ubuntu 22.04+ creates home directories with mode 750; make it
-        # world-traversable so other users can access the brew binary.
-        chmod 755 /home/linuxbrew
-      else
-        echo "ℹ️ Linux root: 'linuxbrew' user already exists." >&2
-      fi
-      echo "linuxbrew"
-    fi
+    echo "↩️ Function exit: resolve_install_user" >&2
+    return 0
   fi
-  echo "↩️ Function exit: detect_install_user" >&2
+  # 4. Root on Linux: priority chain — no prefix gate needed.
+  if [ -n "${SUDO_USER-}" ] && [ "$SUDO_USER" != "root" ]; then
+    echo "ℹ️ Linux root: using SUDO_USER='${SUDO_USER}' as install_user." >&2
+    echo "$SUDO_USER"
+  elif [ -n "${_REMOTE_USER-}" ] && [ "$_REMOTE_USER" != "root" ]; then
+    echo "ℹ️ Linux root: using _REMOTE_USER='${_REMOTE_USER}' as install_user." >&2
+    echo "$_REMOTE_USER"
+  else
+    echo "ℹ️ Linux root: no preferred user found; will use 'linuxbrew'." >&2
+    echo "linuxbrew"
+  fi
+  echo "↩️ Function exit: resolve_install_user" >&2
   return 0
+}
+
+validate_install_user() {
+  echo "↪️ Function entry: validate_install_user" >&2
+  local _user="$1"
+  # Non-root caller cannot impersonate another user.
+  if [ "$(id -u)" != "0" ] && [ "$_user" != "$(id -nu)" ]; then
+    echo "⛔ install_user='${_user}' differs from the current user '$(id -nu)'." >&2
+    echo "   Only root can install Homebrew for a different user." >&2
+    exit 1
+  fi
+  # macOS: root is never a valid Homebrew owner.
+  if [ "$(os__kernel)" = "Darwin" ] && [ "$_user" = "root" ]; then
+    echo "⛔ The Homebrew installer refuses to run as root on macOS." >&2
+    echo "   Set 'install_user' to a non-root user account." >&2
+    exit 1
+  fi
+  # Linux: root is allowed only when explicitly requested; warn about reliability.
+  if [ "$(os__kernel)" != "Darwin" ] && [ "$_user" = "root" ]; then
+    echo "⚠️ install_user='root' on Linux: the official Homebrew installer may refuse" >&2
+    echo "   root in some container environments (Docker BuildKit + cgroup v2)." >&2
+    echo "   Consider using a non-root install_user." >&2
+  fi
+  # Target user must already exist (except 'linuxbrew', created later if needed).
+  if [ "$_user" != "linuxbrew" ] && [ "$_user" != "root" ] && ! id "$_user" &> /dev/null; then
+    echo "⛔ install_user='${_user}' does not exist on this system." >&2
+    exit 1
+  fi
+  echo "↩️ Function exit: validate_install_user" >&2
+  return 0
+}
+
+# prepare_prefix_if_needed <prefix> <install_user>
+# Linux + root only: creates the linuxbrew system user if needed, then ensures
+# the prefix directory exists and is owned by the install user.
+# No-op on macOS (the Homebrew installer manages /opt/homebrew and /usr/local).
+# No-op when not running as root (target user is responsible for their own home).
+prepare_prefix_if_needed() {
+  echo "↪️ Function entry: prepare_prefix_if_needed" >&2
+  local _prefix="$1" _user="$2"
+  # Create the linuxbrew system user if it does not yet exist.
+  if [ "$_user" = "linuxbrew" ] && ! id linuxbrew &> /dev/null; then
+    echo "ℹ️ Creating 'linuxbrew' system user." >&2
+    useradd --create-home --shell /bin/bash linuxbrew
+    # Ubuntu 22.04+ creates home directories with mode 750; make the home
+    # world-traversable so other users can reach the brew binary.
+    chmod 755 /home/linuxbrew
+  fi
+  # Create the prefix directory if it does not exist yet.
+  if [ ! -e "$_prefix" ]; then
+    echo "ℹ️ Creating prefix directory '${_prefix}' owned by '${_user}'." >&2
+    mkdir -p "$_prefix"
+    chmod 755 "$(dirname "$_prefix")" 2> /dev/null || true
+    chown "$_user" "$_prefix"
+    echo "↩️ Function exit: prepare_prefix_if_needed" >&2
+    return 0
+  fi
+  # Prefix already exists — inspect ownership.
+  local _owner
+  _owner="$(stat -c '%U' "$_prefix" 2> /dev/null || echo '')"
+  if [ "$_owner" = "$_user" ]; then
+    echo "ℹ️ Prefix '${_prefix}' already owned by '${_user}'." >&2
+    echo "↩️ Function exit: prepare_prefix_if_needed" >&2
+    return 0
+  fi
+  # A brew binary is present: ownership mismatch is handled by if_exists.
+  if [ -f "${_prefix}/bin/brew" ]; then
+    echo "⚠️ Prefix '${_prefix}' is owned by '${_owner}' (not '${_user}')." >&2
+    echo "   Existing installation will be handled by if_exists='${IF_EXISTS}'." >&2
+    echo "↩️ Function exit: prepare_prefix_if_needed" >&2
+    return 0
+  fi
+  # Empty directory: safe to re-own.
+  if [ -z "$(ls -A "$_prefix" 2> /dev/null)" ]; then
+    echo "ℹ️ Re-owning empty prefix '${_prefix}' to '${_user}'." >&2
+    chown "$_user" "$_prefix"
+    echo "↩️ Function exit: prepare_prefix_if_needed" >&2
+    return 0
+  fi
+  # Non-empty directory owned by someone else with no brew binary — conflict.
+  echo "⛔ Prefix '${_prefix}' is non-empty and owned by '${_owner}' (not '${_user}')." >&2
+  echo "   Remove or empty the directory first, or set a different prefix." >&2
+  exit 1
 }
 
 # shellcheck source=lib/shell.sh
@@ -303,20 +402,15 @@ detect_install_user() {
 # shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
 
-# ── Resolve prefix and install user ──────────────────────────────────────────
-if [ -n "$PREFIX" ]; then
-  RESOLVED_PREFIX="$PREFIX"
-  echo "ℹ️ Using explicit prefix: '${RESOLVED_PREFIX}'." >&2
-elif command -v brew > /dev/null 2>&1; then
-  RESOLVED_PREFIX="$(brew --prefix)"
-  echo "ℹ️ Detected existing brew prefix: '${RESOLVED_PREFIX}'." >&2
-else
-  RESOLVED_PREFIX="$(detect_brew_prefix)"
-  echo "ℹ️ Using platform-default prefix: '${RESOLVED_PREFIX}'." >&2
-fi
-
-RESOLVED_INSTALL_USER="$(detect_install_user)"
+# ── Resolve install user, then derive prefix from that user ──────────────────
+RESOLVED_INSTALL_USER="$(resolve_install_user)"
 echo "ℹ️ Install user: '${RESOLVED_INSTALL_USER}'." >&2
+validate_install_user "$RESOLVED_INSTALL_USER"
+RESOLVED_PREFIX="$(resolve_prefix "$RESOLVED_INSTALL_USER")"
+echo "ℹ️ Prefix: '${RESOLVED_PREFIX}'." >&2
+if [ "$(os__kernel)" != "Darwin" ] && [ "$(id -u)" = "0" ]; then
+  prepare_prefix_if_needed "$RESOLVED_PREFIX" "$RESOLVED_INSTALL_USER"
+fi
 
 # ── Step 1: Linux build dependencies ─────────────────────────────────────────
 if [ "$(os__kernel)" != "Darwin" ]; then

@@ -1,12 +1,14 @@
 #!/bin/bash
 # shellenv_remote_user: add_remote_user=true with remoteUser="vscode".
+# With the new user-first resolver, _REMOTE_USER=vscode is picked as the
+# install_user (no SUDO_USER set), so the prefix is /home/vscode/.linuxbrew.
 # Verifies that per-user shellenv blocks are written to vscode's init files
-# AND that system-wide blocks are still present (root installs Case A).
+# AND that system-wide blocks are still present (root process → Case A).
 set -e
 
 source dev-container-features-test-lib
 
-_BREW=/home/linuxbrew/.linuxbrew/bin/brew
+_BREW=/home/vscode/.linuxbrew/bin/brew
 _MARKER='brew shellenv (install-homebrew)'
 
 # --- brew is functional ---
