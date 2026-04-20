@@ -50,6 +50,17 @@ https://b.zip"
   assert_success
 }
 
+@test "json__object_key_string_lines_stdin handles array or object of strings" {
+  run sh -c '. "$1" && printf %s "{\"items\":[\"/a\",\"/b\"]}" | json__object_key_string_lines_stdin items' _ "${LIB_ROOT}/json.sh"
+  assert_output "/a
+/b"
+  assert_success
+  run sh -c '. "$1" && printf %s "{\"items\":{\"x\":\"/a\",\"y\":\"/b\"}}" | json__object_key_string_lines_stdin items' _ "${LIB_ROOT}/json.sh"
+  assert_output "/a
+/b"
+  assert_success
+}
+
 @test "json__nodejs_index_version_stdin lts-first head major exact" {
   _fixture='[{"version":"v1.0.0","lts":false},{"version":"v22.1.0","lts":true},{"version":"v22.0.0","lts":true}]'
   run sh -c '. "$1" && printf %s "$2" | json__nodejs_index_version_stdin lts-first' _ "${LIB_ROOT}/json.sh" "$_fixture"

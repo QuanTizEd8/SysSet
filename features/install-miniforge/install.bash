@@ -259,7 +259,7 @@ export_envs() {
   # then exclude the base dir (PREFIX itself).
   local env_paths
   env_paths="$("$CONDA_EXEC" env list --json 2> /dev/null |
-    json__object_map_string_values_stdin envs |
+    json__object_key_string_lines_stdin envs |
     grep '^/' |
     grep -v "^${PREFIX}/*$")" || true
   if [[ -z "$env_paths" ]]; then

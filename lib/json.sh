@@ -193,7 +193,7 @@ for item in arr:
   return 1
 }
 
-# @brief json__object_map_string_values_stdin [<objectKey>] — Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object (e.g. conda env list --json "envs" map).
+# @brief json__object_map_string_values_stdin [<objectKey>] — Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object map (string values only). When `.[key]` may be an array of strings instead, use `json__object_key_string_lines_stdin`.
 #
 # If <objectKey> is omitted or empty, uses the root object. One line per string value. Uses jq, yq, or python3; no grep fallback.
 json__object_map_string_values_stdin() {
@@ -238,6 +238,69 @@ for v in obj.values():
     if isinstance(v, str):
         print(v)
 ' "$_sub" 2> /dev/null)" || _out=""
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  if [ -n "$_out" ]; then
+    printf '%s\n' "$_out"
+    return 0
+  fi
+  return 1
+}
+
+# @brief json__object_key_string_lines_stdin <key> — Read one JSON object from stdin; print each string from `.[key]` when that value is a JSON array of strings or an object whose values are strings (one line per string).
+#
+# Args:
+#   <key>  Object key to read (e.g. `envs` for `conda env list --json`).
+#
+# Stdout: one string per line. Uses jq, yq, or python3.
+json__object_key_string_lines_stdin() {
+  local _key="${1-}" _json _out
+  [ -z "$_key" ] && return 1
+  _json="$(cat)" || return 1
+  [ -z "$_json" ] && return 1
+  _json__ensure_parse_tool || return 1
+  case "${_JSON__PARSE_TOOL}" in
+    jq)
+      _out="$(printf '%s\n' "$_json" | jq -r --arg k "$_key" '
+        .[$k]
+        | if type == "array" then .[] | strings
+          elif type == "object" then .[] | strings
+          else empty end' 2> /dev/null)" || _out=""
+      ;;
+    yq)
+      _out="$(
+        printf '%s\n' "$_json" |
+          env _JYQ_K="$_key" yq eval -p=json -r '.[strenv(_JYQ_K)][]' - 2> /dev/null
+      )" || _out=""
+      [ -z "$_out" ] && _out="$(
+        printf '%s\n' "$_json" |
+          env _JYQ_K="$_key" yq eval -p=json -r '.[strenv(_JYQ_K)] | to_entries | .[].value' - 2> /dev/null
+      )" || true
+      ;;
+    python)
+      _out="$(printf '%s\n' "$_json" | python3 -c '
+import json, sys
+k = sys.argv[1]
+d = json.load(sys.stdin)
+if not isinstance(d, dict):
+    sys.exit(1)
+e = d.get(k)
+if e is None:
+    sys.exit(0)
+if isinstance(e, list):
+    for x in e:
+        if isinstance(x, str):
+            print(x)
+elif isinstance(e, dict):
+    for x in e.values():
+        if isinstance(x, str):
+            print(x)
+else:
+    sys.exit(1)
+' "$_key" 2> /dev/null)" || _out=""
       ;;
     *)
       return 1

@@ -527,7 +527,8 @@ Source when you need to parse JSON in shell without ad hoc `grep`/`sed` pipeline
 | `json__root_scalar_stdin` | `json__root_scalar_stdin <key>` | Read one JSON object from stdin; print .[key] when string or number. |
 | `json__array_field_lines_stdin` | `json__array_field_lines_stdin <field>` | Read JSON from stdin (expected: top-level array); print one line per element's .[field] when string or number. |
 | `json__object_array_field_lines_stdin` | `json__object_array_field_lines_stdin <arrayKey> <field>` | Read one JSON object from stdin; print one line per element of .[arrayKey][].[field] when string or number. |
-| `json__object_map_string_values_stdin` | `json__object_map_string_values_stdin [<objectKey>]` | Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object (e.g. conda env list --json "envs" map). |
+| `json__object_map_string_values_stdin` | `json__object_map_string_values_stdin [<objectKey>]` | Read one JSON object; print all string values from the root object or from .[objectKey] when it is an object map (string values only). When `.[key]` may be an array of strings instead, use `json__object_key_string_lines_stdin`. |
+| `json__object_key_string_lines_stdin` | `json__object_key_string_lines_stdin <key>` | Read one JSON object from stdin; print each string from `.[key]` when that value is a JSON array of strings or an object whose values are strings (one line per string). |
 | `json__nodejs_index_version_stdin` | `json__nodejs_index_version_stdin <op> [arg]` | Read nodejs.org-style dist index.json (array of objects); print one version string. |
 <!-- END lib-json-table MARKER -->
 
