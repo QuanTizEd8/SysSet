@@ -99,6 +99,56 @@ github__release_json_id() {
   json__root_scalar_stdin id < "$_f"
 }
 
+# @brief github__release_json_digest_for_asset <release.json> <asset_name> — Print lowercase hex SHA-256 from the GitHub Releases API asset `digest` field (`sha256:…`) for the asset whose `name` equals <asset_name> exactly.
+#
+# Newer releases publish `digest` on each asset; older releases omit it — callers
+# should fall back to a downloaded `.sha256` sidecar when this returns 1.
+#
+# Args:
+#   <release.json>  Path to a `/releases/latest` or `/releases/tags/…` JSON file.
+#   <asset_name>      Exact `name` value of the release asset (e.g. `fzf-0.71.0-linux_amd64.tar.gz`).
+#
+# Stdout: 64-character lowercase hex digest. Returns 1 if unreadable, unparsable, not found, or digest absent.
+github__release_json_digest_for_asset() {
+  local _f="$1" _name="$2" _out=""
+  [ -r "$_f" ] || return 1
+  [ -n "$_name" ] || return 1
+
+  _out=""
+  if command -v jq > /dev/null 2>&1; then
+    _out="$(jq -r --arg n "$_name" '
+      (.assets // [])[]
+      | select(.name == $n)
+      | .digest // empty
+      | if length > 0 then (sub("^sha256:"; "") | ascii_downcase) else empty end
+    ' "$_f" 2> /dev/null)" || _out=""
+  elif command -v python3 > /dev/null 2>&1; then
+    _out="$(python3 -c '
+import json, sys
+path, name = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as fp:
+    data = json.load(fp)
+for a in data.get("assets") or []:
+    if a.get("name") != name:
+        continue
+    dg = (a.get("digest") or "").strip()
+    if not dg:
+        sys.exit(1)
+    if dg.startswith("sha256:"):
+        dg = dg[7:]
+    print(dg.lower())
+    sys.exit(0)
+sys.exit(1)
+' "$_f" "$_name" 2> /dev/null)" || _out=""
+  else
+    return 1
+  fi
+
+  [ -n "$_out" ] && [ "$_out" != "null" ] || return 1
+  printf '%s\n' "$_out"
+  return 0
+}
+
 # @brief github__latest_tag <owner/repo> — Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed.
 #
 # Args:

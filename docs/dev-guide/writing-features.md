@@ -647,6 +647,7 @@ Source explicitly. Requires `net.sh` (and `ospkg.sh`) to have been sourced first
 | `github__fetch_release_json` | `github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>]` | Fetch GitHub Releases API JSON for a repository. |
 | `github__release_json_tag_name` | `github__release_json_tag_name <file>` | Print tag_name from a single-release JSON file (`/releases/latest` or `/releases/tags/...` response written to disk). |
 | `github__release_json_id` | `github__release_json_id <file>` | Print the root release numeric id from a single-release JSON file. |
+| `github__release_json_digest_for_asset` | `github__release_json_digest_for_asset <release.json> <asset_name>` | Print lowercase hex SHA-256 from the release asset `digest` field (`sha256:…`) when GitHub provides it; exit 1 if absent (use a `.sha256` sidecar fallback for older releases). |
 | `github__latest_tag` | `github__latest_tag <owner/repo>` | Print the latest release tag name. Exits 1 if the API call fails or the tag cannot be parsed. |
 | `github__release_tags` | `github__release_tags <owner/repo> [--per_page N]` | Print one release tag per line (newest first) from `/releases?per_page=N` (default 100). |
 | `github__tags` | `github__tags <owner/repo> [--per_page N]` | Print one tag per line from `/tags?per_page=N` (default 100). Includes lightweight tags not associated with a release. |

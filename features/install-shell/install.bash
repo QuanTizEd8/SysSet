@@ -152,12 +152,20 @@ install_fzf() {
     return 0
   fi
 
-  local _version
-  _version="$(github__latest_tag "junegunn/fzf")" || {
-    echo "⛔ Failed to fetch latest fzf tag from GitHub." >&2
+  local _reljson _tag _version
+  _reljson="$(mktemp)"
+  # shellcheck disable=SC2064
+  trap "rm -f '${_reljson}'" RETURN
+
+  if ! github__fetch_release_json "junegunn/fzf" --dest "$_reljson"; then
+    echo "⛔ Failed to fetch fzf release metadata from GitHub." >&2
+    return 1
+  fi
+  _tag="$(github__release_json_tag_name "$_reljson")" || {
+    echo "⛔ Failed to parse fzf release tag from GitHub JSON." >&2
     return 1
   }
-  _version="${_version#v}"
+  _version="${_tag#v}"
   echo "ℹ️  Installing fzf ${_version} to '${_bin_dir}'..." >&2
 
   local _kernel _arch _os _fzf_arch
@@ -188,8 +196,14 @@ install_fzf() {
   local _sidecar="${_archive}.sha256"
 
   net__fetch_url_file "${_base_url}/${_filename}" "$_archive"
-  net__fetch_url_file "${_base_url}/${_filename}.sha256" "$_sidecar"
-  checksum__verify_sha256_sidecar "$_archive" "$_sidecar"
+
+  local _expect_sha=""
+  if _expect_sha="$(github__release_json_digest_for_asset "$_reljson" "$_filename")"; then
+    checksum__verify_sha256 "$_archive" "$_expect_sha"
+  else
+    net__fetch_url_file "${_base_url}/${_filename}.sha256" "$_sidecar"
+    checksum__verify_sha256_sidecar "$_archive" "$_sidecar"
+  fi
 
   mkdir -p "$_bin_dir"
   tar -xzf "$_archive" -C "$_bin_dir" fzf

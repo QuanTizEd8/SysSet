@@ -214,6 +214,32 @@ v2.0.0"
   assert_output "999888"
 }
 
+# ---------------------------------------------------------------------------
+# github__release_json_digest_for_asset
+# ---------------------------------------------------------------------------
+
+@test "github__release_json_digest_for_asset prints lowercase hex from sha256 digest" {
+  _fixture="${BATS_TEST_TMPDIR}/release-fzf-digest.json"
+  printf '%s' '{"assets":[{"name":"fzf-0.71.0-linux_amd64.tar.gz","digest":"sha256:ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789"}]}' > "$_fixture"
+  run github__release_json_digest_for_asset "$_fixture" "fzf-0.71.0-linux_amd64.tar.gz"
+  assert_success
+  assert_output "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+}
+
+@test "github__release_json_digest_for_asset fails when digest absent" {
+  _fixture="${BATS_TEST_TMPDIR}/release-no-digest.json"
+  printf '%s' '{"assets":[{"name":"tool.tar.gz","size":3}]}' > "$_fixture"
+  run github__release_json_digest_for_asset "$_fixture" "tool.tar.gz"
+  assert_failure
+}
+
+@test "github__release_json_digest_for_asset fails when asset name mismatches" {
+  _fixture="${BATS_TEST_TMPDIR}/release-wrong-name.json"
+  printf '%s' '{"assets":[{"name":"other.tar.gz","digest":"sha256:00"}]}' > "$_fixture"
+  run github__release_json_digest_for_asset "$_fixture" "tool.tar.gz"
+  assert_failure
+}
+
 @test "github__release_json_tag_name fails for missing file" {
   run github__release_json_tag_name "${BATS_TEST_TMPDIR}/does-not-exist.json"
   assert_failure
