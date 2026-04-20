@@ -275,10 +275,12 @@ json__object_key_string_lines_stdin() {
         printf '%s\n' "$_json" |
           env _JYQ_K="$_key" yq eval -p=json -r '.[strenv(_JYQ_K)][]' - 2> /dev/null
       )" || _out=""
-      [ -z "$_out" ] && _out="$(
-        printf '%s\n' "$_json" |
-          env _JYQ_K="$_key" yq eval -p=json -r '.[strenv(_JYQ_K)] | to_entries | .[].value' - 2> /dev/null
-      )" || true
+      if [ -z "$_out" ]; then
+        _out="$(
+          printf '%s\n' "$_json" |
+            env _JYQ_K="$_key" yq eval -p=json -r '.[strenv(_JYQ_K)] | to_entries | .[].value' - 2> /dev/null
+        )" || _out=""
+      fi
       ;;
     python)
       _out="$(printf '%s\n' "$_json" | python3 -c '
