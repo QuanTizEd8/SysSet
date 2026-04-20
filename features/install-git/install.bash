@@ -368,6 +368,11 @@ _git__source_cleanup() {
 # $1 = resolved version string
 _git__source_register() {
   local _ver="$1"
+  # Non-root installs cannot register packages via apt/dpkg.
+  if [ "$(id -u)" != "0" ]; then
+    echo "ℹ️ Non-root mode: skipping package manager registration for source-built git." >&2
+    return 0
+  fi
   case "$(os__platform)" in
     debian) ;;
     *) return 0 ;;

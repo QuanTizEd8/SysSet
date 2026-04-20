@@ -188,7 +188,15 @@ def generate_block(feature_name: str, options: dict, dependencies: dict | None =
     lines.append("  local _rc=$?")
     lines.append("  _cleanup_hook")
     if has_ospkg:
-        lines.append('  [[ "${KEEP_CACHE:-true}" != true ]] && ospkg__clean')
+        lines.append('  if [[ "${KEEP_CACHE:-true}" != true ]]; then')
+        lines.append('    if [[ "$(id -u)" -eq 0 ]]; then')
+        lines.append("      ospkg__clean")
+        lines.append("    else")
+        lines.append(
+            '      echo "ℹ️ Skipping package-manager cache cleanup (not root)." >&2'
+        )
+        lines.append("    fi")
+        lines.append("  fi")
     if has_build_deps:
         lines.append(
             '  [[ $_rc -eq 0 ]] && [[ "${KEEP_BUILD_DEPS:-false}" != true ]] && ospkg__cleanup_all_build_groups'
