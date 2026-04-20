@@ -206,7 +206,7 @@ _seed_apt_context() {
   _seed_apt_context
   command -v jq > /dev/null 2>&1 || skip "jq not available"
   local _json_file
-  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"packages":["curl","wget","git"]}' > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
@@ -220,7 +220,7 @@ _seed_apt_context() {
   _seed_apt_context
   command -v jq > /dev/null 2>&1 || skip "jq not available"
   local _json_file
-  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"prescripts":"echo hello\\n","packages":["curl"]}' > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
@@ -232,7 +232,7 @@ _seed_apt_context() {
   _seed_apt_context
   command -v jq > /dev/null 2>&1 || skip "jq not available"
   local _json_file
-  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # brew-only package should NOT appear for apt context.
   printf '{"packages":[{"name":"brew-pkg","when":{"pm":"brew"}},{"name":"apt-pkg","when":{"pm":"apt"}}]}' \
     > "$_json_file"
@@ -247,7 +247,7 @@ _seed_apt_context() {
   _seed_apt_context
   command -v jq > /dev/null 2>&1 || skip "jq not available"
   local _json_file
-  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"when":{"pm":"brew"},"packages":["should-not-appear"]}' > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
@@ -259,7 +259,7 @@ _seed_apt_context() {
   _seed_apt_context
   command -v jq > /dev/null 2>&1 || skip "jq not available"
   local _json_file
-  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"apt":{"packages":["libssl-dev"]},"brew":{"packages":["openssl"]}}' > "$_json_file"
   local _output
   _output="$(ospkg__parse_manifest_yaml "$_json_file")"
@@ -272,7 +272,7 @@ _seed_apt_context() {
   _seed_apt_context
   command -v jq > /dev/null 2>&1 || skip "jq not available"
   local _json_file
-  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest_XXXXXX.json")"
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # jammy-only package should appear; bookworm-only should not.
   printf '{"packages":[{"name":"jammy-pkg","when":{"version_codename":"jammy"}},{"name":"bookworm-pkg","when":{"version_codename":"bookworm"}}]}' \
     > "$_json_file"
