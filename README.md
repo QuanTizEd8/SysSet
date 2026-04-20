@@ -502,7 +502,7 @@ src/<feature>/
   install.sh                  ← auto-generated bootstrap; never edit
 
 lib/                          Shared bash library (canonical source)
-  logging.sh  os.sh  ospkg.sh  net.sh  json.sh  git.sh  shell.sh
+  logging.sh  os.sh  ospkg.sh  net.sh  json.sh  git.sh  shell.sh  str.sh
   github.sh   checksum.sh  users.sh
 
 build-artifacts.sh            Assembles all dist/ artifacts

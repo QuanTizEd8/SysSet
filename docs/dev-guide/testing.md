@@ -597,7 +597,8 @@ Module coverage:
 | Test file | lib/ module | Tests |
 |---|---|---|
 | `os.bats` | `os.sh` | 28 |
-| `shell.bats` | `shell.sh` | 34 |
+| `shell.bats` | `shell.sh` | 61 |
+| `str.bats` | `str.sh` | 3 |
 | `ospkg.bats` | `ospkg.sh` | 28 |
 | `logging.bats` | `logging.sh` | 6 |
 | `net.bats` | `net.sh` | 11 |

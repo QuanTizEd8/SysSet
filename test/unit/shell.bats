@@ -225,24 +225,6 @@ ${_home}/.zshrc"
 }
 
 # ---------------------------------------------------------------------------
-# shell__plugin_names_from_slugs
-# ---------------------------------------------------------------------------
-
-@test "shell__plugin_names_from_slugs extracts repo names from CSV" {
-  reload_lib shell.sh
-  run shell__plugin_names_from_slugs "zsh-users/zsh-autosuggestions,zsh-users/zsh-syntax-highlighting"
-  assert_output "zsh-autosuggestions
-zsh-syntax-highlighting"
-}
-
-@test "shell__plugin_names_from_slugs returns empty for empty input" {
-  reload_lib shell.sh
-  run shell__plugin_names_from_slugs ""
-  assert_output ""
-  assert_success
-}
-
-# ---------------------------------------------------------------------------
 # shell__resolve_home
 # ---------------------------------------------------------------------------
 

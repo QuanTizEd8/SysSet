@@ -475,24 +475,6 @@ shell__resolve_omz_theme() {
   return 0
 }
 
-# @brief shell__plugin_names_from_slugs <csv-slugs> — Extract repo names (basenames) from a comma-separated list of `owner/repo` slugs. Prints one name per line.
-#
-# Args:
-#   <csv-slugs>  Comma-separated list of "owner/repo" slugs.
-#
-# Stdout: one repo name (basename) per line.
-shell__plugin_names_from_slugs() {
-  local _slugs="$1"
-  [ -z "$_slugs" ] && return 0
-  local IFS=','
-  local _slug
-  for _slug in $_slugs; do
-    _slug="${_slug// /}"
-    [ -n "$_slug" ] && basename "$_slug"
-  done
-  return 0
-}
-
 # @brief shell__resolve_home <username> — Print the home directory for the given user.
 shell__resolve_home() {
   local _user="$1"

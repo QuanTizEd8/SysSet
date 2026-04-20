@@ -56,6 +56,7 @@ LIB_MODULE_ORDER = [
     "json.sh",
     "git.sh",
     "shell.sh",
+    "str.sh",
     "github.sh",
     "checksum.sh",
     "users.sh",

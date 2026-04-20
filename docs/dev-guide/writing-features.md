@@ -37,6 +37,7 @@ library available to every script.
     - [`ospkg.sh`](#ospkgsh)
       - [Manifest format overview](#manifest-format-overview)
     - [`shell.sh`](#shellsh)
+    - [`str.sh`](#strsh)
     - [`git.sh`](#gitsh)
     - [`github.sh`](#githubsh)
     - [`checksum.sh`](#checksumsh)
@@ -250,6 +251,8 @@ explicitly.
 . "$_SELF_DIR/_lib/users.sh"     # users__resolve_list, __set_login_shell
 # shellcheck source=_lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"     # shell__write_block, __export_path, etc.
+# shellcheck source=_lib/str.sh
+. "$_SELF_DIR/_lib/str.sh"       # str__basename_each, … (optional)
 # shellcheck source=_lib/git.sh
 . "$_SELF_DIR/_lib/git.sh"       # git__clone
 ```
@@ -467,6 +470,8 @@ feature. Source them from `$_SELF_DIR/_lib/<file>.sh`.
 > function does what you need, use it. If you are writing logic that could
 > benefit other features, add it to `lib/` instead of keeping it inline.
 
+**Multi-value conventions:** Many helpers return **several logical items** as **one stdout line per item** (empty list → no lines). That pattern composes with pipes, `while read -r`, and `mapfile`, and survives subprocess boundaries. Bash-only call sites may pass lists in as `"${array[@]}"` when the `@brief` documents positional arguments that way. Do not assume every function uses the same representation—check each `@brief` (and `Stdout:`) before calling.
+
 ### `os.sh`
 
 Auto-loaded by `ospkg.sh`. Can also be sourced standalone.
@@ -608,11 +613,20 @@ manifest format, all selector keys, and examples.
 | `shell__user_rc_files` | `shell__user_rc_files [--home <dir>] [--zdotdir <dir>]` | Print user-scoped interactive RC file paths (`.bashrc`, `<zdotdir>/.zshrc`). Excludes login files. |
 | `shell__system_rc_files` | `shell__system_rc_files` | Print system-wide interactive RC file paths (global bashrc, `<zshdir>/zshrc`). Does not include login or PATH-export files. |
 | `shell__resolve_omz_theme` | `shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` | Given an `owner/repo` slug and `ZSH_CUSTOM` dir, print the `ZSH_THEME` value expected by oh-my-zsh. |
-| `shell__plugin_names_from_slugs` | `shell__plugin_names_from_slugs <csv-slugs>` | Extract repo names (basenames) from a comma-separated list of `owner/repo` slugs. Prints one name per line. |
 | `shell__resolve_home` | `shell__resolve_home <username>` | Print the home directory for the given user. |
 | `shell__ensure_bashenv` | `shell__ensure_bashenv` | Detect or create the system-wide BASH_ENV file and register it in `/etc/environment`. Print the absolute path to the file. |
 | `shell__create_symlink` | `shell__create_symlink --src <s> --system-target <t> --user-target <t>` | Create a symlink, choosing system-wide or user-scoped location based on the src path. |
 <!-- END lib-shell-table MARKER -->
+
+### `str.sh`
+
+Bash-only. Small argv / string helpers; prefer **one result line per item** on stdout for list-shaped results.
+
+<!-- START lib-str-table MARKER -->
+| Function | Signature | Description |
+|---|---|---|
+| `str__basename_each` | `str__basename_each [<path-token>...]` | For each argument, strip spaces and print basename on its own line. |
+<!-- END lib-str-table MARKER -->
 
 ### `git.sh`
 

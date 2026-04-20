@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verifies that multiple comma-separated plugin slugs are all cloned into the
+# Verifies that multiple plugin slugs (scenario: newline-delimited array) are cloned into the
 # system ZSH_CUSTOM dir, and symlinked into the per-user custom dir.
 set -e
 

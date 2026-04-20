@@ -60,6 +60,7 @@ sysset/
 │   ├── json.sh
 │   ├── ospkg.sh
 │   ├── shell.sh
+│   ├── str.sh
 │   ├── git.sh
 │   ├── github.sh
 │   ├── checksum.sh
@@ -164,7 +165,8 @@ There is one file per concern:
 | `net.sh` | `net::` | URL fetching with retry, curl/wget detection, CA cert installation |
 | `json.sh` | `json::` | jq/python3 JSON helpers (root scalars, array field lines on stdin) |
 | `ospkg.sh` | `ospkg::` | Cross-distro package manager abstraction, manifest parsing and execution |
-| `shell.sh` | `shell::` | Shell config path detection, block writing, theme/plugin resolution |
+| `shell.sh` | `shell::` | Shell config path detection, block writing, theme resolution |
+| `str.sh` | `str::` | Small argv / string helpers (e.g. basename lists) |
 | `git.sh` | `git::` | Idempotent shallow cloning |
 | `github.sh` | `github::` | GitHub Releases API: fetch JSON, latest tag, asset URLs |
 | `checksum.sh` | `checksum::` | SHA-256 file verification (direct hash or .sha256 sidecar) |

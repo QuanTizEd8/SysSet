@@ -158,7 +158,7 @@ _LIB_MYMODULE_LOADED=1
 - `shell__detect_zshdir` — returns `/etc/zsh` or `/etc`
 - `shell__resolve_home <user>` — evaluates `~<user>` to absolute path
 - `shell__resolve_omz_theme --theme_slug <slug> --custom_dir <dir>` — resolves Oh My Zsh theme path
-- `shell__plugin_names_from_slugs <csv>` — converts comma-separated plugin slugs to plugin names
+- `str__basename_each <token>...` — one argument per path-like token (e.g. `"${OHMYZSH_PLUGINS[@]}"`); prints basename of each, one line per item (`lib/str.sh`)
 - `shell__write_block --file <f> --marker <m> --content <c>` — writes a fenced block into a file; idempotent (replaces existing block with same marker)
 - `shell__remove_block --file <f> --marker <m>` — removes a fenced block from a file
 - `shell__export_path --users <list> --path <dir> [--marker <m>] [--rc_files <list>]` — appends a `PATH` export block to each user's shell RC files

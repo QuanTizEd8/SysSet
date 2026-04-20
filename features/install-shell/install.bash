@@ -1,5 +1,7 @@
 # shellcheck source=lib/shell.sh
 . "$_SELF_DIR/_lib/shell.sh"
+# shellcheck source=lib/str.sh
+. "$_SELF_DIR/_lib/str.sh"
 # shellcheck source=lib/users.sh
 . "$_SELF_DIR/_lib/users.sh"
 # shellcheck source=lib/git.sh
@@ -175,30 +177,27 @@ _resolve_custom_dir() {
   fi
 }
 
-# _link_custom_items <src_custom_dir> <dest_custom_dir> <theme_slug> <plugins_csv> <mode>
-# Creates symlinks in dest for exactly the named items declared in theme_slug + plugins_csv.
+# _link_custom_items <src_custom_dir> <dest_custom_dir> <theme_slug> <mode> [<plugin_slug>...]
+# Creates symlinks in dest for exactly the named items declared in theme_slug + plugin slugs.
 #   overwrite: removes existing symlink for that name, creates fresh one (skips real dirs)
 #   augment:   creates symlink only if name not already present (symlink or real dir)
 # User-added real dirs (non-symlinks) are never removed.
 _link_custom_items() {
-  local _src="$1" _dest="$2" _theme_slug="$3" _plugins_csv="$4" _mode="$5"
+  local _src="$1" _dest="$2" _theme_slug="$3" _mode="$4"
+  shift 4
   mkdir -p "${_dest}/themes" "${_dest}/plugins"
 
   local -a _items=()
   if [ -n "$_theme_slug" ]; then
     _items+=("themes/$(basename "$_theme_slug")")
   fi
-  if [ -n "$_plugins_csv" ]; then
-    local _slug
-    local -a _slugs=()
-    IFS=',' read -r -a _slugs <<< "$_plugins_csv"
-    for _slug in "${_slugs[@]}"; do
-      _slug="${_slug// /}"
-      [ -z "$_slug" ] && continue
-      [[ "$_slug" != */* ]] && continue # built-in plugin, no clone
-      _items+=("plugins/$(basename "$_slug")")
-    done
-  fi
+  local _slug
+  for _slug in "$@"; do
+    _slug="${_slug// /}"
+    [ -z "$_slug" ] && continue
+    [[ "$_slug" != */* ]] && continue # built-in plugin, no clone
+    _items+=("plugins/$(basename "$_slug")")
+  done
 
   local _item _src_path _dest_path
   for _item in "${_items[@]}"; do
@@ -221,11 +220,8 @@ _link_custom_items() {
 # ---------------------------------------------------------------------------
 configure_user() {
   local _cu_username="$1"
-  # Flatten array options to space-separated strings (matches the arg-passing
-  # convention previously used when invoking the standalone script).
+  # STARSHIP_SHELLS: keep space-joined for *zsh* / *bash* substring checks below.
   local _cu_starship_shells="${STARSHIP_SHELLS[*]}"
-  local _cu_omz_plugins="${OHMYZSH_PLUGINS[*]}"
-  local _cu_omb_plugins="${OHMYBASH_PLUGINS[*]}"
   local _cu_bin_dir="${STARSHIP_PREFIX}/bin"
 
   # Resolve user's home directory and group.
@@ -324,8 +320,8 @@ configure_user() {
     fi
 
     local _cu_omz_plugin_names=""
-    if [ -n "$_cu_omz_plugins" ]; then
-      _cu_omz_plugin_names="$(shell__plugin_names_from_slugs "$_cu_omz_plugins" | tr '\n' ' ')"
+    if ((${#OHMYZSH_PLUGINS[@]})); then
+      _cu_omz_plugin_names="$(str__basename_each "${OHMYZSH_PLUGINS[@]}" | tr '\n' ' ')"
       _cu_omz_plugin_names="${_cu_omz_plugin_names% }"
     fi
 
@@ -384,8 +380,8 @@ configure_user() {
         "${OHMYZSH_INSTALL_DIR}/custom" \
         "$_cu_omz_effective_custom_dir" \
         "$OHMYZSH_THEME" \
-        "$_cu_omz_plugins" \
-        "$USER_CONFIG_MODE"
+        "$USER_CONFIG_MODE" \
+        "${OHMYZSH_PLUGINS[@]}"
     fi
 
     if [[ "$_cu_is_p10k" == true ]] && [[ "$_cu_zsh_use_starship" != true ]] &&
@@ -445,8 +441,8 @@ configure_user() {
     fi
 
     local _cu_omb_plugin_names=""
-    if [ -n "$_cu_omb_plugins" ]; then
-      _cu_omb_plugin_names="$(shell__plugin_names_from_slugs "$_cu_omb_plugins" | tr '\n' ' ')"
+    if ((${#OHMYBASH_PLUGINS[@]})); then
+      _cu_omb_plugin_names="$(str__basename_each "${OHMYBASH_PLUGINS[@]}" | tr '\n' ' ')"
       _cu_omb_plugin_names="${_cu_omb_plugin_names% }"
     fi
 
@@ -488,8 +484,8 @@ configure_user() {
         "${OHMYBASH_INSTALL_DIR}/custom" \
         "$_cu_omb_effective_custom_dir" \
         "$OHMYBASH_THEME" \
-        "$_cu_omb_plugins" \
-        "$USER_CONFIG_MODE"
+        "$USER_CONFIG_MODE" \
+        "${OHMYBASH_PLUGINS[@]}"
     fi
   fi
 
