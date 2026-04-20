@@ -14,6 +14,12 @@
 . "$_SELF_DIR/_lib/checksum.sh"
 
 _GITHUB_BASE_URL="https://github.com"
+_ZSH_COMPLETIONS_REPO_URL="${_GITHUB_BASE_URL}/zsh-users/zsh-completions"
+# Shallow-clone the repo here when not using Homebrew. Completion functions live
+# under src/ (see upstream README). Debian/Ubuntu .deb builds exist via OBS,
+# but default apt archives do not ship this package.
+_ZSH_COMPLETIONS_PREFIX="/usr/local/share/zsh-completions"
+_ZSH_COMPLETIONS_SRC="${_ZSH_COMPLETIONS_PREFIX}/src"
 _OHMYZSH_REPO_URL="${_GITHUB_BASE_URL}/ohmyzsh/ohmyzsh"
 _OHMYBASH_REPO_URL="${_GITHUB_BASE_URL}/ohmybash/oh-my-bash"
 _STARSHIP_INSTALLER_URL="https://starship.rs/install.sh"
@@ -190,6 +196,28 @@ install_fzf() {
   chmod 755 "${_bin_dir}/fzf"
 
   echo "✅ fzf installed to '${_bin_dir}/fzf'." >&2
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# install_zsh_completions — Extra Zsh completion definitions (zsh-users project).
+# Uses Homebrew when that is the active package manager; otherwise shallow-clones
+# into ${_ZSH_COMPLETIONS_PREFIX} (no apt/deb package exists for this tree).
+# ---------------------------------------------------------------------------
+install_zsh_completions() {
+  ospkg__detect
+  if [[ "$_OSPKG_PKG_MNGR" == "brew" ]]; then
+    ospkg__install zsh-completions
+    return 0
+  fi
+
+  echo "ℹ️  Installing zsh-completions (git) → '${_ZSH_COMPLETIONS_PREFIX}'..." >&2
+  local _prev_umask
+  _prev_umask="$(umask)"
+  umask g-w,o-w
+  git__clone --url "$_ZSH_COMPLETIONS_REPO_URL" --dir "$_ZSH_COMPLETIONS_PREFIX"
+  umask "$_prev_umask"
+  echo "✅ zsh-completions ready (fpath: '${_ZSH_COMPLETIONS_SRC}')." >&2
   return 0
 }
 
@@ -656,7 +684,7 @@ fi
 
 if [[ "$INSTALL_ZSH_COMPLETIONS" == true ]] && command -v zsh > /dev/null 2>&1; then
   echo "📦 Installing zsh-completions..." >&2
-  ospkg__install zsh-completions
+  install_zsh_completions
 fi
 
 if [[ "$INSTALL_DIRENV" == true ]]; then
@@ -769,22 +797,25 @@ if command -v zsh > /dev/null 2>&1; then
   done
 
   # ===================================================================
-  # Step 5.5: Wire zsh-completions fpath (Homebrew only)
+  # Step 5.5: Wire zsh-completions fpath
   # ===================================================================
-  # On Homebrew, zsh-completions installs to a non-standard path that
-  # must be prepended to fpath before compinit runs.  The pre-compinit
-  # placeholder block is the correct injection site.
+  # Homebrew uses share/zsh-completions. Git installs use the repo's src/
+  # directory (same layout as upstream manual install and OBS packages).
   if [[ "$INSTALL_ZSH_COMPLETIONS" == true ]]; then
     _zshrc_dest="${_ZSH_ETC}/zshrc"
     if [ -f "$_zshrc_dest" ]; then
-      _brew_completions_fpath=""
-      # Detect brew prefix at runtime; no-op on non-brew systems.
-      _brew_completions_fpath="$(brew --prefix zsh-completions 2> /dev/null)/share/zsh-completions" || true
-      if [ -n "$_brew_completions_fpath" ] && [ -d "$_brew_completions_fpath" ]; then
+      _zsh_comp_fpath=""
+      _brew_zc="$(brew --prefix zsh-completions 2> /dev/null)" || true
+      if [ -n "$_brew_zc" ] && [ -d "${_brew_zc}/share/zsh-completions" ]; then
+        _zsh_comp_fpath="${_brew_zc}/share/zsh-completions"
+      elif [ -d "$_ZSH_COMPLETIONS_SRC" ]; then
+        _zsh_comp_fpath="$_ZSH_COMPLETIONS_SRC"
+      fi
+      if [ -n "$_zsh_comp_fpath" ]; then
         shell__write_block \
           --file "$_zshrc_dest" \
           --marker "install-shell-pre-compinit" \
-          --content "fpath=( '${_brew_completions_fpath}' \${fpath[@]} )"
+          --content "fpath=( '${_zsh_comp_fpath}' \${fpath[@]} )"
         echo "  ✅ zsh-completions fpath → ${_zshrc_dest}" >&2
       fi
     fi

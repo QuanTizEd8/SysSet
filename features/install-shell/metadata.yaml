@@ -168,6 +168,12 @@ options:
     description: |-
       Install [zsh-completions](https://github.com/zsh-users/zsh-completions).
       Adds extra completion definitions not yet in the zsh core.
+      With Homebrew this uses the `zsh-completions` formula. Otherwise the
+      repository is shallow-cloned to `/usr/local/share/zsh-completions` and
+      `fpath` includes its `src/` tree (matching upstream manual install).
+      Debian and Ubuntu packages are published via the project's
+      [Open Build Service repository](https://software.opensuse.org/download.html?project=shells%3Azsh-users%3Azsh-completions&package=zsh-completions),
+      which is not the same as default `apt` archives; this feature does not add that repo.
   install_direnv:
     type: boolean
     default: false

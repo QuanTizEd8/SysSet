@@ -9,8 +9,9 @@ source dev-container-features-test-lib
 check "bash-completion package installed" bash -c 'dpkg -s bash-completion >/dev/null 2>&1'
 check "bash-completion main script exists" test -f /usr/share/bash-completion/bash_completion
 
-# --- zsh-completions ---
-check "zsh-completions package installed" bash -c 'dpkg -s zsh-completions >/dev/null 2>&1'
+# --- zsh-completions (git install; default apt has no package; OBS builds exist upstream) ---
+check "zsh-completions src tree present" bash -c 'test -d /usr/local/share/zsh-completions/src && compgen -G "/usr/local/share/zsh-completions/src/_*" >/dev/null'
+check "zsh-completions fpath wired in system zshrc" bash -c 'grep -qF "/usr/local/share/zsh-completions/src" /etc/zsh/zshrc'
 
 # --- direnv and fzf not installed by default ---
 check "direnv not installed by default" bash -c '! command -v direnv'
