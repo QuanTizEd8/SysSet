@@ -1655,19 +1655,6 @@ procps:
     source: https://gitlab.com/procps-ng/procps
   notes: |
     Included in the [`common-utils`](https://github.com/devcontainers/features/blob/main/src/common-utils/main.sh) devcontainer feature.
-podman:
-  summary: Daemonless, rootless OCI container engine.
-  group: recommended
-  description: |
-    Podman is a daemonless container engine for developing, managing,
-    and running OCI containers. Unlike Docker, it requires no
-    background daemon and runs containers as the calling user (rootless),
-    making it safe to use inside a devcontainer without privileged mode.
-    Used here for running the openjournals/inara image to build JOSS papers.
-  url:
-    docs: https://docs.podman.io/
-    package: https://packages.ubuntu.com/noble/podman
-    source: https://github.com/containers/podman
 psmisc:
   summary: Utilities for managing processes on Unix systems.
   group: recommended
