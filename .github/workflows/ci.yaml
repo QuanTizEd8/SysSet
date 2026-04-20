@@ -274,16 +274,16 @@ jobs:
         include:
           - distro: debian
             image: debian:bookworm
-            install: apt-get update -qq && apt-get install -y --no-install-recommends bash ca-certificates git
+            install: apt-get update -qq && apt-get install -y --no-install-recommends bash ca-certificates git jq
           - distro: fedora
             image: fedora:latest
-            install: dnf install -y bash git
+            install: dnf install -y bash git jq
           - distro: rockylinux
             image: rockylinux:9
-            install: dnf install -y bash git
+            install: dnf install -y bash git jq
           - distro: alpine
             image: alpine:3.20
-            install: apk add --no-cache bash git
+            install: apk add --no-cache bash git jq
     steps:
       - name: "Checkout (with submodules)"
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
