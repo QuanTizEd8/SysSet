@@ -6,7 +6,7 @@
 # Uses the self-copy pattern (__deploy_self__, shared in install.tmpl.bash) so
 # lifecycle hook scripts and the entrypoint — which run long after the build
 # tarball is gone — can call back into a full copy of this feature with
-# complete DevFeats lib access. See __install_run__ / __install_finish_post__.
+# complete DevFeats lib access. See __install_run__ / __install_finish_post.
 
 # ============================================================================
 # Hooks
@@ -65,7 +65,7 @@ __install_run__() {
   fi
 }
 
-__install_finish_post__() {
+__install_finish_post() {
   # Write a lifecycle script + .conf file for each non-empty MANIFEST_* option.
   # At lifecycle time only the stage being applied is non-empty, so this loop
   # iterates zero times there — scripts are not re-written on every hook run.
@@ -117,8 +117,13 @@ EOF
       printf 'ADD_CURRENT_USER=%s\n' "$(posix__quote "$ADD_CURRENT_USER")"
       printf 'ADD_REMOTE_USER=%s\n' "$(posix__quote "$ADD_REMOTE_USER")"
       printf 'ADD_CONTAINER_USER=%s\n' "$(posix__quote "$ADD_CONTAINER_USER")"
+      # `|| true` on the LAST statement of this group: since the group's own
+      # exit status feeds a pipeline under `pipefail`, a false guard here
+      # (e.g. ADD_USERS unset) would otherwise make the whole pipeline "fail"
+      # and abort the script under `set -e` — even though nothing went wrong.
       [[ -n "${ADD_USERS:-}" ]] && printf 'ADD_USERS=%s\n' "$(posix__quote "$ADD_USERS")"
       [[ -n "${BACKUP:-}" ]] && printf 'BACKUP=%s\n' "$(posix__quote "$BACKUP")"
+      true
     } | file__tee "${_dest%.sh}.conf"
 
     logging__success "Registered lifecycle script: $(basename "$_dest")"
@@ -321,7 +326,12 @@ _apply_config() {
   local _i=-1 _entry
   while IFS= read -r _entry; do
     [[ -z "$_entry" ]] && continue
-    ((_i++))
+    # `(( expr ))` returns exit status 1 whenever expr evaluates to 0, and
+    # post-increment `_i++` evaluates to the PRE-increment value — so the
+    # moment _i is 0 (the second entry), `((_i++))` alone would return 1 and
+    # kill the whole script under `set -e`. The `|| true` guard matches the
+    # same fix already used for __dep_install_option_bound__'s _trigger_rows.
+    ((_i++)) || true
     local -a _f
     mapfile -d '' -t _f < <(json__query_multi "$_entry" \
       '.op' '.dest // ""' '.on_error // "abort"')

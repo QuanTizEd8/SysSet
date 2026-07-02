@@ -23,7 +23,15 @@ core_ops:
           chmod: '755'
         - op: create
           dest: /opt/sf-test/config.txt
-          content: ${greeting} world
+          # \${...}: the leading backslash is required to survive the
+          # devcontainer CLI's own option-value round-trip (it writes option
+          # values into a double-quoted shell string that gets sourced by the
+          # generated feature-install wrapper, which shell-expands any bare
+          # ${VAR} before setup-files ever sees it — confirmed via isolated
+          # reproduction against the actual devcontainer CLI). setup-files'
+          # own expander consumes exactly one layer of backslash-escaping,
+          # so \${greeting} arrives as literal ${greeting} for it to expand.
+          content: \${greeting} world
           chmod: '644'
         - op: inject
           dest: /opt/sf-test/config.txt
@@ -272,9 +280,11 @@ chmod_move_touch_variants:
           chmod: '640'
         - op: chmod
           dest: /opt/sf-cmt/does-not-exist.txt
+          chmod: '640'
           if_not_exists: skip
         - op: chmod
           dest: /opt/sf-cmt/does-not-exist-2.txt
+          chmod: '640'
           on_error: ignore
         - op: move
           src: /opt/sf-cmt/move-basic-src.txt
@@ -316,13 +326,18 @@ strict_vars_and_on_error:
   options:
     manifest: |
       files:
+        # \${...} here (not ${...}): see the core_ops "content: \${greeting}"
+        # comment above — a bare ${VAR} never reaches setup-files at all (the
+        # devcontainer CLI's own option round-trip strips it first), which
+        # would make this test pass vacuously regardless of whether
+        # strict_vars actually works.
         - op: create
           dest: /opt/sf-strict/strict-fail.txt
-          content: '${UNDEFINED_VAR_XYZ}'
+          content: '\${UNDEFINED_VAR_XYZ}'
           on_error: ignore
         - op: create
           dest: /opt/sf-strict/nonstrict-ok.txt
-          content: '${UNDEFINED_VAR_XYZ}'
+          content: '\${UNDEFINED_VAR_XYZ}'
           strict_vars: false
   tests: [strict_vars_and_on_error]
 
@@ -342,7 +357,8 @@ user_scoped:
           content: system
         - op: create
           dest: ~/.sf-theme
-          content: ${theme}
+          # \${theme}, not ${theme}: see core_ops's "content: \${greeting}" comment.
+          content: \${theme}
         - op: create
           dest: ~/.sf-explicit-list
           content: explicit
