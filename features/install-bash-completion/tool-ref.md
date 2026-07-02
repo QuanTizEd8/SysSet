@@ -489,6 +489,40 @@ The source method supports both system-wide and per-user installations:
 - Standard Autotools options (`--sysconfdir`, `--datadir`) control where
   specific components are installed (see [Installation Path](#installation-path))
 
+#### Post-Installation Steps and Cleanup
+
+Same as the package manager method. The profile.d script is installed to
+`$sysconfdir/profile.d/bash_completion.sh`. If `$sysconfdir/profile.d/` is not
+automatically sourced by the system, add sourcing to `~/.bashrc` or
+`/etc/bashrc`.
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+To switch versions: download the desired release tarball and repeat the
+configure/make/make-install cycle. The new version will overwrite the previous
+installation files.
+
+##### Uninstallation
+
+From the source directory (if it still exists):
+```sh
+make uninstall   # Requires root if installed with sudo make install
+```
+
+Without the source tree, files must be removed manually:
+```sh
+rm -rf /usr/local/share/bash-completion
+rm -f /usr/local/etc/profile.d/bash_completion.sh
+```
+
+##### Idempotency
+
+Running `make install` multiple times will overwrite the previous installation
+with the same version (or a new one). It is idempotent in that sense — the
+same files are overwritten with identical content.
+
 #### Details
 
 The build process uses GNU Autotools with the following key characteristics:
@@ -523,40 +557,6 @@ The build process uses GNU Autotools with the following key characteristics:
    substitutions (Autotools standard), where placeholders like `@datadir@`,
    `@PACKAGE@`, `@prefix@`, `@sysconfdir@`, and `@VERSION@` are replaced
    at configure time.[^src-profiled][^makefile-am]
-
-#### Post-Installation Steps and Cleanup
-
-Same as the package manager method. The profile.d script is installed to
-`$sysconfdir/profile.d/bash_completion.sh`. If `$sysconfdir/profile.d/` is not
-automatically sourced by the system, add sourcing to `~/.bashrc` or
-`/etc/bashrc`.
-
-#### Changing Versions and Uninstallation
-
-##### Upgrading/Downgrading
-
-To switch versions: download the desired release tarball and repeat the
-configure/make/make-install cycle. The new version will overwrite the previous
-installation files.
-
-##### Uninstallation
-
-From the source directory (if it still exists):
-```sh
-make uninstall   # Requires root if installed with sudo make install
-```
-
-Without the source tree, files must be removed manually:
-```sh
-rm -rf /usr/local/share/bash-completion
-rm -f /usr/local/etc/profile.d/bash_completion.sh
-```
-
-##### Idempotency
-
-Running `make install` multiple times will overwrite the previous installation
-with the same version (or a new one). It is idempotent in that sense — the
-same files are overwritten with identical content.
 
 #### Notes and Best Practices
 
@@ -601,8 +601,18 @@ brew install bash-completion@2
 After installation, Homebrew prints:
 ```
 Add the following line to your ~/.bash_profile:
-  [[ -r "$(brew --prefix)/etc/profile.d/bash_completion.sh" ]] && . "$(brew --prefix)/etc/profile.d/bash_completion.sh"
+  [[ -r "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh" ]] && . "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh"
 ```[^brew-caveats]
+
+#### Installation Verification
+
+```sh
+# Verify the main file was installed
+test -f "$(brew --prefix)/share/bash-completion/bash_completion" && echo "installed"
+
+# Check version via pkg-config
+pkg-config --modversion bash-completion
+```
 
 #### Configuration Options
 
@@ -641,30 +651,13 @@ The `--HEAD` variant (see [Version Selection](#version-selection)) is the
 primary configuration option. No other tool-specific configure flags are
 exposed through the Homebrew formula.
 
-#### Details
+```sh
+# Verify the main file was installed
+test -f "$(brew --prefix)/share/bash-completion/bash_completion" && echo "installed"
 
-The Homebrew formula performs the following steps during installation:
-
-1. **Patches the `bash_completion` source**: The formula replaces
-   `readlink -f` with `readlink` on macOS versions <= Monterey (where
-   `readlink -f` is unsupported). It also replaces the default compat
-   directory path `(/etc/bash_completion.d)` with the Homebrew prefix path
-   `($HOMEBREW_PREFIX/etc/bash_completion.d)` so that legacy v1 completions
-   in the Homebrew prefix are automatically picked up.[^brew-formula-code]
-
-2. **Builds from source**: Uses `autoreconf` if building from HEAD, then
-   `./configure` with standard Homebrew options (`--prefix=$HOMEBREW_PREFIX`),
-   and finally `make install`.
-
-3. **Installs to Homebrew prefix**: All files are installed under
-   `$(brew --prefix)` (typically `/opt/homebrew` on Apple Silicon or
-   `/usr/local` on Intel):
-   - `$HOMEBREW_PREFIX/share/bash-completion/bash_completion`
-   - `$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh`
-   - `$HOMEBREW_PREFIX/share/bash-completion/completions/`
-
-4. **Caveats**: After installation, a caveat is printed directing the user
-   to manually add the sourcing line to their shell profile.[^brew-caveats]
+# Check version via pkg-config
+pkg-config --modversion bash-completion
+```
 
 #### Post-Installation Steps and Cleanup
 
@@ -748,6 +741,31 @@ This removes all installed files but leaves user configuration files (e.g.,
 Running `brew install bash-completion@2` when already installed is a no-op
 (Homebrew's default behavior). To force reinstallation: `brew reinstall
 bash-completion@2`.
+
+#### Details
+
+The Homebrew formula performs the following steps during installation:
+
+1. **Patches the `bash_completion` source**: The formula replaces
+   `readlink -f` with `readlink` on macOS versions <= Monterey (where
+   `readlink -f` is unsupported). It also replaces the default compat
+   directory path `(/etc/bash_completion.d)` with the Homebrew prefix path
+   `($HOMEBREW_PREFIX/etc/bash_completion.d)` so that legacy v1 completions
+   in the Homebrew prefix are automatically picked up.[^brew-formula-code]
+
+2. **Builds from source**: Uses `autoreconf` if building from HEAD, then
+   `./configure` with standard Homebrew options (`--prefix=$HOMEBREW_PREFIX`),
+   and finally `make install`.
+
+3. **Installs to Homebrew prefix**: All files are installed under
+   `$(brew --prefix)` (typically `/opt/homebrew` on Apple Silicon or
+   `/usr/local` on Intel):
+   - `$HOMEBREW_PREFIX/share/bash-completion/bash_completion`
+   - `$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh`
+   - `$HOMEBREW_PREFIX/share/bash-completion/completions/`
+
+4. **Caveats**: After installation, a caveat is printed directing the user
+   to manually add the sourcing line to their shell profile.[^brew-caveats]
 
 #### Notes and Best Practices
 
