@@ -667,9 +667,8 @@ No `sudo` is required, as gah installs to `$HOME/.local/bin`.
 #### Dependencies
 
 - **C++ compiler** (GCC, Clang, MSVC, etc.)
-- **CMake** (3.x)
+- **CMake** (3.16+)
 - **Git** (to clone the repository)
-- **Development libraries**: `libcurl-dev`, `openssl-dev`, `zlib-ng-dev` (platform-dependent)
 
 #### Installation Steps
 
