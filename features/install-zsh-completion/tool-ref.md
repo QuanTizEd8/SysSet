@@ -286,12 +286,14 @@ re-run `compinit` to ensure the new completion files are properly registered.
 
 ##### Idempotency
 
-Running the Git clone multiple times is idempotent:
-- If the directory already exists, `git clone` will fail (non-idempotent).
-- However, `git pull` in the existing directory will update to the latest version.
-- In automated scripts, checking for the existence of the directory and either
-  skipping or updating (`git pull --ff-only`) is the recommended approach.
-- Re-adding the same `fpath` entries has no harmful side effects.
+The `git clone` command itself is **not** idempotent — if the target directory
+already exists, `git clone` will exit with an error and refuse to overwrite it.
+To achieve idempotent installation in automated scripts:
+- Before cloning, check if the directory exists. If it does, either skip the
+  clone (leaving the existing installation in place) or update it with
+  `git pull --ff-only` to bring it up to date.
+- Adding the same `fpath` entries repeatedly has no harmful side effects.
+- Deleting and re-creating the `.zcompdump` cache is also idempotent.
 
 #### Notes and Best Practices
 
@@ -467,6 +469,29 @@ To force reinstallation: `brew reinstall zsh-completions`.
   rather than `$(brew --prefix)/share/zsh/site-functions` to avoid conflicts with
   completions installed by other formulae.[^brew-formula-code]
 
+#### Details
+
+The Homebrew formula performs the following steps during installation:
+
+1. **Downloads the release tarball** from GitHub for the specified version.
+2. **Applies two `inreplace` patches** to fix hardcoded paths in upstream
+   completion scripts that assume `/usr/local` as the prefix:[^brew-formula-code]
+   - `src/_ghc`: replaces `/usr/local` with `HOMEBREW_PREFIX` (the GHC
+     completion script searches for GHC-installed packages at this path).
+   - `src/_gio`: replaces `/usr/local/share` with `HOMEBREW_PREFIX/share`
+     (the GLib I/O completion script looks for MIME and icon data there).
+3. **Installs to `pkgshare`** — The completions are installed to
+   `$(brew --prefix)/share/zsh-completions/` rather than
+   `$(brew --prefix)/share/zsh/site-functions/`. This avoids conflicts with
+   completions from other Homebrew formulae that also install to
+   `site-functions/`. The decision was made in
+   [Homebrew/homebrew-core#126586](https://github.com/Homebrew/homebrew-core/pull/126586).[^brew-formula-code]
+4. **Prints caveats** after installation with instructions for adding the
+   `FPATH` line to `~/.zshrc` and fixing directory permissions if needed.[^brew-caveats]
+
+The formula has no build-time dependencies beyond what Homebrew provides;
+it ships as a bottle (precompiled binary package) for all supported platforms.
+
 ### OS Package Manager
 
 zsh-completions is available in the official repositories of several Linux
@@ -484,7 +509,7 @@ distributions and via the Open Build Service (OBS) for others.
 | NixOS | `zsh-completions`[^nixos-pkg] |
 | Void Linux | `zsh-completions`[^void-pkg] |
 | Slackware | [Slackbuilds](https://slackbuilds.org/repository/14.2/system/zsh-completions/) |
-| macOS | Homebrew and MacPorts |
+| macOS | Homebrew[^brew-formula-code] |
 | NetBSD | `pkgsrc`[^netbsd-pkg] |
 | FreeBSD | `shells/zsh-completions`[^freebsd-pkg] |
 
@@ -515,11 +540,12 @@ those distributions.[^readme]
 pacman -S zsh-completions
 ```
 
-**Debian/Ubuntu (via OBS):**
+**Debian/Ubuntu, Fedora/CentOS/RHEL, openSUSE (via OBS):**
 
-Follow the instructions at
+Follow the instructions for your distribution at
 <https://software.opensuse.org/download.html?project=shells%3Azsh-users%3Azsh-completions&package=zsh-completions>.
-The general approach is:
+The OBS download page provides distribution-specific setup commands. As an
+example, the general approach for Debian/Ubuntu is:
 
 ```sh
 # Add the OBS repository (specific commands vary by distribution)
@@ -561,8 +587,16 @@ ls /usr/share/zsh/site-functions/_afew 2>/dev/null && echo "installed"
 ls /usr/share/zsh-completions/ 2>/dev/null && echo "installed via alternate path"
 ```
 
+> **NixOS note**: Packages on NixOS are installed to the Nix store
+> (`/nix/store/<hash>-zsh-completions-0.36.0/share/zsh/site-functions/`),
+> which is not at `/usr/share/zsh/site-functions/`. The generic path check
+> will not work on NixOS. Instead, use `nix-env -q zsh-completions` or check
+> `nix profile list | grep zsh-completions` (depending on your Nix setup).
+> **FreeBSD**: The package installs to `/usr/local/share/zsh/site-functions/`.
+
 The exact installation path varies by distribution:
 - **Arch Linux**: `/usr/share/zsh/site-functions/`
+- **FreeBSD**: `/usr/local/share/zsh/site-functions/`[^freebsd-pkg]
 - **Other distributions using OBS**: may vary
 
 #### Configuration Options
@@ -578,6 +612,7 @@ Determined by the distribution's packaging conventions:
 - **Arch Linux**: Installs to `/usr/share/zsh/site-functions/` (which is already
   in the default `fpath` of most Zsh installations, making the package effectively
   zero-configuration)
+- **FreeBSD**: Installs to `/usr/local/share/zsh/site-functions/`[^freebsd-pkg]
 - **OBS packages**: Installation path varies
 
 ##### User Targeting
@@ -624,8 +659,8 @@ No persistent environment variables need to be set.
 
 ##### Activation Scripts
 
-Some distributions may include a profile.d script or an `zsh`-compat file that
-automatically configures `fpath`. Check the package contents for such files.
+No activation scripts need to be sourced. The `fpath` configuration and
+`compinit` call in the user's shell startup files handle initialization.
 
 ##### Shell Completions
 
@@ -703,7 +738,7 @@ git clone https://github.com/zsh-users/zsh-completions.git \
 Then in `~/.zshrc`, **before** sourcing `oh-my-zsh.sh`:
 ```sh
 fpath+=${ZSH_CUSTOM:-${ZSH:-~/.oh-my-zsh}/custom}/plugins/zsh-completions/src
-autoload -U compinit && compinit
+  autoload -Uz compinit && compinit
 source "$ZSH/oh-my-zsh.sh"
 ```
 
