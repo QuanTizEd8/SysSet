@@ -543,7 +543,7 @@ The binary is installed into the Python environment's `bin` directory (e.g., wit
 
 #### Supported Platforms
 
-- **Linux** (amd64): Snap packages are available for the amd64 architecture. ARM64 Snap packages may also be available depending on the release.[^release-v1600]
+- **Linux** (amd64): Snap packages are available for the amd64 architecture.[^release-v1600]
 
 #### Dependencies
 
@@ -630,7 +630,7 @@ No `sudo` is required, as mise installs to user-local directories.
 
 ### gah
 
-[gah](https://github.com/marverix/gah) is a third-party tool for installing Go-based applications, including the JSON Schema CLI.
+[gah](https://github.com/get-gah/gah) is a third-party tool for installing applications distributed via GitHub Releases, including the JSON Schema CLI. It does not require `sudo` and installs binaries to `~/.local/bin`.[^readme]
 
 #### Supported Platforms
 
