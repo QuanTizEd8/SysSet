@@ -9,7 +9,7 @@
 
 ## Tool Architecture
 
-`act` is a single, self-contained CLI binary written in [Go](https://go.dev/) (with `CGO_ENABLED=0`, producing a fully statically linked executable).[^goreleaser] It does not depend on any interpreted runtime (e.g., JVM, Node.js, Python) to function.[^goreleaser][^go-mod]
+`act` is a single, self-contained CLI binary written in [Go](https://go.dev/) (with `CGO_ENABLED=0`, producing a fully statically linked executable).[^goreleaser] It does not depend on any interpreted runtime (e.g., JVM, Node.js, Python) to function.[^goreleaser][^go-mod] The official documentation states Go toolchain 1.18+ is required to build from source, while the README states 1.20+.[^docs-install][^readme-build]
 
 The tool is **standalone** — it does not have a client-server architecture and does not require a running daemon or background service. It communicates with a container runtime via the [Docker Engine API](https://docs.docker.com/engine/api/).[^docs-install] The container runtime (Docker Engine or any Docker Engine API-compatible host) must be available at a socket address specified by the `DOCKER_HOST` environment variable (defaults to the local Docker daemon socket).[^docs-custom-engine]
 
@@ -32,7 +32,7 @@ The `install.sh` bash script downloads the correct pre-compiled binary and SHA25
 
 #### Supported Platforms
 
-Based on the goreleaser configuration and the install script's `get_binaries()` function, pre-built binaries are available for the following platforms:[^goreleaser][^install-sh-get-binaries]
+Based on the goreleaser configuration and the install script's `get_binaries()` function, pre-built binaries are available for the following platforms:[^goreleaser][^install-sh]
 
 - **Linux**: `amd64` (x86_64), `arm64` (aarch64), `i386` (x86), `armv6`, `armv7`
 - **macOS**: `amd64` (x86_64), `arm64` (Apple Silicon), `i386`
@@ -40,7 +40,7 @@ Based on the goreleaser configuration and the install script's `get_binaries()` 
 
 The binaries are statically linked, so they do not require any platform-specific system libraries to execute.[^goreleaser]
 
-> **Note**: The goreleaser configuration also lists `riscv64` in `goarch`, but the install script (`install.sh`) does not currently handle `linux/riscv64` — it would fall through to the unsupported-platform error handler.[^install-sh-get-binaries][^goreleaser]
+> **Note**: The goreleaser configuration also lists `riscv64` in `goarch`, but the install script (`install.sh`) does not currently handle `linux/riscv64` — it would fall through to the unsupported-platform error handler.[^install-sh][^goreleaser]
 
 #### Dependencies
 
@@ -59,14 +59,14 @@ The binaries are statically linked, so they do not require any platform-specific
 
 The `install.sh` script performs the following steps:[^install-sh]
 
-1. **Parse arguments**: Supports `-b <bindir>` for installation directory, `-d` for debug logging, `-f` for force install (skip version checks), and an optional tag argument.[^install-sh-parse-args]
-2. **Determine platform**: Uses `uname -s` and `uname -m` to detect the operating system and CPU architecture, converting them to Go-style OS/ARCH values (e.g., `linux`/`amd64`).[^install-sh-uname]
+1. **Parse arguments**: Supports `-b <bindir>` for installation directory, `-d` for debug logging, `-f` for force install (skip version checks), and an optional tag argument.
+2. **Determine platform**: Uses `uname -s` and `uname -m` to detect the operating system and CPU architecture, converting them to Go-style OS/ARCH values (e.g., `linux`/`amd64`).
 3. **Get binaries**: Calls `get_binaries()` which validates the platform and sets the binary name (always `act`).
-4. **Resolve version**: If no tag is specified, fetches the latest release tag from GitHub's Releases API. Otherwise, validates the specified tag exists.[^install-sh-tag]
-5. **Check installed version**: If `act` is already installed and `-f` is not specified, compares the installed version with the target version and skips installation if they match.[^install-sh-check-version]
-6. **Construct download URLs**: Builds the archive name using the pattern `act_<OS>_<ARCH>.tar.gz` (or `.zip` for Windows) and constructs the download URL: `https://github.com/nektos/act/releases/download/<TAG>/<ARCHIVE>`.[^install-sh-urls]
-7. **Download and verify**: Downloads the archive and the `checksums.txt` file, then verifies the archive's SHA256 hash against the checksum file.[^install-sh-verify]
-8. **Extract and install**: Extracts the archive to a temporary directory using `tar` (or `unzip` on Windows), then copies the `act` binary to the specified bindir using `install -d` and `install` (or the Windows equivalent).[^install-sh-extract]
+4. **Resolve version**: If no tag is specified, fetches the latest release tag from GitHub's Releases API. Otherwise, validates the specified tag exists.
+5. **Check installed version**: If `act` is already installed and `-f` is not specified, compares the installed version with the target version and skips installation if they match.
+6. **Construct download URLs**: Builds the archive name using the pattern `act_<OS>_<ARCH>.tar.gz` (or `.zip` for Windows) and constructs the download URL: `https://github.com/nektos/act/releases/download/<TAG>/<ARCHIVE>`.
+7. **Download and verify**: Downloads the archive and the `checksums.txt` file, then verifies the archive's SHA256 hash against the checksum file.
+8. **Extract and install**: Extracts the archive to a temporary directory using `tar` (or `unzip` on Windows), then copies the `act` binary to the specified bindir using `install -d` and `install` (or the Windows equivalent).
 
 The recommended command for a system-wide installation is:[^docs-install]
 
@@ -96,9 +96,9 @@ act --version
 
 Expected output format: `act version 0.2.89` (version number matching the installed release).
 
-The SHA256 checksum of the downloaded archive is verified against the `checksums.txt` file from the same release before extraction, ensuring integrity.[^install-sh-verify] There is no GPG signature verification.
+The SHA256 checksum of the downloaded archive is verified against the `checksums.txt` file from the same release before extraction, ensuring integrity.[^install-sh] There is no GPG signature verification.
 
-The install script also performs a version check if `act` is already in PATH: it extracts the version via `act --version | cut -d' ' -f3` and compares it with the target version. If they match and `-f` (force) is not set, the script exits early without re-downloading.[^install-sh-check-version]
+The install script also performs a version check if `act` is already in PATH: it extracts the version via `act --version | cut -d' ' -f3` and compares it with the target version. If they match and `-f` (force) is not set, the script exits early without re-downloading.[^install-sh]
 
 #### Configuration Options
 
@@ -110,7 +110,7 @@ Version can also be selected by using package managers that support version pinn
 
 ##### Installation Path
 
-The installation directory can be specified with the `-b` flag. Default: `./bin` (relative to the current working directory).[^install-sh-parse-args] For system-wide installation, the recommended usage is `sudo bash install.sh` which installs to the default `./bin` — but typical practice is to pipe to `sudo bash` without `-b`, which also defaults to `./bin` in the current directory (when executing via curl pipe, the default `./bin` is relative to the invoking user's home, so `sudo` is used to write to a privileged location). The recommended approach for system-wide installation without explicit `-b` is:
+The installation directory can be specified with the `-b` flag. Default: `./bin` (relative to the current working directory).[^install-sh] For system-wide installation, the recommended usage is `sudo bash install.sh` which installs to the default `./bin` — but typical practice is to pipe to `sudo bash` without `-b`, which also defaults to `./bin` in the current directory (when executing via curl pipe, the default `./bin` is relative to the invoking user's home, so `sudo` is used to write to a privileged location). The recommended approach for system-wide installation without explicit `-b` is:
 
 ```shell
 sudo bash install.sh -b /usr/local/bin
@@ -132,16 +132,19 @@ Or simply piping to `sudo bash` places the binary in `/root/bin` when run via `s
 
 `act` supports several configuration mechanisms at runtime:[^docs-usage]
 
-- **`.actrc` file**: A configuration file that `act` reads for default CLI flags. Located by default at `~/.actrc`. Each line should contain a CLI flag as it would be passed on the command line. Example:[^readme-actrc]
+- **`.actrc` file**: A configuration file that `act` reads for default CLI flags. `act` searches for `.actrc` in the following order (all found arguments are appended):
+  1. XDG config directory (e.g., `~/.config/act/actrc` on Linux, or the macOS/Windows equivalent via the [adrg/xdg](https://github.com/adrg/xdg) library)
+  2. `~/.actrc` in the user's home directory
+  3. `./.actrc` in the invocation directory
+  Each line should contain a CLI flag as it would be passed on the command line, and supports environment variable expansion via `os.ExpandEnv`. Example:[^cmd-root-config-locations]
   ```
   -P ubuntu-latest=catthehacker/ubuntu:act-latest
   --container-architecture linux/amd64
   ```
 - **Environment variables**:
   - `DOCKER_HOST`: Override the Docker Engine API socket. Useful for using a remote Docker host or a different container engine (e.g., `DOCKER_HOST='unix:///var/run/podman/podman.sock'`). Note that podman is not officially supported but may work.[^docs-custom-engine][^docs-install]
-  - `ACT_PROGRESS_OUTPUT`: Set to a path where progress output is written (used for programmatic consumption).
-  - `ACTIONS_STEP_DEBUG`: Set to `true` to enable step debug logging.
-  - `GITHUB_TOKEN`: Sets the GitHub token to use for API requests (e.g., when using actions that need to authenticate to GitHub).
+  - `ACT`: Set to `"true"` by `act` in the workflow runner environment. Workflow steps can use this to conditionally skip steps during local runs (e.g., `if: ${{ !env.ACT }}`).[^src-run-context]
+- **Secrets**: Passed via `-s` or `--secret` flag (e.g., `-s GITHUB_TOKEN=ghp_xxx`). If `GITHUB_TOKEN` is not provided as a secret, `act` attempts to obtain it from the GitHub CLI (`gh`) automatically.[^cmd-root]
 - **CLI flags**: See `act --help` for the full list. Key flags include:
   - `-P, --platform <platform>=<image>`: Specify the Docker image to use for a given runner platform.
   - `-W, --workflows <path>`: Path to workflow files (default `.github/workflows`).
@@ -149,11 +152,10 @@ Or simply piping to `sudo bash` places the binary in `/root/bin` when run via `s
   - `-s, --secret <key>=<value>`: Pass secrets to the workflow.
   - `--env <key>=<value>`: Pass environment variables to the workflow.
   - `--pull <boolean>`: Whether to pull the Docker image before running (default `true`).
-  - `--action-offline-mode`: Use action cache without pulling.
+  - `--action-offline-mode`: If action cache contents already exist locally, do not re-fetch or re-pull them; still pulls actions and images not yet cached.
   - `--container-options <options>`: Pass additional options to Docker when creating containers.
   - `--artifact-server-path <path>`: Path to store workflow artifacts.
-
-The official documentation provides a full schema and documentation of all options at <https://nektosact.com/usage/schema.html>[^docs-schema]
+  - `--list-options`: Print a JSON structure of all available flags and their defaults.[^cmd-root]
 
 #### Post-Installation Steps and Cleanup
 
@@ -172,8 +174,8 @@ export PATH="${HOME}/.local/bin:${PATH}"
 
 ##### Configuration Files
 
-- **`~/.actrc`**: `act` reads this file automatically if it exists. It can contain default CLI options, one per line. This file is not created by the installer and is entirely optional.
-- **`.env.act`**: A dotenv file that can be referenced via `act --env-file .env.act` to inject environment variables into workflow runs.
+- **`.actrc`**: `act` searches for `.actrc` files in the XDG config directory (`~/.config/act/actrc`), the user's home directory (`~/.actrc`), and the invocation directory (`./.actrc`), in that order.[^cmd-root-config-locations] Each file can contain default CLI options, one per line, with environment variable expansion. These files are not created by the installer and are entirely optional.
+- **`.env` / `.env.act`**: Dotenv files that can be referenced via `act --env-file .env` to inject environment variables into workflow runs. Default file name is `.env`.
 
 ##### Environment Variables
 
@@ -185,7 +187,7 @@ No activation scripts are required. `act` is a standalone binary that can be inv
 
 ##### Shell Completions
 
-`act` does not ship shell completion files. Completions can be generated using the tool's built-in help system:[^docs-usage]
+`act` does not ship shell completion files. Completions can be generated using `act`'s built-in `completion` subcommand (provided by the [spf13/cobra](https://github.com/spf13/cobra) framework that `act` uses), which supports bash, zsh, fish, and powershell:[^verified-completions]
 
 ```shell
 act completion bash > /etc/bash_completion.d/act
@@ -198,13 +200,13 @@ These commands must be run after installation; completion files are not installe
 
 ##### Cleanup
 
-The install script creates a temporary directory with `mktemp -d` for downloading and extracting archives. This directory is removed with `rm -rf "${tmpdir}"` at the end of the `execute()` function.[^install-sh-execute] No cleanup is required by the user.
+The install script creates a temporary directory with `mktemp -d` for downloading and extracting archives. This directory is removed with `rm -rf "${tmpdir}"` at the end of the `execute()` function.[^install-sh] No cleanup is required by the user.
 
 #### Changing Versions and Uninstallation
 
 ##### Upgrading/Downgrading
 
-- **Bash script**: Re-run the install script with the desired tag. The script will detect the existing version via `act --version` and update the binary if the versions differ. Use `-f` to force re-installation even if the same version is already installed.[^install-sh-check-version]
+- **Bash script**: Re-run the install script with the desired tag. The script will detect the existing version via `act --version` and update the binary if the versions differ. Use `-f` to force re-installation even if the same version is already installed.[^install-sh]
 - **Manual download**: Download and extract the desired version's archive to the same installation directory, overwriting the existing binary.
 - **Package managers**: Use the package manager's upgrade mechanism (e.g., `brew upgrade act`, `choco upgrade act-cli`).
 
@@ -219,7 +221,7 @@ The install script creates a temporary directory with `mktemp -d` for downloadin
 
 ##### Idempotency
 
-The Bash install script is idempotent: if the target version is already installed (detected via `act --version`), it exits successfully without re-downloading or re-installing. Use the `-f` flag to force re-installation.[^install-sh-check-version]
+The Bash install script is idempotent: if the target version is already installed (detected via `act --version`), it exits successfully without re-downloading or re-installing. Use the `-f` flag to force re-installation.[^install-sh]
 
 #### Details
 
@@ -227,18 +229,18 @@ The `install.sh` script is based on code originally generated by [godownloader](
 
 **Version resolution**: When no tag is provided, the script fetches `https://github.com/nektos/act/releases/latest` with an `Accept: application/json` header, then extracts the `tag_name` field from the JSON response using `sed`.[^install-sh]
 
-**Archive naming convention**: Archives follow the pattern `act_<OS>_<ARCH>.tar.gz` (or `.zip` for Windows). For example, `act_Linux_x86_64.tar.gz`. The OS and ARCH names are title-cased (e.g., `Linux`, `Darwin`, `Windows`, `x86_64`, `arm64`).[^install-sh-adjust][^goreleaser-checksum]
+**Archive naming convention**: Archives follow the pattern `act_<OS>_<ARCH>.tar.gz` (or `.zip` for Windows). For example, `act_Linux_x86_64.tar.gz`. The OS and ARCH names are title-cased (e.g., `Linux`, `Darwin`, `Windows`, `x86_64`, `arm64`).[^install-sh][^goreleaser]
 
-**Checksum verification**: The `checksums.txt` file is downloaded from the same release URL, and the SHA256 checksum of the downloaded archive is computed and compared against the expected value. If they do not match, the script fails with an error message.[^install-sh-verify]
+**Checksum verification**: The `checksums.txt` file is downloaded from the same release URL, and the SHA256 checksum of the downloaded archive is computed and compared against the expected value. If they do not match, the script fails with an error message.[^install-sh]
 
-**Binary directory creation**: The script uses `install -d "${BINDIR}"` to create the target directory if it does not exist, then copies the binary with `install "${srcdir}/${binexe}" "${BINDIR}/"`, which preserves executable permissions.[^install-sh-execute]
+**Binary directory creation**: The script uses `install -d "${BINDIR}"` to create the target directory if it does not exist, then copies the binary with `install "${srcdir}/${binexe}" "${BINDIR}/"`, which preserves executable permissions.[^install-sh]
 
 #### Notes and Best Practices
 
 - **Docker requirement**: `act` requires a running Docker daemon (or Docker Engine API-compatible host) to execute workflow steps in containers. In devcontainer environments, the Docker socket must be mounted into the container for `act` to work. Without Docker access, `act` can only run workflows that use `-self-hosted` runners for the host platform.[^docs-install][^docs-runners]
 - **Self-hosted runners**: For macOS or Windows jobs, `act` can run them directly on the host system (without Docker) by using `-P <platform>=-self-hosted`. This is useful in environments where Docker is not available or desired.[^docs-runners]
 - **Podman compatibility**: `act` supports the Docker Engine API via `DOCKER_HOST`. Podman's socket is compatible with the Docker Engine API, so `export DOCKER_HOST='unix:///var/run/podman/podman.sock'` may work, but it is not officially tested or supported.[^docs-custom-engine][^docs-install]
-- **Default runner images**: The default Docker images used by `act` (e.g., `catthehacker/ubuntu:act-latest`) are intentionally minimal and do not contain all tools available in GitHub's hosted runners. For a more complete environment, use `catthehacker/ubuntu:full-latest` (~18GB) or build custom images.[^docs-runners]
+- **Default runner images**: The default Docker image depends on the image size chosen during the first run. `act` uses a survey to let users pick between three sizes: **Micro** (`node:16-buster-slim`, <200MB), **Medium** (`catthehacker/ubuntu:act-latest`, ~500MB), and **Large** (`catthehacker/ubuntu:full-latest`, ~18GB). The Medium image is the default. None of these images contain all tools from GitHub's hosted runners; they are intentionally minimal. For a more complete environment, use the Large image or build custom images.[^docs-runners]
 - **Security**: Running `curl ... | sudo bash` is a common pattern but carries inherent risks. Review the script before execution, or download and inspect it first:
   ```shell
   curl -LO https://raw.githubusercontent.com/nektos/act/master/install.sh
@@ -256,7 +258,7 @@ All platforms supported by Go. The build has been tested on Linux, macOS, and Wi
 
 #### Dependencies
 
-- Go toolchain 1.20+ (the project uses `go 1.25.0` as of the latest release).[^go-mod][^readme-build]
+- Go toolchain 1.18+ (per official docs) or 1.20+ (per README).[^docs-install][^readme-build] The project uses `go 1.25.0` as of the latest release.[^go-mod]
 - `git` (for cloning the repository and embedding version information).
 
 #### Installation Steps
@@ -281,7 +283,7 @@ To install the binary system-wide:
 make install
 ```
 
-This copies the binary to `$(PREFIX)/bin/act` (default prefix: `/usr/local`), sets permissions to 755, and prints the version.[^makefile-install]
+This copies the binary to `$(PREFIX)/bin/act` (default prefix: `/usr/local`), sets permissions to 755, and prints the version.[^makefile]
 
 #### Installation Verification
 
@@ -394,9 +396,9 @@ When installing `act` in a development container (devcontainer), the following c
    ```
    The `docker-outside-of-docker` feature ensures the Docker CLI is available and properly configured in the container.
 
-2. **act inside a devcontainer**: When running `act` inside a devcontainer, the workflows it executes will run in sibling containers on the host (not nested inside the devcontainer). This is because `/var/run/docker.sock` is mounted from the host.[^issue-dind]
+2. **act inside a devcontainer**: When running `act` inside a devcontainer, the workflows it executes will run in sibling containers on the host (not nested inside the devcontainer). This is because `/var/run/docker.sock` is mounted from the host.
 
-3. **Docker-in-Docker considerations**: If using `act` with actions that themselves use Docker (e.g., `devcontainers/ci`), special handling is required because `act` mounts the workspace from the host filesystem, but the workspace inside the devcontainer's Docker container is at a different path. The `--container-options --privileged` flag and starting a Docker-in-Docker daemon may be necessary.[^issue-dind]
+3. **Docker-in-Docker considerations**: If using `act` with actions that themselves use Docker (e.g., `devcontainers/ci`), there is a known issue: `act` copies/mounts the workspace into the action's container from the host filesystem, but `devcontainers/ci` creates a sibling container that expects the workspace to be at a different path. As a workaround, users have reported success by starting a Docker-in-Docker daemon inside the `act`-managed container (using `--container-options --privileged`) and pointing `DOCKER_HOST` to the inner daemon socket.[^issue-2095]
 
 4. **Permissions**: The container user must have permission to access the Docker socket. This is typically handled by the `docker-outside-of-docker` feature, which adds the user to the `docker` group.
 
@@ -428,27 +430,18 @@ A GitHub CLI extension that wraps `act` for use as a `gh` subcommand.[^gh-act]
 
 [^readme]: [nektos/act README – Overview, how it works, building from source](https://github.com/nektos/act/blob/master/README.md)
 [^docs-intro]: [Official Documentation – Introduction](https://nektosact.com/introduction.html)
-[^docs-install]: [Official Documentation – Installation (prerequisites, all methods)](https://nektosact.com/installation/)
+[^docs-install]: [Official Documentation – Installation (prerequisites, all methods, Go 1.18+)](https://nektosact.com/installation/)
 [^docs-usage]: [Official Documentation – Usage Guide](https://nektosact.com/usage/)
 [^docs-runners]: [Official Documentation – Runners (default images, alternative images, self-hosted)](https://nektosact.com/usage/runners.html)
 [^docs-custom-engine]: [Official Documentation – Custom Container Engine (DOCKER_HOST, podman, SSH)](https://nektosact.com/usage/custom_engine.html)
-[^docs-schema]: [Official Documentation – Schema (all CLI options)](https://nektosact.com/usage/schema.html)
-[^install-sh]: [Install Script (install.sh) – Full source code](https://github.com/nektos/act/blob/master/install.sh)
-[^install-sh-parse-args]: [Install Script – Argument parsing (bindir, debug, force, tag)](https://github.com/nektos/act/blob/master/install.sh#L19-L32)
-[^install-sh-get-binaries]: [Install Script – get_binaries() supported platforms](https://github.com/nektos/act/blob/master/install.sh#L46-L64)
-[^install-sh-uname]: [Install Script – OS and ARCH detection](https://github.com/nektos/act/blob/master/install.sh#L210-L240)
-[^install-sh-tag]: [Install Script – tag_to_version() resolving latest release](https://github.com/nektos/act/blob/master/install.sh#L66-L76)
-[^install-sh-check-version]: [Install Script – check_installed_version() idempotency logic](https://github.com/nektos/act/blob/master/install.sh#L103-L120)
-[^install-sh-urls]: [Install Script – URL construction for download](https://github.com/nektos/act/blob/master/install.sh#L215-L219)
-[^install-sh-verify]: [Install Script – SHA256 checksum verification](https://github.com/nektos/act/blob/master/install.sh#L258-L272)
-[^install-sh-extract]: [Install Script – Extraction and installation](https://github.com/nektos/act/blob/master/install.sh#L34-L45)
-[^install-sh-execute]: [Install Script – execute() function (download, verify, extract, install, cleanup)](https://github.com/nektos/act/blob/master/install.sh#L34-L45)
-[^install-sh-adjust]: [Install Script – adjust_os() and adjust_arch() for archive naming](https://github.com/nektos/act/blob/master/install.sh#L79-L97)
-[^goreleaser]: [GoReleaser Configuration – Build matrix, static linking, archive naming](https://github.com/nektos/act/blob/master/.goreleaser.yml)
-[^goreleaser-checksum]: [GoReleaser Configuration – Checksum generation](https://github.com/nektos/act/blob/master/.goreleaser.yml#L16)
+[^cmd-root]: [act Source Code – cmd/root.go (CLI flag definitions, GITHUB_TOKEN secret handling, config locations)](https://github.com/nektos/act/blob/master/cmd/root.go)
+[^cmd-root-config-locations]: [act Source Code – configLocations() function defining the three .actrc search paths (XDG, HOME, invocation)](https://github.com/nektos/act/blob/master/cmd/root.go)
+[^install-sh]: [Install Script (install.sh) – Full source code (argument parsing, platform detection, version resolution, download, checksum verification, extraction, idempotency)](https://github.com/nektos/act/blob/master/install.sh)
+[^goreleaser]: [GoReleaser Configuration – Build matrix, static linking, archive naming, checksum generation](https://github.com/nektos/act/blob/master/.goreleaser.yml)
 [^go-mod]: [go.mod – Go module definition with dependencies](https://github.com/nektos/act/blob/master/go.mod)
 [^readme-build]: [README – Building from source (Go 1.20+)](https://github.com/nektos/act#manually-building-from-source)
-[^makefile-install]: [Makefile – install target (copy binary and set permissions)](https://github.com/nektos/act/blob/master/Makefile#L55-L57)
-[^readme-actrc]: [Example .actrc configuration from project-integration docs](https://github.com/happyvertical/sdk/blob/main/.devcontainer/ACT_INTEGRATION.md)
-[^issue-dind]: [Issue #2095 – Docker-in-Docker considerations when using act with devcontainers/ci](https://github.com/nektos/act/issues/2095)
+[^makefile]: [Makefile – build and install targets](https://github.com/nektos/act/blob/master/Makefile)
+[^issue-2095]: [Issue #2095 – "act fails where GitHub CI succeeds" (devcontainers/ci workflow, workspace mount issue, DinD workaround)](https://github.com/nektos/act/issues/2095)
 [^gh-act]: [nektos/gh-act – GitHub CLI Extension for act](https://github.com/nektos/gh-act)
+[^src-run-context]: [act Source Code – run_context.go (ACT env var set to "true")](https://github.com/nektos/act/blob/master/pkg/runner/run_context.go)
+[^verified-completions]: [Verified via `act completion --help` and `act completion bash` in alpine container using act v0.2.89 — confirms bash, zsh, fish, and powershell completion support](https://github.com/nektos/act) -- verified interactively on 2026-07-02
