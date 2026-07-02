@@ -14,7 +14,7 @@ Go's toolchain has the following architecture:
 - **Single directory tree** — The entire Go distribution is a self-contained directory (typically `/usr/local/go`) containing:
   - `bin/go` — The Go tool (`go build`, `go test`, `go install`, etc.)[^go-cmd-go]
   - `bin/gofmt` — Source code formatter[^go-cmd-gofmt]
-  - `bin/godoc` — Documentation server (deprecated in favor of `go doc` or `pkg.go.dev`)
+  - `bin/godoc` — Documentation server (removed from the Go distribution in Go 1.13; now available via `go install golang.org/x/tools/cmd/godoc@latest`)[^go-godoc-removed]
   - `pkg/` — Compiled standard library object files (pre-built)
   - `src/` — Standard library source code
   - `misc/`, `api/`, `test/` — Miscellaneous support files and test data
@@ -33,12 +33,12 @@ There are several ways to install Go. The **official binary tarball** is the rec
 
 #### Supported Platforms
 
-- **Linux** — amd64, 386, arm64, armv6l, loong64, mips, mipsle, mips64, mips64le, ppc64, ppc64le, riscv64, s390x. Requires Linux 2.6.23 or later with glibc. Other libc variants (musl/Alpine) are not supported by the official prebuilt binaries; install from source on such systems.[^go-install-doc][^go-minimum-reqs]
-- **macOS** — amd64 (Intel), arm64 (Apple Silicon). Requires macOS 12 or later.[^go-install-doc]
-- **FreeBSD** — 386, amd64, arm, arm64. Requires FreeBSD 10.3 or later. Debian GNU/kFreeBSD not supported.[^go-install-doc]
-- **Windows** — 386, amd64, arm64. Requires Windows 10 or later, or Windows Server 2008R2 or later.[^go-install-doc]
+- **Linux** — amd64, 386, arm64, armv6l, loong64, mips, mipsle, mips64, mips64le, ppc64, ppc64le, riscv64, s390x. Requires Linux kernel 3.2 or later (for Go 1.24+). Other libc variants (musl/Alpine) are not supported by the official prebuilt binaries; install from source on such systems.[^go-install-doc][^go-minimum-reqs]
+- **macOS** — amd64 (Intel), arm64 (Apple Silicon). Requires macOS 12 or later for Go 1.25–1.26; macOS 13 or later for Go 1.27+.[^go-install-doc][^go-minimum-reqs]
+- **FreeBSD** — 386, amd64, arm, arm64.[^go-install-doc] See the [FreeBSD on Go wiki](https://go.dev/wiki/FreeBSD) for the supported version/architecture matrix.
+- **Windows** — 386, amd64, arm64. Requires Windows 10 or later, or Windows Server 2016 or later.[^go-minimum-reqs]
 
-**Not supported by the official binary tarballs:** AIX, Android, DragonFly BSD, illumos, iOS, NetBSD, OpenBSD, Plan 9, Solaris — these platforms must build from source or use a third-party distribution (e.g., gccgo). The Go source supports many more OS/arch combinations than the binary builds cover.[^go-porting-policy]
+**Official binary tarballs are also published for these additional ports:** AIX (ppc64), DragonFly BSD (amd64), illumos (amd64), NetBSD (386, amd64, arm, arm64), OpenBSD (386, amd64, arm, arm64, ppc64, riscv64), Plan 9 (386, amd64, arm), Solaris (amd64). These ports are supported by the Go project but have weaker testing coverage than the first-class ports (Linux, macOS, Windows, FreeBSD). See the Go porting policy for details.[^go-porting-policy]
 
 #### Dependencies
 
@@ -66,10 +66,10 @@ The official installation process for Linux, macOS, and FreeBSD is as follows:[^
 # 1. Determine target architecture
 ARCH=$(uname -m)
 case "$ARCH" in
-  x86_64)   GOARCH="amd64" ;;
-  aarch64)  GOARCH="arm64" ;;
+  x86_64|amd64) GOARCH="amd64" ;;
+  aarch64|armv8*) GOARCH="arm64" ;;
   armv7l|armhf) GOARCH="armv6l" ;;
-  i686|i386) GOARCH="386" ;;
+  i?86)      GOARCH="386" ;;
   *)        echo "Unsupported architecture: $ARCH"; exit 1 ;;
 esac
 
@@ -114,7 +114,7 @@ go version
 #### Installation Verification
 
 1. **SHA256 checksum verification**: Every binary archive published on `https://go.dev/dl/` has a SHA256 checksum listed on the same page. The checksum can also be retrieved programmatically from the JSON API at `https://go.dev/dl/?mode=json`.[^go-dl-json]
-2. **GPG signature verification**: Archived tarballs have detached GPG signatures available by appending `.asc` to the download URL (e.g., `https://go.dev/dl/go1.26.4.linux-amd64.tar.gz.asc`). Signatures are made with Google's Linux Packages Signing Authority key, available at `https://dl.google.com/linux/linux_signing_key.pub`. The primary key fingerprint is `EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796`.[^go-gpg-issue][^go-gpg-verify]
+2. **GPG signature verification**: Archived tarballs have detached GPG signatures available by appending `.asc` to the download URL (e.g., `https://go.dev/dl/go1.26.4.linux-amd64.tar.gz.asc`). Signatures are made with Google's Linux Packages Signing Authority key, available at `https://dl.google.com/linux/linux_signing_key.pub`. The primary key fingerprint is `EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796`.[^go-gpg-issue]
 3. **Version check**: Run `go version` — it should output the expected version and platform.
 4. **Environment check**: Run `go env GOROOT GOPATH` to verify the installation paths.
 
@@ -180,9 +180,9 @@ Go's behavior is controlled by environment variables, specified in `go help envi
 | `GOPROXY` | `https://proxy.golang.org,direct` | Go module proxy URL. Set to `off` to disable, `direct` to bypass proxy. |
 | `GONOSUMCHECK` | (none) | Comma-separated patterns of modules for which the checksum database should not be consulted. |
 | `GONOSUMDB` | (none) | Comma-separated patterns of modules for which the checksum database should not be used. |
-| `GONOSUMCHECK` | (none) | Comma-separated patterns of modules for which the checksum database should not be consulted. |
-| `GOVCS` | `*:all` | Controls version control tools allowed for module fetches (e.g., `github.com:git`). |
-| `GO111MODULE` | `on` (since Go 1.16) | Controls module mode: `on` (module mode always), `off` (GOPATH mode), `auto` (auto-detect). |
+| `GOVCS` | `public:git|hg,private:all` (since Go 1.16) | Controls version control tools allowed for module fetches (e.g., `github.com:git`). Introduced in Go 1.16 with this default; prior to Go 1.16, all VCS tools were allowed unrestricted.[^go-env-list] |
+| `GOTOOLCHAIN` | `auto` | Controls which Go toolchain version to use. Introduced in Go 1.21. When set to `auto`, the `go` command uses the version specified in `go.mod`'s `toolchain` directive. When set to `local`, it uses only the installed version. Other values (e.g., `go1.26.4`) pin the toolchain to a specific version and will download it if not installed.[^go-env-list] |
+| `GO111MODULE` | `on` (since Go 1.16) | Controls module mode: `on` (module mode always), `off` (GOPATH mode, deprecated), `auto` (auto-detect based on presence of `go.mod`). |
 | `CGO_ENABLED` | `1` | Whether to enable `cgo` (C interop). Set to `0` to force pure Go builds (no C compiler required). |
 
 #### Post-Installation Steps and Cleanup
@@ -206,7 +206,7 @@ For user-local installation, similar entries go into `$HOME/.profile`, `$HOME/.b
 
 ##### Configuration Files
 
-Go does not create or require any configuration files at installation time. The `go env -w` command can persist environment variable overrides to a user-configuration file (located at the path returned by `go env GOENV`, typically `$HOME/.config/go/env` on Linux, `$HOME/Library/Application Support/go/env` on macOS). These peristent settings are read by `go` commands and can be managed via:
+Go does not create or require any configuration files at installation time. The `go env -w` command can persist environment variable overrides to a user-configuration file (located at the path returned by `go env GOENV`, typically `$HOME/.config/go/env` on Linux, `$HOME/Library/Application Support/go/env` on macOS). These persistent settings are read by `go` commands and can be managed via:
 
 ```bash
 go env -w GOPROXY=https://proxy.golang.org,direct
@@ -234,22 +234,11 @@ No shell activation scripts are required for Go. The `go` binary is a standard e
 
 ##### Shell Completions
 
-The `go` command does not ship with built-in shell completion generation. Community-maintained completion scripts are available:
-- **bash**: `source <(go completion bash)` (Go 1.22+ includes a `go completion` subcommand)[^go-cmd-completion]
-- **zsh**: `source <(go completion zsh)`
-- **fish**: `go completion fish`
+The `go` command does not include a built-in `completion` subcommand. Community-maintained completion scripts exist and can be installed as static files:
 
-These can be installed to the system completions directory:
-```bash
-# Bash (system-wide)
-go completion bash > /etc/bash_completion.d/go
-
-# Zsh (system-wide)
-go completion zsh > /usr/share/zsh/vendor-completions/_go
-
-# Fish (system-wide)
-go completion fish > /usr/share/fish/vendor_completions.d/go.fish
-```
+- **zsh**: The `zsh-completions` project provides a Go completion script at `https://github.com/zsh-users/zsh-completions/blob/master/src/_golang`. Install by copying the file to a directory in `$fpath` (e.g., `/usr/share/zsh/vendor-completions/_go`).[^zsh-completions-go]
+- **bash**: The `posener/complete` package provides bash completions for the `go` command via the `gocomplete` tool.[^posener-complete]
+- **fish**: No Go-specific community completion script is published in the official `fish-shell` repository. Third-party Go CLI frameworks (e.g., `spf13/cobra`) include built-in fish completion generation, but the `go` command itself (`spf13/cobra` is not used by Go) does not generate fish completions. As of Go 1.26, fish completions for the `go` command must be written manually or sourced from user-contributed scripts.
 
 ##### Cleanup
 
@@ -323,17 +312,21 @@ The official binary tarball installation works as follows:
 - **Prefer stable releases**: Patch releases (e.g., `1.26.4`) are preferred over minor releases (e.g., `1.26`) for reproducibility. The latest stable version can be resolved dynamically via the JSON API.
 - **GPG key rotation**: Google's Linux Packages Signing Authority key is rotated periodically. The key URL `https://dl.google.com/linux/linux_signing_key.pub` always serves the current key. The primary key fingerprint as of mid-2026 is `EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796`.[^go-gpg-issue]
 
-### OS Package Manager (apt, yum, dnf)
+### OS Package Manager (apt, yum, dnf, apk)
 
 #### Supported Platforms
 
-- **Debian/Ubuntu** — via `apt-get`. Canonical maintains a `golang-go` package in the official repositories, but it typically lags behind the latest Go release by several months to years. Ubuntu 22.04 LTS ships Go 1.18; Ubuntu 24.04 LTS ships Go 1.21.[^ubuntu-golang-pkg]
-- **RHEL/Fedora/CentOS** — via `dnf` or `yum`. The official repositories similarly carry older versions.
-- **Alpine Linux** — via `apk`. Ships Go (often very recent) as `go` package.
+- **Debian/Ubuntu** — via `apt-get`. Canonical maintains a `golang-go` package in the official repositories. Ubuntu 22.04 LTS (jammy) ships Go 1.18; Ubuntu 24.04 LTS (noble) ships Go 1.22; Ubuntu 26.04 LTS (resolute) ships Go 1.26. [^ubuntu-golang-pkg]
+- **RHEL/Fedora/CentOS** — via `dnf` or `yum`. Fedora typically ships a recent Go version; RHEL/CentOS carry older versions.
+- **Alpine Linux** — via `apk`. Ships Go (usually very recent) as the `go` package.
 
 #### Dependencies
 
+##### Common Dependencies
 No additional dependencies beyond the standard system package manager infrastructure.
+
+##### Platform-Specific Dependencies
+None. All dependencies are resolved automatically by the package manager.
 
 #### Installation Steps
 
@@ -348,35 +341,213 @@ dnf install -y golang
 apk add go
 ```
 
-#### Notes
+#### Installation Verification
 
-- OS package managers typically install Go to a different location than the default `/usr/local/go` (e.g., `/usr/lib/go-{version}/bin/go` on Debian). This means `GOROOT` must be set appropriately if required.
-- The version lag makes the OS package manager method unsuitable for development containers that require a specific (especially recent) Go version. The official binary tarball method should be preferred for version-pinable installations.
+Run `go version` to confirm the installation. The output should show the Go version provided by the distribution's repository.
+
+#### Configuration Options
+
+##### Version Selection
+The package manager method does not support version pinning. Whatever version the distribution repository currently carries will be installed.
+
+##### Installation Path
+OS package managers typically install Go to distribution-specific paths:
+- Debian/Ubuntu: `/usr/lib/go-{version}/` (e.g., `/usr/lib/go-1.22/bin/go`)
+- RHEL/Fedora: `/usr/lib/golang/` or `/usr/bin/go`
+- Alpine: `/usr/lib/go/` or `/usr/bin/go`
+
+These differ from the canonical `/usr/local/go` path used by the official binary tarballs.
+
+##### User Targeting
+System-wide installation (requires root/sudo).
+
+##### Required Privileges
+Must be run as root or via `sudo`.
+
+##### Tool-Specific Configurations
+The same Go environment variables apply (see the Official Binary Tarball method's Tool-Specific Configurations section). However, `GOROOT` must be set to the distribution-specific install path (e.g., `/usr/lib/go-1.22` on Debian) rather than `/usr/local/go`.
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+The package manager should automatically add the Go binary directory to `PATH` system-wide. If not, add the appropriate path (e.g., `/usr/lib/go-{version}/bin` on Debian) to `/etc/profile` or `/etc/profile.d/go.sh`.
+
+##### Configuration Files
+None created automatically.
+
+##### Environment Variables
+`GOROOT` may need to be set if the installation path differs from `/usr/local/go`. Variable defaults:
+- `GOROOT`: Set to the package's install prefix (e.g., `/usr/lib/go-{version}`)
+- `GOPATH`: Defaults to `$HOME/go` if not set
+
+##### Activation Scripts
+None required.
+
+##### Shell Completions
+Not provided by the package manager. See the Shell Completions section under the Official Binary Tarball method.
+
+##### Cleanup
+None required beyond standard package manager cache cleanup (`apt-get clean`, `dnf clean all`, etc.).
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+Use the standard package manager upgrade mechanism (`apt-get upgrade`, `dnf upgrade`). Version selection is not supported — whatever version the repository provides will be installed.
+
+##### Uninstallation
+```bash
+# Debian/Ubuntu
+apt-get remove -y golang-go
+
+# RHEL/Fedora/CentOS
+dnf remove -y golang
+
+# Alpine
+apk del go
+```
+
+##### Idempotency
+Idempotent — package managers check whether the package is already installed and skip if it is at the latest version.
+
+#### Details
+
+The OS package manager method relies on distribution-maintained packages. These packages may patch the Go toolchain (applying distribution-specific patches), split the distribution into multiple sub-packages (e.g., `golang`, `golang-go`, `golang-doc` on Debian), and install to distribution-specific paths.
+
+#### Notes and Best Practices
+
+- **Version lag**: Distribution repositories typically carry versions that are months to years behind the latest Go release. For example, Ubuntu 22.04 LTS includes Go 1.18 while the latest stable Go release is 1.26. This makes the package manager method unsuitable for development environments that require a recent Go version.
+- **`GOROOT` detection**: When using a distribution-packaged Go, `GOROOT` may need to be set explicitly. Run `go env GOROOT` after installation to determine the correct value. The `go` binary can often detect its own location, but some tools (e.g., `gopls`) rely on `GOROOT` being set correctly.
+- **Prefer binary tarballs for dev containers**: For development containers and CI/CD pipelines, the official binary tarball method should be preferred over the OS package manager for version accuracy and reproducibility.
 
 ### Building from Source
 
-Building Go from source is an alternative for platforms that do not have prebuilt binaries (e.g., musl-based Linux/Alpine, AIX, illumos, etc.), or when a custom build configuration is needed. This method requires a pre-existing Go toolchain as a bootstrap compiler (Go 1.22.0 or later recommended for Go 1.26.x).[^go-install-source]
+Building Go from source is an alternative for platforms that do not have prebuilt binaries (e.g., musl-based Linux/Alpine, when using an unsupported architecture), or when a custom build configuration is needed (e.g., enabling experimental features via `GOEXPERIMENT`). This method requires a pre-existing Go toolchain as a bootstrap compiler (Go 1.24.0 or later required for Go 1.26.x).[^go-install-source]
 
-Installation steps:
+#### Supported Platforms
+
+Any platform that Go supports can be built from source, including musl-based Linux (Alpine), AIX, illumos, and any of the platforms listed in `internal/platform`'s `List` variable.[^go-platform-list] Binary bootstrap requires a prebuilt Go toolchain for the host system.
+
+#### Dependencies
+
+##### Common Dependencies
+- A pre-existing Go bootstrap compiler (Go 1.4 or later; for Go 1.26+, Go 1.24+ is required)[^go-install-source]
+- Git (for fetching the source repository if not using a tarball)
+- C compiler (gcc or clang) — required for `cgo` support; optional with `CGO_ENABLED=0`
+- POSIX utilities: `sh`, `make`, `sed`, `awk`, `patch`
+
+##### Platform-Specific Dependencies
+- **Linux (musl/Alpine)**: `gcc`, `musl-dev`, `ca-certificates`, `git`
+- **Linux (glibc)**: `gcc` (or `build-essential` on Debian), `glibc-devel` (RHEL) or `libc6-dev` (Debian)
+- **macOS**: Xcode Command Line Tools
+- **Windows**: MSYS2/MinGW or Visual Studio Build Tools (for the C toolchain)
+
+#### Installation Steps
 
 ```bash
-# 1. Install a bootstrap Go compiler (e.g., from binary tarball)
+# 1. Ensure a bootstrap Go compiler is available
+#    (Install from binary tarball if not already present)
+export GOROOT_BOOTSTRAP=/usr/local/go-bootstrap
+
 # 2. Download the Go source tarball
+VERSION="1.26.4"
 curl -fsSL -o /tmp/go.src.tar.gz \
   "https://go.dev/dl/go${VERSION}.src.tar.gz"
 
-# 3. Extract source
+# 3. Verify SHA256 checksum
+CHECKSUM=$(curl -fsSL "https://go.dev/dl/?mode=json" | \
+  jq -r '.[] | select(.version == "go'"${VERSION}"'") |
+         .files[] | select(.kind == "source") | .sha256')
+echo "${CHECKSUM}  /tmp/go.src.tar.gz" | sha256sum --check -
+
+# 4. Extract source to /usr/local/go
+rm -rf /usr/local/go
 tar -C /usr/local -xzf /tmp/go.src.tar.gz
-# This creates /usr/local/go/src/
 
-# 4. Build the toolchain
+# 5. Build the toolchain
 cd /usr/local/go/src
-./make.bash  # or ./all.bash to run tests as well
+./make.bash  # builds without running tests
+# or: ./all.bash  # builds and runs the full test suite
 
-# 5. The built binaries are now at /usr/local/go/bin/
+# 6. Verify installation
+/usr/local/go/bin/go version
 ```
 
-This method is documented at https://go.dev/doc/install/source.
+#### Installation Verification
+
+1. **SHA256 checksum verification**: The source tarball's checksum is available from the JSON API at `https://go.dev/dl/?mode=json` or from the download page.
+2. **Build output**: The build process ends with `Installed Go for <os>/<arch>` if successful.
+3. **Version check**: Run `go version` to confirm the expected version.
+
+#### Configuration Options
+
+##### Version Selection
+Specify the Go version in the source tarball URL (e.g., `go1.26.4.src.tar.gz`). Only stable releases (and release candidates) are published as source tarballs.
+
+##### Installation Path
+The default install path is `/usr/local/go`, which is the location where the source is extracted. To change it, extract to a different directory and set `GOROOT` accordingly.
+
+##### User Targeting
+System-wide installation (requires root/sudo for `/usr/local/go`); user-local installation is possible by extracting to a user-writable directory.
+
+##### Required Privileges
+Root/sudo required for system-wide installation to `/usr/local/go`.
+
+##### Tool-Specific Configurations
+- **`GOROOT_BOOTSTRAP`**: Path to an existing Go installation used to bootstrap the build. Must point to a directory containing `bin/go`.[^go-install-source]
+- **`GOEXPERIMENT`**: Comma-separated list of experimental features to enable during the build (e.g., `loopvar`, `arenas`). Only available in source builds.
+- **`CGO_ENABLED`**: Set to `0` to disable `cgo` support and avoid needing a C compiler.
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+Same as the binary tarball method: add `/usr/local/go/bin` to `PATH`.
+
+##### Configuration Files
+None created automatically.
+
+##### Environment Variables
+Same as the binary tarball method. `GOROOT` may need to be set explicitly if the installation path differs from the default.
+
+##### Activation Scripts
+None required.
+
+##### Shell Completions
+See the Shell Completions section under the Official Binary Tarball method.
+
+##### Cleanup
+Remove the downloaded source tarball and any temporary build artifacts:
+```bash
+rm -f /tmp/go.src.tar.gz
+```
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+Same process as the binary tarball method: remove the old `/usr/local/go` and build the new version from source.
+
+##### Uninstallation
+Remove `/usr/local/go` and any `PATH` modifications referencing it.
+
+##### Idempotency
+Not idempotent — building from source always produces a fresh toolchain. Cache the version check before rebuilding.
+
+#### Details
+
+The Go build process works as follows (for Go 1.5+, where the toolchain is written in Go):[^go-install-source]
+1. The bootstrap compiler (pointed to by `GOROOT_BOOTSTRAP`) compiles the Go toolchain source directly.
+2. The resulting compiler binary then rebuilds itself from the same source (self-hosting step).
+3. The final binaries (`go`, `gofmt`) are placed in `$GOROOT/bin/`.
+
+Note: When using a Go 1.4 bootstrap compiler (the last version written in C), an intermediate step compiles Go 1.4-era bootstrap code first. For modern Go versions requiring Go 1.20+ or Go 1.24+ as bootstrap, the bootstrap compiler compiles the full toolchain source directly in a single step.
+
+The build time is typically 2–5 minutes on modern hardware. Running the full test suite (`./all.bash`) adds significant time (30–60 minutes) but is recommended for validation on new or unusual platforms.
+
+#### Notes and Best Practices
+
+- **Bootstrap compiler requirement**: Building Go from source requires an existing Go compiler. The minimum bootstrap compiler version depends on the Go version being built. For Go 1.26.x, Go 1.24.0 or later is required. The bootstrap policy is: Go version 1.N requires a Go 1.M compiler, where M is N-2 rounded down to an even number. For older Go versions (pre-1.5), a C compiler was the bootstrap requirement, but since Go 1.5 the toolchain is self-hosting.[^go-install-source]
+- **Alpine/musl**: Building from source is the recommended approach for musl-based systems. The `CGO_ENABLED=0` flag is recommended to avoid C library compatibility issues.
+- **`GOEXPERIMENT`**: Source builds allow enabling experimental features that are not available in prebuilt binaries. This is useful for testing upcoming Go features but should not be used in production without understanding the implications.
+- **Time and resource requirements**: Building from source takes significantly longer than downloading a prebuilt binary (2–5 minutes vs. 10–30 seconds) and requires additional disk space for build artifacts. For most use cases, the prebuilt binary tarball is strongly preferred.
 
 ## Dev Container Setup
 
@@ -399,12 +570,11 @@ The primary VS Code extension for Go development is the official Go extension (`
 - **Extension ID**: `golang.Go`
 - **Marketplace**: https://marketplace.visualstudio.com/items?itemName=golang.Go
 - **Source**: https://github.com/golang/vscode-go
-- **Prerequisites**: Go 1.14+ and `gopls` (installed automatically by the extension or via `go install golang.org/x/tools/gopls@latest`)
+- **Prerequisites**: Go 1.21+ (required; minimum versions have increased with newer extension releases) and `gopls` (installed automatically by the extension or via `go install golang.org/x/tools/gopls@latest`)[^vscode-go]
 - **Debugging**: The extension integrates with Delve (`dlv`) for debugging Go programs. This is why the reference dev container feature requests `SYS_PTRACE` and `seccomp=unconfined`.[^devcontainers-go-json]
 
 Other notable Go VS Code extensions:
-- **GoTestMate** (`"usernamehw.errorlens"`): Test output integration for Go tests.
-- **Go to Symbol** (`"ms-vscode.go-symbols"`): Symbol search for Go.
+- **Go to Symbol** (`"ms-vscode.go-symbols"`): Symbol search for Go (legacy; functionality largely subsumed by the official Go extension).
 
 ### Common Go Development Tools
 
@@ -415,13 +585,13 @@ The following tools are commonly installed alongside Go and are frequently bundl
 | `gopls` | Go language server (IDE features) | `go install golang.org/x/tools/gopls@latest` |
 | `dlv` | Delve debugger | `go install github.com/go-delve/delve/cmd/dlv@latest` |
 | `staticcheck` | Advanced linter (replaces `go vet`) | `go install honnef.co/go/tools/cmd/staticcheck@latest` |
-| `golint` | Basic linter | `go install golang.org/x/lint/golint@latest` |
+| `golint` | Basic linter (deprecated — repository archived by the Go team; use `staticcheck` or `revive` instead) | `go install golang.org/x/lint/golint@latest` |
 | `revive` | Alternative linter | `go install github.com/mgechev/revive@latest` |
 | `gomodifytags` | Struct tag manipulation | `go install github.com/fatih/gomodifytags@latest` |
 | `goplay` | Go Playground integration | `go install github.com/haya14busa/goplay/cmd/goplay@latest` |
 | `gotests` | Test generation | `go install github.com/cweill/gotests/gotests@latest` |
 | `impl` | Interface implementation stub generation | `go install github.com/josharian/impl@latest` |
-| `golangci-lint` | Meta-linter (aggregates multiple linters) | Install from prebuilt binaries at `https://github.com/golangci/golangci-lint` |
+| `golangci-lint` | Meta-linter (aggregates multiple linters) | Install via the official install script: `curl -fsSL https://golangci-lint.run/install.sh \| sh -s -- -b "${GOPATH}/bin"` (supports version pinning via `sh -s -- -b "${GOPATH}/bin" "v1.64.2"`)[^devcontainers-go-install] |
 
 ## References
 
@@ -437,10 +607,12 @@ The following tools are commonly installed alongside Go and are frequently bundl
 [^go-ref-mod]: [Go Modules Reference](https://go.dev/ref/mod) — Complete reference for Go modules: `go.mod`, `go.sum`, version resolution, `GOPROXY`, `GONOSUMCHECK`, etc.
 [^go-doc-code]: [How to Write Go Code](https://go.dev/doc/code) — Introductory documentation covering Go workspace layout, `GOPATH`, `GOBIN`, `go install`, and module basics.
 [^go-env-list]: [Go Environment Variables](https://pkg.go.dev/cmd/go#hdr-Environment_variables) — Complete list of Go environment variables with descriptions.
-[^go-gpg-issue]: [Go Issue #14739 — GPG signatures for Go releases](https://github.com/golang/go/issues/14739) — Discussion and implementation of GPG signing for Go binary releases. Documents the signing key URL (`https://dl.google.com/linux/linux_signing_key.pub`) and the signature file convention (appending `.asc` to the archive URL).
-[^go-gpg-verify]: [Blog post — Installing Go securely with GPG verification](https://blog.orenfromberg.tech/install-golang-securely/) — Step-by-step guide for verifying Go binary archives with GPG. Documents the Google Linux Packages Signing Authority key fingerprint (`EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796`).
-[^go-cmd-completion]: [Go 1.22 Release Notes — `go completion`](https://tip.golang.org/doc/go1.22) — Documents the addition of `go completion` subcommand for generating shell completions for bash, zsh, and fish.
+[^go-gpg-issue]: [Go Issue #14739 — GPG signatures for Go releases](https://github.com/golang/go/issues/14739) — Discussion and implementation of GPG signing for Go binary releases. Documents the signing key URL (`https://dl.google.com/linux/linux_signing_key.pub`) and the signature file convention (appending `.asc` to the archive URL). The primary key fingerprint for the Google Linux Packages Signing Authority key is `EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796` (verified from multiple independent sources including the official Google Linux repositories page at `https://www.google.com/linuxrepositories/`).
 [^devcontainers-go-json]: [devcontainers/features — Go `devcontainer-feature.json`](https://github.com/devcontainers/features/blob/main/src/go/devcontainer-feature.json) — Reference configuration for the official Go dev container feature: sets `GOROOT=/usr/local/go`, `GOPATH=/go`, `PATH` including both, requests `SYS_PTRACE` capability and `seccomp=unconfined` for Delve support, and configures the `golang.Go` VS Code extension.
 [^devcontainers-go-install]: [devcontainers/features — Go `install.sh`](https://github.com/devcontainers/features/blob/main/src/go/install.sh) — Reference implementation of the Go dev container feature installation script. Demonstrates architecture detection (`uname -m` → Go arch names), GPG key verification, version fallback logic, GOPATH setup, common tools installation, and group/permissions management for non-root users.
-[^ubuntu-golang-pkg]: [Ubuntu Packages — golang-go](https://packages.ubuntu.com/search?keywords=golang-go) — Shows the Golang package versions available in various Ubuntu releases, demonstrating the version lag behind upstream.
+[^ubuntu-golang-pkg]: [Ubuntu Packages — golang-go](https://packages.ubuntu.com/search?keywords=golang-go) — Shows the Golang package versions available in various Ubuntu releases. Verified: jammy (22.04) ships Go 1.18, noble (24.04) ships Go 1.22, resolute (26.04) ships Go 1.26.
 [^vscode-go]: [VS Code Go Extension](https://marketplace.visualstudio.com/items?itemName=golang.Go) — Official Go extension for VS Code, providing language support via `gopls` and integration with `dlv` for debugging.
+[^go-godoc-removed]: [Go 1.13 Release Notes — godoc](https://go.dev/doc/go1.13#tools) — Documents the removal of `godoc` from the Go distribution; it is now available at `golang.org/x/tools/cmd/godoc`.
+[^zsh-completions-go]: [zsh-users/zsh-completions — `_golang`](https://github.com/zsh-users/zsh-completions/blob/master/src/_golang) — Community-maintained zsh completion script for Go, supporting all `go` subcommands and flags.
+[^posener-complete]: [posener/complete — Go Command Bash Completion](https://github.com/posener/complete) — Package (v2) providing bash completions for the `go` command line via the `gocomplete` tool, including subcommands, flags, package names, and test names.
+[^go-platform-list]: [Go internal/platform — `List`](https://pkg.go.dev/internal/platform) — Complete list of all valid GOOS/GOARCH combinations that Go supports. Includes both first-class and secondary ports.
