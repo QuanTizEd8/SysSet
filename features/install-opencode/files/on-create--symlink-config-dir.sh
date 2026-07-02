@@ -15,6 +15,7 @@ symlink_config_dir() {
 
   rm -rf ~/.config/opencode
   mkdir -p "$(dirname "$_config_dir_fullpath")"
+  mkdir -p "$(dirname ~/.config/opencode)"
   ln -s "$_config_dir_fullpath" ~/.config/opencode
 }
 

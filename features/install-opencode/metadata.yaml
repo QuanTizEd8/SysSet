@@ -35,7 +35,7 @@ _options:
     resolution: github_release
   method:
     binary:
-      asset_uri: "https://github.com/anomalyco/opencode/releases/download/{feat.tag}/opencode-{plat.kernel:lower}-{plat.machine_release}{plat.avx2==false?-baseline:}{plat.libc==musl?-musl:}{plat.kernel==Darwin?.zip:.tar.gz}"
+      asset_uri: "https://github.com/anomalyco/opencode/releases/download/{feat.tag}/opencode-{plat.kernel:lower}-{plat.machine_node}{plat.avx2==false?-baseline:}{plat.libc==musl?-musl:}{plat.kernel==Darwin?.zip:.tar.gz}"
       binary_src:
         - opencode
       when:

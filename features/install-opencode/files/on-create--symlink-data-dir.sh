@@ -15,6 +15,7 @@ symlink_data_dir() {
 
   rm -rf ~/.local/share/opencode
   mkdir -p "$(dirname "$_data_dir_fullpath")"
+  mkdir -p "$(dirname ~/.local/share/opencode)"
   ln -s "$_data_dir_fullpath" ~/.local/share/opencode
 }
 
