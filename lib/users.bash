@@ -357,11 +357,15 @@ users__resolve_list() {
   #   [--remote <bool>]     Include _REMOTE_USER (default: true).
   #   [--container <bool>]  Include _CONTAINER_USER (default: true).
   #   [--user <name>]...    Extra explicit usernames; root allowed; repeatable.
+  #   [--all]               Also include every regular (non-system), interactive-shell
+  #                         user found in the password database (UID >=1000 on Linux,
+  #                         >=500 on macOS; users with a nologin/false shell are excluded).
   #
   # Stdout: one username per line.
   local _include_current="true"
   local _include_remote="true"
   local _include_container="true"
+  local _include_all="false"
   local -a _extra_users=()
 
   while [ "$#" -gt 0 ]; do
@@ -377,6 +381,10 @@ users__resolve_list() {
       --container)
         _include_container="$2"
         shift 2
+        ;;
+      --all)
+        _include_all="true"
+        shift
         ;;
       --user)
         _extra_users+=("$2")
@@ -421,6 +429,40 @@ users__resolve_list() {
   for _extra in "${_extra_users[@]+"${_extra_users[@]}"}"; do
     [ -n "$_extra" ] && __users__add "$_extra"
   done
+
+  if [ "${_include_all}" = "true" ]; then
+    local _min_uid=1000
+    [ "$(os__kernel)" = "Darwin" ] && _min_uid=500
+    local _passwd_uname _passwd_uid _passwd_shell
+    __users__scan_all_line() {
+      _passwd_uname="${1%%:*}"
+      local _rest="${1#*:}"
+      _rest="${_rest#*:}"
+      _passwd_uid="${_rest%%:*}"
+      _passwd_shell="${1##*:}"
+      [ -z "$_passwd_uname" ] && return 0
+      case "$_passwd_uid" in
+        '' | *[!0-9]*) return 0 ;;
+      esac
+      [ "$_passwd_uid" -ge "$_min_uid" ] || return 0
+      [ "$_passwd_uid" -lt 65534 ] || return 0
+      case "$_passwd_shell" in
+        */nologin | */false) return 0 ;;
+      esac
+      __users__add "$_passwd_uname"
+    }
+    local _pw_line
+    if bootstrap__getent && command -v getent > /dev/null 2>&1; then
+      while IFS= read -r _pw_line; do
+        [ -n "$_pw_line" ] && __users__scan_all_line "$_pw_line"
+      done <<< "$(getent passwd)"
+    else
+      while IFS= read -r _pw_line; do
+        [ -n "$_pw_line" ] && __users__scan_all_line "$_pw_line"
+      done < /etc/passwd
+    fi
+    unset -f __users__scan_all_line
+  fi
 
   if [ "$_root_queued" = "true" ] && [ -z "$_out" ]; then
     __users__add "root"
@@ -1030,6 +1072,177 @@ users__expand_path() {
     _e="${_e//\"/\\\"}"
     eval "printf \"%s\n\" \"${_e}\""
   ' -- "$_expr" "${_extra_envs[@]}"
+}
+
+users__expand_multi() {
+  # @brief users__expand_multi [--user <username>] [--env KEY=VALUE]... -- <expr>... — Expand tilde, $HOME, and env-var references in MULTIPLE strings using at most ONE login-shell invocation for the whole batch.
+  #
+  # Same expansion power as users__expand_path (${VAR}, ${VAR:-default},
+  # ${VAR:+val}, ~ expansion) but WITHOUT character rejection: command
+  # substitution ($( and a backtick) is neutralized (treated as literal text)
+  # rather than causing the whole input to be rejected, so this is safe for
+  # values that legitimately contain characters users__expand_path forbids —
+  # ERE regex patterns (which commonly use parentheses and |) and URIs (which
+  # commonly use & and ; in query strings). Use users__expand_path instead for
+  # a value that becomes a raw filesystem path.
+  #
+  # Batching matters because each login-shell invocation (`su -l`) sources the
+  # target user's full profile (.bashrc, .bash_profile, /etc/profile), which
+  # with common dev-environment initializers (nvm, rbenv, conda) can cost
+  # tens to hundreds of milliseconds — expanding N related fields individually
+  # would spawn N login shells; this spawns at most one for the entire batch.
+  #
+  # Fast path: when NONE of the inputs contain '$' or start with '~', the
+  # whole batch is returned unexpanded with no subprocess spawned at all.
+  #
+  # Known limitation: a literal `$(` that must survive verbatim in the output
+  # should be written as `\$(` in the input (same convention as the backtick
+  # and `\` handling in users__expand_path).
+  #
+  # Args:
+  #   --user <username>  User whose login environment to use. Defaults to the current user.
+  #   --env KEY=VALUE    Extra variable to export into the expansion environment (repeatable).
+  #   -- <expr>...       One or more strings to expand, in order.
+  #
+  # Stdout: NUL-separated results, one per <expr>, in the same order.
+  #   Consume via: mapfile -d '' -t out < <(users__expand_multi -- "$a" "$b" "$c")
+  #
+  # Returns: 0 on success, 1 on expansion error.
+  local _user=""
+  local -a _extra_envs=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --user)
+        _user="$2"
+        shift 2
+        ;;
+      --env)
+        _extra_envs+=("$2")
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        logging__error "unknown option: $1"
+        return 1
+        ;;
+      *) break ;;
+    esac
+  done
+  local -a _all=("$@")
+  [[ ${#_all[@]} -eq 0 ]] && return 0
+  [[ -z "$_user" ]] && _user="$(users__get_current)"
+
+  # Fast path: nothing in the batch needs expansion — skip the shell spawn entirely.
+  local _s _any_needs=false
+  for _s in "${_all[@]}"; do
+    if [[ "$_s" == *'$'* || "$_s" == '~'* ]]; then
+      _any_needs=true
+      break
+    fi
+  done
+  if ! $_any_needs; then
+    for _s in "${_all[@]}"; do printf '%s\0' "$_s"; done
+    return 0
+  fi
+
+  # Leading integer arg tells the inner script how many KEY=VALUE env-export
+  # pairs follow, before the batch of expressions to expand — avoids any
+  # ambiguity between "how many envs" and "how many expressions" (unlike
+  # users__expand_path, which has only a single expression and can safely
+  # treat "everything after the first arg" as env pairs).
+  # shellcheck disable=SC2016
+  users__run_as "$_user" -- "${_BASH_BIN:-bash}" -c '
+    _n="$1"; shift
+    while [[ "$_n" -gt 0 ]]; do export "$1"; shift; _n=$((_n - 1)); done
+    for _e in "$@"; do
+      [[ "$_e" == "~"* ]] && _e="${HOME}${_e#\~}"
+      _e="${_e// ~/ ${HOME}}"
+      _e="${_e//\\/\\\\}"
+      _e="${_e//\`/\\\`}"
+      _e="${_e//\$(/\\\$(}"
+      _e="${_e//\"/\\\"}"
+      eval "printf \"%s\\0\" \"${_e}\""
+    done
+  ' -- "${#_extra_envs[@]}" "${_extra_envs[@]}" "${_all[@]}"
+}
+
+users__expand_string() {
+  # @brief users__expand_string [--user <username>] [--env KEY=VALUE]... <text> — Expand tilde, $HOME, and env-var references in a single string.
+  #
+  # Thin single-value convenience wrapper around users__expand_multi. See
+  # users__expand_multi for the full expansion semantics and the rationale
+  # for why it differs from users__expand_path.
+  #
+  # Args:
+  #   --user <username>  User whose login environment to use. Defaults to the current user.
+  #   --env KEY=VALUE    Extra variable to export into the expansion environment (repeatable).
+  #   <text>             String to expand.
+  #
+  # Stdout: the expanded string (no trailing newline).
+  #
+  # Returns: 0 on success, 1 on expansion error.
+  local -a _fwd=()
+  while [[ $# -gt 1 ]]; do
+    case "$1" in
+      --user | --env)
+        _fwd+=("$1" "$2")
+        shift 2
+        ;;
+      *) break ;;
+    esac
+  done
+  local -a _out
+  mapfile -d '' -t _out < <(users__expand_multi "${_fwd[@]}" -- "${1-}")
+  printf '%s' "${_out[0]-}"
+}
+
+users__nonroot_share_dir() {
+  # @brief users__nonroot_share_dir <username> — Print <username>'s equivalent of _FEAT_SHARE_DIR_NONROOT.
+  #
+  # Generalizes the "per-user share directory" computation: substitutes the
+  # target user's home directory for the current user's home prefix in
+  # _FEAT_SHARE_DIR_NONROOT (which is always of the form
+  # "${HOME}/.local/share/<namespace>/<feature-id>" — see metadata.shared.yaml).
+  #
+  # Deliberately resolves the current user's home via users__resolve_home
+  # (no args), NOT by reading the $HOME environment variable directly: a
+  # caller iterating over several target users commonly runs each one's
+  # operations in a subshell with $HOME transiently exported to THAT user's
+  # home (so plain shell tilde-expansion behaves correctly inside it) — if
+  # this function read $HOME directly, it would strip the wrong prefix (or
+  # none at all) once called from inside such a subshell, silently producing
+  # a garbled path. users__resolve_home's no-arg form instead re-derives the
+  # true current identity (SUDO_USER / devcontainer vars / id -un), which
+  # such a subshell override does not affect.
+  #
+  # Args:
+  #   <username>  Target username.
+  #
+  # Stdout: absolute path to <username>'s equivalent share directory.
+  #
+  # Returns: 0 on success, 1 if the user's home or _FEAT_SHARE_DIR_NONROOT cannot be resolved.
+  local _username="${1-}"
+  [[ -n "$_username" ]] || {
+    logging__error "users__nonroot_share_dir: username is required."
+    return 1
+  }
+  [[ -n "${_FEAT_SHARE_DIR_NONROOT:-}" ]] || {
+    logging__error "users__nonroot_share_dir: _FEAT_SHARE_DIR_NONROOT is not set."
+    return 1
+  }
+  local _home
+  _home="$(users__resolve_home "$_username")"
+  [[ -n "$_home" ]] || {
+    logging__error "users__nonroot_share_dir: cannot resolve home directory for '${_username}'."
+    return 1
+  }
+  local _current_home
+  _current_home="$(users__resolve_home)"
+  local _suffix="${_FEAT_SHARE_DIR_NONROOT#"${_current_home}"}"
+  printf '%s\n' "${_home}${_suffix}"
 }
 
 users__is_user_path() {

@@ -382,6 +382,22 @@ os__is_devcontainer_build() {
     [ "${_CONTAINER_USER_HOME+defined}" = "defined" ]
 }
 
+os__is_devcontainer_runtime() {
+  # @brief os__is_devcontainer_runtime — Return 0 when currently running inside a devcontainer or GitHub Codespaces runtime, 1 otherwise.
+  #
+  # Distinct from os__is_devcontainer_build: that function detects the
+  # BUILD-time installer environment via the four devcontainer-spec env vars
+  # (_REMOTE_USER etc.), which are only present while a feature installer
+  # script is executing. This function instead detects whether the CURRENT
+  # process — at any later point, e.g. a lifecycle hook or entrypoint script
+  # running long after the image was built — is inside a devcontainer or
+  # Codespaces runtime, via signals set by the client tooling (VS Code Dev
+  # Containers, GitHub Codespaces) for the lifetime of the container.
+  #
+  # Returns: 0 in a devcontainer/Codespaces runtime, 1 otherwise.
+  [[ -n "${REMOTE_CONTAINERS:-}" || -n "${CODESPACES:-}" ]]
+}
+
 os__is_container() {
   # @brief os__is_container — Return 0 if running inside a container (Docker, Podman, Kubernetes, CI), 1 otherwise.
   #

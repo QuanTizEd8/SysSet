@@ -547,3 +547,28 @@ _os__platform_stub_release() {
   run os__rust_triple mips
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# os__is_devcontainer_runtime
+# ---------------------------------------------------------------------------
+
+@test "os__is_devcontainer_runtime returns true when REMOTE_CONTAINERS is set" {
+  reload_lib
+  REMOTE_CONTAINERS=1 run os__is_devcontainer_runtime
+  assert_success
+}
+
+@test "os__is_devcontainer_runtime returns true when CODESPACES is set" {
+  reload_lib
+  CODESPACES=true run os__is_devcontainer_runtime
+  assert_success
+}
+
+@test "os__is_devcontainer_runtime returns false when no signal is present" {
+  reload_lib
+  run env -u REMOTE_CONTAINERS -u CODESPACES bash -c "
+    source '${LIB_ROOT}/os.bash'
+    os__is_devcontainer_runtime
+  "
+  assert_failure
+}

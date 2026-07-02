@@ -446,3 +446,106 @@ setup() {
   assert_success
   [[ -z "$output" ]]
 }
+
+# ---------------------------------------------------------------------------
+# file__mv
+# ---------------------------------------------------------------------------
+
+@test "file__mv: moves a file to a writable destination without escalating" {
+  local _src="${BATS_TEST_TMPDIR}/a.txt"
+  echo content > "$_src"
+  local _dest="${BATS_TEST_TMPDIR}/b.txt"
+  users__run_privileged() { fail "should not escalate for a writable destination"; }
+  export -f users__run_privileged
+  run file__mv "$_src" "$_dest"
+  assert_success
+  [[ -f "$_dest" ]]
+  [[ ! -f "$_src" ]]
+}
+
+@test "file__mv: moves a directory" {
+  local _src="${BATS_TEST_TMPDIR}/srcdir"
+  mkdir -p "${_src}/nested"
+  touch "${_src}/nested/f"
+  local _dest="${BATS_TEST_TMPDIR}/destdir"
+  run file__mv "$_src" "$_dest"
+  assert_success
+  [[ -f "${_dest}/nested/f" ]]
+  [[ ! -d "$_src" ]]
+}
+
+# ---------------------------------------------------------------------------
+# file__resolve_backup_policy
+# ---------------------------------------------------------------------------
+
+@test "file__resolve_backup_policy: true and false pass through unchanged" {
+  run file__resolve_backup_policy true
+  assert_output "true"
+  run file__resolve_backup_policy false
+  assert_output "false"
+}
+
+@test "file__resolve_backup_policy: auto resolves to true outside a devcontainer runtime" {
+  os__is_devcontainer_runtime() { return 1; }
+  export -f os__is_devcontainer_runtime
+  run file__resolve_backup_policy auto
+  assert_output "true"
+}
+
+@test "file__resolve_backup_policy: auto resolves to false inside a devcontainer runtime" {
+  os__is_devcontainer_runtime() { return 0; }
+  export -f os__is_devcontainer_runtime
+  run file__resolve_backup_policy auto
+  assert_output "false"
+}
+
+# ---------------------------------------------------------------------------
+# file__backup_if_policy
+# ---------------------------------------------------------------------------
+
+@test "file__backup_if_policy: copies the file into backup_dir when policy resolves true" {
+  local _src="${BATS_TEST_TMPDIR}/src.txt"
+  echo content > "$_src"
+  local _dir="${BATS_TEST_TMPDIR}/backups"
+  mkdir -p "$_dir"
+  run file__backup_if_policy "$_src" true "$_dir"
+  assert_success
+  [[ -n "$output" ]]
+  [[ -f "$output" ]]
+  diff "$output" "$_src"
+}
+
+@test "file__backup_if_policy: no-ops (empty output) when the path does not exist" {
+  run file__backup_if_policy "${BATS_TEST_TMPDIR}/absent" true "${BATS_TEST_TMPDIR}"
+  assert_success
+  assert_output ""
+}
+
+@test "file__backup_if_policy: no-ops when policy resolves to false" {
+  local _src="${BATS_TEST_TMPDIR}/src2.txt"
+  echo x > "$_src"
+  run file__backup_if_policy "$_src" false "${BATS_TEST_TMPDIR}"
+  assert_success
+  assert_output ""
+}
+
+@test "file__backup_if_policy: fails when a backup is needed but no backup_dir is given" {
+  local _src="${BATS_TEST_TMPDIR}/src3.txt"
+  echo x > "$_src"
+  run file__backup_if_policy "$_src" true ""
+  assert_failure
+}
+
+@test "file__backup_if_policy: repeated backups of the same path do not collide" {
+  local _src="${BATS_TEST_TMPDIR}/src4.txt"
+  echo content > "$_src"
+  local _dir="${BATS_TEST_TMPDIR}/backups2"
+  mkdir -p "$_dir"
+  run file__backup_if_policy "$_src" true "$_dir"
+  local _first="$output"
+  sleep 1
+  run file__backup_if_policy "$_src" true "$_dir"
+  local _second="$output"
+  [[ "$_first" != "$_second" ]]
+  [[ -f "$_first" && -f "$_second" ]]
+}

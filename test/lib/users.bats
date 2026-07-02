@@ -1448,3 +1448,196 @@ alice"
   assert_failure
   assert_output --partial "unsafe characters"
 }
+
+# ---------------------------------------------------------------------------
+# users__expand_multi / users__expand_string
+# ---------------------------------------------------------------------------
+
+@test "users__expand_multi: spawns the login shell at most once for a whole batch" {
+  reload_lib
+  local _calls="${BATS_TEST_TMPDIR}/calls"
+  : > "$_calls"
+  # shellcheck disable=SC2329
+  users__run_as() {
+    echo call >> "$_calls"
+    shift
+    [[ "$1" == "--" ]] && shift
+    "$@"
+  }
+  export -f users__run_as
+  _me="$(id -un)"
+  run users__expand_multi --user "$_me" -- 'plain' '${FOO}' 'also $BAR has vars'
+  assert_success
+  [[ "$(wc -l < "$_calls")" -le 1 ]]
+}
+
+@test "users__expand_multi: skips the login shell entirely when nothing needs expansion" {
+  reload_lib
+  local _calls="${BATS_TEST_TMPDIR}/calls"
+  : > "$_calls"
+  # shellcheck disable=SC2329
+  users__run_as() { echo call >> "$_calls"; }
+  export -f users__run_as
+  run users__expand_multi --user testuser -- 'plain' 'no vars here'
+  assert_success
+  [[ "$(wc -l < "$_calls")" -eq 0 ]]
+}
+
+@test "users__expand_multi: preserves input order in NUL-terminated output" {
+  reload_lib
+  run bash -c '. "$1/__init__.bash" && mapfile -d "" -t out < <(users__expand_multi -- "a" "b" "c"); printf "%s\n" "${out[@]}"' _ "${LIB_ROOT}"
+  assert_output "a
+b
+c"
+}
+
+@test "users__expand_multi: expands \${VAR} references" {
+  reload_lib
+  _me="$(id -un)"
+  run bash -c 'export FOO=bar; . "$1/__init__.bash" && mapfile -d "" -t out < <(users__expand_multi --user "$2" -- "plain" "\${FOO}" "also \$FOO here"); printf "%s\n" "${out[@]}"' _ "${LIB_ROOT}" "$_me"
+  assert_output "plain
+bar
+also bar here"
+}
+
+@test "users__expand_multi: does not execute \$(...) command substitution" {
+  reload_lib
+  _me="$(id -un)"
+  local _marker="${BATS_TEST_TMPDIR}/marker"
+  rm -f "$_marker"
+  run bash -c '. "$1/__init__.bash" && users__expand_multi --user "$2" -- "before \$(touch $3) after"' _ "${LIB_ROOT}" "$_me" "$_marker"
+  assert_success
+  [[ ! -f "$_marker" ]]
+}
+
+@test "users__expand_multi: does not execute backtick command substitution" {
+  reload_lib
+  _me="$(id -un)"
+  local _marker="${BATS_TEST_TMPDIR}/marker2"
+  rm -f "$_marker"
+  run bash -c '. "$1/__init__.bash" && users__expand_multi --user "$2" -- "before \`touch $3\` after"' _ "${LIB_ROOT}" "$_me" "$_marker"
+  assert_success
+  [[ ! -f "$_marker" ]]
+}
+
+@test "users__expand_multi: preserves embedded newlines in a single field" {
+  reload_lib
+  run bash -c '. "$1/__init__.bash" && mapfile -d "" -t out < <(users__expand_multi -- "$(printf "multi\nline")"); printf "%s\n" "${out[0]}"' _ "${LIB_ROOT}"
+  assert_output "multi
+line"
+}
+
+@test "users__expand_string: thin wrapper delegates correctly" {
+  reload_lib
+  run users__expand_string 'literal, no vars'
+  assert_output "literal, no vars"
+}
+
+@test "users__expand_string: expands a single \${VAR} reference" {
+  reload_lib
+  run bash -c 'export FOO=bar; . "$1/__init__.bash" && users__expand_string "\${FOO}-suffix"' _ "${LIB_ROOT}"
+  assert_output "bar-suffix"
+}
+
+# ---------------------------------------------------------------------------
+# users__resolve_list --all
+# ---------------------------------------------------------------------------
+
+@test "users__resolve_list --all: includes only regular, interactive-shell users" {
+  reload_lib
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'
+#!/bin/sh
+if [ "$1" = "passwd" ] && [ $# -eq 1 ]; then
+  cat << 'PASSWD'
+root:x:0:0::/root:/bin/bash
+daemon:x:1:1::/usr/sbin:/usr/sbin/nologin
+alice:x:1000:1000::/home/alice:/bin/bash
+bob:x:1001:1001::/home/bob:/bin/zsh
+nobody:x:65534:65534::/nonexistent:/usr/sbin/nologin
+service:x:999:999::/var/lib/service:/bin/false
+PASSWD
+fi
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/getent"
+  prepend_fake_bin_path
+  bootstrap__getent() { return 0; }
+  export -f bootstrap__getent
+  run users__resolve_list --current false --remote false --container false --all
+  assert_success
+  assert_output "alice
+bob"
+}
+
+@test "users__resolve_list --all: deduplicates against explicit --user additions" {
+  reload_lib
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/getent" << 'EOF'
+#!/bin/sh
+if [ "$1" = "passwd" ] && [ $# -eq 1 ]; then
+  cat << 'PASSWD'
+alice:x:1000:1000::/home/alice:/bin/bash
+PASSWD
+fi
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/getent"
+  prepend_fake_bin_path
+  bootstrap__getent() { return 0; }
+  export -f bootstrap__getent
+  run users__resolve_list --current false --remote false --container false --user alice --all
+  assert_success
+  assert_output "alice"
+}
+
+# ---------------------------------------------------------------------------
+# users__nonroot_share_dir
+# ---------------------------------------------------------------------------
+
+@test "users__nonroot_share_dir: substitutes the target user's home for the current user's home prefix" {
+  reload_lib
+  _FEAT_SHARE_DIR_NONROOT="/home/buildinguser/.local/share/testns/testfeat"
+  # shellcheck disable=SC2329
+  users__resolve_home() {
+    if [[ -n "${1-}" ]]; then printf '/home/otheruser\n'; else printf '/home/buildinguser\n'; fi
+  }
+  export -f users__resolve_home
+  run users__nonroot_share_dir otheruser
+  assert_success
+  assert_output "/home/otheruser/.local/share/testns/testfeat"
+}
+
+@test "users__nonroot_share_dir: resolves the current-user prefix via users__resolve_home, NOT the \$HOME variable" {
+  # Regression test: this function is commonly called from within a subshell
+  # that has transiently exported HOME to a DIFFERENT user's home (e.g. while
+  # dispatching a per-user operation) for unrelated tilde-expansion purposes.
+  # Reading $HOME directly here would strip the wrong prefix (or none at
+  # all), silently producing a garbled path such as
+  # "/root/home/buildinguser/.local/share/...". Resolving the current
+  # identity via users__resolve_home (no args) must be immune to that.
+  reload_lib
+  _FEAT_SHARE_DIR_NONROOT="/home/buildinguser/.local/share/testns/testfeat"
+  # shellcheck disable=SC2329
+  users__resolve_home() {
+    if [[ -n "${1-}" ]]; then printf '/home/otheruser\n'; else printf '/home/buildinguser\n'; fi
+  }
+  export -f users__resolve_home
+  HOME=/home/otheruser run users__nonroot_share_dir otheruser
+  assert_success
+  assert_output "/home/otheruser/.local/share/testns/testfeat"
+}
+
+@test "users__nonroot_share_dir: fails when the user's home cannot be resolved" {
+  reload_lib
+  _FEAT_SHARE_DIR_NONROOT="${HOME}/.local/share/testns/testfeat"
+  users__resolve_home() { printf ''; }
+  export -f users__resolve_home
+  run users__nonroot_share_dir ghostuser
+  assert_failure
+}
+
+@test "users__nonroot_share_dir: fails when username is empty" {
+  reload_lib
+  _FEAT_SHARE_DIR_NONROOT="${HOME}/.local/share/testns/testfeat"
+  run users__nonroot_share_dir ""
+  assert_failure
+}

@@ -45,6 +45,39 @@ posix__bootstrap_xcode() {
   return 0
 }
 
+posix__quote() {
+  # @brief posix__quote <value> — Print <value> as a POSIX sh single-quoted string literal.
+  #
+  # Safe for arbitrary content, including embedded newlines and single quotes.
+  # Useful for writing dynamically-generated POSIX sh scripts (e.g. lifecycle
+  # hook scripts with runtime-computed option values).
+  #
+  # Pure POSIX parameter expansion (no external tools, no bash-only `${var//}`)
+  # so this works identically under dash/ash and bash.
+  #
+  # Args:
+  #   <value>  String to quote.
+  #
+  # Stdout: the quoted literal (no trailing newline).
+  local _pq_in="$1"
+  local _pq_out=''
+  local _pq_chunk
+  while [ -n "$_pq_in" ]; do
+    case $_pq_in in
+      "'"*)
+        _pq_out="${_pq_out}'\\''"
+        _pq_in=${_pq_in#?}
+        ;;
+      *)
+        _pq_chunk=${_pq_in%%\'*}
+        _pq_out="${_pq_out}${_pq_chunk}"
+        _pq_in=${_pq_in#"$_pq_chunk"}
+        ;;
+    esac
+  done
+  printf "'%s'" "$_pq_out"
+}
+
 posix__install_bash_from_source() {
   # @brief posix__install_bash_from_source <prefix> <version> — Download, compile, and install bash from GNU FTP.
   #

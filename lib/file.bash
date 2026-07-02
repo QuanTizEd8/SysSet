@@ -176,6 +176,34 @@ file__cp() {
   fi
 }
 
+file__mv() {
+  # @brief file__mv [flags] <src>... <dest> — Move files or directories (mv), escalating privilege only if needed.
+  #
+  # Forwards all arguments to `mv`. The destination is the last argument.
+  # Escalates to `users__run_privileged` if the destination (or its nearest
+  # existing ancestor) is not writable by the current process.
+  #
+  # Args:
+  #   [flags]   Optional mv flags. Must appear before paths.
+  #   <src>...  Source path(s).
+  #   <dest>    Destination path (last argument).
+  #
+  # Returns: 0 on success, non-zero on failure.
+  logging__debug "Moving files (dest='${!#}')."
+  local _dest="${!#}"
+  local _needs_priv=false
+  if [[ -e "$_dest" && ! -w "$_dest" ]]; then
+    _needs_priv=true
+  elif [[ ! -e "$_dest" && ! -w "$(file__nearest_existing "$(dirname "$_dest")")" ]]; then
+    _needs_priv=true
+  fi
+  if $_needs_priv; then
+    users__run_privileged mv "$@"
+  else
+    mv "$@"
+  fi
+}
+
 file__rm() {
   # @brief file__rm [flags] <path>... — Remove files or directories (rm), escalating privilege only if needed.
   #
@@ -416,6 +444,64 @@ file__tee() {
     return 1
   fi
   return 0
+}
+
+file__resolve_backup_policy() {
+  # @brief file__resolve_backup_policy <policy> — Resolve a backup policy ("auto"/"true"/"false") to a concrete "true"/"false".
+  #
+  # "auto" resolves via os__is_devcontainer_runtime: back up outside a
+  # devcontainer/Codespaces runtime, skip inside one (where the container
+  # itself is disposable and a backup adds little value).
+  #
+  # Args:
+  #   <policy>  One of "auto", "true", "false".
+  #
+  # Stdout: "true" or "false".
+  local _policy="${1:-auto}"
+  case "$_policy" in
+    true) printf 'true\n' ;;
+    false) printf 'false\n' ;;
+    *)
+      if os__is_devcontainer_runtime; then
+        printf 'false\n'
+      else
+        printf 'true\n'
+      fi
+      ;;
+  esac
+}
+
+file__backup_if_policy() {
+  # @brief file__backup_if_policy <path> <policy> <backup_dir> — Back up <path> into <backup_dir> when <policy> (resolved via file__resolve_backup_policy) is "true".
+  #
+  # No-ops (prints nothing, returns 0) when <path> does not exist or the
+  # resolved policy is "false". The backup name is a slugified copy of <path>
+  # (slashes replaced with underscores) suffixed with a UTC timestamp, so
+  # repeated backups of the same path never collide.
+  #
+  # Args:
+  #   <path>        File or directory to back up (need not exist).
+  #   <policy>      "auto", "true", or "false" (see file__resolve_backup_policy).
+  #   <backup_dir>  Directory to copy the backup into. Required when a backup is taken.
+  #
+  # Stdout: the backup path, only when a backup was actually taken.
+  #
+  # Returns: 0 on success (including no-op cases), 1 if a backup is needed but <backup_dir> is empty.
+  local _path="${1-}" _policy="${2-}" _backup_dir="${3-}"
+  [[ -e "$_path" ]] || return 0
+  [[ "$(file__resolve_backup_policy "$_policy")" == "true" ]] || return 0
+  if [[ -z "$_backup_dir" ]]; then
+    logging__error "file__backup_if_policy: no backup directory provided for '${_path}'."
+    return 1
+  fi
+  local _slug _ts _dest
+  _slug="$(printf '%s' "$_path" | tr '/' '_')"
+  _slug="${_slug#_}"
+  _ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  _dest="${_backup_dir}/${_slug}.${_ts}"
+  file__mkdir "$_backup_dir"
+  file__cp -r "$_path" "$_dest"
+  printf '%s\n' "$_dest"
 }
 
 file__detect_type() {

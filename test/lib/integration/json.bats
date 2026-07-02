@@ -12,6 +12,7 @@ FIXTURES_DIR="${REPO_ROOT}/test/lib/fixtures/json"
 setup_file() {
   load '../helpers/bootstrap_tools'
   test_bootstrap__setup_file_jsonschema
+  test_bootstrap__setup_file_jq_yq
 }
 
 setup() {
@@ -199,4 +200,94 @@ z"
   assert_failure
   # Error output should mention the violation.
   assert_output --partial "packages"
+}
+
+# ---------------------------------------------------------------------------
+# json__query_multi
+# ---------------------------------------------------------------------------
+
+@test "json__query_multi: extracts fields in order, NUL-terminated" {
+  run bash -c '. "$1/__init__.bash" && mapfile -d "" -t out < <(json__query_multi "{\"a\":\"1\",\"b\":\"2\",\"c\":null}" ".a" ".b" ".c // \"default\""); printf "%s\n" "${out[@]}"' _ "${LIB_ROOT}"
+  assert_output "1
+2
+default"
+}
+
+@test "json__query_multi: serializes array/object results via tojson" {
+  run bash -c '. "$1/__init__.bash" && mapfile -d "" -t out < <(json__query_multi "{\"arr\":[\"x\",\"y\"]}" ".arr"); printf "%s\n" "${out[@]}"' _ "${LIB_ROOT}"
+  assert_output '["x","y"]'
+}
+
+@test "json__query_multi: does not drop a trailing empty-string field" {
+  # Regression test: an earlier separator-only NUL scheme made a trailing
+  # empty result indistinguishable from end-of-stream, so mapfile silently
+  # dropped it. Every record must be NUL-TERMINATED, not merely separated.
+  run bash -c '. "$1/__init__.bash" && mapfile -d "" -t out < <(json__query_multi "{\"a\":\"1\",\"b\":\"2\"}" ".a" ".b" ".missing // \"\""); echo "${#out[@]}"; printf "[%s]\n" "${out[@]}"' _ "${LIB_ROOT}"
+  assert_output "3
+[1]
+[2]
+[]"
+}
+
+@test "json__query_multi: preserves an explicit JSON boolean false (not the same as absent)" {
+  # Regression test: the wrapper used to serialize every result via
+  # `. // "" | tostring`. jq's `//` treats JSON false the same as null, so a
+  # field explicitly set to false collapsed to "" — indistinguishable from a
+  # missing field, and impossible for a caller's own `.field // "default"` to
+  # tell apart from "absent" either (the same jq gotcha one level up).
+  run bash -c '. "$1/__init__.bash" && mapfile -d "" -t out < <(json__query_multi "{\"a\":false,\"b\":true,\"c\":null}" ".a" ".b" ".c"); printf "[%s]\n" "${out[@]}"' _ "${LIB_ROOT}"
+  assert_output "[false]
+[true]
+[]"
+}
+
+@test "json__query_multi: preserves embedded newlines within a single field" {
+  run bash -c '. "$1/__init__.bash" && mapfile -d "" -t out < <(json__query_multi "{\"a\":\"line1\\nline2\",\"b\":\"plain\"}" ".a" ".b"); printf "%s|\n" "${out[@]}"' _ "${LIB_ROOT}"
+  assert_output "line1
+line2|
+plain|"
+}
+
+# ---------------------------------------------------------------------------
+# json__string_or_array_lines
+# ---------------------------------------------------------------------------
+
+@test "json__string_or_array_lines: absent field prints nothing" {
+  run bash -c '. "$1/__init__.bash" && json__string_or_array_lines "{}" users' _ "${LIB_ROOT}"
+  assert_output ""
+}
+
+@test "json__string_or_array_lines: string field prints one line" {
+  run bash -c '. "$1/__init__.bash" && json__string_or_array_lines "{\"users\":\"all\"}" users' _ "${LIB_ROOT}"
+  assert_output "all"
+}
+
+@test "json__string_or_array_lines: array field prints one line per element" {
+  run bash -c '. "$1/__init__.bash" && json__string_or_array_lines "{\"users\":[\"alice\",\"bob\"]}" users' _ "${LIB_ROOT}"
+  assert_output "alice
+bob"
+}
+
+# ---------------------------------------------------------------------------
+# json__from_yaml
+# ---------------------------------------------------------------------------
+
+@test "json__from_yaml: converts a YAML file to canonical JSON" {
+  test_bootstrap__require_yq
+  test_bootstrap__wire_tools_for_run
+  local _f="${BATS_TEST_TMPDIR}/manifest.yaml"
+  printf 'files:\n  - op: create\n    dest: /tmp/x\n' > "${_f}"
+  run bash -c '. "$1/__init__.bash" && json__from_yaml "$2" | jq -c .' _ "${LIB_ROOT}" "${_f}"
+  assert_success
+  assert_output '{"files":[{"op":"create","dest":"/tmp/x"}]}'
+}
+
+@test "json__from_yaml: passes an already-JSON file through unchanged" {
+  test_bootstrap__require_yq
+  test_bootstrap__wire_tools_for_run
+  local _f="${BATS_TEST_TMPDIR}/manifest.json"
+  printf '{"a":1}' > "${_f}"
+  run bash -c '. "$1/__init__.bash" && json__from_yaml "$2" | jq -c .' _ "${LIB_ROOT}" "${_f}"
+  assert_success
+  assert_output '{"a":1}'
 }
