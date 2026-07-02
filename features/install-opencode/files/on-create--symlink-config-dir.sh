@@ -14,7 +14,7 @@ symlink_config_dir() {
   _config_dir_fullpath="${_container_workspace_folder}/${CONFIG_DIR}"
 
   rm -rf ~/.config/opencode
-  mkdir -p "$(dirname "$_config_dir_fullpath")"
+  mkdir -p "$_config_dir_fullpath"
   mkdir -p "$(dirname ~/.config/opencode)"
   ln -s "$_config_dir_fullpath" ~/.config/opencode
 }
