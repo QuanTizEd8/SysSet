@@ -43,13 +43,23 @@ precedence), then optional per-feature `defaults:` in `scenarios.yaml`, then sce
 
 | Option | Default | Role in tests |
 |--------|---------|----------------|
-| `log_level` | `debug` | Console verbosity during install (GHA job logs are debug-level) |
-| `log_file_level` | `trace` | File verbosity (includes bash xtrace when written to `log_file`) |
+| `log_level` | `debug` | Console verbosity during install |
+| `log_file_level` | `debug` | File verbosity (bash xtrace only turns on at `trace`) |
 | `log_file` | `/tmp/devfeats-feature.log` | In-container path for the install session log |
 
 Dedicated `log_file` scenarios (e.g. `log_file` in `install-git`) override `log_file` with
 a feature-specific path; assertions in `checks.yaml` still target that path inside the
 container. The test runner always copies the install log to a canonical host file (see below).
+
+`log_file_level: trace` enables bash `set -x` xtrace inside the install script, which is
+useful for debugging but roughly an order of magnitude slower (measured: ~9x on a fast,
+network-free scenario) — that's why it's off by default. To get xtrace back for one run,
+pass `--log-level`/`--log-file-level`/`--xtrace` to `proman-test-run` (available via
+`just test-feats <feature> --xtrace` and `just test-feats-macos <feature> --xtrace`); these
+flags override `log_file`/`log_level` for every scenario in that run, taking precedence over
+`scenarios.yaml` and the shared defaults. In CI, the same trace level is applied automatically
+whenever the job is re-run with GitHub's "Enable debug logging" option — see
+{doc}`/dev-guide/devops/ci`.
 
 ## Install log capture
 

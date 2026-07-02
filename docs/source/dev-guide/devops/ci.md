@@ -71,9 +71,16 @@ Logs are saved to `.local/logs/gha/<commit-sha>/<run-id>/`:
 | `passing.log` | One job name per line (success/skipped) |
 | `failing.log` | `job-name --- step-name --- <job-id>.log` per failing step |
 | `<job-id>.log` | Full GHA job log (timestamps stripped); debug-level installer output in feature tests |
-| `<job-id>.trace.log` | Failed feature-test jobs only: `feat-log-*` artifact (`log_file_level: trace`) |
+| `<job-id>.trace.log` | Failed feature-test jobs only: `feat-log-*` artifact (install log at whatever `log_file_level` the job ran with) |
 
 Feature-test job names look like `Test Feature install-git / default_install.ubuntu-stable (linux)` (reusable workflow); artifacts are named `feat-log-<feature>-<scenario-key>-<mode>`. `fetch-gha` resolves the exact artifact name from the job name.
+
+Feature-test jobs run at `log_file_level: debug` by default (see {doc}`/dev-guide/tests/features`),
+so a first-time failure's `.trace.log` won't have bash xtrace. To get a trace-level log for a
+failing job, re-run it with debug logging enabled — `gh run rerun <run-id> --failed --debug` (or
+the "Enable debug logging" checkbox in the GitHub UI re-run dialog) — then `fetch-gha` again once
+the re-run finishes; the workflow reads GitHub's `runner.debug` context and automatically bumps
+`log_file_level` to `trace` for that run, no other input needed.
 
 Per-scenario install logs are also written during local/CI test runs under
 `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` (see {doc}`/dev-guide/tests/features`).

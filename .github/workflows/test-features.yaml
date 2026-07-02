@@ -54,6 +54,7 @@ jobs:
           CI_IMAGE: ${{ fromJSON(inputs.config).ci_image }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DEVFEATS_CI_DEBUG: ${{ runner.debug }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
@@ -61,6 +62,7 @@ jobs:
             -e GITHUB_TOKEN \
             -e DOCKERHUB_USERNAME \
             -e DOCKERHUB_TOKEN \
+            -e DEVFEATS_CI_DEBUG \
             -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode devcontainer --filter "${{ matrix.scenario }}"
@@ -104,6 +106,7 @@ jobs:
           CI_IMAGE: ${{ fromJSON(inputs.config).ci_image }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DEVFEATS_CI_DEBUG: ${{ runner.debug }}
         run: |
           docker run --rm --privileged \
             -v "${GITHUB_WORKSPACE}:/repo" \
@@ -111,6 +114,7 @@ jobs:
             -e GITHUB_TOKEN \
             -e DOCKERHUB_USERNAME \
             -e DOCKERHUB_TOKEN \
+            -e DEVFEATS_CI_DEBUG \
             -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode standalone --filter "${{ matrix.scenario }}"
@@ -147,6 +151,7 @@ jobs:
       - name: "${{ matrix.sc.scenario }} (macOS)"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEVFEATS_CI_DEBUG: ${{ runner.debug }}
         run: just test-feats-macos "${{ fromJSON(inputs.config).feature }}" --filter "${{ matrix.sc.scenario }}"
 
       - name: Upload feature install log

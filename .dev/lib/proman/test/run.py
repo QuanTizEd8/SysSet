@@ -36,7 +36,13 @@ from .feature_logs import (
 from .gen_devcontainer import generate
 from .loader import FeatureTestError, FeatureTestLoader
 from .names import FeatureTestRun, host_log_path
-from .scenarios import DEFAULT_MODES, merge_scenario_env_vars
+from .scenarios import (
+    DEFAULT_MODES,
+    LOG_LEVELS,
+    apply_log_overrides,
+    merge_scenario_env_vars,
+    resolve_log_overrides,
+)
 
 _SHIM_SETUP = (
     "mkdir -p /tmp/_testlib"
@@ -284,6 +290,7 @@ def _run_devcontainer(
     filter_prefix: str,
     entries: list[dict],
     checks_data: dict,
+    log_overrides: dict[str, str] | None = None,
 ) -> bool:
     ensure_host_log_dir()
     keys = _devcontainer_keys(entries, filter_prefix)
@@ -325,6 +332,7 @@ def _run_devcontainer(
                 envs_path=cfg.absolute_path("path.test_environments"),
                 out_dir=tmpdir,
                 checks_data=checks_data,
+                option_overrides=log_overrides,
             )
 
             scenarios_json_path = test_out_dir / "scenarios.json"
@@ -744,6 +752,29 @@ def main() -> None:
         metavar="PREFIX",
         help="Run scenarios whose key equals PREFIX or starts with PREFIX",
     )
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        choices=LOG_LEVELS,
+        help="Override LOG_LEVEL for every scenario in this run (highest precedence).",
+    )
+    parser.add_argument(
+        "--log-file-level",
+        default=None,
+        choices=LOG_LEVELS,
+        help=(
+            "Override LOG_FILE_LEVEL for every scenario in this run "
+            "(highest precedence)."
+        ),
+    )
+    parser.add_argument(
+        "--xtrace",
+        action="store_true",
+        help=(
+            "Shorthand for --log-file-level trace (enables bash xtrace in the "
+            "install log)."
+        ),
+    )
     args = parser.parse_args()
 
     cfg = load_config()
@@ -758,11 +789,23 @@ def main() -> None:
 
     envs = load_envs(cfg.absolute_path("path.test_environments"))
     entries = ft.expand_entries(envs)
+    log_overrides = resolve_log_overrides(
+        log_level=args.log_level,
+        log_file_level=args.log_file_level,
+        xtrace=args.xtrace,
+    )
+    apply_log_overrides(entries, log_overrides)
 
     filter_prefix: str = args.filter
 
     if args.mode == "devcontainer":
-        ok = _run_devcontainer(args.feature, filter_prefix, entries, ft.checks)
+        ok = _run_devcontainer(
+            args.feature,
+            filter_prefix,
+            entries,
+            ft.checks,
+            log_overrides,
+        )
         sys.exit(0 if ok else 1)
 
     if args.mode == "standalone":
@@ -774,7 +817,13 @@ def main() -> None:
         sys.exit(0 if ok else 1)
 
     rc = 0
-    if not _run_devcontainer(args.feature, filter_prefix, entries, ft.checks):
+    if not _run_devcontainer(
+        args.feature,
+        filter_prefix,
+        entries,
+        ft.checks,
+        log_overrides,
+    ):
         rc = 1
     if not _run_standalone(args.feature, entries, filter_prefix, envs, ft.checks):
         rc = 1

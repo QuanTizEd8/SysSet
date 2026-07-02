@@ -152,6 +152,7 @@ def generate(
     out_dir: Path | str,
     *,
     checks_data: dict,
+    option_overrides: dict[str, str] | None = None,
 ) -> None:
     """Generate scenarios.json and Dockerfiles for all devcontainer test scenarios."""
     scenarios_path = Path(scenarios_path)
@@ -176,6 +177,13 @@ def generate(
             if modes == ["standalone"]:
                 continue
 
+            entry_scenario = scenario
+            if option_overrides:
+                entry_scenario = {
+                    **scenario,
+                    "options": {**scenario.get("options", {}), **option_overrides},
+                }
+
             # Dockerfiles go into a per-scenario subdir so the devcontainer CLI
             # picks them up via its test/{feature}/{key}/ → .devcontainer/ copy.
             scenario_dir = scenarios_dir / key
@@ -184,7 +192,7 @@ def generate(
             output[key] = _build_scenario(
                 key,
                 env_name,
-                scenario,
+                entry_scenario,
                 feature,
                 envs,
                 scenario_dir,

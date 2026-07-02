@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -23,6 +24,14 @@ FAST_NET_FAIL_ENV_VARS: dict[str, str] = {
     "DEVFEATS_NET_FETCH_RETRIES": "1",
     "DEVFEATS_NET_FETCH_DELAY": "0",
 }
+
+# lib/logging.bash's recognized LOG_LEVEL / LOG_FILE_LEVEL values.
+LOG_LEVELS: tuple[str, ...] = ("silent", "error", "warn", "info", "debug", "trace")
+
+# Set by test-features.yaml from the ``runner.debug`` context (see
+# docs/source/dev-guide/devops/ci.md) — truthy only during a GHA "re-run with
+# debug logging". Signals CI wants xtrace without anyone passing --xtrace.
+CI_DEBUG_ENV_VAR = "DEVFEATS_CI_DEBUG"
 
 # Substrings in checks.yaml install-failure groups that mean the scenario exercises a
 # blocked or unreachable network fetch (not merely a local validation error).
@@ -101,6 +110,43 @@ def merge_scenario_env_vars(scenario: dict[str, Any]) -> dict[str, str]:
     if scenario_injects_fast_net_fail_env(scenario):
         env = {**FAST_NET_FAIL_ENV_VARS, **env}
     return env
+
+
+def resolve_log_overrides(
+    *,
+    log_level: str | None,
+    log_file_level: str | None,
+    xtrace: bool,
+    environ: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Resolve LOG_LEVEL/LOG_FILE_LEVEL overrides for a whole test run.
+
+    Precedence: explicit --log-level/--log-file-level/--xtrace flags, then the
+    CI_DEBUG_ENV_VAR signal (xtrace), then empty (scenario/shared defaults apply).
+    """
+    overrides: dict[str, str] = {}
+    if log_level:
+        overrides["log_level"] = log_level
+    if log_file_level:
+        overrides["log_file_level"] = log_file_level
+    if xtrace:
+        overrides.setdefault("log_file_level", "trace")
+    if overrides:
+        return overrides
+
+    environ = os.environ if environ is None else environ
+    if environ.get(CI_DEBUG_ENV_VAR, "").strip().lower() in ("1", "true"):
+        return {"log_file_level": "trace"}
+    return {}
+
+
+def apply_log_overrides(entries: list[dict], overrides: dict[str, str]) -> None:
+    """Apply resolved log-level overrides in place across expanded runner entries."""
+    if not overrides:
+        return
+    for entry in entries:
+        options = {**entry["scenario"].get("options", {}), **overrides}
+        entry["scenario"] = {**entry["scenario"], "options": options}
 
 
 def load(path: Path | str) -> tuple[dict, dict]:
