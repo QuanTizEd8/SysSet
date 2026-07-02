@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import yaml
@@ -17,6 +18,66 @@ from proman.config import load as load_config
 
 _DOCKER_GITHUB_ARG_LINES = "ARG GITHUB_TOKEN\nENV GITHUB_TOKEN=${GITHUB_TOKEN}\n"
 _BUILDKIT_PROGRESS_PLAIN = "plain"
+
+# POSIX sh retry helper injected into every env-bootstrap / scenario `setup:`
+# shell context (Dockerfile RUN heredocs, standalone `sh -c`, macOS `bash -c`).
+# None of those contexts source lib/net.bash (no repo checkout yet, or a bare
+# base-image shell), so package-manager calls (apt-get/dnf/pacman/...) have no
+# access to curl's own transient-error retry — this is a blind, bounded retry
+# (3 attempts, 5s delay) rather than curl's smarter classification, since
+# package managers have no equivalent "transient vs permanent" signal to key
+# off. Not `local`-free-POSIX pedantic, but works under dash/ash/bash alike.
+RETRY_SHELL_PREAMBLE = """\
+retry() {
+  _devfeats_retry_n=0
+  while [ "$_devfeats_retry_n" -lt 3 ]; do
+    "$@" && return 0
+    _devfeats_retry_n=$((_devfeats_retry_n + 1))
+    [ "$_devfeats_retry_n" -lt 3 ] && sleep 5
+  done
+  return 1
+}
+"""
+
+
+def _try_run(
+    cmd: list[str],
+    kwargs: dict[str, object],
+) -> subprocess.CompletedProcess | subprocess.CalledProcessError:
+    """One subprocess.run(cmd, check=True) attempt; failure is returned, not raised."""
+    try:
+        return subprocess.run(cmd, check=True, **kwargs)
+    except subprocess.CalledProcessError as exc:
+        return exc
+
+
+def run_with_retry(
+    cmd: list[str],
+    *,
+    attempts: int = 3,
+    delay: float = 5,
+    **kwargs: object,
+) -> subprocess.CompletedProcess:
+    """subprocess.run(cmd, check=True, **kwargs), retrying transient failures.
+
+    Docker build/run/login failures are usually a registry pull blip, not a
+    deterministic bug, so a small bounded retry (unlike lib/net.bash's 60x for
+    a single curl request) is worth it here — these are expensive operations,
+    not lightweight HTTP fetches.
+    """
+    result: subprocess.CompletedProcess | subprocess.CalledProcessError
+    for attempt in range(1, attempts + 1):
+        result = _try_run(cmd, kwargs)
+        if isinstance(result, subprocess.CompletedProcess):
+            return result
+        if attempt < attempts:
+            print(
+                f"⚠️  command failed (attempt {attempt}/{attempts}); "
+                f"retrying in {delay}s: {' '.join(cmd)}",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
+    raise result
 
 
 def docker_buildkit_env(base: dict[str, str] | None = None) -> dict[str, str]:
@@ -91,7 +152,9 @@ def _collect_layers(
             body += line
     elif df_inline:
         commands = df_inline.strip()
-        body += f"{arg_lines}RUN <<'EOF'\nset -eux\n{commands}\nEOF\n"
+        body += (
+            f"{arg_lines}RUN <<'EOF'\nset -eux\n{RETRY_SHELL_PREAMBLE}{commands}\nEOF\n"
+        )
 
     if env_vars:
         body += "".join(f"ENV {k}={v}\n" for k, v in env_vars.items())
@@ -166,7 +229,7 @@ def resolve(
         ]
         for k, v in build_args.items():
             cmd.extend(["--build-arg", f"{k}={v}"])
-        subprocess.run(cmd, check=True, env=docker_buildkit_env())
+        run_with_retry(cmd, env=docker_buildkit_env())
     finally:
         Path(df_tmp).unlink(missing_ok=True)
 

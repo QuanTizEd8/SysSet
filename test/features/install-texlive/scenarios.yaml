@@ -57,7 +57,7 @@ if_exists_skip:
   modes: [standalone]
   setup: |
     # Pre-install a minimal TeX Live via package manager as the "existing" install
-    apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
+    retry apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
   options:
     method: package
     scheme: basic
@@ -69,7 +69,7 @@ if_exists_fail:
   envs: [ubuntu-stable]
   modes: [standalone]
   setup: |
-    apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
+    retry apt-get install -y --no-install-recommends texlive-latex-base 2>/dev/null || true
     printf '#!/bin/sh\necho "TeX Live Manager faked"\n' > /usr/local/bin/tlmgr
     chmod +x /usr/local/bin/tlmgr
   options:

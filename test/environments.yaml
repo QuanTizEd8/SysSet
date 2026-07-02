@@ -44,40 +44,43 @@ miniforge-current:
 alpine-current+bash:
   from: alpine-current
   build:
-    dockerfile: apk add --no-cache bash
+    dockerfile: retry apk add --no-cache bash
 
 rockylinux-current+bash:
   from: rockylinux-current
   build:
-    dockerfile: dnf install -y bash
+    dockerfile: retry dnf install -y bash
 
 opensuse-leap-current+bash:
   from: opensuse-leap-current
   build:
     # zypper exits 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when some repos are
-    # unreachable but the operation succeeds. set +e is required because
-    # environments.py wraps inline dockerfiles with set -eux.
+    # unreachable but the operation succeeds — treat that as success so a
+    # genuine network failure (any other nonzero exit) is what triggers retry.
     dockerfile: |
-      set +e
-      zypper install -y bash
-      _rc=$?
-      set -e
-      [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
+      _zypper_install_bash() {
+        set +e
+        zypper install -y bash
+        _rc=$?
+        set -e
+        [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
+      }
+      retry _zypper_install_bash
 
 fedora-current+bash:
   from: fedora-current
   build:
-    dockerfile: dnf install -y bash
+    dockerfile: retry dnf install -y bash
 
 debian-stable+bash:
   from: debian-stable
   build:
-    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
+    dockerfile: retry apt-get update -qq && retry apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 
 debian-current+bash:
   from: debian-current
   build:
-    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
+    dockerfile: retry apt-get update -qq && retry apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 
 # ── +shell variants ───────────────────────────────────────────────────────────
 # Base images augmented with a single non-bash shell or helper tool.
@@ -86,16 +89,16 @@ ubuntu-stable+fish:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update
-      apt-get install -y --no-install-recommends fish
+      retry apt-get update
+      retry apt-get install -y --no-install-recommends fish
       rm -rf /var/lib/apt/lists/*
 
 ubuntu-stable+zsh:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update \
-       && apt-get install -y --no-install-recommends zsh \
+      retry apt-get update \
+       && retry apt-get install -y --no-install-recommends zsh \
        && apt-get clean \
        && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
 
@@ -103,16 +106,16 @@ ubuntu-stable+node:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update
-      apt-get install -y --no-install-recommends nodejs npm
+      retry apt-get update
+      retry apt-get install -y --no-install-recommends nodejs npm
       rm -rf /var/lib/apt/lists/*
 
 ubuntu-stable+curl:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update
-      apt-get install -y --no-install-recommends curl ca-certificates bash
+      retry apt-get update
+      retry apt-get install -y --no-install-recommends curl ca-certificates bash
       rm -rf /var/lib/apt/lists/*
 
 # ── +tool[-version] variants ──────────────────────────────────────────────────
@@ -123,22 +126,22 @@ ubuntu-stable+curl:
 ubuntu-stable+git:
   from: ubuntu-stable
   build:
-    dockerfile: apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+    dockerfile: retry apt-get update && retry apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
 ubuntu-stable+git+sudo:
   from: ubuntu-stable
   build:
     dockerfile: |
-      (apt-get update || (sleep 15 && apt-get update))
-      apt-get install -y --no-install-recommends git sudo
+      retry apt-get update
+      retry apt-get install -y --no-install-recommends git sudo
       rm -rf /var/lib/apt/lists/*
 
 ubuntu-stable+ripgrep:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends ripgrep
+      retry apt-get update -qq
+      retry apt-get install -y --no-install-recommends ripgrep
       rm -rf /var/lib/apt/lists/*
 
 ubuntu-current+rust:
@@ -151,11 +154,12 @@ ubuntu-current+rust:
   from: ubuntu-current
   build:
     dockerfile: |
-      apt-get update -qq
-      DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      retry apt-get update -qq
+      DEBIAN_FRONTEND=noninteractive retry apt-get install -y --no-install-recommends \
         curl ca-certificates gcc g++ make pkg-config
       rm -rf /var/lib/apt/lists/*
-      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+      curl --proto '=https' --tlsv1.2 -sSf --retry 60 --retry-delay 5 --retry-connrefused \
+        https://sh.rustup.rs \
         | sh -s -- -y --profile minimal --default-toolchain stable
   env_vars:
     PATH: /root/.cargo/bin:$PATH
@@ -164,8 +168,8 @@ ubuntu-stable+jq-1.8.1:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends curl ca-certificates
+      retry apt-get update -qq
+      retry apt-get install -y --no-install-recommends curl ca-certificates
       apt-get clean
       rm -rf /var/lib/apt/lists/*
       ARCH="$(uname -m)"
@@ -184,8 +188,8 @@ ubuntu-stable+yq-4.44.2:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update
-      apt-get install -y --no-install-recommends curl ca-certificates
+      retry apt-get update
+      retry apt-get install -y --no-install-recommends curl ca-certificates
       apt-get clean
       apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
       ARCH="$(uname -m)"
@@ -204,8 +208,8 @@ ubuntu-stable+gh-2.67.0:
   from: ubuntu-stable
   build:
     dockerfile: |
-      (apt-get update || (sleep 15 && apt-get update))
-      apt-get install -y --no-install-recommends curl ca-certificates
+      retry apt-get update
+      retry apt-get install -y --no-install-recommends curl ca-certificates
       rm -rf /var/lib/apt/lists/*
       ARCH="$(uname -m)"
       case "${ARCH}" in
@@ -226,26 +230,27 @@ ubuntu-stable+homebrew:
   from: ubuntu-stable
   build:
     dockerfile: |
-      apt-get update \
-       && apt-get install -y --no-install-recommends \
+      retry apt-get update \
+       && retry apt-get install -y --no-install-recommends \
               git curl file build-essential procps ca-certificates \
        && apt-get clean \
        && apt-get dist-clean 2>/dev/null || rm -rf /var/lib/apt/lists/*
       useradd --system -m -s /bin/bash linuxbrew
       runuser -u linuxbrew -- env NONINTERACTIVE=1 /bin/bash -c \
-          "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          "$(curl -fsSL --retry 60 --retry-delay 5 --retry-connrefused \
+              https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 debian-current+just:
   from: debian-current
   build:
-    dockerfile: apt-get update -qq && apt-get install -y --no-install-recommends just && rm -rf /var/lib/apt/lists/*
+    dockerfile: retry apt-get update -qq && retry apt-get install -y --no-install-recommends just && rm -rf /var/lib/apt/lists/*
 
 debian-stable+direnv:
   from: debian-stable
   build:
     dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends direnv
+      retry apt-get update -qq
+      retry apt-get install -y --no-install-recommends direnv
       rm -rf /var/lib/apt/lists/*
 
 # ── +toolchain variants ───────────────────────────────────────────────────────
@@ -256,8 +261,8 @@ debian-stable+autotools:
   from: debian-stable
   build:
     dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
+      retry apt-get update -qq
+      retry apt-get install -y --no-install-recommends \
         make automake autoconf libtool build-essential curl ca-certificates
       rm -rf /var/lib/apt/lists/*
 
@@ -266,14 +271,14 @@ alpine-current+build-base+ncurses:
   build:
     # build-base + ncurses-dev: required for source builds of bash, zsh, and
     # other tools that use autotools + ncurses.
-    dockerfile: apk add --no-cache build-base ncurses-dev curl ca-certificates
+    dockerfile: retry apk add --no-cache build-base ncurses-dev curl ca-certificates
 
 debian-stable+build-essential+ncurses:
   from: debian-stable
   build:
     dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
+      retry apt-get update -qq
+      retry apt-get install -y --no-install-recommends \
         build-essential libncurses-dev curl ca-certificates xz-utils
       rm -rf /var/lib/apt/lists/*
 
@@ -283,8 +288,8 @@ ubuntu-stable+build-essential+git-dev-libs:
     # build-essential + git's specific C library requirements (libcurl, libexpat,
     # libpcre2, libssl, zlib) needed for compiling git from a kernel.org tarball.
     dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends \
+      retry apt-get update -qq
+      retry apt-get install -y --no-install-recommends \
         build-essential gettext libcurl4-openssl-dev libexpat1-dev \
         libpcre2-dev libssl-dev zlib1g-dev libpcre2-posix3 \
         curl ca-certificates tar jq yq
@@ -294,8 +299,8 @@ debian-stable+go:
   from: debian-stable
   build:
     dockerfile: |
-      apt-get update -qq
-      apt-get install -y --no-install-recommends make curl ca-certificates
+      retry apt-get update -qq
+      retry apt-get install -y --no-install-recommends make curl ca-certificates
       rm -rf /var/lib/apt/lists/*
       ARCH="$(uname -m)"
       case "${ARCH}" in
@@ -417,7 +422,7 @@ macos-current:
       # _ensure_bash4) — no pre-staged bash binary is needed here.
       _UNINSTALL_URL="https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh"
       _UNINSTALL_TMP="$(mktemp /tmp/brew_uninstall.XXXXXX.sh)"
-      curl -fsSL "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
+      curl -fsSL --retry 60 --retry-delay 5 --retry-connrefused "$_UNINSTALL_URL" -o "$_UNINSTALL_TMP"
       NONINTERACTIVE=1 bash "$_UNINSTALL_TMP" --force
       rm -f "$_UNINSTALL_TMP"
       # User configuration only (not ~/Library, Documents, .CFUserTextEncoding, …).

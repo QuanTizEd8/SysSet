@@ -12,7 +12,12 @@ from proman.config import load as load_config
 from proman.feature_env import resolved_env_vars
 
 from .codegen import _render_group
-from .environments import _DOCKER_GITHUB_ARG_LINES, _collect_layers, is_macos
+from .environments import (
+    _DOCKER_GITHUB_ARG_LINES,
+    RETRY_SHELL_PREAMBLE,
+    _collect_layers,
+    is_macos,
+)
 from .environments import load as load_envs
 from .scenarios import (
     DEFAULT_MODES,
@@ -114,7 +119,7 @@ def _build_scenario(
 
     setup = scenario.get("setup", "").strip()
     if setup:
-        body += f"RUN <<'EOF'\nset -eux\n{setup}\nEOF\n"
+        body += f"RUN <<'EOF'\nset -eux\n{RETRY_SHELL_PREAMBLE}{setup}\nEOF\n"
 
     df_name = f"{key}.Dockerfile"
     (out_dir / df_name).write_text(

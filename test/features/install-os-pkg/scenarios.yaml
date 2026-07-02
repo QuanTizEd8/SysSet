@@ -10,7 +10,7 @@ apt_update_false:
   envs: [debian-stable]
   modes: [devcontainer]
   setup: |
-    apt-get update
+    retry apt-get update
     printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
     manifest: /tmp/manifest.yaml
@@ -295,7 +295,7 @@ apt_keep_repos:
   envs: [debian-stable]
   modes: [devcontainer]
   setup: |
-    apt-get update
+    retry apt-get update
     printf '%s\n' \
           'repos:' \
           '  - "deb http://deb.debian.org/debian stable main"' \
@@ -312,7 +312,7 @@ apt_repo_cleanup:
   envs: [debian-stable]
   modes: [devcontainer]
   setup: |
-    apt-get update
+    retry apt-get update
     printf '%s\n' \
           'repos:' \
           '  - "deb http://deb.debian.org/debian stable main"' \
@@ -380,7 +380,7 @@ apt_dry_run:
   envs: [debian-stable]
   modes: [devcontainer]
   setup: |
-    apt-get update
+    retry apt-get update
     printf '%s\n' 'packages:' '  - tree' > /tmp/manifest.yaml
   options:
     manifest: /tmp/manifest.yaml
@@ -400,8 +400,8 @@ apt_skip_installed:
   envs: [debian-stable]
   modes: [devcontainer]
   setup: |
-    apt-get update
-    apt-get install -y tree
+    retry apt-get update
+    retry apt-get install -y tree
     printf '%s\n' 'packages:' '  - tree' '  - curl' > /tmp/manifest.yaml
   options:
     manifest: /tmp/manifest.yaml

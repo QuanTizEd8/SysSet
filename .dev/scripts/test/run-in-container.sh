@@ -63,13 +63,29 @@ if [[ -n "$_LOG_BIND_DIR" ]]; then
   _LOG_VOL_ARGS=(-v "${_LOG_BIND_DIR}:/log-out:rw")
 fi
 
-docker run --rm \
-  "${_NAME_ARGS[@]+"${_NAME_ARGS[@]}"}" \
-  "${_NET_ARGS[@]+"${_NET_ARGS[@]}"}" \
-  "${_LOG_VOL_ARGS[@]+"${_LOG_VOL_ARGS[@]}"}" \
-  "${_BIND_VOL_ARGS[@]+"${_BIND_VOL_ARGS[@]}"}" \
-  "${_EXTRA_ENV[@]+"${_EXTRA_ENV[@]}"}" \
-  -e REPO_ROOT=/repo \
-  -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
-  "$_IMAGE" \
-  sh -c "$_RUN_CMD"
+# A failure here can be a transient image-pull/registry blip (--rm means the
+# container is always cleaned up on exit, success or failure, so a retry is
+# safe to re-run) or a genuine test failure — there's no cheap way to tell
+# them apart from outside the container, so this is a small, blind, bounded
+# retry: worth it for the transient case, bounded cost for the real-failure
+# case (one extra run before reporting the same failure).
+_attempt=1
+_max_attempts=2
+while :; do
+  if docker run --rm \
+    "${_NAME_ARGS[@]+"${_NAME_ARGS[@]}"}" \
+    "${_NET_ARGS[@]+"${_NET_ARGS[@]}"}" \
+    "${_LOG_VOL_ARGS[@]+"${_LOG_VOL_ARGS[@]}"}" \
+    "${_BIND_VOL_ARGS[@]+"${_BIND_VOL_ARGS[@]}"}" \
+    "${_EXTRA_ENV[@]+"${_EXTRA_ENV[@]}"}" \
+    -e REPO_ROOT=/repo \
+    -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
+    "$_IMAGE" \
+    sh -c "$_RUN_CMD"; then
+    break
+  fi
+  [[ "$_attempt" -ge "$_max_attempts" ]] && exit 1
+  echo "⚠️  docker run failed (attempt ${_attempt}/${_max_attempts}); retrying in 5s" >&2
+  sleep 5
+  _attempt=$((_attempt + 1))
+done

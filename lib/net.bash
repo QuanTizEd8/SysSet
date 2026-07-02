@@ -96,7 +96,8 @@ _net__fetch() {
   # @brief _net__fetch <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Internal: download URL via curl or wget.
   #
   # <dest> is the output file path, or empty string for stdout output.
-  # curl uses --retry (transient errors only); wget falls back to net__fetch_with_retry.
+  # curl uses --retry (transient errors, including DNS failures, but not
+  # permanent failures like 404); wget falls back to net__fetch_with_retry.
   local _url="$1" _dest="$2"
   shift 2
   local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _hdrs='' _netrc=''
@@ -185,8 +186,9 @@ _NET_HDR_EOF_
 net__fetch_url_stdout() {
   # @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
   #
-  # curl uses --retry (transient errors only: 5xx, 408, 429, connection
-  # failures); wget falls back to net__fetch_with_retry. Calls
+  # curl uses --retry (transient errors: 5xx, 408, 429, connection failures,
+  # timeouts, and DNS resolution failures — not permanent failures like 404);
+  # wget falls back to net__fetch_with_retry. Calls
   # _net__ensure_fetch_tool automatically if not already initialised.
   #
   # Args:
@@ -208,8 +210,9 @@ net__fetch_url_stdout() {
 net__fetch_url_file() {
   # @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
   #
-  # curl uses --retry (transient errors only: 5xx, 408, 429, connection
-  # failures); wget falls back to net__fetch_with_retry. Calls
+  # curl uses --retry (transient errors: 5xx, 408, 429, connection failures,
+  # timeouts, and DNS resolution failures — not permanent failures like 404);
+  # wget falls back to net__fetch_with_retry. Calls
   # _net__ensure_fetch_tool automatically if not already initialised.
   #
   # Args:

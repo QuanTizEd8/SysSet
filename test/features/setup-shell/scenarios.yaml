@@ -29,7 +29,7 @@ setup_zsh_auto:
 setup_zsh_false:
   envs: [debian-stable]
   modes: [devcontainer, standalone]
-  setup: apt-get update && apt-get install -y --no-install-recommends zsh
+  setup: retry apt-get update && retry apt-get install -y --no-install-recommends zsh
   options:
     setup_zsh: false
   tests: [setup_zsh_false]
@@ -45,7 +45,7 @@ setup_bash_false:
 with_install_zsh:
   envs: [debian-stable]
   modes: [devcontainer, standalone]
-  setup: apt-get update && apt-get install -y --no-install-recommends zsh
+  setup: retry apt-get update && retry apt-get install -y --no-install-recommends zsh
   options:
     setup_zsh: auto
   tests: [default_with_zsh]
@@ -53,7 +53,7 @@ with_install_zsh:
 set_shell_zsh:
   envs: [debian-stable]
   modes: [devcontainer]
-  setup: apt-get update && apt-get install -y --no-install-recommends zsh
+  setup: retry apt-get update && retry apt-get install -y --no-install-recommends zsh
   options:
     set_user_shells: zsh
     add_users: root

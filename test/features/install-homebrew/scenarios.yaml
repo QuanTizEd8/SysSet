@@ -2,7 +2,7 @@ linux_default:
   envs: [ubuntu-stable, debian-stable]
   modes: [devcontainer]
   setup: |
-    apt-get update -qq && apt-get install -y --no-install-recommends zsh
+    retry apt-get update -qq && retry apt-get install -y --no-install-recommends zsh
   tests: [linux_default]
 
 discovery_disabled:
@@ -38,25 +38,28 @@ linux_pacman:
   envs: [archlinux-current]
   modes: [devcontainer]
   setup: |
-    pacman -Sy --noconfirm zsh
+    retry pacman -Sy --noconfirm zsh
   tests: [linux_pacman]
 
 linux_rpm:
   envs: [fedora-current+bash]
   modes: [devcontainer]
   setup: |
-    dnf install -y zsh
+    retry dnf install -y zsh
   tests: [linux_rpm]
 
 linux_zypper:
   envs: [opensuse-leap-current+bash]
   modes: [devcontainer]
   setup: |
-    set +e
-    zypper install -y zsh
-    _rc=$?
-    set -e
-    [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
+    _zypper_install_zsh() {
+      set +e
+      zypper install -y zsh
+      _rc=$?
+      set -e
+      [ "$_rc" -eq 0 ] || [ "$_rc" -eq 106 ]
+    }
+    retry _zypper_install_zsh
   tests: [linux_zypper]
 
 if_exists_reinstall:

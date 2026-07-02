@@ -142,6 +142,7 @@ invalid_method:
 | `options` | Feature option key/value pairs; merged with `defaults.options` (scenario wins) |
 | `tests` | `checks.yaml` group IDs (generated scripts live at `tests/<id>.sh`) |
 | `setup` | Shell commands run inside the container before install. In standalone mode: executed before `install.sh`. In devcontainer mode: baked into the generated Dockerfile as a `RUN` layer |
+| — | `setup:` runs before the repo is checked out (devcontainer) or in a bare base-image shell, so `lib/net.bash` isn't available. A POSIX `retry <cmd>` function (3 attempts, 5s delay) is auto-injected into every `setup:`/env-bootstrap shell context — wrap package-manager calls (`apt-get`/`dnf`/`pacman`/`apk`/`zypper`) in it, e.g. `retry apt-get update`. Plain `curl` already retries transient failures (including DNS blips) on its own via `--retry` — see the existing calls in `test/environments.yaml` for the flags to copy (`--retry 60 --retry-delay 5 --retry-connrefused`) |
 | `expect_install_failure` | If `true`, asserts the installer exits non-zero; runner validates exit code and every `kind: install_failure` `pattern` in the scenario's checks |
 | `devcontainer` | Mode-specific overrides: `remoteUser`, `containerUser` |
 | `standalone` | Mode-specific overrides: `user` (run tests as this user), `sudo: false` (disable sudo for user), `network: none` (block outbound traffic), `skip_install: true` (test script calls install itself) |

@@ -60,8 +60,16 @@ timeout 60 sh -c 'until docker info >/dev/null 2>&1; do sleep 0.5; done'
 # bases like debian:latest from docker.io; authenticate here so inner builds
 # use the account tier (see https://docs.docker.com/docker-hub/download-rate-limit/).
 if [[ -n "${DOCKERHUB_USERNAME:-}" && -n "${DOCKERHUB_TOKEN:-}" ]]; then
-  printf '%s' "${DOCKERHUB_TOKEN}" |
-    docker login -u "${DOCKERHUB_USERNAME}" --password-stdin docker.io > /dev/null
+  _login_attempt=1
+  _login_max_attempts=3
+  while :; do
+    printf '%s' "${DOCKERHUB_TOKEN}" |
+      docker login -u "${DOCKERHUB_USERNAME}" --password-stdin docker.io > /dev/null && break
+    [[ "$_login_attempt" -ge "$_login_max_attempts" ]] && exit 1
+    echo "⚠️  docker login failed (attempt ${_login_attempt}/${_login_max_attempts}); retrying in 5s" >&2
+    sleep 5
+    _login_attempt=$((_login_attempt + 1))
+  done
 fi
 
 exec "$@"

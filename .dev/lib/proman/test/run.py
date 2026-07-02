@@ -23,7 +23,7 @@ from proman.feature_env import resolved_env_vars
 
 from .checks import install_failure_patterns
 from .codegen import _render_group
-from .environments import docker_buildkit_env, resolve
+from .environments import RETRY_SHELL_PREAMBLE, docker_buildkit_env, resolve
 from .environments import load as load_envs
 from .feature_logs import (
     DEVFEATS_LOG_BIND_DIR_ENV,
@@ -193,6 +193,27 @@ def _validate_install_failure_output(
                 f"message: {pattern!r}"
             )
     return None
+
+
+# devcontainer CLI logs "Stop (<ms> ms): Run: docker buildx build ..." only
+# once the image build (base image pull + env layers + feature install, all
+# baked as Dockerfile RUN steps) finishes successfully. Its absence means the
+# failure happened during build — plausibly a transient network blip — worth
+# retrying. Its presence means the build succeeded and the failure is in the
+# post-build test-assertion phase — a real test failure, never retry that.
+# Coarse: a genuine install.bash bug also fails during build and looks
+# identical to a network blip by this signal; that costs one extra retry
+# before reporting the same failure, not a silent miss.
+_DEVCONTAINER_BUILD_SUCCEEDED_RE = re.compile(
+    r"Stop \(\d+ ms\): Run: docker buildx build"
+)
+
+_DEVCONTAINER_TEST_MAX_ATTEMPTS = 2
+
+
+def _devcontainer_build_succeeded(output: str) -> bool:
+    """Return True if the devcontainer CLI's image build phase completed."""
+    return bool(_DEVCONTAINER_BUILD_SUCCEEDED_RE.search(output))
 
 
 def _run_subprocess_streaming(
@@ -381,13 +402,22 @@ def _run_devcontainer(
                     env=run_env,
                 )
             else:
-                result = subprocess.run(
-                    devcontainer_cmd,
-                    check=False,
-                    env=run_env,
-                )
-                returncode = result.returncode
-                output = ""
+                for attempt in range(1, _DEVCONTAINER_TEST_MAX_ATTEMPTS + 1):
+                    returncode, output = _run_subprocess_streaming(
+                        devcontainer_cmd,
+                        env=run_env,
+                    )
+                    build_ok = _devcontainer_build_succeeded(output)
+                    if returncode == 0 or build_ok:
+                        break
+                    if attempt < _DEVCONTAINER_TEST_MAX_ATTEMPTS:
+                        print(
+                            f"⚠ devcontainer scenario {key}: image build failed "
+                            f"before completing (attempt {attempt}/"
+                            f"{_DEVCONTAINER_TEST_MAX_ATTEMPTS}) — retrying "
+                            "in case it was a transient network blip.",
+                            file=sys.stderr,
+                        )
             log_out = host_log_path(run)
             if not log_out.is_file() and not (
                 expect_install_failure and returncode != 0
@@ -495,6 +525,7 @@ def _run_standalone(
                 )
 
         parts = [
+            RETRY_SHELL_PREAMBLE,
             _SHIM_SETUP,
             scenario.get("setup", ""),
             _SUDO_STUB if not sudo_ok else "",
@@ -608,12 +639,16 @@ def _run_macos(
                 # envs use it as Dockerfile RUN body via environments.resolve().
                 env_build = env_def.get("build", {}).get("dockerfile", "")
                 if env_build:
-                    subprocess.run(["bash", "-c", env_build], check=True, env=base_env)
+                    subprocess.run(
+                        ["bash", "-c", RETRY_SHELL_PREAMBLE + env_build],
+                        check=True,
+                        env=base_env,
+                    )
 
                 scenario_setup = scenario.get("setup", "")
                 if scenario_setup:
                     subprocess.run(
-                        ["bash", "-c", scenario_setup],
+                        ["bash", "-c", RETRY_SHELL_PREAMBLE + scenario_setup],
                         check=True,
                         env=base_env,
                     )

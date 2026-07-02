@@ -39,8 +39,8 @@ global_remote_user:
 file_scope_skip_smudge_repo_hook:
   envs: [ubuntu-stable]
   setup: |
-    apt-get update
-    apt-get install -y git
+    retry apt-get update
+    retry apt-get install -y git
     git init /tmp/git-lfs-file-repo
   options:
     method: binary
@@ -54,8 +54,8 @@ file_scope_skip_smudge_repo_hook:
 worktree_manual_hooks:
   envs: [ubuntu-stable]
   setup: |
-    apt-get update
-    apt-get install -y git
+    retry apt-get update
+    retry apt-get install -y git
     git init /tmp/git-lfs-worktree-repo
   options:
     method: binary
