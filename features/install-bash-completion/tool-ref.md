@@ -73,8 +73,8 @@ directly into the user's interactive Bash shell at session startup.
   Provides a `pkg-config` file (`bash-completion.pc`) and CMake config files
   (`bash-completion-config.cmake`) for third-party packages to integrate
   completion installation.[^configure-ac][^makefile-am]
-- **Programming language**: Shell (66.5%), with Python (29.8%) used for the test
-  suite; automated tests use `pytest` with the `pexpect` library.
+- **Programming language**: Shell (~66.4%), with Python (~30.0%) used for the
+  test suite; automated tests use `pytest` with the `pexpect` library.
 - **License**: GPL-2.0-or-later.
 
 ## Installation Methods
@@ -267,9 +267,11 @@ details on the recommended approach.
 For a **manual setup** (without profile.d), add the following to `~/.bashrc`:
 ```sh
 # Source bash-completion if available, avoid double-sourcing
-[[ $PS1 && -f /usr/share/bash-completion/bash_completion ]] && \
+[[ $PS1 && ! ${BASH_COMPLETION_VERSINFO:-} && \
+    -f /usr/share/bash-completion/bash_completion ]] && \
     . /usr/share/bash-completion/bash_completion
 ```[^readme-install]
+The `! ${BASH_COMPLETION_VERSINFO:-}` guard is essential: without it, `bash_completion` (which does not self-guard) would be re-executed each time `~/.bashrc` is sourced, degrading shell startup performance.
 
 ##### Environment Variables
 
@@ -470,7 +472,7 @@ The build process uses GNU Autotools with the following key characteristics:
    behavior (e.g., install flags).[^configure-ac]
 
 2. **`Makefile.am` install targets**: The Makefile installs:
-   - `bash_completion` → `$(pkgdataadir)` (usually
+   - `bash_completion` → `$(pkgdatadir)` (usually
      `$(datadir)/bash-completion/bash_completion`)
    - `bash_completion.sh` → `$(profiledir)` (usually `$(sysconfdir)/profile.d/`)
    - Completions → subdirectories `completions/`, `completions-core/`,
@@ -638,12 +640,20 @@ in their shell configuration.
 - On macOS, Homebrew installs to `/opt/homebrew` (Apple Silicon) or
   `/usr/local` (Intel), owned by the user.
 
-#### Post-Installation Steps
+#### Post-Installation Steps and Cleanup
 
-On macOS, the official README strongly recommends **against** sourcing
-bash-completion in `~/.bash_profile` directly, because `~/.bash_profile` is
-only loaded in interactive **login** shells. Instead, the recommended approach
-is to configure `~/.bash_profile` to source `~/.bashrc`, and place interactive
+##### PATH Setup
+
+No PATH changes are needed; bash-completion is sourced into the shell, not
+invoked as an external command.
+
+##### Configuration Files
+
+On macOS, the `/etc/profile.d/` mechanism is not used by default, so the user
+must manually source the entry point. The official README strongly recommends
+**against** sourcing bash-completion in `~/.bash_profile` directly, because
+`~/.bash_profile` is only loaded in interactive **login** shells. Instead,
+configure `~/.bash_profile` to source `~/.bashrc`, and place interactive
 settings (including bash-completion) in `~/.bashrc`:
 
 ```sh
@@ -660,6 +670,30 @@ if [[ -r "$(brew --prefix)/etc/profile.d/bash_completion.sh" ]]; then
   . "$(brew --prefix)/etc/profile.d/bash_completion.sh"
 fi
 ```[^readme-macos]
+
+##### Environment Variables
+
+Same as the OS Package Manager method; see the
+[Environment Variables](#environment-variables) section.
+
+##### Activation Scripts
+
+The Homebrew-installed profile.d script at
+`$(brew --prefix)/etc/profile.d/bash_completion.sh` serves as the activation
+entry point, with the same logic as the system-installed version (see
+[Activation Scripts](#activation-scripts) for details). On macOS, it must be
+sourced manually (see [Configuration Files](#configuration-files-1) above).
+
+##### Shell Completions
+
+Same as the OS Package Manager method. Completion files are installed to
+`$(brew --prefix)/share/bash-completion/completions/` and are automatically
+loaded by bash-completion on demand.
+
+##### Cleanup
+
+No additional cleanup steps are needed beyond the Homebrew
+uninstallation procedure (see [Uninstallation](#uninstallation).
 
 #### Changing Versions and Uninstallation
 
@@ -702,6 +736,40 @@ bash-completion@2`.
   Bash 3.2; v2 depends on certain Bash 4.2+ features and will not work on
   older Bash versions.[^brew-v1-vs-v2]
 
+## Dev Container Setup
+
+In a development container environment, bash-completion requires special
+attention because:
+
+1. **Containers typically run non-login shells**, which means `/etc/profile.d/`
+   scripts are not automatically sourced. The ENTRYPOINT/CMD of most dev
+   container images (e.g., `mcr.microsoft.com/devcontainers/base:ubuntu`) is
+   `/bin/bash` without `-l`, so `/etc/profile` — and by extension
+   `/etc/profile.d/` — is never executed.[^issue-devcontainer]
+
+2. **Workaround**: To ensure bash-completion is available in dev containers,
+   add a sourcing line to `/etc/bash.bashrc` (system-wide for all Bash
+   non-login shells) or to each user's `~/.bashrc`. This ensures that the
+   completion framework is loaded in interactive non-login shells, which is
+   the default mode for VS Code's integrated terminal and devcontainer
+   sessions.
+
+   ```sh
+   # Add to /etc/bash.bashrc (system-wide) or ~/.bashrc (per-user)
+   if [ -f /usr/share/bash-completion/bash_completion ]; then
+       . /usr/share/bash-completion/bash_completion
+   fi
+   ```
+
+3. **Minimal container images**: Many base dev container images do not include
+   bash-completion by default. The package must be explicitly installed using
+   the distribution's package manager (see [OS Package Manager](#os-package-manager)).
+
+4. **Testing**: To verify bash-completion is active in a dev container,
+   start a new shell session and press Tab twice after typing a partial
+   command (e.g., `systemctl <Tab><Tab>`). If completions appear, the
+    framework is working.
+
 ## Plugins and Extensions
 
 bash-completion does not have a traditional plugin system with dedicated APIs.
@@ -741,40 +809,6 @@ bash-completion provides:
 - Support for installation to `$PREFIX/share/bash-completion/completions/`
   (for bash-completion >= 2.12), where bash-completion automatically searches
   the data directory under the same prefix as the target command's binary
-
-## Dev Container Setup
-
-In a development container environment, bash-completion requires special
-attention because:
-
-1. **Containers typically run non-login shells**, which means `/etc/profile.d/`
-   scripts are not automatically sourced. The ENTRYPOINT/CMD of most dev
-   container images (e.g., `mcr.microsoft.com/devcontainers/base:ubuntu`) is
-   `/bin/bash` without `-l`, so `/etc/profile` — and by extension
-   `/etc/profile.d/` — is never executed.[^issue-devcontainer]
-
-2. **Workaround**: To ensure bash-completion is available in dev containers,
-   add a sourcing line to `/etc/bash.bashrc` (system-wide for all Bash
-   non-login shells) or to each user's `~/.bashrc`. This ensures that the
-   completion framework is loaded in interactive non-login shells, which is
-   the default mode for VS Code's integrated terminal and devcontainer
-   sessions.
-
-   ```sh
-   # Add to /etc/bash.bashrc (system-wide) or ~/.bashrc (per-user)
-   if [ -f /usr/share/bash-completion/bash_completion ]; then
-       . /usr/share/bash-completion/bash_completion
-   fi
-   ```
-
-3. **Minimal container images**: Many base dev container images do not include
-   bash-completion by default. The package must be explicitly installed using
-   the distribution's package manager (see [OS Package Manager](#os-package-manager)).
-
-4. **Testing**: To verify bash-completion is active in a dev container,
-   start a new shell session and press Tab twice after typing a partial
-   command (e.g., `systemctl <Tab><Tab>`). If completions appear, the
-   framework is working.
 
 ## References
 
