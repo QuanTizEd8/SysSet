@@ -1,9 +1,11 @@
 version: 0.1.0
 name: Bash Installation
-description: Install [Bash](https://www.gnu.org/software/bash/) via the OS package manager or build from an official GNU source tarball.
+description: Install [Bash](https://www.gnu.org/software/bash/) – the Bourne Again SHell.
 keywords:
   - bash
   - shell
+  - command interpreter
+  - command language
 _long_description: >-
   Installs the Bash shell from the OS native package manager or compiles a release
   tarball from [ftp.gnu.org](https://ftp.gnu.org/gnu/bash/). Supports version
