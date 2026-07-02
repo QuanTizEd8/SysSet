@@ -165,12 +165,19 @@ EOF
   # install having already run earlier in the same container session. This
   # test must be self-contained: it should pass the same way whether run as
   # part of the full suite or in isolation (e.g. `--module net`).
-  _ca_bundle="/etc/ssl/certs/ca-certificates.crt"
+  #
+  # macOS short-circuits before ever checking bundle paths (see
+  # bootstrap__ca_certs's own uname check below), so there's no precondition
+  # to force there — and /etc/ssl/certs/ isn't writable by the test runner on
+  # macOS anyway (it's not even the real bundle location on that OS).
   _created_ca_bundle=false
-  if [ ! -s "$_ca_bundle" ]; then
-    mkdir -p "$(dirname "$_ca_bundle")"
-    printf 'fake bundle for test\n' > "$_ca_bundle"
-    _created_ca_bundle=true
+  if [ "$(uname -s)" != "Darwin" ]; then
+    _ca_bundle="/etc/ssl/certs/ca-certificates.crt"
+    if [ ! -s "$_ca_bundle" ]; then
+      mkdir -p "$(dirname "$_ca_bundle")"
+      printf 'fake bundle for test\n' > "$_ca_bundle"
+      _created_ca_bundle=true
+    fi
   fi
 
   # ospkg__install_tracked is stubbed to fail; if bootstrap__ca_certs tries to
