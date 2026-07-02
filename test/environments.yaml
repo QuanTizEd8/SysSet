@@ -142,13 +142,23 @@ ubuntu-stable+ripgrep:
       rm -rf /var/lib/apt/lists/*
 
 ubuntu-current+rust:
+  # Rust is installed via rustup (the official installer), not the distro's apt
+  # package: Ubuntu's packaged rustc/cargo lag upstream releases and routinely
+  # fall short of the MSRV required by fast-moving crates (e.g. ruff, uv),
+  # causing `cargo install` to fail with "requires rustc X.Y or newer". rustup
+  # always provides the current stable toolchain, matching how a real user
+  # would satisfy this method's precondition in practice.
   from: ubuntu-current
   build:
     dockerfile: |
       apt-get update -qq
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        cargo rustc gcc g++ make pkg-config
+        curl ca-certificates gcc g++ make pkg-config
       rm -rf /var/lib/apt/lists/*
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --profile minimal --default-toolchain stable
+  env_vars:
+    PATH: /root/.cargo/bin:$PATH
 
 ubuntu-stable+jq-1.8.1:
   from: ubuntu-stable
