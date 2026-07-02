@@ -605,11 +605,11 @@ _ctx__yaml_to_json() {
   #
   # Stdout: JSON representation of the YAML document.
   #
-  # Returns: 0 on success; 1 when yq is unavailable or conversion fails.
+  # Returns: 0 on success; 2 when yq is unavailable or conversion fails.
   local _yaml="$1" _yq
-  bootstrap__yq > /dev/null || return 1
+  bootstrap__yq > /dev/null || return 2
   _yq="$(bootstrap__yq)"
-  printf '%s' "${_yaml}" | "${_yq}" -o=json '.' -
+  printf '%s' "${_yaml}" | "${_yq}" -o=json '.' - || return 2
 }
 
 _ctx__eval_when_jq() {
@@ -622,13 +622,13 @@ _ctx__eval_when_jq() {
   # Args:
   #   <yaml-when>  YAML condition document (may be empty for unconditional match).
   #
-  # Returns: 0 when jq yields `true`; 1 when false or on yq/jq/bootstrap failure.
+  # Returns: 0 when jq yields `true`; 1 when false; 2 on yq/jq/bootstrap failure.
   local _yaml="$1"
   local _ctx_json _when_json _result
   _ctx_json="$(ctx__json)"
-  _when_json="$(_ctx__yaml_to_json "${_yaml}")" || return 1
+  _when_json="$(_ctx__yaml_to_json "${_yaml}")" || return $?
   _result="$(json__query -L "${_CTX__LIB_DIR}" --argjson ctx "${_ctx_json}" --argjson when "${_when_json}" \
-    -n -f "${_CTX__LIB_DIR}/ctx-when-eval.jq" 2> /dev/null)" || return 1
+    -n -f "${_CTX__LIB_DIR}/ctx-when-eval.jq" 2> /dev/null)" || return 2
   [[ "${_result}" == "true" ]]
 }
 
@@ -643,7 +643,8 @@ ctx__match_spec() {
   #   [--quiet]         Suppress `logging__error` from parse/compare failures.
   #   <yaml-and-group>  YAML AND-group (e.g. `plat.kernel: linux\nplat.pm: apt`).
   #
-  # Returns: 0 when the group matches the current registry; 1 otherwise.
+  # Returns: 0 when the group matches the current registry; 1 when false; 2 on
+  #          yq/jq/bootstrap failure.
   local _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
@@ -666,7 +667,8 @@ ctx__match_when() {
   #   [--quiet]    Suppress `logging__error` from parse/compare failures.
   #   <yaml-when>  YAML when document (OR list and/or AND groups).
   #
-  # Returns: 0 when at least one group matches; 1 otherwise.
+  # Returns: 0 when at least one group matches; 1 when false; 2 on
+  #          yq/jq/bootstrap failure.
   local _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true
@@ -692,7 +694,8 @@ ctx__select_first() {
   #   <yaml-group>    One AND-group per argv word; repeat `--` between groups.
   #
   # Returns: 0 when the first matching group is found; 1 when none match or when
-  #           `--` is missing (logs usage error unless `--quiet`).
+  #           `--` is missing (logs usage error unless `--quiet`); 2 on
+  #           yq/jq/bootstrap failure.
   local _ctx__quiet=false
   [[ "${1:-}" == --quiet ]] && {
     _ctx__quiet=true

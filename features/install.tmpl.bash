@@ -2365,7 +2365,14 @@ __resolve_auto_method__() {
         if [[ "${BINARY_ASSET_URI:-}" == *'{plat.rust_triple}'* ]]; then
           [[ -n "${_triple}" ]] || continue
         fi
-        ctx__match_when --quiet "${_FEAT_CONTRACT_BINARY_WHEN}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_BINARY_WHEN}" || {
+          local _rc=$?
+          [[ $_rc -eq 2 ]] && {
+            logging__error "When-condition evaluation failed for method '${_method}'."
+            return 1
+          }
+          continue
+        }
         ;;
       upstream-package)
         [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
@@ -2376,7 +2383,14 @@ __resolve_auto_method__() {
           [[ -v VERSION_INPUT ]] || logging__fatal "VERSION_INPUT unset during auto-method channel check"
           case "$(__feat_auto_method_version_channel__)" in stable) : ;; *) continue ;; esac
         fi
-        ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN}" || {
+          local _rc=$?
+          [[ $_rc -eq 2 ]] && {
+            logging__error "When-condition evaluation failed for method '${_method}'."
+            return 1
+          }
+          continue
+        }
         ;;
       package)
         [[ "${_kernel}" != "linux" ]] || [[ "${_privileged}" == "true" ]] || continue
@@ -2396,7 +2410,14 @@ __resolve_auto_method__() {
               ;;
           esac
         fi
-        ctx__match_when --quiet "${_FEAT_CONTRACT_PACKAGE_WHEN}" || continue
+        ctx__match_when --quiet "${_FEAT_CONTRACT_PACKAGE_WHEN}" || {
+          local _rc=$?
+          [[ $_rc -eq 2 ]] && {
+            logging__error "When-condition evaluation failed for method '${_method}'."
+            return 1
+          }
+          continue
+        }
         ;;
       script | source) : ;;
       npm-bundled)
