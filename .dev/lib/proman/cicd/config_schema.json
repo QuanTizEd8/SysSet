@@ -296,6 +296,7 @@
                 "type": "object",
                 "additionalProperties": false,
                 "required": [
+                  "min_avail_gb",
                   "tool_cache",
                   "swap_storage",
                   "docker_images",
@@ -305,6 +306,11 @@
                   "large_packages"
                 ],
                 "properties": {
+                  "min_avail_gb": {
+                    "description": "Skip the free-disk-space step entirely when available root filesystem space (GB) already meets this.",
+                    "type": "integer",
+                    "minimum": 0
+                  },
                   "tool_cache": {
                     "description": "Remove the GHA tool cache.",
                     "type": "boolean"

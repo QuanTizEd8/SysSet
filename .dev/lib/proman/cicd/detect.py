@@ -912,6 +912,7 @@ def build_config(  # noqa: PLR0913
                     "ci_image": ci_image,
                     "registry": pub["registry"],
                     "free_disk_space": {
+                        "min_avail_gb": fds["min_avail_gb"],
                         "tool_cache": fds["tool_cache"],
                         "swap_storage": fds["swap_storage"],
                         "docker_images": fds["docker_images"],

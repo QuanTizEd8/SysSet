@@ -32,13 +32,21 @@ publish:
 
 runner:
   free_disk_space:
+    # Skip the whole cleanup step when free space on the runner already meets
+    # this (no telemetry on real peak per-scenario usage yet; conservative
+    # estimate — raise if a job ever fails with ENOSPC).
+    min_avail_gb: 20
     tool_cache: true
     swap_storage: true
     docker_images: true
     android: true
     dotnet: true
     haskell: true
-    large_packages: true
+    # Worst efficiency of all categories (~0.09 GiB/s vs 0.3-3.6 GiB/s for the
+    # rest — seven sequential `apt-get remove` calls, each paying full
+    # dependency-resolution overhead). Off by default; flip on for a run if
+    # the other categories aren't enough.
+    large_packages: false
 
 scripts:
   features_src: "./src"

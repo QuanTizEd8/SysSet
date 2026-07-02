@@ -17,11 +17,24 @@ jobs:
       matrix:
         scenario: ${{ fromJSON(inputs.config).devcontainer.scenarios }}
     steps:
+      # Cheap upfront check so the (2-8 min) cleanup below only runs when actually
+      # needed — GH-hosted ubuntu-latest runners consistently start at ~89GB free,
+      # comfortably above min_avail_gb, so this skips the step in the common case.
+      - name: Check available disk space
+        id: disk-check
+        run: |
+          avail_gb=$(df --output=avail -B1G / | tail -n1 | tr -d ' ')
+          echo "Available: ${avail_gb}GB"
+          echo "avail_gb=${avail_gb}" >> "$GITHUB_OUTPUT"
+
       # Host-only: removing preinstalled SDKs and caches only affects the runner
       # disk when this step runs on the host (not inside jobs.container). See
       # actions/runner-images#709, community#25678, jlumbroso/free-disk-space, and
       # Apache Flink's free_disk_space.sh.
       - name: Free disk space (GitHub-hosted runner)
+        if: >-
+          fromJSON(steps.disk-check.outputs.avail_gb) <
+          fromJSON(inputs.config).free_disk_space.min_avail_gb
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
           tool-cache: ${{ fromJSON(inputs.config).free_disk_space.tool_cache }}
@@ -66,6 +79,12 @@ jobs:
             -e "HOST_REPO_ROOT=/repo" \
             "$CI_IMAGE" \
             just run-gha-dind just test-feats "${{ fromJSON(inputs.config).feature }}" --mode devcontainer --filter "${{ matrix.scenario }}"
+
+      # No real telemetry exists yet on peak per-scenario disk usage; this gives
+      # data to recalibrate free_disk_space.min_avail_gb (.config/proman/ci.yaml).
+      - name: Report disk space after test
+        if: always()
+        run: df -h /
 
       - name: Upload feature install log
         if: always()

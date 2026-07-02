@@ -127,11 +127,11 @@ Two parallel groups:
 
 Runs feature tests via `proman-test-run`. Three sub-modes run in parallel:
 
-- **Devcontainer** (`test-features-devcontainer`): installs via the devcontainer CLI inside a Docker-in-Docker container running the CI devcontainer image. Each scenario matrix entry is an independent job.
+- **Devcontainer** (`test-features-devcontainer`): installs via the devcontainer CLI inside a Docker-in-Docker container running the CI devcontainer image. Each scenario matrix entry is an independent job. Before checkout, a cheap `df` check gates the `jlumbroso/free-disk-space` cleanup step behind `free_disk_space.min_avail_gb` (`.config/proman/ci.yaml`) — GH-hosted runners consistently start with ~89GB free, well above the default 20GB threshold, so the step is skipped in the common case rather than always paying its 2-8 minute cost. `free_disk_space.large_packages` defaults to `false` (worst time/space ratio of the action's categories: seven sequential `apt-get remove` calls for the least space freed); flip it on per-run if the other categories aren't enough. A `df -h /` line after the test step gives ongoing telemetry to recalibrate `min_avail_gb` — there's no direct measurement of peak per-scenario disk usage yet.
 - **Standalone Linux** (`test-features-linux`): runs `install.bash` directly in plain Docker containers (standalone mode).
 - **macOS** (`test-features-macos`): runs on native `macos-latest` runners for scenarios with `modes: [macos]`.
 
-Scenarios inherit logging defaults from `test/features/defaults.shared.yaml` (`log_level: debug`, `log_file_level: trace`). Each job uploads `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` as a `feat-log-*` artifact for post-mortem analysis (see log table under **Monitoring CI** above).
+Scenarios inherit logging defaults from `test/features/defaults.shared.yaml` (`log_level: debug`, `log_file_level: debug`). Each job uploads `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` as a `feat-log-*` artifact for post-mortem analysis (see log table under **Monitoring CI** above).
 
 ### Docs Build
 
