@@ -342,7 +342,7 @@ Uninstallation requires no special privileges for user-local installations. For 
 
 ##### Idempotency
 
-Running `rustup-init` on a system where `rustup` is already installed will check for updates to `rustup` itself and perform them if needed (no "skip" — it proactively checks for and applies self-updates).[^rustup-init-sh] The toolchain installation itself is idempotent — running `rustup toolchain install stable` when stable is already at the latest version will be a no-op. When a specific version is requested and already installed, it will not be re-downloaded. The `rustup update` command is also idempotent — it only downloads toolchain updates when newer versions are available.[^rustup-installation]
+Running `rustup-init` downloads and runs the latest `rustup-init` binary.[^rustup-init-sh] When run on a system where `rustup` is already installed, the binary will detect the existing installation and allow updating `rustup` itself.[^rustup-installation] The toolchain installation itself is idempotent — running `rustup toolchain install stable` when stable is already at the latest version will be a no-op. When a specific version is requested and already installed, it will not be re-downloaded. The `rustup update` command is also idempotent — it only downloads toolchain updates when newer versions are available.[^rustup-installation]
 
 #### Details
 
@@ -531,6 +531,7 @@ Standalone installers are primarily intended for offline installation or for use
 - **macOS**: `brew install rustup` (Homebrew)
 - **Arch Linux**: `pacman -S rustup`
 - **Fedora/RHEL**: `dnf install rustup` (rustup-init provided)
+- **Alpine Linux**: `apk add rustup` (available from the community repository)[^alpine-rustup]
 
 Note: These packages are maintained by the respective distributions, not by the Rust project. The `rustup` package installs the `rustup-init` command, which must then be run to actually install a Rust toolchain.[^rustup-other-install]
 
@@ -654,7 +655,7 @@ The OS package manager's `rustup` packages typically install the `rustup-init` b
 
 When installing the Rust toolchain in a devcontainer environment, the following considerations apply:
 
-- **Base images**: The feature should work on Debian/Ubuntu, RHEL/Fedora, Alpine, and other Linux distributions that have `apt`, `dnf`, `yum`, `microdnf`, `tdnf`, or `apk` available. The official devcontainers Rust feature does **not** support Alpine because its `install.sh` requires glibc-based utilities, but the upstream `rustup-init.sh` script works on Alpine by downloading the musl-based `rustup-init` binary.[^devcontainers-rust-readme][^rustup-init-sh]
+- **Base images**: The feature should work on Debian/Ubuntu, RHEL/Fedora, Alpine, and other Linux distributions that have `apt`, `dnf`, `yum`, `microdnf`, `tdnf`, or `apk` available. The official devcontainers Rust feature does **not** support Alpine for two reasons: (a) its `install.sh` only handles `apt`, `dnf`, `yum`, `microdnf`, and `tdnf` as package managers — it does not recognize `apk`, so installation fails before any download occurs; and (b) it unconditionally downloads the glibc-based `x86_64-unknown-linux-gnu` `rustup-init` binary, which requires glibc. The upstream `rustup-init.sh` script works on Alpine because it identifies the platform as `x86_64-unknown-linux-musl` and downloads the musl-linked binary accordingly, with no package manager dependency for the initial download.[^devcontainers-rust-readme][^rustup-init-sh]
 - **System-wide installation**: In a devcontainer, Rust should typically be installed system-wide (to `/usr/local/cargo` and `/usr/local/rustup`) rather than to a user's home directory. This ensures that the toolchain is available to all users and persists across container rebuilds.[^devcontainers-rust-install]
 - **The `rustlang` group**: The official devcontainers Rust feature creates a `rustlang` group and makes the `CARGO_HOME` and `RUSTUP_HOME` directories group-writable so that non-root users can install Cargo packages and manage toolchains.[^devcontainers-rust-install]
 - **`SYS_PTRACE` capability**: The official devcontainers Rust feature requests the `SYS_PTRACE` capability, which is needed by `rust-lldb` and other debugging tools for process tracing. The `seccomp=unconfined` security option may also be required.[^devcontainers-rust-json]
@@ -754,10 +755,12 @@ When installing the Rust toolchain in a devcontainer environment, the following 
 
 [^rust-installer-template]: [rust-installer — install-template.sh — GitHub](https://github.com/rust-lang/rust/blob/master/src/tools/rust-installer/install-template.sh). Source template for the standalone installer `install.sh` script. Defines all available installation options including `--prefix` (default: `/usr/local`), `--disable-ldconfig`, `--verbose`, and others. The default prefix of `/usr/local` determines where macOS PKG installers place files.
 
-[^rust-installer-readme]: [rust-installer — README.md — GitHub](https://github.com/rust-lang/rust/blob/master/src/etc/installer/README.md). Official README for the Rust standalone installer, documenting the `install.sh` and `uninstall.sh` usage including the uninstall script path at `/usr/local/lib/rustlib/uninstall.sh`.
+[^rust-installer-readme]: [rust — src/etc/installer/README.md — GitHub](https://github.com/rust-lang/rust/blob/master/src/etc/installer/README.md). The README shipped with the Rust standalone installer, documenting the `install.sh` and `uninstall.sh` usage including the default prefix of `/usr/local` and the uninstall script path at `/usr/local/lib/rustlib/uninstall.sh`.
 
 [^forge-standalone-installers]: [Rust Forge — Other Installation Methods](https://forge.rust-lang.org/infra/other-installation-methods.html). Official documentation on standalone installers, source code downloads, and GPG signature verification.
 
 [^forge-channel-layout]: [Rust Forge — The Rust Release Channel Layout](https://forge.rust-lang.org/infra/channel-layout.html). Document describing the channel manifest format, which includes `hash` and `xz_hash` fields for each package/target entry, providing SHA-256 checksums for all distributed artifacts.
 
 [^archlinux-wiki-rust]: [ArchWiki — Rust](https://wiki.archlinux.org/title/Rust). Arch Linux documentation on the `rustup` package, including the note that `rustup self update` does not work when installed via pacman.
+
+[^alpine-rustup]: [Alpine Linux packages — rustup](https://pkgs.alpinelinux.org/package/edge/community/x86_64/rustup). Alpine Linux `rustup` package in the community repository, providing `rustup-init`.
