@@ -1,0 +1,8 @@
+{
+   "features": {
+      "ghcr.io/quantized8/devfeats/setup-files:0.1.0": {}
+   },
+   "image": "ubuntu:latest",
+   "name": "Try setup-files",
+   "remoteUser": "ubuntu"
+}

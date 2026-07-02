@@ -1,0 +1,183 @@
+version: 0.1.0
+name: File System Setup
+description: >-
+  Declaratively manage files, directories, symlinks, and marker-delimited
+  content blocks via a YAML or JSON config file.
+_long_description: >-
+  Applies a set of file-system operations — create, inject, delete, symlink,
+  mkdir, chmod, move, touch — declared in a YAML or JSON manifest, at build
+  time and/or at any devcontainer lifecycle stage (onCreate, updateContent,
+  postCreate, entrypoint, postStart, postAttach). Supports both system-wide
+  and per-user (home-relative) destinations, variable substitution, marker-
+  delimited idempotent content injection, and state-tracked uninstall.
+keywords: [files, setup, dotfiles, configuration, symlinks]
+
+_options:
+  user_file_fetch: true
+  installer_dir: false
+  configure_users: true
+
+options:
+  # _content_or_uri: framework resolves inline/URI to a local file at __init_args__ time.
+  # _jsonschema:      framework validates the resolved file against manifest.schema.json.
+  # allow_nonexistent: true on lifecycle options because workspace files may not
+  # be mounted at image-build time; they are resolved at the lifecycle hook invocation.
+
+  manifest:
+    type: string
+    default: ''
+    _content_or_uri: true
+    _jsonschema: manifest.schema.json
+    description: |
+      Operations to apply immediately at build time.
+      Inline YAML/JSON (detected by newline), a local file path, or a URI
+      (file://, https://, oci://, gh://owner/repo@ref:path).
+      Append #sha256=<hex> for integrity. Use fetch_headers / fetch_netrc for auth.
+
+  manifest_on_create:
+    type: string
+    default: ''
+    _content_or_uri:
+      allow_nonexistent: true
+    _jsonschema:
+      schema: manifest.schema.json
+      allow_nonexistent: true
+    description: Operations applied at the `onCreate` lifecycle event.
+
+  manifest_update_content:
+    type: string
+    default: ''
+    _content_or_uri:
+      allow_nonexistent: true
+    _jsonschema:
+      schema: manifest.schema.json
+      allow_nonexistent: true
+    description: Operations applied at the `updateContentCommand` lifecycle event.
+
+  manifest_post_create:
+    type: string
+    default: ''
+    _content_or_uri:
+      allow_nonexistent: true
+    _jsonschema:
+      schema: manifest.schema.json
+      allow_nonexistent: true
+    description: Operations applied at the `postCreate` lifecycle event.
+
+  manifest_entrypoint:
+    type: string
+    default: ''
+    _content_or_uri:
+      allow_nonexistent: true
+    _jsonschema:
+      schema: manifest.schema.json
+      allow_nonexistent: true
+    description: |
+      Operations applied at every container start via the entrypoint
+      (runs as container user, typically root; workspace volumes are mounted).
+
+  manifest_post_start:
+    type: string
+    default: ''
+    _content_or_uri:
+      allow_nonexistent: true
+    _jsonschema:
+      schema: manifest.schema.json
+      allow_nonexistent: true
+    description: |
+      Operations applied at every container start via postStart
+      (runs as remote user, after entrypoint).
+
+  manifest_post_attach:
+    type: string
+    default: ''
+    _content_or_uri:
+      allow_nonexistent: true
+    _jsonschema:
+      schema: manifest.schema.json
+      allow_nonexistent: true
+    description: |
+      Operations applied each time a client attaches to the container.
+
+  backup:
+    type: string
+    default: auto
+    description: Whether to back up files before they are overwritten or deleted.
+    enum:
+      - value: auto
+        description: Back up outside devcontainers; skip inside.
+      - value: "true"
+        description: Always back up before overwriting or deleting.
+      - value: "false"
+        description: Never back up.
+
+  backup_dir:
+    type: array
+    default: |
+      ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/backups
+      ${HOME}/.local/share/${{ _project.namespace }}$/${{ id }}$/backups
+    description: |
+      Ordered candidate directories for backups. The first writable entry is used,
+      resolved via users__first_writeable_path at run time.
+
+  # add_current_user / add_remote_user / add_container_user / add_users:
+  # inherited from shared options (enabled via _options.configure_users above).
+  # __feat_do_configure_users__ (also enabled by that flag) is a no-op here —
+  # it only runs when a __configure_user function is defined, which this
+  # feature deliberately does not do (see "User iteration" note at the top of
+  # install.bash). Use the literal value `all` on an entry's own `users` field
+  # to target every regular (non-system), interactive-shell user on the system.
+
+  # if_exists: inherited from shared options (default: skip).
+  # For setup-files, __if_exists_dispatch__ is overridden so every value EXCEPT
+  # 'uninstall' applies the manifest normally. Only 'uninstall' has a distinct effect:
+  # it removes all files/blocks tracked in the state file and exits without applying
+  # any manifest. The 'skip/reinstall/update/fail' values are all equivalent to the
+  # default (apply manifest) — this is documented prominently in the option description.
+
+# Lifecycle command registrations.
+# Commands are guarded: only run if the lifecycle script file exists.
+# Scripts are written only when the corresponding manifest_* option is non-empty.
+onCreateCommand:
+  setup:
+    command: >-
+      [ -f ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$setup.sh ]
+      && sh ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$setup.sh || true
+    description: Apply manifest_on_create if set.
+
+updateContentCommand:
+  setup:
+    command: >-
+      [ -f ${{ _env_vars._FEAT_LIFECYCLE_UPDATE_CONTENT }}$setup.sh ]
+      && sh ${{ _env_vars._FEAT_LIFECYCLE_UPDATE_CONTENT }}$setup.sh || true
+    description: Apply manifest_update_content if set.
+
+postCreateCommand:
+  setup:
+    command: >-
+      [ -f ${{ _env_vars._FEAT_LIFECYCLE_POST_CREATE }}$setup.sh ]
+      && sh ${{ _env_vars._FEAT_LIFECYCLE_POST_CREATE }}$setup.sh || true
+    description: Apply manifest_post_create if set.
+
+postStartCommand:
+  setup:
+    command: >-
+      [ -f ${{ _env_vars._FEAT_LIFECYCLE_POST_START }}$setup.sh ]
+      && sh ${{ _env_vars._FEAT_LIFECYCLE_POST_START }}$setup.sh || true
+    description: Apply manifest_post_start if set.
+
+postAttachCommand:
+  setup:
+    command: >-
+      [ -f ${{ _env_vars._FEAT_LIFECYCLE_POST_ATTACH }}$setup.sh ]
+      && sh ${{ _env_vars._FEAT_LIFECYCLE_POST_ATTACH }}$setup.sh || true
+    description: Apply manifest_post_attach if set.
+
+# Entrypoint: registered so the devcontainer CLI calls it on every container start.
+# Script written dynamically in __install_finish_post__ only when manifest_entrypoint is set.
+# No static files/entrypoint.sh is bundled, so the template's auto-copy step is a no-op here.
+entrypoint:
+  command: >-
+    [ -f ${{ _env_vars._FEAT_ENTRYPOINT_PATH }}$ ]
+    && ${{ _env_vars._FEAT_ENTRYPOINT_PATH }}$ || true
+  description: Apply manifest_entrypoint if set (runs as container user on every start).

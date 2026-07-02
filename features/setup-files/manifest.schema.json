@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "setup-files/config",
+  "title": "setup-files config",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "vars": {
+      "description": "Custom variables available for ${VAR} substitution in every field, taking precedence over any environment variable of the same name.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+      "additionalProperties": { "type": "string" }
+    },
+    "defaults": { "$ref": "#/$defs/Defaults" },
+    "files": { "type": "array", "items": { "$ref": "#/$defs/Entry" } }
+  },
+  "$defs": {
+    "OnError": {
+      "enum": ["abort", "abort-entry", "continue", "ignore"],
+      "description": "Behavior when this operation fails. abort: stop the whole feature immediately. abort-entry: for user-scoped entries, skip remaining users for this entry and continue to the next entry (equivalent to 'continue' for non-user-scoped entries). continue: log and proceed to the next operation/user; counts as an overall failure (non-zero exit). ignore: suppress the error and proceed as if it succeeded; does not affect the overall exit code."
+    },
+    "Backup": {
+      "enum": ["auto", "true", "false"],
+      "description": "Whether to back up the pre-existing file/directory before this operation overwrites or deletes it. 'auto': back up outside devcontainers, skip inside (detected via REMOTE_CONTAINERS/CODESPACES env vars). 'true': always back up. 'false': never back up. Always a string, never a YAML boolean, to avoid ambiguity with 'auto'. Only valid on create and delete entries — the feature-level backup/backup_dir options are the fallback when omitted."
+    },
+    "IfExists": {
+      "enum": ["skip", "fail", "overwrite"],
+      "description": "Behavior when dest already exists. skip: leave it untouched, no error. fail: abort this entry with an error. overwrite: force the operation regardless (semantics vary by op — see the op's own description)."
+    },
+    "IfNotExists": {
+      "enum": ["skip", "fail"],
+      "description": "Behavior when a required path (dest for delete/chmod, src for move) does not exist. skip: silently succeed / no-op. fail: abort this entry with an error."
+    },
+    "IfNotFound": {
+      "enum": ["end_of_file", "beginning_of_file", "fail"],
+      "description": "Where to act when a location (inject's block, or its anchor line) cannot be found in the file. end_of_file: append there. beginning_of_file: prepend there. fail: abort this entry with an error. Reused for both if_not_found (block absent) and anchor_not_found (anchor line absent) since both share the same three outcomes."
+    },
+    "Marker": {
+      "description": "A begin/end marker for the inject operation. A plain string is matched literally (exact line equality) and written as-is. An object separates the match pattern (an extended regex, ERE) used to locate an existing block from the literal text written when the block is first created — required together, since a match-only marker leaves the feature unable to know what to write.",
+      "oneOf": [
+        { "type": "string", "description": "Literal marker text, used for both matching (exact line equality) and writing." },
+        {
+          "type": "object",
+          "required": ["match", "text"],
+          "properties": {
+            "match": { "type": "string", "description": "Extended regex (ERE) matched against whole lines to locate an existing marker." },
+            "text": { "type": "string", "description": "Literal text written when the block is created (first run) or when rewrite_markers is true." }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Anchor": {
+      "description": "Where to insert an inject block the first time it's created (i.e. no existing block found). A plain string (or the object's 'match') is an ERE matched against whole lines; the block is inserted immediately after (default) or before the first matching line. If omitted, if_not_found controls placement instead.",
+      "oneOf": [
+        { "type": "string", "description": "ERE matched against whole lines; block inserted after the first match." },
+        {
+          "type": "object",
+          "required": ["match"],
+          "properties": {
+            "match": { "type": "string", "description": "ERE matched against whole lines." },
+            "position": { "enum": ["after", "before"], "description": "Insert the block after (default) or before the matched line." }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CommonFields": {
+      "description": "Fields valid on every entry regardless of op. 'backup' is deliberately NOT here — it only applies to create/delete and is rejected as a mistake if set on other ops (enforced via Entry's unevaluatedProperties, exactly like if_exists on inject/delete/chmod).",
+      "properties": {
+        "dest": { "type": "string", "description": "Destination path. Absolute, or ~/ / ${HOME}/ prefixed for user-scoped entries. Supports ${VAR} substitution. Bare relative paths are rejected at runtime." },
+        "chmod": { "type": "string", "description": "Permission mode applied after the operation, e.g. '644', '755', 'u+x'. Not meaningful for delete/inject." },
+        "owner": { "type": "string", "description": "Owning user applied after the operation, e.g. 'root', '${USERNAME}'. Not meaningful for delete/inject." },
+        "group": { "type": "string", "description": "Owning group applied after the operation. Not meaningful for delete/inject." },
+        "on_error": { "$ref": "#/$defs/OnError" },
+        "strict_vars": { "type": "boolean", "description": "Whether an undefined ${VAR} reference in this entry's fields is a hard error (true, default) or expands to empty string (false)." },
+        "users": {
+          "description": "For user-scoped entries (dest starting with ~/ or ${HOME}/): explicit list of usernames (or the 'all' keyword) to apply this entry to, overriding the feature-level default user list. Rejected as a validation error if set on a system-scoped (absolute, non-home) dest.",
+          "type": ["string", "array"],
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "Defaults": {
+      "description": "Global fallback values merged into every entry at runtime, before the entry's op is dispatched. A field here that doesn't apply to a given entry's op is harmless: the merge happens AFTER schema validation of the raw manifest, so e.g. a global 'if_exists: skip' default silently has no effect on inject entries (which never read it) rather than causing a validation error. Only fields EXPLICITLY written on an entry whose op doesn't support them are rejected.",
+      "type": "object",
+      "allOf": [{ "$ref": "#/$defs/CommonFields" }],
+      "properties": {
+        "backup": { "$ref": "#/$defs/Backup" },
+        "if_exists": { "$ref": "#/$defs/IfExists" },
+        "if_not_exists": { "$ref": "#/$defs/IfNotExists" },
+        "if_not_found": { "$ref": "#/$defs/IfNotFound" },
+        "anchor_not_found": { "$ref": "#/$defs/IfNotFound" },
+        "leading_newline": { "type": "boolean", "description": "inject default: ensure a newline precedes the block on insertion." },
+        "trailing_newline": { "type": "boolean", "description": "inject default: ensure a newline follows the block on insertion." },
+        "rewrite_markers": { "type": "boolean", "description": "inject default: also rewrite marker lines (using their 'text' value) when updating an existing block." },
+        "recursive": { "type": "boolean", "description": "delete/chmod default: operate recursively on directory trees." },
+        "recursive_attrs": { "type": "boolean", "description": "mkdir default: apply chmod/owner/group to newly created intermediate directories, not just the final one." },
+        "preserve_perms": { "type": "boolean", "description": "create default: when src is a local path, copy its permissions/ownership to dest." },
+        "follow_symlinks": { "type": "boolean", "description": "create (directory-tree copy) default: follow symlinks encountered in src." }
+      },
+      "unevaluatedProperties": false
+    },
+    "FetchAuth": {
+      "description": "Authentication for remote src: fetches, resolved when the operation runs (not at manifest-parse time). Values support ${VAR} substitution so lifecycle-stage entries can reference env vars available at that stage (e.g. a token exported earlier in the container's lifecycle) instead of only build-time credentials. Falls back to the feature-level fetch_headers/fetch_netrc options when omitted — meaningful only at build time, since those options aren't propagated to lifecycle scripts.",
+      "properties": {
+        "fetch_headers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "HTTP headers as 'Name: value' strings, applied when src is fetched."
+        },
+        "fetch_netrc": {
+          "type": "string",
+          "description": "Path to a .netrc file for src authentication."
+        }
+      }
+    },
+    "OpCreate": {
+      "description": "Write dest from inline content, a local/remote src file, or (when src is a local directory) recursively copy a directory tree. if_exists controls the conflict when dest already exists (files) or per-file within the tree (directories).",
+      "type": "object",
+      "required": ["op", "dest"],
+      "allOf": [{ "$ref": "#/$defs/FetchAuth" }],
+      "properties": {
+        "op": { "const": "create" },
+        "src": { "type": "string", "description": "Source: local path, URI, or local directory path (for a recursive tree copy). Mutually exclusive with content." },
+        "content": { "type": "string", "description": "Inline content. Mutually exclusive with src." },
+        "if_exists": { "$ref": "#/$defs/IfExists", "default": "skip" },
+        "backup": { "$ref": "#/$defs/Backup" },
+        "preserve_perms": { "type": "boolean", "description": "When src is a local path, copy its permissions/ownership to dest." },
+        "include": { "type": ["string", "array"], "description": "Directory-tree copy only: glob pattern(s) of files to include, relative to src. Default **/* (all files)." },
+        "exclude": { "type": ["string", "array"], "description": "Directory-tree copy only: glob pattern(s) of files to exclude." },
+        "follow_symlinks": { "type": "boolean", "description": "Directory-tree copy only: follow symlinks encountered in src." }
+      },
+      "not": { "required": ["src", "content"] }
+    },
+    "OpInject": {
+      "description": "Insert or idempotently update a named, marker-delimited block inside dest. Always updates an existing block in place; there is no 'skip if exists' mode (use create with if_exists:skip for install-once semantics instead). Creates dest if it doesn't exist.",
+      "type": "object",
+      "required": ["op", "dest", "begin_marker", "end_marker"],
+      "allOf": [{ "$ref": "#/$defs/FetchAuth" }],
+      "properties": {
+        "op": { "const": "inject" },
+        "src": { "type": "string", "description": "Source for the block content: local path or URI. Mutually exclusive with content." },
+        "content": { "type": "string", "description": "Inline block content. Mutually exclusive with src." },
+        "begin_marker": { "$ref": "#/$defs/Marker" },
+        "end_marker": { "$ref": "#/$defs/Marker" },
+        "anchor": { "$ref": "#/$defs/Anchor" },
+        "if_not_found": { "$ref": "#/$defs/IfNotFound", "default": "end_of_file" },
+        "anchor_not_found": { "$ref": "#/$defs/IfNotFound", "default": "fail" },
+        "leading_newline": { "type": "boolean", "default": true, "description": "On insertion, ensure a newline precedes begin_marker if the preceding content doesn't already end with one." },
+        "trailing_newline": { "type": "boolean", "default": true, "description": "On insertion, ensure a newline follows end_marker." },
+        "rewrite_markers": { "type": "boolean", "default": false, "description": "When updating an existing block, also rewrite the marker lines themselves using their 'text' value." }
+      },
+      "not": { "required": ["src", "content"] }
+    },
+    "OpDelete": {
+      "description": "Remove dest. Silently succeeds if dest does not exist (unless if_not_exists:fail).",
+      "type": "object",
+      "required": ["op", "dest"],
+      "properties": {
+        "op": { "const": "delete" },
+        "recursive": { "type": "boolean", "description": "Required (true) to delete a non-empty directory; otherwise the entry fails with an explicit error." },
+        "if_not_exists": { "$ref": "#/$defs/IfNotExists", "default": "skip" },
+        "backup": { "$ref": "#/$defs/Backup", "description": "Back up dest before deleting it, enabling restore on uninstall." }
+      }
+    },
+    "OpSymlink": {
+      "description": "Create a symlink at dest pointing to src.",
+      "type": "object",
+      "required": ["op", "dest", "src"],
+      "properties": {
+        "op": { "const": "symlink" },
+        "src": { "type": "string", "description": "Symlink target. Relative (resolved relative to dest's parent, as in POSIX ln -s) or absolute." },
+        "if_exists": { "$ref": "#/$defs/IfExists", "default": "skip" }
+      }
+    },
+    "OpMkdir": {
+      "description": "Create dest and any missing parent directories (mkdir -p semantics).",
+      "type": "object",
+      "required": ["op", "dest"],
+      "properties": {
+        "op": { "const": "mkdir" },
+        "if_exists": { "$ref": "#/$defs/IfExists", "default": "skip", "description": "overwrite here means: create if missing, and also apply chmod/owner/group to an already-existing dest." },
+        "recursive_attrs": { "type": "boolean", "description": "Apply chmod/owner/group to newly created intermediate directories too, not just dest itself. Has no effect on directories that already existed." }
+      }
+    },
+    "OpChmod": {
+      "description": "Change permissions/ownership on an existing path without altering its content. At least one of chmod, owner, group is required.",
+      "type": "object",
+      "required": ["op", "dest"],
+      "anyOf": [
+        { "required": ["chmod"] },
+        { "required": ["owner"] },
+        { "required": ["group"] }
+      ],
+      "properties": {
+        "op": { "const": "chmod" },
+        "recursive": { "type": "boolean", "description": "Apply recursively to a directory tree." },
+        "if_not_exists": { "$ref": "#/$defs/IfNotExists", "default": "fail" }
+      }
+    },
+    "OpMove": {
+      "description": "Move/rename src to dest.",
+      "type": "object",
+      "required": ["op", "dest", "src"],
+      "properties": {
+        "op": { "const": "move" },
+        "src": { "type": "string", "description": "Local filesystem path to move (absolute or ~/-relative). URIs are not valid here." },
+        "if_exists": { "$ref": "#/$defs/IfExists", "default": "fail", "description": "Behavior when dest already exists. Defaults to fail (not skip like other ops) since an unintended destructive rename is the primary risk." },
+        "if_not_exists": { "$ref": "#/$defs/IfNotExists", "default": "fail", "description": "Behavior when src does not exist." }
+      }
+    },
+    "OpTouch": {
+      "description": "Create dest if absent, or update its mtime if present. Never modifies content. chmod/owner/group (if set) are always applied regardless of if_exists.",
+      "type": "object",
+      "required": ["op", "dest"],
+      "properties": {
+        "op": { "const": "touch" },
+        "if_exists": {
+          "$ref": "#/$defs/IfExists",
+          "default": "overwrite",
+          "description": "Deliberately defaults to overwrite (bump mtime every run), unlike every other op's skip default — touch's primary use case is a 'last ran' marker file. Set to skip explicitly for create-once semantics."
+        }
+      }
+    },
+    "Entry": {
+      "description": "One file operation. The concrete shape (required/allowed fields) depends on 'op'.",
+      "allOf": [
+        { "$ref": "#/$defs/CommonFields" },
+        {
+          "oneOf": [
+            { "$ref": "#/$defs/OpCreate" },
+            { "$ref": "#/$defs/OpInject" },
+            { "$ref": "#/$defs/OpDelete" },
+            { "$ref": "#/$defs/OpSymlink" },
+            { "$ref": "#/$defs/OpMkdir" },
+            { "$ref": "#/$defs/OpChmod" },
+            { "$ref": "#/$defs/OpMove" },
+            { "$ref": "#/$defs/OpTouch" }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

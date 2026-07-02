@@ -1,0 +1,216 @@
+core_ops:
+  description: Exercises create, inject, mkdir, chmod, symlink, touch, move, delete in one manifest.
+  checks:
+    - title: mkdir created with correct mode
+      cmd: bash -c '[ "$(stat -c %a /opt/sf-test)" = "755" ]'
+    - title: create wrote expanded content
+      cmd: grep -qF 'hello world' /opt/sf-test/config.txt
+    - title: inject block present
+      cmd: grep -qF '# BEGIN sf-test' /opt/sf-test/config.txt
+    - title: inject content present
+      cmd: grep -qF 'injected line' /opt/sf-test/config.txt
+    - title: moved marker exists at new path
+      cmd: test -f /opt/sf-test/marker-moved
+    - title: moved marker absent at old path
+      cmd: bash -c '! test -f /opt/sf-test/marker'
+    - title: final chmod applied (640, overriding the earlier 644)
+      cmd: bash -c '[ "$(stat -c %a /opt/sf-test/config.txt)" = "640" ]'
+    - title: symlink deleted
+      cmd: bash -c '! test -e /opt/sf-test/config-link.txt'
+    - title: state.json tracks all 8 distinct operations
+      cmd: bash -c '[ "$(jq ".entries | length" /usr/local/share/quantized8/devfeats/setup-files/state.json)" = "8" ]'
+
+create_conflicts:
+  description: Verifies if_exists skip/fail/overwrite and backup on create.
+  checks:
+    - title: skip left existing file untouched
+      cmd: grep -qF 'PRE-EXISTING' /opt/sf-conf/skip.txt
+    - title: fail left existing file untouched
+      cmd: grep -qF 'PRE-EXISTING' /opt/sf-conf/fail.txt
+    - title: overwrite replaced content
+      cmd: grep -qF 'NEW' /opt/sf-conf/overwrite.txt
+    - title: backup of overwritten file exists
+      cmd: bash -c 'find /usr/local/share -name "*overwrite.txt.*" 2>/dev/null | grep -q .'
+
+create_variants:
+  description: Verifies create from a local src file with preserve_perms, and a recursive directory-tree copy with an exclude glob.
+  checks:
+    - title: src-based create wrote the source file's content
+      cmd: grep -qF 'from source file' /opt/sf-created-from-src.txt
+    - title: preserve_perms copied the source file's mode (600)
+      cmd: bash -c '[ "$(stat -c %a /opt/sf-created-from-src.txt)" = "600" ]'
+    - title: tree copy includes the top-level file
+      cmd: test -f /opt/sf-tree-dest/plain.txt
+    - title: tree copy recurses into subdirectories
+      cmd: test -f /opt/sf-tree-dest/subdir/nested.txt
+    - title: tree copy excludes files matching the exclude glob
+      cmd: bash -c '! test -f /opt/sf-tree-dest/subdir/skip.log'
+
+inject_variants:
+  description: Verifies inject anchor placement, update-in-place, rewrite_markers, if_not_found, and anchor_not_found.
+  checks:
+    - title: injected content present
+      cmd: grep -qF 'injected=updated' /opt/sf-inject/target.conf
+    - title: block inserted after the anchor line, not before
+      cmd: |-
+        bash -c 'a=$(grep -n "\[section\]" /opt/sf-inject/target.conf | cut -d: -f1); b=$(grep -n "BEGIN sf.inject" /opt/sf-inject/target.conf | cut -d: -f1); [ "$b" -gt "$a" ]'
+    - title: update-in-place replaced the old content, not appended alongside it
+      cmd: bash -c '! grep -qF "injected=true" /opt/sf-inject/target.conf'
+    - title: update-in-place did not duplicate the begin marker
+      cmd: bash -c '[ "$(grep -c "# BEGIN sf.inject" /opt/sf-inject/target.conf)" = "1" ]'
+    - title: rewrite_markers replaced the marker text
+      cmd: grep -qF '# NEW-BEGIN' /opt/sf-inject/rewrite.conf
+    - title: rewrite_markers removed the old marker text
+      cmd: bash -c '! grep -qF "# OLD-BEGIN" /opt/sf-inject/rewrite.conf'
+    - title: rewrite_markers preserved surrounding content
+      cmd: bash -c 'grep -qF "line one" /opt/sf-inject/rewrite.conf && grep -qF "line two" /opt/sf-inject/rewrite.conf'
+    - title: if_not_found=beginning_of_file inserts before existing content
+      cmd: bash -c '[ "$(head -1 /opt/sf-inject/prepend.conf)" = "# BEGIN prepend" ]'
+    - title: if_not_found=fail (ignored) leaves the file untouched
+      cmd: bash -c '! grep -qF "should-not-appear" /opt/sf-inject/failcase.conf'
+    - title: anchor_not_found=end_of_file appends as a fallback
+      cmd: grep -qF 'fallback-appended' /opt/sf-inject/anchorfallback.conf
+    - title: anchor_not_found=fail (ignored) leaves the file untouched
+      cmd: bash -c '! grep -qF "should-not-appear" /opt/sf-inject/anchorfail.conf'
+
+delete_symlink_mkdir_variants:
+  description: Verifies delete (if_not_exists, recursive), symlink (if_exists skip/fail/overwrite), and mkdir (if_exists skip/overwrite, recursive_attrs).
+  checks:
+    - title: delete if_not_exists=skip (default) is a silent no-op
+      cmd: bash -c '! test -e /opt/sf-dsm/does-not-exist.txt'
+    - title: delete of a non-empty dir without recursive fails, dir remains
+      cmd: test -d /opt/sf-dsm/nonempty-dir-a
+    - title: delete of a non-empty dir with recursive succeeds
+      cmd: bash -c '! test -e /opt/sf-dsm/nonempty-dir-b'
+    - title: delete of a plain file succeeds
+      cmd: bash -c '! test -e /opt/sf-dsm/present.txt'
+    - title: symlink basic create points at src
+      cmd: bash -c '[ "$(readlink /opt/sf-dsm/new-link)" = "/opt/sf-dsm/link-target.txt" ]'
+    - title: symlink if_exists=skip leaves the existing target unchanged
+      cmd: bash -c '[ "$(readlink /opt/sf-dsm/link-for-skip)" = "/opt/sf-dsm/existing-link-target.txt" ]'
+    - title: symlink if_exists=fail (ignored) leaves the existing target unchanged
+      cmd: bash -c '[ "$(readlink /opt/sf-dsm/link-for-fail)" = "/opt/sf-dsm/existing-link-target.txt" ]'
+    - title: symlink if_exists=overwrite retargets the link
+      cmd: bash -c '[ "$(readlink /opt/sf-dsm/link-for-overwrite)" = "/opt/sf-dsm/other-target.txt" ]'
+    - title: mkdir if_exists=skip does not apply chmod to the existing dir
+      cmd: bash -c '[ "$(stat -c %a /opt/sf-dsm/existing-dir-skip)" != "700" ]'
+    - title: mkdir if_exists=overwrite applies chmod to the existing dir
+      cmd: bash -c '[ "$(stat -c %a /opt/sf-dsm/existing-dir-overwrite)" = "700" ]'
+    - title: mkdir creates missing intermediate directories
+      cmd: test -d /opt/sf-dsm/fresh/nested/deep
+    - title: mkdir recursive_attrs applies chmod to every newly-created directory
+      cmd: |-
+        bash -c '[ "$(stat -c %a /opt/sf-dsm/fresh)" = "750" ] && [ "$(stat -c %a /opt/sf-dsm/fresh/nested)" = "750" ] && [ "$(stat -c %a /opt/sf-dsm/fresh/nested/deep)" = "750" ]'
+
+chmod_move_touch_variants:
+  description: Verifies chmod (if_not_exists), move (if_exists/if_not_exists), and touch (if_exists mtime-bump semantics).
+  checks:
+    - title: chmod applies the requested mode
+      cmd: bash -c '[ "$(stat -c %a /opt/sf-cmt/chmod-target.txt)" = "640" ]'
+    - title: chmod if_not_exists=skip on a missing dest is a silent no-op
+      cmd: bash -c '! test -e /opt/sf-cmt/does-not-exist.txt'
+    - title: chmod if_not_exists default (fail, ignored) does not create the target
+      cmd: bash -c '! test -e /opt/sf-cmt/does-not-exist-2.txt'
+    - title: move basic case relocates the file
+      cmd: bash -c 'test -f /opt/sf-cmt/move-basic-dest.txt && ! test -e /opt/sf-cmt/move-basic-src.txt'
+    - title: move if_exists=skip leaves src in place
+      cmd: test -f /opt/sf-cmt/move-skip-src.txt
+    - title: move if_exists=fail (ignored) leaves src in place
+      cmd: test -f /opt/sf-cmt/move-fail-src.txt
+    - title: move if_exists=overwrite relocates src onto dest
+      cmd: bash -c 'test -f /opt/sf-cmt/move-overwrite-dest.txt && ! test -e /opt/sf-cmt/move-overwrite-src.txt'
+    - title: move if_not_exists=skip on a missing src is a silent no-op
+      cmd: bash -c '! test -e /opt/sf-cmt/move-no-such-dest.txt'
+    - title: touch creates a new file
+      cmd: test -f /opt/sf-cmt/touch-new.txt
+    - title: touch if_exists=fail (ignored) does not remove the existing file
+      cmd: test -f /opt/sf-cmt/touch-existing-fail.txt
+
+strict_vars_and_on_error:
+  description: Verifies strict_vars true/false semantics for an undefined variable reference, and that on_error=ignore does not block subsequent entries.
+  checks:
+    - title: strict_vars=true (default) rejects an undefined variable, entry has no effect
+      cmd: bash -c '! test -e /opt/sf-strict/strict-fail.txt'
+    - title: strict_vars=false expands an undefined variable to an empty string instead of failing
+      cmd: test -f /opt/sf-strict/nonstrict-ok.txt
+    - title: strict_vars=false result content is empty
+      cmd: bash -c '[ -z "$(cat /opt/sf-strict/nonstrict-ok.txt)" ]'
+
+user_scoped:
+  description: Verifies system-scoped vs user-scoped entries, var substitution, explicit users list, and the `all` keyword.
+  pre: |
+    _HOME=/root
+  checks:
+    - title: system-scoped file created once
+      cmd: test -f /etc/sf-marker
+    - title: user-scoped file created in resolved user's home
+      cmd: test -f "${_HOME}/.sf-theme"
+    - title: user-scoped content var-expanded
+      cmd: grep -qF 'dark' "${_HOME}/.sf-theme"
+    - title: "users: [root] targets exactly the listed user"
+      cmd: test -f "${_HOME}/.sf-explicit-list"
+    - title: "users: all targets every regular non-system user (devuser)"
+      cmd: test -f /home/devuser/.sf-all-users
+    - title: "users: all content is correct"
+      cmd: grep -qF 'all-users' /home/devuser/.sf-all-users
+    - title: "users: all does not ALSO target root (root is not a regular user)"
+      cmd: bash -c '! test -f "${_HOME}/.sf-all-users"'
+
+system_scoped_validation:
+  description: Verifies the two cross-field runtime checks not expressible in JSON Schema — a bare relative dest, and users set on a system-scoped dest — are both rejected.
+  checks:
+    - title: bare relative dest is rejected (ignored, no side effect)
+      cmd: bash -c '! test -e /relative/path/not/allowed.txt && ! test -e relative/path/not/allowed.txt'
+    - title: users field on a system-scoped dest is rejected (ignored, no side effect)
+      cmd: bash -c '! test -e /opt/sf-sysval/system-with-users.txt'
+    - title: a valid entry in the same manifest still applies
+      cmd: test -f /opt/sf-sysval/system-ok.txt
+
+schema_invalid:
+  description: Verifies a manifest violating the JSON Schema is rejected before any operation runs.
+  checks:
+    - kind: install_failure
+      title: unknown field on create entry causes immediate failure
+      pattern: "failed JSON Schema validation"
+
+uninstall_reversal:
+  description: Verifies uninstall correctly reverses every tracked op type, plus the externally-modified safety path, using a hand-simulated pre-installed state (see the setup field in scenarios.yaml).
+  checks:
+    - title: created-only file removed entirely
+      cmd: bash -c '! test -e /opt/sf-existing/created-file.txt'
+    - title: overwritten file restored from backup
+      cmd: grep -qF 'ORIGINAL BACKED UP CONTENT' /opt/sf-existing/overwritten-file.txt
+    - title: injected block removed, surrounding content intact
+      cmd: bash -c '! grep -qF "BEGIN sf-test" /opt/sf-existing/injected-block.txt && grep -qF "before" /opt/sf-existing/injected-block.txt && grep -qF "after" /opt/sf-existing/injected-block.txt'
+    - title: created empty directory removed
+      cmd: bash -c '! test -d /opt/sf-existing/created-dir'
+    - title: created symlink removed
+      cmd: bash -c '! test -L /opt/sf-existing/created-link'
+    - title: deleted file restored from backup
+      cmd: grep -qF 'ORIGINAL DELETED CONTENT BACKUP' /opt/sf-existing/deleted-file.txt
+    - title: chmod original permissions restored
+      cmd: bash -c '[ "$(stat -c %a /opt/sf-existing/chmod-target.txt)" = "644" ]'
+    - title: moved file relocated back to its original path
+      cmd: test -f /opt/sf-existing/move-original-location.txt
+    - title: moved file no longer at its (post-move) tracked path
+      cmd: bash -c '! test -e /opt/sf-existing/move-new-location.txt'
+    - title: externally-modified file is left in place rather than deleted
+      cmd: test -f /opt/sf-existing/ext-modified.txt
+    - title: externally-modified file's hand-edited content is untouched
+      cmd: grep -qF 'externally modified by hand' /opt/sf-existing/ext-modified.txt
+    - title: state.json removed after uninstall
+      cmd: bash -c '! test -f /usr/local/share/quantized8/devfeats/setup-files/state.json'
+
+lifecycle_stages:
+  description: Verifies manifest_on_create/post_create/entrypoint/post_start all apply, since checks run after all lifecycle commands have fired.
+  checks:
+    - title: on-create manifest applied
+      cmd: grep -qF 'on-create ran' /opt/sf-lifecycle/on-create-marker
+    - title: post-create manifest applied
+      cmd: grep -qF 'post-create ran' /opt/sf-lifecycle/post-create-marker
+    - title: entrypoint manifest applied
+      cmd: grep -qF 'entrypoint ran' /opt/sf-lifecycle/entrypoint-marker
+    - title: post-start manifest applied
+      cmd: grep -qF 'post-start ran' /opt/sf-lifecycle/post-start-marker
+    - title: post-create lifecycle script registered
+      cmd: bash -c 'find /usr/local/share -path "*/lifecycle-hooks/post-create--setup.sh" | grep -q .'
