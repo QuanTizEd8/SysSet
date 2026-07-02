@@ -2856,6 +2856,53 @@ __dep_install_option__() {
   __dep_install_from_env__ "$_mvar" run "option-${_name}" "$@"
 }
 
+# Self-Copy Deployment
+# =====================
+
+__deploy_self__() {
+  # Copy this feature's installer (install.sh, install.bash), shared lib, and
+  # any bundled files/schemas to a persistent share directory, so that
+  # lifecycle hook scripts and entrypoints — which run long after the build
+  # tarball is gone — can call back into a full, working copy of the feature
+  # with complete DevFeats lib access.
+  #
+  # Lifecycle scripts must invoke the copy via `sh install.sh` (the POSIX
+  # entrypoint), never `bash install.bash` directly: install.sh is what
+  # bootstraps a compatible bash if the target system doesn't already have
+  # one, and is the same conventional entrypoint used for the original
+  # (build-time) invocation.
+  #
+  # Also copies any `*.schema.json` files found directly in ${_FEAT_DIR} (not
+  # recursively), so `_jsonschema` argparse validation — which resolves schema
+  # paths relative to ${_FEAT_DIR} — keeps working when ${_FEAT_DIR} becomes
+  # this persistent copy at lifecycle time.
+  #
+  # Idempotent: guarded by `[ -d "${_FEAT_SHARE_DIR_ROOT}" ]` so it only runs
+  # once — at lifecycle time the directory already exists and this is a no-op.
+  #
+  # Call explicitly from a feature's __install_run__ (or equivalent) when the
+  # feature needs this pattern; not called automatically by the template.
+  if [[ -d "${_FEAT_SHARE_DIR_ROOT}" ]]; then
+    logging__skip "Self-copy already deployed at '${_FEAT_SHARE_DIR_ROOT}'; skipping."
+    return 0
+  fi
+  logging__install "Deploying self-copy to '${_FEAT_SHARE_DIR_ROOT}'."
+  file__mkdir "${_FEAT_SHARE_DIR_ROOT}"
+  file__cp "${_FEAT_DIR}/install.sh" "${_FEAT_SHARE_DIR_ROOT}/install.sh"
+  file__cp "${_FEAT_DIR}/install.bash" "${_FEAT_SHARE_DIR_ROOT}/install.bash"
+  file__chmod +x "${_FEAT_SHARE_DIR_ROOT}/install.sh"
+  file__cp -r "${_FEAT_DIR}/lib" "${_FEAT_SHARE_DIR_ROOT}/"
+  if [[ -d "${_FEAT_FILES_DIR}" ]]; then
+    file__cp -r "${_FEAT_FILES_DIR}" "${_FEAT_SHARE_DIR_ROOT}/"
+  fi
+  local _schema
+  for _schema in "${_FEAT_DIR}"/*.schema.json; do
+    [[ -f "${_schema}" ]] || continue
+    file__cp "${_schema}" "${_FEAT_SHARE_DIR_ROOT}/$(basename "${_schema}")"
+  done
+  logging__success "Self-copy deployed to '${_FEAT_SHARE_DIR_ROOT}'."
+}
+
 # Lifecycle Script Deployment
 # ============================
 

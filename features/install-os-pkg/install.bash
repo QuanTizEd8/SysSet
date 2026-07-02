@@ -25,25 +25,16 @@ __install_run__() {
     return 1
   fi
 
-  # Always install the backing library so lifecycle hook scripts can reference it.
-  # The user-visible wrapper script (/usr/local/bin/install-os-pkg) is optional
+  # Always deploy the self-copy so lifecycle hook scripts can call back into a
+  # full, working copy of the feature (with DevFeats lib access) later. The
+  # user-visible wrapper script (/usr/local/bin/install-os-pkg) is optional
   # and only written when install_self=true.
-  local _LIB_DIR="/usr/local/lib/install-os-pkg"
-  if [ ! -d "$_LIB_DIR" ]; then
-    logging__install "Installing backing library to '${_LIB_DIR}'."
-    file__mkdir "$_LIB_DIR"
-    file__cp "$0" "$_LIB_DIR/install.sh"
-    file__chmod +x "$_LIB_DIR/install.sh"
-    file__cp -r "$_FEAT_DIR/lib" "$_LIB_DIR/"
-    file__cp "$_FEAT_DIR/manifest.schema.json" "$_LIB_DIR/manifest.schema.json"
-  else
-    logging__skip "Backing library already present at '${_LIB_DIR}'; skipping bootstrap."
-  fi
+  __deploy_self__
 
   if [[ "$INSTALL_SELF" == true ]]; then
     local _BIN="/usr/local/bin/install-os-pkg"
     if [ ! -x "$_BIN" ]; then
-      printf '#!/bin/sh\nexec bash "%s/install.sh" "$@"\n' "$_LIB_DIR" | file__tee "$_BIN"
+      printf '#!/bin/sh\nexec sh "%s/install.sh" "$@"\n' "${_FEAT_SHARE_DIR_ROOT}" | file__tee "$_BIN"
       file__chmod +x "$_BIN"
       logging__success "Installed system command: $_BIN"
     fi
@@ -89,8 +80,8 @@ __install_run__() {
       updateContent) _HOOK_FILE="${_FEAT_LIFECYCLE_UPDATE_CONTENT}install.sh" ;;
       postCreate) _HOOK_FILE="${_FEAT_LIFECYCLE_POST_CREATE}install.sh" ;;
     esac
-    printf '#!/bin/sh\nset -e\nexec bash "%s" %s\n' \
-      "/usr/local/lib/install-os-pkg/install.sh" "$_HOOK_OPTS" | file__tee "$_HOOK_FILE"
+    printf '#!/bin/sh\nset -e\nexec sh "%s" %s\n' \
+      "${_FEAT_SHARE_DIR_ROOT}/install.sh" "$_HOOK_OPTS" | file__tee "$_HOOK_FILE"
     file__chmod +x "$_HOOK_FILE"
     logging__success "Registered lifecycle hook '$LIFECYCLE_HOOK': $_HOOK_FILE"
     return 0

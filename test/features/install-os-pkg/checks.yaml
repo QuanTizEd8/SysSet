@@ -359,7 +359,7 @@ apt_system_command:
     - title: system command exists
       cmd: test -x /usr/local/bin/install-os-pkg
     - title: library script exists
-      cmd: test -f /usr/local/lib/install-os-pkg/install.sh
+      cmd: test -f /usr/local/share/quantized8/devfeats/install-os-pkg/install.sh
     - title: command is in PATH
       cmd: command -v install-os-pkg
     - title: command accepts --help flag
@@ -419,7 +419,7 @@ install_self_false:
     - title: system command wrapper is absent
       cmd: bash -c "! test -x /usr/local/bin/install-os-pkg"
     - title: library script is present (always installed)
-      cmd: test -f /usr/local/lib/install-os-pkg/install.sh
+      cmd: test -f /usr/local/share/quantized8/devfeats/install-os-pkg/install.sh
 
 install_self_only:
   description: |
@@ -430,7 +430,7 @@ install_self_only:
     - title: system command exists
       cmd: test -x /usr/local/bin/install-os-pkg
     - title: library script exists
-      cmd: test -f /usr/local/lib/install-os-pkg/install.sh
+      cmd: test -f /usr/local/share/quantized8/devfeats/install-os-pkg/install.sh
 
 no_matching_files:
   description: |
