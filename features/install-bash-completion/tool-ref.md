@@ -29,11 +29,11 @@ directly into the user's interactive Bash shell at session startup.
 
 **Main components:**
 
-- **`bash_completion`** — The main file (~3700 lines) that implements the core
-  infrastructure: helper functions (e.g., `_init_completion`, `_filedir`,
-  `_known_hosts`), the on-demand completion loading system (`_comp_load`),
-  and default completion rules. This is the file that must be sourced at shell
-  startup.[^src-bash-completion]
+- **`bash_completion`** — The main file (3791 lines in v2.17.0) that implements
+  the core infrastructure: helper functions (e.g., `_init_completion`,
+  `_filedir`, `_known_hosts`), the on-demand completion loading system
+  (`_comp_load`), and default completion rules. This is the file that must be
+  sourced at shell startup.[^src-bash-completion]
 
 - **`completions/`** — A directory containing the actual completion definition
   files for individual commands (e.g., `apt`, `git`, `ssh`, `docker`). Each file
@@ -107,7 +107,9 @@ This is the recommended installation method on Linux. The package is called
 
 - **Homebrew (macOS)**: `bash` itself must be installed via Homebrew (macOS
   ships Bash 3.2 by default, which is incompatible with bash-completion v2).
-  The `bash-completion@2` formula automatically depends on the `bash` formula.[^brew-deps]
+  On macOS, the `bash-completion@2` formula automatically depends on the
+  `bash` formula. On Linux via Homebrew, this dependency is absent because
+  the system bash is typically >= 4.2.[^brew-deps]
 - **Linux**: No platform-specific dependencies beyond what the package manager
   handles automatically.
 
@@ -258,12 +260,9 @@ On **Linux**, the package manager's profile.d script at
 configurations, no user configuration file changes are needed.
 
 On **macOS with Homebrew**, the `/etc/profile.d/` mechanism is not used, so the
-user must manually add a source line. Homebrew's `bash-completion@2` formula
-prints the following caveat after installation:
-```sh
-Add the following line to your ~/.bash_profile:
-  [[ -r "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh" ]] && . "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh"
-```[^brew-caveats]
+user must manually source the entry point. See the
+[Homebrew Post-Installation Steps](#post-installation-steps-2) section for
+details on the recommended approach.
 
 For a **manual setup** (without profile.d), add the following to `~/.bashrc`:
 ```sh
@@ -275,13 +274,21 @@ For a **manual setup** (without profile.d), add the following to `~/.bashrc`:
 ##### Environment Variables
 
 - `BASH_COMPLETION_VERSINFO` — Set automatically by bash-completion after
-  loading; used to prevent double-sourcing. It is a readonly array containing
-  the major and minor version numbers (e.g., `(2 17)` for v2.17.0).
-- `BASH_COMPLETION_USER_DIR` — Colon-separated list of directories for
-  user-installed completion files (default:
-  `$XDG_DATA_HOME/bash-completion` → `~/.local/share/bash-completion`).
+  loading; used to prevent double-sourcing. It is a plain array containing
+  the major, minor, and patch version numbers (e.g., `(2 17 0)` for
+  v2.17.0). It is not declared `readonly`, but the profile.d script checks
+  for its presence to avoid double-sourcing.[^src-bash-completion]
+- `BASH_COMPLETION_USER_DIR` — Colon-separated list of directories (each
+  is searched in order) for user-installed completion files. Defaults to
+  `$XDG_DATA_HOME/bash-completion` (which defaults to
+  `~/.local/share/bash-completion` if `$XDG_DATA_HOME` is not set).
+  Under this directory, `completions/` contains per-command completion files
+  and `startup/` contains eagerly-loaded initialization files.
 - `BASH_COMPLETION_USER_FILE` — Path to the user's eagerly-sourced completion
   file (default: `$HOME/.bash_completion`).
+- `BASH_COMPLETION_DEBUG` — If set to a non-empty value, enables verbose
+  tracing of bash-completion initialization. Useful for debugging loading
+  issues.[^src-bash-completion]
 - `XDG_DATA_HOME` — Base directory for user data (used if
   `BASH_COMPLETION_USER_DIR` is not set).
 - `XDG_DATA_DIRS` — Used to locate system-wide completion directories (fallback
@@ -306,7 +313,12 @@ if [ "x${BASH_VERSION-}" != x -a "x${PS1-}" != x -a "x${BASH_COMPLETION_VERSINFO
         fi
     fi
 fi
-```[^src-profiled]
+```
+Note: `@datadir@` and `@PACKAGE@` are Autotools template variables that are
+substituted at configure time. In a typical Linux installation, they resolve to
+`/usr/share` and `bash-completion` respectively, making the final path
+`/usr/share/bash-completion/bash_completion`. The template source file is
+`bash_completion.sh.in`.[^src-profiled]
 
 Key behavior of this script:
 1. Only runs in **interactive** Bash shells (checks `PS1`).
@@ -376,9 +388,10 @@ is a no-op (or upgrades if a newer version is available).
 - The v2.x branch requires **Bash >= 4.2**. On older systems or macOS's
   built-in Bash 3.2, use the older v1.x (`bash-completion` without `@2`),
   which has different file locations and no on-demand loading.[^brew-v1-vs-v2]
-- bash-completion is typically pre-installed as part of the `bash` package on
-  most Linux distributions. In minimal container images (e.g., `ubuntu:latest`),
-  it may need to be explicitly installed.
+- bash-completion is **not** included in the `bash` package itself; it is a
+  separate package on all major Linux distributions. In minimal container images
+  (e.g., `ubuntu:latest`), it must be explicitly installed via the package
+  manager.[^repology]
 
 ### Source / GNU Autotools
 
@@ -445,6 +458,59 @@ Standard Autotools configure options apply:
   `PREFIX/share`; completions go here)
 - `--with-pytest=EXECUTABLE` — Specify the pytest executable for the test suite
 
+#### Details
+
+The build process uses GNU Autotools with the following key characteristics:
+
+1. **`configure.ac` platform detection**: The configure script detects the
+   host operating system and sets conditionals for BSD, FreeBSD, and Solaris.
+   On FreeBSD, an `install_freebsd` variable is set; on Solaris, an
+   `install_solaris` variable is set; and on other BSDs, `install_bsd` is set.
+   These conditionals control Makefile variables for platform-specific
+   behavior (e.g., install flags).[^configure-ac]
+
+2. **`Makefile.am` install targets**: The Makefile installs:
+   - `bash_completion` → `$(pkgdataadir)` (usually
+     `$(datadir)/bash-completion/bash_completion`)
+   - `bash_completion.sh` → `$(profiledir)` (usually `$(sysconfdir)/profile.d/`)
+   - Completions → subdirectories `completions/`, `completions-core/`,
+     `completions-fallback/`
+   - Helpers → `helpers/`, `helpers-core/`
+   - Startup files → `startup/`, `startup-core/`
+   - Compat directory → `$(compatdir)` (usually `$(sysconfdir)/bash_completion.d/`)
+   - pkg-config file → `$(pkgconfigdir)`
+   - CMake config files → `$(cmakeconfigdir)`[^makefile-am]
+
+3. **Post-install hook**: The `install-data-hook` in `Makefile.am` patches
+   the installed `bash_completion` file to replace the default compat
+   directory path `(/etc/bash_completion.d)` with the configured compat
+   directory path `$(compatdir)`.
+
+4. **Template variable substitution**: The files `bash_completion.sh.in`,
+   `bash-completion.pc.in`, `bash-completion-config.cmake.in`, and
+   `bash-completion-config-version.cmake.in` use `@variable@`-style
+   substitutions (Autotools standard), where placeholders like `@datadir@`,
+   `@PACKAGE@`, `@prefix@`, `@sysconfdir@`, and `@VERSION@` are replaced
+   at configure time.[^src-profiled][^makefile-am]
+
+#### User Targeting
+
+The source method supports both system-wide and per-user installations:
+
+- **System-wide** (default): Install with `./configure --prefix=/usr/local`
+  (default) followed by `sudo make install`. This makes bash-completion
+  available to all users on the system.
+- **Per-user**: Install with `./configure --prefix=$HOME/.local` to place all
+  files under the user's home directory. In this case, the user must manually
+  add a sourcing line to their `~/.bashrc` (see
+  [Configuration Files](#configuration-files-1)).
+
+#### Required Privileges
+
+- **System-wide install**: Requires root/sudo privileges for `make install`.
+- **Per-user install**: No special privileges needed; all files are installed
+  under the user's home directory.
+
 #### Post-Installation Steps and Cleanup
 
 Same as the package manager method. The profile.d script is installed to
@@ -479,6 +545,19 @@ Running `make install` multiple times will overwrite the previous installation
 with the same version (or a new one). It is idempotent in that sense — the
 same files are overwritten with identical content.
 
+#### Notes and Best Practices
+
+- On **macOS**, `readlink -f` is not available on versions <= Monterey; the
+  Homebrew formula handles this via patches. When building from source, you
+  may need to set `--with-bash-completion-dir=...` or use a different
+  `--prefix` to avoid system path conflicts.[^brew-formula-code]
+- Building from source requires GNU Autotools (`autoconf`, `automake`) if
+  building from a Git checkout rather than a release tarball. The release
+  tarballs include a pre-generated `configure` script.[^readme-install]
+- When using a per-user install (`--prefix=$HOME/.local`), the profile.d
+  script will not be sourced automatically; the user must manually add the
+  sourcing line to their `~/.bashrc`.
+
 ### Homebrew (macOS)
 
 #### Supported Platforms
@@ -489,10 +568,11 @@ same files are overwritten with identical content.
 #### Dependencies
 
 - Homebrew must be installed
-- `bash` formula (automatically installed as a dependency of
-  `bash-completion@2`)[^brew-deps]
-- On macOS: `readlink -f` is not available on macOS <= Monterey; the Homebrew
-  formula patches this during installation[^brew-formula-code]
+- On macOS: `bash` formula (automatically installed as a dependency of
+  `bash-completion@2`; on Linux via Homebrew, no `bash` dependency is
+  declared)[^brew-deps]
+- On macOS <= Monterey: `readlink -f` is not available; the Homebrew formula
+  patches the source to use `readlink` without the `-f` flag[^brew-formula-code]
 
 #### Installation Steps
 
@@ -520,17 +600,147 @@ The formula provides two variants:
 brew install bash-completion@2 --HEAD
 ```
 
+#### Details
+
+The Homebrew formula performs the following steps during installation:
+
+1. **Patches the `bash_completion` source**: The formula replaces
+   `readlink -f` with `readlink` on macOS versions <= Monterey (where
+   `readlink -f` is unsupported). It also replaces the default compat
+   directory path `(/etc/bash_completion.d)` with the Homebrew prefix path
+   `($HOMEBREW_PREFIX/etc/bash_completion.d)` so that legacy v1 completions
+   in the Homebrew prefix are automatically picked up.[^brew-formula-code]
+
+2. **Builds from source**: Uses `autoreconf` if building from HEAD, then
+   `./configure` with standard Homebrew options (`--prefix=$HOMEBREW_PREFIX`),
+   and finally `make install`.
+
+3. **Installs to Homebrew prefix**: All files are installed under
+   `$(brew --prefix)` (typically `/opt/homebrew` on Apple Silicon or
+   `/usr/local` on Intel):
+   - `$HOMEBREW_PREFIX/share/bash-completion/bash_completion`
+   - `$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh`
+   - `$HOMEBREW_PREFIX/share/bash-completion/completions/`
+
+4. **Caveats**: After installation, a caveat is printed directing the user
+   to manually add the sourcing line to their shell profile.[^brew-caveats]
+
+#### User Targeting
+
+System-wide installation via Homebrew is the standard. All users on the system
+with access to the Homebrew prefix (typically `/opt/homebrew` or `/usr/local`)
+will have bash-completion available, provided they source the profile.d script
+in their shell configuration.
+
+#### Required Privileges
+
+- No root/sudo privileges needed; Homebrew installs to user-writable prefix.
+- On macOS, Homebrew installs to `/opt/homebrew` (Apple Silicon) or
+  `/usr/local` (Intel), owned by the user.
+
 #### Post-Installation Steps
 
-On macOS, due to the way the default shell environment is configured, you must
-manually add the sourcing line. Add the following to `~/.bash_profile`
-(preferred) or `~/.bashrc`:
+On macOS, the official README strongly recommends **against** sourcing
+bash-completion in `~/.bash_profile` directly, because `~/.bash_profile` is
+only loaded in interactive **login** shells. Instead, the recommended approach
+is to configure `~/.bash_profile` to source `~/.bashrc`, and place interactive
+settings (including bash-completion) in `~/.bashrc`:
 
 ```sh
+# In ~/.bash_profile
+if [[ -f ~/.bashrc ]]; then
+  source ~/.bashrc
+fi
+```
+
+Then, in `~/.bashrc`:
+```sh
+# Source bash-completion for interactive non-login shells
 if [[ -r "$(brew --prefix)/etc/profile.d/bash_completion.sh" ]]; then
   . "$(brew --prefix)/etc/profile.d/bash_completion.sh"
 fi
 ```[^readme-macos]
+
+#### Changing Versions and Uninstallation
+
+##### Upgrading/Downgrading
+
+Homebrew handles version management automatically. To upgrade to the latest
+version:
+```sh
+brew upgrade bash-completion@2
+```
+
+To install a specific version (not directly supported by Homebrew), brew the
+formula and use `brew switch bash-completion@2 <version>` (deprecated) or
+pin the formula version using a custom tap or local formula.
+
+##### Uninstallation
+
+```sh
+brew uninstall bash-completion@2
+```
+
+This removes all installed files but leaves user configuration files (e.g.,
+`~/.bashrc` sourcing lines) intact.
+
+##### Idempotency
+
+Running `brew install bash-completion@2` when already installed is a no-op
+(Homebrew's default behavior). To force reinstallation: `brew reinstall
+bash-completion@2`.
+
+#### Notes and Best Practices
+
+- Homebrew's `bash-completion@2` is always built from source during
+  installation. This means the build-time dependencies (GNU Autotools, make)
+  are needed on the system.[^brew-formula-code]
+- On macOS, the system Bash 3.2 (at `/bin/bash`) is **not** compatible with
+  `bash-completion@2`. Users must use a newer Bash (installed via Homebrew as
+  `bash` at `/opt/homebrew/bin/bash` or `/usr/local/bin/bash`).
+- The unversioned `bash-completion` (v1) formula is kept for users stuck on
+  Bash 3.2; v2 depends on certain Bash 4.2+ features and will not work on
+  older Bash versions.[^brew-v1-vs-v2]
+
+## Plugins and Extensions
+
+bash-completion does not have a traditional plugin system with dedicated APIs.
+Instead, it supports extension through **completion files** — shell scripts that
+define `_<command>` functions and register them using Bash's `complete` builtin.
+These completion files can be provided by:
+
+1. **Third-party packages**: Many CLI tools (e.g., `docker`, `kubectl`, `git`,
+   `gh`) ship their own completion files and install them to the system's
+   completions directory (typically
+   `/usr/share/bash-completion/completions/` or
+   `$HOMEBREW_PREFIX/share/bash-completion/completions/`). These are
+   automatically picked up by bash-completion's on-demand loading system.
+
+2. **User-installed completions**: Users can install additional completion
+   files in `$BASH_COMPLETION_USER_DIR/completions/` (default:
+   `~/.local/share/bash-completion/completions/`). Files named `<command>.bash`
+   are loaded on demand when `<command>` is invoked.[^faq-userdir]
+
+3. **3rd-party fallback loaders**: bash-completion v2.12+ includes fallback
+   completion loaders for tools that generate their own completion scripts
+   (e.g., via Cobra, Click, or `argparse`). These loaders invoke the target
+   command's built-in completion generation (e.g.,
+   `kubectl completion bash`). Examples of tools with fallback loaders include
+   `docker`, `kubectl`, `helm`, `argocd`, `flux`, `k3d`, `kind`, `k9s`,
+   `nerdctl`, `just`, `uv`, `pip`, `nvm`, and many others.[^release-2170]
+
+For developers who want to create completion files for their own tools,
+bash-completion provides:
+
+- A set of helper functions (e.g., `_init_completion`, `_filedir`,
+  `_known_hosts`, `_comp_compgen`)
+- A pkg-config file (`bash-completion.pc`) so build systems can discover the
+  correct completions directory via
+  `pkg-config --variable=completionsdir bash-completion`[^faq-completionsdir]
+- CMake config files (`bash-completion-config.cmake`) for CMake-based projects
+- Support for installation to `$PREFIX/share/bash-completion/completions/`
+  (for bash-completion >= 2.12), where bash-completion automatically searches
+  the data directory under the same prefix as the target command's binary
 
 ## Dev Container Setup
 
@@ -539,7 +749,7 @@ attention because:
 
 1. **Containers typically run non-login shells**, which means `/etc/profile.d/`
    scripts are not automatically sourced. The ENTRYPOINT/CMD of most dev
-   container images (e.g., `mcr.microsoft.com/devcontainers/base`) is
+   container images (e.g., `mcr.microsoft.com/devcontainers/base:ubuntu`) is
    `/bin/bash` without `-l`, so `/etc/profile` — and by extension
    `/etc/profile.d/` — is never executed.[^issue-devcontainer]
 
@@ -619,7 +829,7 @@ attention because:
 [^brew-v1-vs-v2]: [Homebrew Discussion — Bash completion scripts directory](https://github.com/orgs/Homebrew/discussions/2575)
     — Explanation of the difference between bash-completion (v1, for Bash 3.2) and bash-completion@2 (v2, for Bash 4.2+).
 
-[^brew-v2]: [Homebrew Formulae — bash-completion@2](https://formulae.brew.sh/formula/bash-completion@2)
+[^brew-v2]: [Homebrew Formulae — bash-completion (v1)](https://formulae.brew.sh/formula/bash-completion)
     — "This formula is mainly for use with Bash 3. If you are using Homebrew's Bash or your system Bash is at least version 4.2, then you should install `bash-completion@2` instead."
 
 [^macports]: [MacPorts — bash-completion](https://ports.macports.org/port/bash-completion/summary/)
