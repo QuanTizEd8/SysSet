@@ -49,7 +49,7 @@ directly into the user's interactive Bash shell at session startup.
   directories.
 
 - **`helpers/`** — Helper scripts used by completion functions (accessed via
-  `pkg-config --variable=helpersdir bash-completion`).[^faq-helpersdir]
+  `pkg-config --variable=helpersdir bash-completion`).[^faq-completionsdir]
 
 - **`startup/`** — Startup completion files that are loaded when bash-completion
   is initialized, used for settings that must be applied early (e.g., overriding
@@ -452,13 +452,42 @@ pkg-config --modversion bash-completion
 
 #### Configuration Options
 
-Standard Autotools configure options apply:
-- `--prefix=PREFIX` — Installation prefix (default: `/usr/local`)
+##### Version Selection
+
+Download the desired release tarball from the GitHub Releases page. The version
+is determined by which tarball you download and build.
+
+##### Installation Path
+
+Controlled via `--prefix` (default: `/usr/local`). Other relevant options:
 - `--sysconfdir=DIR` — System configuration directory (default:
   `PREFIX/etc`; profile.d script goes here)
 - `--datadir=DIR` — Read-only architecture-independent data (default:
   `PREFIX/share`; completions go here)
+
+##### User Targeting
+
+The source method supports both system-wide and per-user installations:
+
+- **System-wide** (default): Install with `./configure --prefix=/usr/local`
+  (default) followed by `sudo make install`. This makes bash-completion
+  available to all users on the system.
+- **Per-user**: Install with `./configure --prefix=$HOME/.local` to place all
+  files under the user's home directory. In this case, the user must manually
+  add a sourcing line to their `~/.bashrc` (see
+  [Configuration Files](#configuration-files-1)).
+
+##### Required Privileges
+
+- **System-wide install**: Requires root/sudo privileges for `make install`.
+- **Per-user install**: No special privileges needed; all files are installed
+  under the user's home directory.
+
+##### Tool-Specific Configurations
+
 - `--with-pytest=EXECUTABLE` — Specify the pytest executable for the test suite
+- Standard Autotools options (`--sysconfdir`, `--datadir`) control where
+  specific components are installed (see [Installation Path](#installation-path))
 
 #### Details
 
@@ -494,24 +523,6 @@ The build process uses GNU Autotools with the following key characteristics:
    substitutions (Autotools standard), where placeholders like `@datadir@`,
    `@PACKAGE@`, `@prefix@`, `@sysconfdir@`, and `@VERSION@` are replaced
    at configure time.[^src-profiled][^makefile-am]
-
-#### User Targeting
-
-The source method supports both system-wide and per-user installations:
-
-- **System-wide** (default): Install with `./configure --prefix=/usr/local`
-  (default) followed by `sudo make install`. This makes bash-completion
-  available to all users on the system.
-- **Per-user**: Install with `./configure --prefix=$HOME/.local` to place all
-  files under the user's home directory. In this case, the user must manually
-  add a sourcing line to their `~/.bashrc` (see
-  [Configuration Files](#configuration-files-1)).
-
-#### Required Privileges
-
-- **System-wide install**: Requires root/sudo privileges for `make install`.
-- **Per-user install**: No special privileges needed; all files are installed
-  under the user's home directory.
 
 #### Post-Installation Steps and Cleanup
 
@@ -550,9 +561,10 @@ same files are overwritten with identical content.
 #### Notes and Best Practices
 
 - On **macOS**, `readlink -f` is not available on versions <= Monterey; the
-  Homebrew formula handles this via patches. When building from source, you
-  may need to set `--with-bash-completion-dir=...` or use a different
-  `--prefix` to avoid system path conflicts.[^brew-formula-code]
+  Homebrew formula handles this via patches (`inreplace` in the formula).
+  When building from source on macOS, note that `readlink -f` is used in
+  the build system; you may need to adjust the Makefile or patch
+  manually.[^brew-formula-code]
 - Building from source requires GNU Autotools (`autoconf`, `automake`) if
   building from a Git checkout rather than a release tarball. The release
   tarballs include a pre-generated `configure` script.[^readme-install]
@@ -594,6 +606,8 @@ Add the following line to your ~/.bash_profile:
 
 #### Configuration Options
 
+##### Version Selection
+
 The formula provides two variants:
 - **Stable**: Latest release from GitHub (currently 2.17.0)
 - **HEAD**: Build from the latest Git commit on the `main` branch
@@ -601,6 +615,31 @@ The formula provides two variants:
 ```sh
 brew install bash-completion@2 --HEAD
 ```
+
+##### Installation Path
+
+Controlled by Homebrew's standard prefix:
+- Apple Silicon: `/opt/homebrew`
+- Intel macOS: `/usr/local`
+- Linux (Homebrew-on-Linux): Homebrew's standard Linux prefix
+
+##### User Targeting
+
+System-wide installation via Homebrew is the standard. All users on the system
+with access to the Homebrew prefix will have bash-completion available,
+provided they source the profile.d script in their shell configuration.
+
+##### Required Privileges
+
+- No root/sudo privileges needed; Homebrew installs to user-writable prefix.
+- On macOS, Homebrew installs to `/opt/homebrew` (Apple Silicon) or
+  `/usr/local` (Intel), owned by the user.
+
+##### Tool-Specific Configurations
+
+The `--HEAD` variant (see [Version Selection](#version-selection)) is the
+primary configuration option. No other tool-specific configure flags are
+exposed through the Homebrew formula.
 
 #### Details
 
@@ -627,19 +666,6 @@ The Homebrew formula performs the following steps during installation:
 4. **Caveats**: After installation, a caveat is printed directing the user
    to manually add the sourcing line to their shell profile.[^brew-caveats]
 
-#### User Targeting
-
-System-wide installation via Homebrew is the standard. All users on the system
-with access to the Homebrew prefix (typically `/opt/homebrew` or `/usr/local`)
-will have bash-completion available, provided they source the profile.d script
-in their shell configuration.
-
-#### Required Privileges
-
-- No root/sudo privileges needed; Homebrew installs to user-writable prefix.
-- On macOS, Homebrew installs to `/opt/homebrew` (Apple Silicon) or
-  `/usr/local` (Intel), owned by the user.
-
 #### Post-Installation Steps and Cleanup
 
 ##### PATH Setup
@@ -665,9 +691,8 @@ fi
 
 Then, in `~/.bashrc`:
 ```sh
-# Source bash-completion for interactive non-login shells
-if [[ -r "$(brew --prefix)/etc/profile.d/bash_completion.sh" ]]; then
-  . "$(brew --prefix)/etc/profile.d/bash_completion.sh"
+if [[ -s $HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh ]]; then
+  . "$HOMEBREW_PREFIX/etc/profile.d/bash_completion.sh"
 fi
 ```[^readme-macos]
 
@@ -795,7 +820,7 @@ These completion files can be provided by:
    command's built-in completion generation (e.g.,
    `kubectl completion bash`). Examples of tools with fallback loaders include
    `docker`, `kubectl`, `helm`, `argocd`, `flux`, `k3d`, `kind`, `k9s`,
-   `nerdctl`, `just`, `uv`, `pip`, `nvm`, and many others.[^release-2170]
+   `nerdctl`, `just`, `uv`, `pip`, `nvm`, and many others.[^fallback-loaders]
 
 For developers who want to create completion files for their own tools,
 bash-completion provides:
@@ -834,13 +859,12 @@ bash-completion provides:
     — Template for the profile.d entry-point script; shows loading logic, bash version check, and config hook.
 
 [^faq-completionsdir]: [README.md — FAQ Q4 (Completions Directory)](https://github.com/scop/bash-completion/blob/main/README.md#q-i-authormaintainer-package-x-and-would-like-to-maintain-my-own-completion-code-for-this-package-where-should-i-put-it-to-be-sure-that-interactive-bash-shells-will-find-it-and-source-it)
-    — Explanation of the completions directory and how third-party packages should install completion files.
+    — Explanation of completionsdir, helpersdir, startupdir, and compatdir
+    variables from pkg-config, and how third-party packages should install
+    completion files.
 
 [^faq-userdir]: [README.md — FAQ Q2 (Per-User Completions)](https://github.com/scop/bash-completion/blob/main/README.md#q-how-can-i-override-a-completion-shipped-by-bash-completion-or-install-a-new-completion-for-a-user-account)
     — User completion directories and startup files.
-
-[^faq-helpersdir]: [README.md — FAQ Q4 (Helpers Directory)](https://github.com/scop/bash-completion/blob/main/README.md#q-i-authormaintainer-package-x-and-would-like-to-maintain-my-own-completion-code-for-this-package-where-should-i-put-it-to-be-sure-that-interactive-bash-shells-will-find-it-and-source-it)
-    — Mentions the helpersdir variable from pkg-config.
 
 [^faq-search-order]: [README.md — FAQ Q10 (Search Order)](https://github.com/scop/bash-completion/blob/main/README.md#q-what-is-the-search-order-for-the-completion-file-of-each-target-command)
     — Detailed search order for completion files including BASH_COMPLETION_USER_DIR, XDG_DATA_DIRS.
@@ -871,6 +895,9 @@ bash-completion provides:
 
 [^repology]: [Repology — bash-completion](https://repology.org/project/bash-completion)
     — Comprehensive list of all OS distributions, package names, and available versions.
+
+[^fallback-loaders]: [GitHub — bash-completion completions-fallback directory](https://github.com/scop/bash-completion/tree/main/completions-fallback)
+    — Repository directory containing all 3rd-party fallback completion loader scripts.
 
 [^issue-devcontainer]: [devcontainers/features — Issue #1164](https://github.com/devcontainers/features/issues/1164)
     — Discussion of missing bash-completion in devcontainers due to non-login shells.
