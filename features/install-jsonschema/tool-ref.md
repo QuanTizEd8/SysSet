@@ -6,7 +6,7 @@ The binary name is `jsonschema`. Official releases are published on GitHub with 
 
 - **Homepage**: https://github.com/sourcemeta/jsonschema
 - **Source Code**: https://github.com/sourcemeta/jsonschema
-- **Documentation**: https://github.com/sourcemeta/jsonschema/blob/main/README.markdown
+- **Documentation**: https://github.com/sourcemeta/jsonschema/blob/main/README.markdown (overview); per-command docs are under the [`docs/`](https://github.com/sourcemeta/jsonschema/tree/main/docs) directory in the repository.
 - **Latest Release**: **16.0.0** (as of 2026-07-02)[^release-v1600]
 
 ## Tool Architecture
@@ -543,7 +543,7 @@ The binary is installed into the Python environment's `bin` directory (e.g., wit
 
 #### Supported Platforms
 
-- **Linux** (amd64): Snap packages are available for the amd64 architecture.[^release-v1600]
+- **Linux**: Snap packages are available for both **amd64** and **arm64** architectures.[^release-v1600]
 
 #### Dependencies
 
