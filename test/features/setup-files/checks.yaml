@@ -18,7 +18,12 @@ core_ops:
     - title: symlink deleted
       cmd: bash -c '! test -e /opt/sf-test/config-link.txt'
     - title: state.json tracks all 8 distinct operations
-      cmd: bash -c '[ "$(jq ".entries | length" /usr/local/share/quantized8/devfeats/setup-files/state.json)" = "8" ]'
+      # jq is a transient build dependency for setup-files itself (installed
+      # then removed during the feature's own build cleanup), so it's not
+      # guaranteed to still be on PATH by check time. Count entries via grep
+      # instead: json__query never passes -c, so each entry's "op" key is
+      # pretty-printed on its own line, one per array element.
+      cmd: bash -c '[ "$(grep -c "\"op\":" /usr/local/share/quantized8/devfeats/setup-files/state.json)" = "8" ]'
 
 create_conflicts:
   description: Verifies if_exists skip/fail/overwrite and backup on create.

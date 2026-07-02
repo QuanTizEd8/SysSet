@@ -12,6 +12,19 @@ defaults:
 # on_error contract instead — see test/lib equivalents are not applicable
 # here since this behavior is feature-internal, not a lib function).
 
+# content values below use \${...}, not ${...}: the leading backslash is
+# required to survive the devcontainer CLI's own option-value round-trip (it
+# writes option values into a double-quoted shell string that gets sourced by
+# the generated feature-install wrapper, which shell-expands any bare ${VAR}
+# before setup-files ever sees it — confirmed via isolated reproduction
+# against the actual devcontainer CLI). setup-files' own expander consumes
+# exactly one layer of backslash-escaping, so \${greeting} arrives as literal
+# ${greeting} for it to expand.
+# Any comment explaining this MUST stay outside the `manifest: |` block
+# scalar (not indented alongside `files:`/`- op:` below it) — block-scalar
+# content is literal text, not YAML, so a `#` line inside it is not stripped;
+# it becomes part of the manifest string, and if it contains a literal double
+# quote it breaks devcontainer-features.env's MANIFEST="..." shell quoting.
 core_ops:
   options:
     manifest: |
@@ -23,14 +36,6 @@ core_ops:
           chmod: '755'
         - op: create
           dest: /opt/sf-test/config.txt
-          # \${...}: the leading backslash is required to survive the
-          # devcontainer CLI's own option-value round-trip (it writes option
-          # values into a double-quoted shell string that gets sourced by the
-          # generated feature-install wrapper, which shell-expands any bare
-          # ${VAR} before setup-files ever sees it — confirmed via isolated
-          # reproduction against the actual devcontainer CLI). setup-files'
-          # own expander consumes exactly one layer of backslash-escaping,
-          # so \${greeting} arrives as literal ${greeting} for it to expand.
           content: \${greeting} world
           chmod: '644'
         - op: inject
@@ -103,7 +108,9 @@ create_variants:
 
 # Covers: anchor-based fresh insert, UPDATE-IN-PLACE of an already-injected
 # block, rewrite_markers, if_not_found (beginning_of_file / fail), and
-# anchor_not_found (end_of_file fallback / fail).
+# anchor_not_found (end_of_file fallback / fail). The second inject entry
+# below (content: injected=updated) reuses the same markers as the first, on
+# a file that already has that block — it must UPDATE in place, not duplicate.
 inject_variants:
   options:
     manifest: |
@@ -123,8 +130,6 @@ inject_variants:
             match: '# END sf\.inject.*'
             text: '# END sf.inject'
           anchor: '^\[section\]'
-        # Same markers, new content, applied to a file that already has the
-        # block from the entry above — must UPDATE in place, not duplicate.
         - op: inject
           dest: /opt/sf-inject/target.conf
           content: injected=updated
@@ -322,15 +327,19 @@ chmod_move_touch_variants:
 # strict_vars (default true: undefined ${VAR} is a hard error; false: expands
 # to empty string) and on_error=ignore's defining property (a failure inside
 # it does not affect the overall manifest-apply result, unlike continue).
+# Uses \${...} below, not ${...}: a bare ${VAR} never reaches setup-files at
+# all (the devcontainer CLI's own option round-trip strips it first, see the
+# core_ops comment above), which would make this test pass vacuously
+# regardless of whether strict_vars actually works.
+# NOTE: comments MUST stay outside the `manifest: |` block scalar below —
+# block-scalar content is literal text, not YAML, so a `#` line inside it is
+# NOT stripped; it becomes part of the manifest string. A comment containing
+# an embedded double quote then breaks devcontainer-features.env's
+# MANIFEST="..." quoting ("Bad substitution" from the shell that sources it).
 strict_vars_and_on_error:
   options:
     manifest: |
       files:
-        # \${...} here (not ${...}): see the core_ops "content: \${greeting}"
-        # comment above — a bare ${VAR} never reaches setup-files at all (the
-        # devcontainer CLI's own option round-trip strips it first), which
-        # would make this test pass vacuously regardless of whether
-        # strict_vars actually works.
         - op: create
           dest: /opt/sf-strict/strict-fail.txt
           content: '\${UNDEFINED_VAR_XYZ}'
@@ -345,6 +354,9 @@ user_scoped:
   # devuser is a known regular (UID >=1000) user for the `users: all` case to
   # target deterministically, independent of whatever incidental users the
   # base image happens to ship with.
+  # Uses \${theme} below, not ${theme}: see the core_ops comment above (must
+  # also stay outside the `manifest: |` block scalar — see the
+  # strict_vars_and_on_error comment for why).
   setup: useradd -m -s /bin/bash devuser
   options:
     add_current_user: true
@@ -357,7 +369,6 @@ user_scoped:
           content: system
         - op: create
           dest: ~/.sf-theme
-          # \${theme}, not ${theme}: see core_ops's "content: \${greeting}" comment.
           content: \${theme}
         - op: create
           dest: ~/.sf-explicit-list

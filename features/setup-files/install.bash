@@ -79,11 +79,11 @@ set -e
 _d="$(cd "$(dirname "$0")" && pwd)"
 . "${_d}/$(basename "$0" .sh).conf"
 set -- --manifest "$MANIFEST" \
-  --add-current-user "$ADD_CURRENT_USER" \
-  --add-remote-user "$ADD_REMOTE_USER" \
-  --add-container-user "$ADD_CONTAINER_USER"
+  --add_current_user "$ADD_CURRENT_USER" \
+  --add_remote_user "$ADD_REMOTE_USER" \
+  --add_container_user "$ADD_CONTAINER_USER"
 [ -n "${BACKUP:-}" ] && set -- "$@" --backup "$BACKUP"
-[ -n "${ADD_USERS:-}" ] && set -- "$@" --add-users "$ADD_USERS"
+[ -n "${ADD_USERS:-}" ] && set -- "$@" --add_users "$ADD_USERS"
 exec sh "$INSTALLER" "$@"
 EOF
   )
