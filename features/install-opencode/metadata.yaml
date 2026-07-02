@@ -90,6 +90,12 @@ customizations:
       - sst-dev.opencode
 _dependencies:
   run:
+    method-binary:
+      packages:
+        - when: {plat.pm: apk}
+          packages:
+            - name: libstdc++
+            - name: libgcc
     method-package:
       packages:
         - name: opencode
