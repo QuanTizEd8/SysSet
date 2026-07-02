@@ -20,6 +20,11 @@
 #   Composite tasks (no domain) run every subdomain variant: lint, format, test.
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
+# Required for recipe bodies that forward variadic params via "$@" (e.g.
+# lint-sh-check, lint-sh-local-vars) — without this, just never populates
+# $@/$#/$1... for non-shebang recipes, so "$@" is always empty and such
+# recipes silently fall back to their no-args (scan-everything) behavior.
+set positional-arguments := true
 
 
 # ── Format ────────────────────────────────────────────────────────────────────
