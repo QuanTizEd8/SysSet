@@ -512,7 +512,9 @@ setup() {
   assert_success
   [[ -n "$output" ]]
   [[ -f "$output" ]]
-  diff "$output" "$_src"
+  # Compare via shell string equality, not `diff`/`cmp` (diffutils is not
+  # installed on every distro's minimal test image, e.g. archlinux/fedora).
+  [[ "$(cat "$output")" == "$(cat "$_src")" ]]
 }
 
 @test "file__backup_if_policy: no-ops (empty output) when the path does not exist" {
