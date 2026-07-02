@@ -33,9 +33,11 @@ publish:
 runner:
   free_disk_space:
     # Skip the whole cleanup step when free space on the runner already meets
-    # this (no telemetry on real peak per-scenario usage yet; conservative
-    # estimate — raise if a job ever fails with ENOSPC).
-    min_avail_gb: 20
+    # this. Measured from real job telemetry (df -h / after the test step,
+    # sampled across ~10 features spanning both runner disk layouts): a single
+    # devcontainer-mode scenario job consistently consumes only 3-4GB, so 15GB
+    # is already a ~4x margin. Raise if a job ever fails with ENOSPC.
+    min_avail_gb: 15
     tool_cache: true
     swap_storage: true
     docker_images: true
