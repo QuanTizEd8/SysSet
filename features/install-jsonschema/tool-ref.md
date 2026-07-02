@@ -2,12 +2,12 @@
 
 jsonschema is a command-line tool for working with [JSON Schema](https://json-schema.org), the world's most popular schema language. It provides a comprehensive suite of commands for maintaining repositories of JSON Schemas and ensuring their quality, including formatting, linting, testing, bundling, validating, upgrading, and more. It is designed for use both during local development and in CI/CD pipelines.[^readme]
 
-The binary name is `jsonschema`. Official releases are published on GitHub with per-asset SHA256 checksums verified via a GPG-signed `CHECKSUMS.txt.asc` file.[^release-1600] Release tags use a `v` prefix followed by semver (e.g., `v16.0.0`).[^releases]
+The binary name is `jsonschema`. Official releases are published on GitHub with per-asset SHA256 checksums (in `CHECKSUMS.txt`) that are GPG-signed (`CHECKSUMS.txt.asc`), enabling integrity verification.[^release-v1600] Release tags use a `v` prefix followed by semver (e.g., `v16.0.0`).[^releases]
 
 - **Homepage**: https://github.com/sourcemeta/jsonschema
 - **Source Code**: https://github.com/sourcemeta/jsonschema
 - **Documentation**: https://github.com/sourcemeta/jsonschema/blob/main/README.markdown
-- **Latest Release**: **16.0.0** (as of 2026-07-02)[^release-1600]
+- **Latest Release**: **16.0.0** (as of 2026-07-02)[^release-v1600]
 
 ## Tool Architecture
 
@@ -71,20 +71,21 @@ The project is released under the **GNU Affero General Public License v3.0** (AG
 jsonschema offers multiple installation routes. The primary method for DevFeats/devcontainer features is the **pre-built binary download from GitHub Releases** via the official POSIX install script or direct download. Other methods are documented for completeness.
 
 1. **Pre-built Binary Download (GitHub Releases)** — direct, deterministic, version-pinnable; the recommended method for DevFeats/devcontainer features.
-2. **Homebrew** — macOS only; convenient for interactive use.
-3. **npm (Node.js package)** — installs the binary via npm, requires Node.js.
-4. **PyPI (Python package)** — installs the binary via pip, requires Python.
-5. **Snap** — Linux-only; sandboxed but confined to `$HOME`.
-6. **Docker Image** — containerized execution via `ghcr.io/sourcemeta/jsonschema`.
-7. **mise** — version manager integration.
-8. **gah** — third-party install helper.
-9. **Build from Source** — full control; requires C++ toolchain and CMake.
+2. **GitHub Actions** — composite action for CI/CD pipelines.
+3. **Homebrew** — macOS only; convenient for interactive use.
+4. **npm (Node.js package)** — installs the binary via npm, requires Node.js.
+5. **PyPI (Python package)** — installs the binary via pip, requires Python.
+6. **Snap** — Linux-only; sandboxed but confined to `$HOME`.
+7. **Docker Image** — containerized execution via `ghcr.io/sourcemeta/jsonschema`.
+8. **mise** — version manager integration.
+9. **gah** — third-party install helper.
+10. **Build from Source** — full control; requires C++ toolchain and CMake.
 
 ### Pre-built Binary Download (GitHub Releases)
 
 #### Supported Platforms
 
-Based on the release assets for v16.0.0:[^release-1600]
+Based on the release assets for v16.0.0:[^release-v1600]
 
 | OS | Architecture | Libc | Asset filename |
 |----|-------------|------|---------------|
@@ -97,6 +98,8 @@ Based on the release assets for v16.0.0:[^release-1600]
 | Windows | x86_64 | — | `jsonschema-{version}-windows-x86_64.zip` |
 
 The Linux glibc binaries conservatively target Ubuntu. For Alpine Linux (musl libc), separate `-musl` variants are provided. Other musl-based distributions should use the `-musl` variants as well.[^readme]
+
+Additionally, a **[continuous](https://github.com/sourcemeta/jsonschema/releases/tag/continuous)** pre-release tag is maintained, which is updated on every commit to the `main` branch. This can be used to test bleeding-edge builds before they are published as a stable release.[^releases]
 
 There are **no** provided assets for:
 - Linux i386 (32-bit x86)
@@ -136,6 +139,8 @@ The official POSIX install script (`install` at the root of the repository) perf
 
 The default installation prefix is `/usr/local` (set via the `OUTPUT` variable), but a custom prefix can be passed as the second argument.
 
+> **Important — GitHub API rate limiting**: When no version argument is given (i.e., using `latest`), the script makes an **unauthenticated** request to the GitHub API (`api.github.com`), which is subject to a [rate limit of 60 requests per hour](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api). In CI/CD environments where builds run frequently, this may cause the script to fail. To avoid rate limiting, either pin a specific version or implement an authenticated fallback (e.g., using `GITHUB_TOKEN` via the `Authorization` header).
+
 **Direct usage:**
 ```sh
 # Install latest version to /usr/local/bin
@@ -160,12 +165,11 @@ rm -rf /tmp/jsonschema.zip /tmp/jsonschema
 
 #### Installation Verification
 
-**Checksum verification** (recommended): A `CHECKSUMS.txt` file containing SHA256 hashes for all release assets is published alongside each release, along with a GPG-signed `CHECKSUMS.txt.asc` file. To verify the binary:[^readme]
+**Checksum verification** (recommended): A `CHECKSUMS.txt` file containing SHA256 hashes for all release assets is published alongside each release, along with a GPG-signed `CHECKSUMS.txt.asc` file. To verify the integrity of the downloaded binary using GPG:[^readme]
 
 ```sh
 curl --silent --show-error --location 'https://www.sourcemeta.com/gpg.asc' | gpg --import
 gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt
-sha256sum --check CHECKSUMS.txt --ignore-missing
 ```
 
 **Binary verification**: After installation, confirm the binary is operational:
@@ -324,8 +328,13 @@ then
   unzip "$TMP/artifact.zip" -d "$TMP/out"
   install -d -m 0755 "$OUTPUT/bin"
   install -v -m 0755 "$TMP/out/$PACKAGE_NAME/bin/jsonschema" "$OUTPUT/bin"
+  echo "" 1>&2
+  echo "Tip: Try the Sourcemeta Studio VS Code extension for an enhanced experience!" 1>&2
+  echo "     Open in VS Code: vscode:extension/sourcemeta.sourcemeta-studio" 1>&2
+  echo "     Or visit: https://marketplace.visualstudio.com/items?itemName=sourcemeta.sourcemeta-studio" 1>&2
 else
   echo "ERROR: I don't know how to install the JSON Schema CLI in $UNAME!" 1>&2
+  echo "Open an issue here: https://github.com/sourcemeta/jsonschema/issues" 1>&2
   exit 1
 fi
 ```
@@ -346,11 +355,66 @@ Key observations:
 - **Processor-specific optimizations**: The pre-built binaries are compiled with optimizations for the build machine's CPU. In rare cases, this may cause `Illegal instruction` errors on older hardware. Users encountering this should build from source with `-DJSONSCHEMA_PORTABLE:BOOL=ON`.[^readme-build]
 - **VS Code extension**: The install script promotes the "Sourcemeta Studio" VS Code extension. This can be mentioned to users but is not required for the CLI to function.
 
+### GitHub Actions (Composite Action)
+
+The official GitHub repository provides a composite GitHub Action that installs the JSON Schema CLI in CI/CD workflows.[^action-yml]
+
+#### Supported Platforms
+
+- Any GitHub Actions runner (Linux, macOS, Windows).
+
+#### Dependencies
+
+- A GitHub Actions runner environment (the action handles all tool dependencies internally).
+
+#### Installation Steps
+
+Add the following step to a GitHub Actions workflow:
+
+```yaml
+- name: Install the JSON Schema CLI
+  uses: sourcemeta/jsonschema@v16.0.0
+```
+
+The action downloads the pre-built binary from GitHub Releases and installs it to `$HOME/.local/bin`. It then appends that directory to `$GITHUB_PATH` so the `jsonschema` command is available in subsequent workflow steps.[^action-yml]
+
+The action internally uses the official install script with version `16.0.0` and installation prefix `$HOME/.local`.[^action-yml]
+
+#### Installation Verification
+
+After the action runs, the `jsonschema` command is available:
+
+```yaml
+- run: jsonschema version
+```
+
+#### Version Selection
+
+Use a Git tag to pin the version:
+
+```yaml
+- uses: sourcemeta/jsonschema@v16.0.0
+```
+
+The action currently installs version `16.0.0` for all invocations. To use a different version, reference the corresponding tag.
+
+#### Installation Path
+
+The binary is installed to `$HOME/.local/bin` (typically `/home/runner/.local/bin` on GitHub-hosted runners). The action automatically adds this to `$GITHUB_PATH`.
+
+#### Required Privileges
+
+No special privileges are required; the action runs in the default runner user context.
+
+#### Post-Installation Steps and Cleanup
+
+The `jsonschema` command is available for the remainder of the workflow job via `$GITHUB_PATH`. No cleanup is required.
+
 ### Homebrew
 
 #### Supported Platforms
 
-- macOS only (Homebrew is not officially supported on Linux for this formula).
+- macOS (Homebrew is primarily a macOS tool; Linux support via [Linuxbrew](https://docs.brew.sh/Homebrew-on-Linux) may work but is not documented for this formula).
 
 #### Dependencies
 
@@ -479,7 +543,7 @@ The binary is installed into the Python environment's `bin` directory (e.g., wit
 
 #### Supported Platforms
 
-- Linux distributions with Snap support.
+- **Linux** (amd64): Snap packages are available for the amd64 architecture. ARM64 Snap packages may also be available depending on the release.[^release-v1600]
 
 #### Dependencies
 
@@ -520,6 +584,79 @@ The Docker image is published to `ghcr.io/sourcemeta/jsonschema` and supports bo
 
 - **Do NOT allocate a pseudo-TTY** (`--tty`/`-t`) when running through Docker, as it may cause line-ending incompatibilities affecting formatting.[^readme]
 - Mount the desired working directory as `/workspace` to give the CLI access to schema files.
+
+### mise
+
+[mise](https://mise.jdx.dev/) is a version manager that can install and switch between versions of the JSON Schema CLI.
+
+#### Supported Platforms
+
+- macOS, Linux (mise must be installed).
+
+#### Dependencies
+
+- **mise**: Must be installed and configured on the system.
+
+#### Installation Steps
+
+```sh
+mise use jsonschema
+```
+
+This installs the latest version of the JSON Schema CLI and sets it as the active version for the current project. Subsequent invocations of `jsonschema` will use the mise-managed version.[^readme]
+
+#### Installation Verification
+
+```sh
+jsonschema version
+```
+
+#### Version Selection
+
+mise can install specific versions and switch between them:
+
+```sh
+mise install jsonschema@16.0.0
+mise use jsonschema@16.0.0
+```
+
+#### Installation Path
+
+mise installs tools into its own directory (typically `~/.local/share/mise/installs` or `$MISE_DATA_DIR`) and manages symlinks.
+
+#### Required Privileges
+
+No `sudo` is required, as mise installs to user-local directories.
+
+### gah
+
+[gah](https://github.com/marverix/gah) is a third-party tool for installing Go-based applications, including the JSON Schema CLI.
+
+#### Supported Platforms
+
+- macOS, Linux (gah must be installed).
+
+#### Dependencies
+
+- **gah**: Must be installed on the system.
+
+#### Installation Steps
+
+```sh
+gah install jsonschema
+```
+
+gah does not require `sudo`, but the installation directory (`$HOME/.local/bin` by default) should be on `PATH`.[^readme]
+
+#### Installation Verification
+
+```sh
+jsonschema version
+```
+
+#### Required Privileges
+
+No `sudo` is required, as gah installs to `$HOME/.local/bin`.
 
 ### Build from Source
 
@@ -615,9 +752,8 @@ This extension is unrelated to the feature itself but is promoted by the install
 [^readme]: [Official README — Overview, Installation, Architecture, Commands, License](https://github.com/sourcemeta/jsonschema/blob/main/README.markdown)
 [^readme-build]: [Official README — Building from Source, Portable Build Flag](https://github.com/sourcemeta/jsonschema/blob/main/README.markdown#building-from-source)
 [^releases]: [GitHub Releases — All Releases and Tags](https://github.com/sourcemeta/jsonschema/releases)
-[^release-1600]: [GitHub Release v16.0.0 — Assets, Checksums, Release Notes](https://github.com/sourcemeta/jsonschema/releases/tag/v16.0.0)
 [^release-v15110]: [GitHub Release v15.11.0 — NSURLSession/WinHTTP Support](https://github.com/sourcemeta/jsonschema/releases/tag/v15.11.0)
-[^release-v1600]: [GitHub Release v16.0.0 — libcurl dlopen Breaking Change](https://github.com/sourcemeta/jsonschema/releases/tag/v16.0.0)
+[^release-v1600]: [GitHub Release v16.0.0 — Assets, Checksums, Release Notes, libcurl dlopen Breaking Change](https://github.com/sourcemeta/jsonschema/releases/tag/v16.0.0)
 [^install-sh]: [Official Install Script — Source Code](https://github.com/sourcemeta/jsonschema/blob/main/install)
 [^action-yml]: [Official GitHub Action — Composite Action Configuration](https://github.com/sourcemeta/jsonschema/blob/main/action.yml)
 [^docs-configuration]: [Official Documentation — jsonschema.json Configuration File](https://github.com/sourcemeta/jsonschema/blob/main/docs/configuration.markdown)
