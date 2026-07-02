@@ -63,16 +63,18 @@ if [[ -n "$_LOG_BIND_DIR" ]]; then
   _LOG_VOL_ARGS=(-v "${_LOG_BIND_DIR}:/log-out:rw")
 fi
 
-# A failure here can be a transient image-pull/registry blip (--rm means the
-# container is always cleaned up on exit, success or failure, so a retry is
-# safe to re-run) or a genuine test failure — there's no cheap way to tell
-# them apart from outside the container, so this is a small, blind, bounded
-# retry: worth it for the transient case, bounded cost for the real-failure
-# case (one extra run before reporting the same failure).
+# Docker reserves exit codes 125-127 for failures in Docker itself (bad
+# image, failed pull, couldn't invoke/find the command) — any other exit code
+# is the contained command's own, passed through unchanged. Only retry the
+# 125-127 case: it's plausibly a transient registry/pull blip (--rm means the
+# container is always cleaned up on exit, so a retry is safe), whereas the
+# contained command's own exit code is a real, usually deterministic result
+# (e.g. a failing test) that retrying would just reproduce identically while
+# wasting a full extra run. See https://docs.docker.com/engine/reference/run/#exit-status
 _attempt=1
 _max_attempts=2
 while :; do
-  if docker run --rm \
+  docker run --rm \
     "${_NAME_ARGS[@]+"${_NAME_ARGS[@]}"}" \
     "${_NET_ARGS[@]+"${_NET_ARGS[@]}"}" \
     "${_LOG_VOL_ARGS[@]+"${_LOG_VOL_ARGS[@]}"}" \
@@ -81,11 +83,13 @@ while :; do
     -e REPO_ROOT=/repo \
     -e GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
     "$_IMAGE" \
-    sh -c "$_RUN_CMD"; then
-    break
+    sh -c "$_RUN_CMD" && exit 0
+  _rc=$?
+  if [[ "$_rc" -lt 125 || "$_rc" -gt 127 ]]; then
+    exit "$_rc"
   fi
-  [[ "$_attempt" -ge "$_max_attempts" ]] && exit 1
-  echo "⚠️  docker run failed (attempt ${_attempt}/${_max_attempts}); retrying in 5s" >&2
+  [[ "$_attempt" -ge "$_max_attempts" ]] && exit "$_rc"
+  echo "⚠️  docker run failed with a Docker-level error (exit ${_rc}, attempt ${_attempt}/${_max_attempts}); retrying in 5s" >&2
   sleep 5
   _attempt=$((_attempt + 1))
 done
