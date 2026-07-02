@@ -62,7 +62,7 @@ binary_pinned_version:
     - title: uv install receipt reports version 0.9.7
       cmd: bash -c 'grep -q "\"version\":\"0.9.7\"" "${HOME}/.config/uv/uv-receipt.json"'
     - title: uv install receipt reports the exact cargo-dist version that built this release
-      cmd: bash -c 'grep -q "\"provider\":\{\"source\":\"cargo-dist\",\"version\":\"0.30.1\"\}" "${HOME}/.config/uv/uv-receipt.json"'
+      cmd: bash -c 'grep -Eq "\"provider\":\{\"source\":\"cargo-dist\",\"version\":\"0.30.1\"\}" "${HOME}/.config/uv/uv-receipt.json"'
       debug: |
         echo "=== uv-receipt.json ==="
         cat "${HOME}/.config/uv/uv-receipt.json" 2> /dev/null || echo "(missing)"

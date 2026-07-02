@@ -60,7 +60,7 @@ binary_pinned_version:
     - title: ruff install receipt reports version 0.15.20
       cmd: bash -c 'grep -q "\"version\":\"0.15.20\"" "${HOME}/.config/ruff/ruff-receipt.json"'
     - title: ruff install receipt reports the exact cargo-dist version that built this release
-      cmd: bash -c 'grep -q "\"provider\":\{\"source\":\"cargo-dist\",\"version\":\"0.31.0\"\}" "${HOME}/.config/ruff/ruff-receipt.json"'
+      cmd: bash -c 'grep -Eq "\"provider\":\{\"source\":\"cargo-dist\",\"version\":\"0.31.0\"\}" "${HOME}/.config/ruff/ruff-receipt.json"'
       debug: |
         echo "=== ruff-receipt.json ==="
         cat "${HOME}/.config/ruff/ruff-receipt.json" 2> /dev/null || echo "(missing)"
