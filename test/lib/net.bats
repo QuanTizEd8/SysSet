@@ -159,6 +159,20 @@ EOF
 
 @test "bootstrap__ca_certs returns 0 when CA bundle is already present" {
   reload_lib
+  # Force the precondition deterministically instead of relying on it already
+  # being true on disk — whether a real bundle is present depends on the base
+  # image and (in the full suite) on integration/bootstrap.bats's unmocked
+  # install having already run earlier in the same container session. This
+  # test must be self-contained: it should pass the same way whether run as
+  # part of the full suite or in isolation (e.g. `--module net`).
+  _ca_bundle="/etc/ssl/certs/ca-certificates.crt"
+  _created_ca_bundle=false
+  if [ ! -s "$_ca_bundle" ]; then
+    mkdir -p "$(dirname "$_ca_bundle")"
+    printf 'fake bundle for test\n' > "$_ca_bundle"
+    _created_ca_bundle=true
+  fi
+
   # ospkg__install_tracked is stubbed to fail; if bootstrap__ca_certs tries to
   # install ca-certificates it will fail, proving the bundle was found directly.
   ospkg__install_tracked() { return 1; }
@@ -173,6 +187,12 @@ EOF
   export -f uname
   run bootstrap__ca_certs
   assert_success
+}
+
+teardown() {
+  if [ "${_created_ca_bundle:-false}" = true ]; then
+    rm -f "$_ca_bundle"
+  fi
 }
 
 # ---------------------------------------------------------------------------
