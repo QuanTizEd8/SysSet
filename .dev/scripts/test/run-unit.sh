@@ -170,11 +170,45 @@ if [[ ${#_test_files[@]} -eq 0 ]]; then
 fi
 
 # ── Run ──────────────────────────────────────────────────────────────────────
-declare -a _bats_args=(--print-output-on-failure)
+# Force tap: bats' own summary (the `pretty` formatter) needs a real TTY and
+# relies on cursor-repositioning escape codes that only render correctly when
+# interpreted live by a terminal — once `just capture` strips ANSI for the
+# plain-text log file, those codes leave overlapping/garbled lines instead of
+# a summary. Plain `tap` (bats' own fallback without a TTY) has no summary at
+# all by TAP protocol design — summarizing is meant to be the consumer's job.
+# So: always request tap (deterministic regardless of TTY), tee it to a temp
+# file, and print our own summary from it below.
+declare -a _bats_args=(--print-output-on-failure --formatter tap)
 
 [[ "$_jobs" -gt 0 ]] && _bats_args+=(--jobs "$_jobs")
 [[ -n "$_filter" ]] && _bats_args+=(--filter "$_filter")
 
+_tap_log="$(mktemp)"
+trap 'rm -f "$_tap_log"' EXIT
+
 # Invoke bats via the same bash ≥4 binary we re-exec'd with, so bats and all
 # test files run under bash ≥4 regardless of what `env bash` resolves to.
-exec "$BASH" "$_BATS" "${_bats_args[@]}" "${_test_files[@]}"
+# `set +e` (not `pipeline || true`) around the pipeline: appending `|| true`
+# directly to the pipe runs `true` as its own trailing pipeline on failure,
+# which overwrites PIPESTATUS with `true`'s own (0) before we can read it.
+set +e
+"$BASH" "$_BATS" "${_bats_args[@]}" "${_test_files[@]}" | tee "$_tap_log"
+_bats_rc=${PIPESTATUS[0]}
+set -e
+
+_total="$(grep -oE '^1\.\.[0-9]+' "$_tap_log" | head -1 | grep -oE '[0-9]+$' || true)"
+mapfile -t _failed_names < <(grep -E '^not ok [0-9]+ ' "$_tap_log" | sed -E 's/^not ok [0-9]+ //; s/ # .*$//')
+_failed_count=${#_failed_names[@]}
+
+echo
+if [[ -n "$_total" ]]; then
+  echo "── Summary: $((_total - _failed_count))/${_total} passed, ${_failed_count} failed ──"
+else
+  echo "── Summary: ${_failed_count} failed (total count unavailable) ──"
+fi
+if [[ "$_failed_count" -gt 0 ]]; then
+  echo "Failing tests:"
+  printf '  - %s\n' "${_failed_names[@]}"
+fi
+
+exit "$_bats_rc"
