@@ -8,7 +8,23 @@ on:
       config:
         type: string
         required: true
-
+        description: |-
+          JSON object with the following fields:
+          - `registry` (str): Container registry hostname, e.g. `ghcr.io`.
+          - `image_name` (str): Full image reference, e.g. `ghcr.io/owner-name/repo-name`.
+          - `image_tag` (str): Tag to apply (e.g. `latest`, `branch-<name>`);
+            used as base tag, with `-<platform_tag>` appended per-platform.
+          - `tag_is_latest` (bool): `true` when `image_tag` is `"latest"`.
+            When `true`, an immutable `sha-<commit>` tag is also pushed.
+          - `config_dir` (str): Relative path to the directory
+            containing `devcontainer.json`, e.g. `.devcontainer`.
+          - `userdata_dir` (str): Absolute path on the runner
+            for devcontainer user data, e.g. `/tmp/devcontainer-userdata`.
+          - `cache_ref_prefix` (str): Prefix for registry cache references, e.g. `cache`.
+          - `build_matrix` (array): List of platform entries, each with:
+            - `runner` (str): GitHub Actions runner label, e.g. `ubuntu-latest`.
+            - `platform` (str): Docker platform pair, e.g. `linux/amd64`.
+            - `platform_tag` (str): Slug used in image tags and cache references, e.g. `linux-amd64`.
 jobs:
 
   build-devcontainer:
