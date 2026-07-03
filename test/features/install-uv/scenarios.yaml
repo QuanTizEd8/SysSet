@@ -1,74 +1,21 @@
-default:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    shell_completions: bash
-  tests: [default]
-
-binary_pinned_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    version: "0.9.7"
-    method: binary
-    shell_completions: bash
-  tests: [binary_pinned_version]
-
-binary_custom_prefix:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    prefix: /opt/uv-bin
-    prefix_discovery: symlink
-    if_exists: reinstall
-    shell_completions: bash
-  tests: [binary_custom_prefix]
-
-package_default:
-  envs:
-    - alpine-current+bash
-    - fedora-current+bash
-    - archlinux-current
-    - opensuse-leap-current+bash
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [package_default]
-
-method_cargo:
-  envs: [ubuntu-current+rust]
-  modes: [standalone]
-  options:
-    method: cargo
-  tests: [method_cargo]
-
-completions_zsh:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    shell_completions: zsh
-  tests: [completions_zsh]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "uv 99.99.99\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/uv
-    chmod +x /usr/local/bin/uv
-  options:
-    if_exists: fail
-  tests: [if_exists_fail]
-
-if_exists_skip:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "uv 99.99.99\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/uv
-    chmod +x /usr/local/bin/uv
-  options:
-    if_exists: skip
-  tests: [if_exists_skip]
+# Every scenario is now auto-generated from features/install-uv/metadata.yaml
+# (_options.verify.functional, _options.version.test_pins, _options.method,
+# _options.prefix, _options.completions, if_exists, invalid enum values,
+# log_file) by .dev/lib/proman/test/gen/. See test/features/generation.yaml
+# for the generator config, and run `proman-test-gen-preview install-uv` to
+# inspect the generated output.
+#
+# generation.augment_tests appends hand-written check groups (below, in
+# checks.yaml) to specific generated scenarios for uv's genuinely
+# tool-specific behavior the generator has no concept of: uv writes a
+# cargo-dist self-update receipt (~/.config/uv/uv-receipt.json) only for
+# binary installs, recording install_prefix and the cargo-dist provider
+# version that built the release — package/cargo installs must NOT write
+# one. uv also ships a second binary (uvx) alongside uv.
+generation:
+  augment_tests:
+    default: [uv_receipt_default]
+    version_pinned: [uv_receipt_pinned]
+    custom_prefix_symlink: [uv_receipt_custom_prefix]
+    package_default: [uv_receipt_absent]
+    cargo_default: [uv_receipt_absent]
