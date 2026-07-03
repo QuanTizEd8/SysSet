@@ -290,24 +290,42 @@ Uninstallation steps vary by platform and installation type[^uninstall]:
 
 **Linux (systemd)**:
 ```bash
+# Stop and disable the Nix daemon
 sudo systemctl stop nix-daemon.service
 sudo systemctl disable nix-daemon.socket nix-daemon.service
 sudo systemctl daemon-reload
-sudo rm -rf /etc/nix /nix ~/.nix-profile ~/.nix-defexpr ~/.nix-channels ~/.local/share/nix ~/.local/state/nix ~/.cache/nix
+
+# Remove Nix build users and group
+for i in $(seq 1 32); do sudo userdel nixbld$i 2>/dev/null; done
+sudo groupdel nixbld 2>/dev/null || true
+
+# Remove Nix files, directories, and configuration
+sudo rm -rf /etc/nix /etc/profile.d/nix.sh /etc/tmpfiles.d/nix-daemon.conf /nix \
+  ~/.nix-profile ~/.nix-defexpr ~/.nix-channels ~/.local/share/nix ~/.local/state/nix ~/.cache/nix \
+  ~root/.nix-profile ~root/.nix-defexpr ~root/.nix-channels ~root/.cache/nix
 ```
 
 **macOS**:
 ```bash
+# Stop and remove Nix daemon services
 sudo launchctl unload /Library/LaunchDaemons/org.nixos.nix-daemon.plist
 sudo rm /Library/LaunchDaemons/org.nixos.nix-daemon.plist
 sudo launchctl unload /Library/LaunchDaemons/org.nixos.darwin-store.plist
 sudo rm /Library/LaunchDaemons/org.nixos.darwin-store.plist
+
 # Edit fstab to remove APFS mount entry (use `sudo vifs`)
 # Edit /etc/synthetic.conf to remove the nix line
+
+# Remove Nix build users and group
+sudo dscl . -delete /Groups/nixbld 2>/dev/null || true
+for u in $(sudo dscl . -list /Users | grep _nixbld); do sudo dscl . -delete /Users/$u; done
+
 # Remove APFS volume
-sudo diskutil apfs deleteVolume /nix
+sudo diskutil apfs deleteVolume /nix 2>/dev/null || echo "Nix Store volume may have already been removed"
+
 # Clean up remaining files
-sudo rm -rf /etc/nix /var/root/.nix-profile /var/root/.nix-defexpr /var/root/.nix-channels ~/.nix-profile ~/.nix-defexpr ~/.nix-channels ~/.local/share/nix ~/.local/state/nix ~/.cache/nix
+sudo rm -rf /etc/nix /var/root/.nix-profile /var/root/.nix-defexpr /var/root/.nix-channels \
+  ~/.nix-profile ~/.nix-defexpr ~/.nix-channels ~/.local/share/nix ~/.local/state/nix ~/.cache/nix
 ```
 
 Shell profile modifications must also be reverted by restoring backup files (e.g., `/etc/bashrc.backup-before-nix`) or manually removing the Nix sourcing lines.
@@ -384,6 +402,8 @@ cd nix-$VERSION-$SYSTEM
 ./install
 popd
 ```
+
+> **Note on the `tar` command**: The official binary installation documentation[^install-binary] shows `tar xfj` (lowercase `-j` flag for bzip2), but the Nix binary tarballs use `.tar.xz` (LZMA/xz) compression. The correct flag is `-xJf` (uppercase `-J` for xz), as used in the first-stage installer script itself[^install-script-source]. Modern GNU tar auto-detects compression, but the explicit flag `-J` is used here for correctness.
 
 The `install` script within the tarball is the same second-stage installer used by the official script, supporting the same flags (`--daemon`, `--no-daemon`) and environment variables.
 
@@ -580,7 +600,7 @@ Nix itself is a package manager and does not support plugins or extensions in th
 
 [^uninstall]: [Nix Reference Manual – Uninstalling Nix](https://nix.dev/manual/nix/2.34/installation/uninstall.html). Official uninstallation instructions for all supported platforms.
 
-[^upgrade-nix]: [Nix Reference Manual – nix upgrade-nix](https://releases.nixos.org/nix/nix-2.18.5/manual/command-ref/new-cli/nix3-upgrade-nix.html). Official documentation for the Nix upgrade command. Note that this command is experimental and requires the `nix-command` experimental feature.
+[^upgrade-nix]: [Nix Reference Manual – nix upgrade-nix](https://nix.dev/manual/nix/2.34/command-ref/new-cli/nix3-upgrade-nix.html). Official documentation for the Nix upgrade command. Note that this command is experimental and requires the `nix-command` experimental feature.
 
 [^nix-community-installers]: [nix-community/nix-installers](https://nix-community.github.io/nix-installers/). Community-maintained native packaging (deb/rpm/pacman) for Nix on legacy Linux distributions.
 
