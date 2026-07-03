@@ -97,7 +97,7 @@ The installer script performs the following steps[^install-script-source]:
    - Installs Nix into the default profile
    - Sets up the nixpkgs channel
    - Does **not** create system users, groups, or daemon service
-   - Does **not** modify shell profile files (the `--no-modify-profile` flag can also be used)[^install-binary]
+    - Modifies `~/.profile` of the installing user to source the Nix initialization script (unless `--no-modify-profile` is passed)[^install-binary]
 
 6. **Default behavior**: When no flags are given, the installer auto-detects the appropriate mode:
    - Multi-user on Linux with systemd (SELinux disabled) and macOS
@@ -115,11 +115,12 @@ curl -L https://releases.nixos.org/nix/nix-$VERSION/install | sh
 Successful installation can be verified by:
 
 ```bash
-nix --version
-# Expected output: nix (Nix) 2.34.7
+nix-env --version
+# Expected output: nix-env (Nix) 2.34.7
 
-# Verify Nix works by building/running a package
-nix run nixpkgs#hello
+# Verify Nix can install and run a package
+nix-env -iA nixpkgs.hello
+hello
 ```
 
 The installer also performs hash verification of the downloaded tarball automatically[^install-script-source].
@@ -170,6 +171,7 @@ The installer supports the following environment variables and flags (second-sta
 | `NIX_SSL_CERT_FILE` | Path to SSL certificate bundle | Auto-detected |
 | `--daemon` / `--no-daemon` | Select installation mode | Auto-detected |
 | `--no-modify-profile` | Skip modification of shell profile files | (profiles are modified) |
+| `--no-start-daemon` | Do not start the Nix daemon after installation (official installer does not support this flag; use the community `nix-installer` if needed) | N/A for official installer |
 
 The Nix configuration file (`/etc/nix/nix.conf`) can be customized with settings such as[^nix-conf]:
 - `build-users-group`: The group for build users (set automatically by the installer)
@@ -232,7 +234,7 @@ Optional environment variables[^common-env-vars]:
 - `NIX_CONF_DIR` – Override the system Nix configuration directory (default: `/etc/nix`)
 - `NIX_USER_CONF_FILES` – Override the location of user configuration files
 - `XDG_CONFIG_HOME` / `XDG_STATE_HOME` / `XDG_CACHE_HOME` – XDG base directories for Nix state (when `use-xdg-base-directories` is enabled)
-- `http_proxy` / `https_proxy` / `ftp_proxy` / `all_proxy` / `no_proxy` – Proxy settings (the installer will configure the daemon to use these if set during installation)
+- `http_proxy` / `https_proxy` / `ftp_proxy` / `all_proxy` / `no_proxy` – Proxy settings (on Linux with systemd, the installer will create an override at `/etc/systemd/system/nix-daemon.service.d/override.conf` so the daemon uses them; on other platforms the daemon must be configured manually)[^env-vars]
 
 ##### Activation Scripts
 
@@ -245,7 +247,7 @@ These scripts are automatically sourced when a new shell is started after the in
 
 ##### Shell Completions
 
-Nix provides shell completions for Bash and Zsh. These are installed as part of the Nix package and are automatically loaded when the profile script is sourced. Fish completions are available via the `nix-zsh-completions` package on some distributions[^arch-wiki].
+Nix provides shell completions for Bash and Zsh. These are installed as part of the Nix package and are automatically loaded when the profile script is sourced. Zsh completions are also provided by the `nix-zsh-completions` package on some distributions[^arch-wiki].
 
 ##### Cleanup
 
@@ -259,13 +261,18 @@ No additional manual cleanup is required after a successful installation.
 
 ##### Upgrading/Downgrading
 
-Nix can be upgraded using the built-in command:
+Nix can be upgraded using the built-in command (requires the `nix-command` experimental feature to be enabled in `/etc/nix/nix.conf`):
 
 ```bash
 nix upgrade-nix
 ```
 
-This command replaces the currently running Nix with the latest available version[^nix-installer].
+This command replaces the currently running Nix with the latest stable version declared in Nixpkgs. It may not always be the latest tagged release[^upgrade-nix].
+
+Alternatively, the legacy `nix-env` approach can be used:
+```bash
+nix-env -f '<nixpkgs>' -iA nix cacert
+```
 
 To downgrade or install a specific version, the recommended approach is to use the version-specific installer URL:
 
@@ -295,21 +302,29 @@ sudo launchctl unload /Library/LaunchDaemons/org.nixos.nix-daemon.plist
 sudo rm /Library/LaunchDaemons/org.nixos.nix-daemon.plist
 sudo launchctl unload /Library/LaunchDaemons/org.nixos.darwin-store.plist
 sudo rm /Library/LaunchDaemons/org.nixos.darwin-store.plist
+# Edit fstab to remove APFS mount entry (use `sudo vifs`)
+# Edit /etc/synthetic.conf to remove the nix line
 # Remove APFS volume
 sudo diskutil apfs deleteVolume /nix
 # Clean up remaining files
-sudo rm -rf /etc/nix /var/root/.nix-profile /var/root/.nix-defexpr ...
+sudo rm -rf /etc/nix /var/root/.nix-profile /var/root/.nix-defexpr /var/root/.nix-channels ~/.nix-profile ~/.nix-defexpr ~/.nix-channels ~/.local/share/nix ~/.local/state/nix ~/.cache/nix
 ```
 
 Shell profile modifications must also be reverted by restoring backup files (e.g., `/etc/bashrc.backup-before-nix`) or manually removing the Nix sourcing lines.
+
+If Nix was installed via the community `nix-installer`, uninstallation can be done with a single command:
+```bash
+/nix/nix-installer uninstall
+```
+This uses the installation receipt stored at `/nix/receipt.json` to perform a clean uninstallation[^nix-installer].
 
 ##### Idempotency
 
 - Running the installer on a system where Nix is already installed will detect the existing installation and warn the user[^install-multi-user-source]
 - The installer checks for the `nix-env` command and existing artifacts to detect prior installations
 - If artifacts of a previous installation are found (e.g., backup profiles), the installer will refuse to proceed until they are resolved
-- The `NIX_INSTALLER_FORCE` flag in the community `nix-installer` can override this behavior[^nix-installer]
 - The built-in `nix upgrade-nix` command is idempotent and safe to run multiple times
+- The community `nix-installer` provides a `--force` flag to override existing installation detection[^nix-installer]
 
 #### Details
 
@@ -325,7 +340,7 @@ The official installer script (`https://nixos.org/nix/install`) is a POSIX shell
 
 The second-stage installer (`install-multi-user.sh`) is a ~1100-line Bash script that implements the actual installation logic[^install-multi-user-source]:
 
-- It handles OS-specific operations through polymorphic functions (e.g., `poly_create_build_user`, `poly_service_setup`) that are defined separately for Linux, macOS, and FreeBSD
+- It handles OS-specific operations through polymorphic functions (e.g., `poly_create_build_user`, `poly_service_setup`) that are defined separately for Linux, macOS, and FreeBSD (FreeBSD support is included in the installer but is not a primary target for the DevFeats `install-nix` feature)
 - It uses `sudo` for privileged operations unless running as root
 - It tracks reminders and completion status through a structured output system
 - It creates build users sequentially (default 32) with specific UIDs, home directories (`/var/empty`), shells (`/sbin/nologin`), and group membership
@@ -364,7 +379,7 @@ pushd $(mktemp -d)
 export VERSION=2.19.2
 export SYSTEM=x86_64-linux
 curl -LO https://releases.nixos.org/nix/nix-$VERSION/nix-$VERSION-$SYSTEM.tar.xz
-tar xfj nix-$VERSION-$SYSTEM.tar.xz
+tar -xJf nix-$VERSION-$SYSTEM.tar.xz
 cd nix-$VERSION-$SYSTEM
 ./install
 popd
@@ -380,11 +395,18 @@ Same as the official installer script.
 
 Same as the official installer script. The installer can be customized with the environment variables declared in the `install-multi-user` file within the tarball.
 
-#### Notes and Best Practices
+#### Details
 
-- Useful when the official installer script is inaccessible or when pinning to a specific version is required
-- Allows inspection of the installer script before execution
-- Can be used to install Nix on air-gapped systems by downloading the tarball on a different machine
+The binary tarball method bypasses the first-stage installer script and directly invokes the second-stage installer. The tarball contains[^install-binary]:
+- A complete, pre-built Nix store directory tree (`store/`) with all required dependencies
+- A `.reginfo` file containing the initial Nix store database entries
+- The `install` script (same as `install-multi-user.sh`)
+- An `install-multi-user` file documenting customization environment variables
+
+This method is useful when:
+- The official installer script is inaccessible or when pinning to a specific version is required
+- Inspection of the installer script before execution is desired
+- Installing Nix on air-gapped systems (by downloading the tarball on a different machine)
 
 ### Native Packages for Linux Distributions
 
@@ -392,11 +414,12 @@ The Nix community maintains native packages for several Linux distributions[^dis
 
 #### Supported Platforms
 
-Various Linux distributions including:
-- Arch Linux (via `pacman`)
-- Fedora (via `dnf`)
+Various Linux distributions with native packaging formats[^nix-community-installers]:
+- Debian/Ubuntu and derivatives (via `.deb` packages)
+- Fedora/RHEL/CentOS and derivatives (via `.rpm` packages)
+- Arch Linux and derivatives (via `.pkg.tar.zst` packages via `pacman`)
 
-The community-maintained native installers can be found at https://nix-community.github.io/nix-installers/.
+The community-maintained native installers can be found at https://nix-community.github.io/nix-installers/ and the source repository at https://github.com/nix-community/nix-installers.
 
 #### Dependencies
 
@@ -416,7 +439,7 @@ The NixOS community maintains an alternative installer written in Rust, availabl
 | Platform | Multi-user | Root-only | Maturity |
 |---|---|---|---|
 | Linux (`x86_64` and `aarch64`) | Yes (via systemd) | Yes | Stable |
-| macOS (`x86_64` and `aarch64`) | Yes | - | Stable |
+| macOS (`x86_64` and `aarch64`) | Yes | - | Stable (see note) |
 | Valve Steam Deck (SteamOS) | Yes | - | Stable |
 | WSL2 (`x86_64` and `aarch64`) | Yes (via systemd) | Yes | Stable |
 | Podman Linux containers | Yes (via systemd) | Yes | Stable |
@@ -463,6 +486,7 @@ Key flags include[^nix-installer]:
 
 #### Notes and Best Practices
 
+- Note on macOS: The Nix installer is stable on macOS but may require attention after macOS upgrades, which can sometimes disrupt the Nix build users (`_nixbld*`) or the Nix Store APFS volume configuration. Refer to GitHub issue NixOS/nix#10892 for known macOS 15 Sequoia issues.
 - Stores an installation receipt at `/nix/receipt.json` for easy uninstallation using `nix-installer uninstall`
 - Supports SELinux and OSTree-based distributions
 - Supports a "curing" mode for compatibility with existing Nix installations
@@ -532,7 +556,7 @@ Nix itself is a package manager and does not support plugins or extensions in th
 
 [^nixos-org]: [NixOS Homepage](https://nixos.org/). Official website with general information about Nix and the NixOS ecosystem.
 
-[^architecture]: [Nix Reference Manual – Architecture](https://nix.dev/manual/nix/2.28/architecture/architecture.html). Official architecture documentation covering the CLI, Nix language evaluator, store, and daemon layers.
+[^architecture]: [Nix Reference Manual – Architecture](https://nix.dev/manual/nix/2.34/architecture/architecture). Official architecture documentation covering the CLI, Nix language evaluator, store, and daemon layers.
 
 [^daemon]: [Nix Reference Manual – nix daemon](https://nix.dev/manual/nix/2.34/command-ref/new-cli/nix3-daemon.html). Documentation for the Nix daemon command.
 
@@ -544,17 +568,21 @@ Nix itself is a package manager and does not support plugins or extensions in th
 
 [^nix-installer]: [NixOS/nix-installer – README](https://github.com/NixOS/nix-installer/blob/main/README.md). Official community-maintained Rust-based Nix installer, with alternative installation method, configuration options, and platform support matrix.
 
-[^env-vars]: [Nix Reference Manual – Environment Variables](https://nix.dev/manual/nix/2.33/installation/env-variables.html). Official documentation for required and optional Nix environment variables.
+[^env-vars]: [Nix Reference Manual – Environment Variables](https://nix.dev/manual/nix/2.34/installation/env-variables). Official documentation for required and optional Nix environment variables.
 
 [^common-env-vars]: [Nix Reference Manual – Common Environment Variables](https://nix.dev/manual/nix/2.34/command-ref/env-common.html). Official documentation for common Nix environment variables including NIX_PATH, NIX_CONF_DIR, and NIX_CONFIG.
 
-[^nix-conf]: [Nix Reference Manual – nix.conf](https://nix.dev/manual/nix/2.33/command-ref/conf-file). Official documentation for Nix configuration file settings.
+[^nix-conf]: [Nix Reference Manual – nix.conf](https://nix.dev/manual/nix/2.34/command-ref/conf-file). Official documentation for Nix configuration file settings.
 
 [^profiles]: [Nix Reference Manual – Profiles](https://nix.dev/manual/nix/2.34/package-management/profiles). Official documentation for Nix profiles, user environments, and generations.
 
-[^nixos-wiki]: [NixOS Wiki – Nix Package Manager](https://nixos.wiki/wiki/Nix_package_manager). Community wiki with detailed information about Nix features including sandboxing.
+[^nixos-wiki]: [NixOS Wiki – Nix (package manager)](https://wiki.nixos.org/wiki/Nix_(package_manager)). Community wiki with detailed information about Nix features including sandboxing.
 
 [^uninstall]: [Nix Reference Manual – Uninstalling Nix](https://nix.dev/manual/nix/2.34/installation/uninstall.html). Official uninstallation instructions for all supported platforms.
+
+[^upgrade-nix]: [Nix Reference Manual – nix upgrade-nix](https://releases.nixos.org/nix/nix-2.18.5/manual/command-ref/new-cli/nix3-upgrade-nix.html). Official documentation for the Nix upgrade command. Note that this command is experimental and requires the `nix-command` experimental feature.
+
+[^nix-community-installers]: [nix-community/nix-installers](https://nix-community.github.io/nix-installers/). Community-maintained native packaging (deb/rpm/pacman) for Nix on legacy Linux distributions.
 
 [^distributions]: [Nix Reference Manual – Native Packages for Linux Distributions](https://nix.dev/manual/nix/2.34/installation/installing-binary.html#native-packages-for-linux-distributions). Official documentation for distribution-specific Nix packages.
 
