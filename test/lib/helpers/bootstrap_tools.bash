@@ -11,15 +11,19 @@ test_bootstrap__setup_file_jq_yq() {
   load "${_BOOTSTRAP_TOOLS_DIR}/common"
 
   TEST_BOOTSTRAP_JQ_READY=0
-  if bash -c '. "$1/__init__.bash" && bootstrap__jq' _ "${LIB_ROOT}" > /dev/null 2>&1; then
-    TEST_BOOTSTRAP_JQ_READY=1
-  fi
-
   TEST_BOOTSTRAP_JQ_BIN=""
   TEST_BOOTSTRAP_YQ_BIN=""
-  if [[ "${TEST_BOOTSTRAP_JQ_READY}" == "1" ]]; then
-    local _jq_path _yq_path
-    _jq_path="$(bash -c '. "$1/__init__.bash" && command -v jq' _ "${LIB_ROOT}" 2> /dev/null)" || true
+
+  # bootstrap__jq and command -v jq must run in the SAME subshell: bootstrap__jq
+  # exports PATH only within its own process, so resolving the path in a
+  # separate `bash -c` (as this used to do) always finds nothing when jq isn't
+  # already on the base system — the fresh PATH never leaves the first
+  # subshell. This only ever showed up in environments without a pre-installed
+  # jq (e.g. a bare Docker env), which is why it went unnoticed elsewhere.
+  local _jq_path _yq_path
+  _jq_path="$(bash -c '. "$1/__init__.bash" && bootstrap__jq >&2 && command -v jq' _ "${LIB_ROOT}" 2> /dev/null)" || true
+  if [[ -n "${_jq_path}" && -x "${_jq_path}" ]]; then
+    TEST_BOOTSTRAP_JQ_READY=1
     _yq_path="$(
       bash -c '
         source "$1/__init__.bash" 2>/dev/null || exit 1
@@ -27,11 +31,9 @@ test_bootstrap__setup_file_jq_yq() {
         bootstrap__yq 2>/dev/null || exit 1
       ' _ "${LIB_ROOT}" 2> /dev/null
     )" || true
-    if [[ -n "${_jq_path}" && -x "${_jq_path}" ]]; then
-      cp "${_jq_path}" "${BATS_FILE_TMPDIR}/jq"
-      chmod +x "${BATS_FILE_TMPDIR}/jq"
-      TEST_BOOTSTRAP_JQ_BIN="${BATS_FILE_TMPDIR}/jq"
-    fi
+    cp "${_jq_path}" "${BATS_FILE_TMPDIR}/jq"
+    chmod +x "${BATS_FILE_TMPDIR}/jq"
+    TEST_BOOTSTRAP_JQ_BIN="${BATS_FILE_TMPDIR}/jq"
     if [[ -n "${_yq_path}" && -x "${_yq_path}" ]]; then
       cp "${_yq_path}" "${BATS_FILE_TMPDIR}/yq"
       chmod +x "${BATS_FILE_TMPDIR}/yq"

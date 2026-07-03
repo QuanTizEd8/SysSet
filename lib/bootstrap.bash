@@ -106,6 +106,17 @@ bootstrap__jq() {
   # auto-probe verifies the download without any extra checksum handling.
   #
   # Returns: 0 on success, 1 if jq cannot be installed.
+  #
+  # Reentrancy guard: github__latest_tag (called below to resolve jq's own
+  # version) parses the GitHub API response via _json__root_scalar_stdin,
+  # which itself calls bootstrap__jq to ensure jq is available — a recursive
+  # re-entry while this very call is still bootstrapping it. Without this
+  # guard, that inner call restarts the whole bootstrap (a fresh API fetch,
+  # a fresh parse attempt, a fresh recursive call, ...) instead of failing
+  # fast, looping forever whenever the API call keeps succeeding. Failing
+  # fast here makes the inner probe fail gracefully instead, so
+  # github__latest_tag falls through to its documented grep/sed fallback.
+  [[ "${_BOOTSTRAP__JQ_IN_PROGRESS:-false}" == true ]] && return 1
   command -v jq > /dev/null 2>&1 && return 0
 
   # Fast path: previously bootstrapped binary still alive.
@@ -119,6 +130,19 @@ bootstrap__jq() {
     return 0
   fi
 
+  _BOOTSTRAP__JQ_IN_PROGRESS=true
+  _bootstrap__jq_impl
+  local _bootstrap_jq_rc=$?
+  _BOOTSTRAP__JQ_IN_PROGRESS=false
+  return "$_bootstrap_jq_rc"
+}
+
+_bootstrap__jq_impl() {
+  # _bootstrap__jq_impl  (internal)
+  #
+  # The actual download/install logic for bootstrap__jq, split out so the
+  # reentrancy guard in bootstrap__jq can reset its flag around a single call
+  # regardless of which of this function's several early-return paths fires.
   logging__install "Bootstrapping jq from the upstream GitHub release."
 
   local _tag

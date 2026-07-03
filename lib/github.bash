@@ -4,14 +4,15 @@
 # Fetches release metadata via the GitHub API, resolves version specs, selects
 # platform-appropriate assets using arch/platform heuristics, downloads and
 # verifies them, extracts archives, and installs binaries.
-# Respects `GITHUB_TOKEN` for all API calls.
+# Authenticates all API calls when possible: tries `gh auth token`, then
+# `GITHUB_TOKEN`, then `GH_TOKEN` (see `_github__resolve_token`).
 
 github__fetch_release_json() {
   # @brief github__fetch_release_json <owner/repo> [--tag <tag>] [--dest <file>] — Fetch GitHub Releases API JSON for a repository.
   #
   # Without `--tag`: fetches `/releases/latest`. With `--tag`: fetches
-  # `/releases/tags/<tag>`. Respects `GITHUB_TOKEN` (sets
-  # `Authorization: Bearer` automatically).
+  # `/releases/tags/<tag>`. Authenticates automatically when a token is
+  # available (see `_github__resolve_token`).
   #
   # Args:
   #   <owner/repo>   GitHub repository in `owner/repo` format.
@@ -165,7 +166,7 @@ github__release_json_digest_from_uri() {
   #
   # Fetches the release document at <release-json-uri> (typically
   # `https://api.github.com/repos/<owner>/<repo>/releases/tags/<tag>`) via the
-  # GitHub API (respects `GITHUB_TOKEN`), then extracts the `digest` field for the
+  # GitHub API (authenticated when possible), then extracts the `digest` field for the
   # asset whose `name` equals <asset_name>.  Callers pass the result to
   # `install__release_asset` as `--sha256 <hex>`.
   #
@@ -1199,11 +1200,40 @@ _github__api_base_url() {
   fi
 }
 
+_github__resolve_token() {
+  # _github__resolve_token  (internal)
+  #
+  # Resolves a GitHub API token, tried in order: `gh auth token` (reuses an
+  # already-authenticated gh CLI without duplicating its credential storage),
+  # then $GITHUB_TOKEN, then $GH_TOKEN (both widely used by CI runners, e.g.
+  # GitHub Actions sets GITHUB_TOKEN, other tools set GH_TOKEN). Sets the
+  # global _GITHUB__TOKEN as a side effect rather than printing to stdout, so
+  # callers must invoke it directly (not via command substitution) — running
+  # it inside `$(...)` would resolve the token in a throwaway subshell and
+  # silently discard it.
+  _GITHUB__TOKEN=""
+  if command -v gh > /dev/null 2>&1; then
+    _GITHUB__TOKEN="$(gh auth token 2> /dev/null)" || _GITHUB__TOKEN=""
+  fi
+  [ -n "$_GITHUB__TOKEN" ] || _GITHUB__TOKEN="${GITHUB_TOKEN:-}"
+  [ -n "$_GITHUB__TOKEN" ] || _GITHUB__TOKEN="${GH_TOKEN:-}"
+
+  if [ -n "$_GITHUB__TOKEN" ]; then
+    # logging.bash only masks $GITHUB_TOKEN eagerly at startup; a token from
+    # `gh auth token` or $GH_TOKEN needs masking here so it can never appear
+    # in LOG_FILE regardless of source.
+    logging__mask_secret "$_GITHUB__TOKEN"
+  else
+    logging__info "No GitHub API token found ('gh auth token', \$GITHUB_TOKEN, \$GH_TOKEN all empty/unavailable); unauthenticated requests are capped at 60/hour by GitHub. Set \$GITHUB_TOKEN (or run 'gh auth login') to raise the limit."
+  fi
+}
+
 _github__api_get() {
   # _github__api_get <url> [<dest_file>]  (internal)
   #
   # Performs a GitHub API GET with standard Accept/version headers and an
-  # optional Authorization header from GITHUB_TOKEN.
+  # optional Authorization header from `_github__resolve_token` (gh CLI /
+  # GITHUB_TOKEN / GH_TOKEN).
   # Suppresses xtrace around the authenticated call to prevent token leaking in
   # CI logs.  Passes output to stdout or to <dest_file> when provided.
   local _url="$1"
@@ -1212,12 +1242,14 @@ _github__api_get() {
   case "$-" in *x*) _xt=true ;; esac
   { set +x; } 2> /dev/null
 
+  _github__resolve_token
+
   # Use set -- to accumulate --header args (POSIX alternative to arrays).
   set -- \
     --header "Accept: application/vnd.github+json" \
     --header "X-GitHub-Api-Version: 2022-11-28" \
     --header "User-Agent: devfeats"
-  [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" --header "Authorization: Bearer ${GITHUB_TOKEN}"
+  [ -n "$_GITHUB__TOKEN" ] && set -- "$@" --header "Authorization: Bearer ${_GITHUB__TOKEN}"
 
   local _ec=0
   if [ -n "$_dest" ]; then
