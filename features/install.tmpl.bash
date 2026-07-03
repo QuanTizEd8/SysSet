@@ -1139,9 +1139,9 @@ __install_run_source__() {
   #      whenever the build requires logic that cannot be expressed declaratively
   #      (e.g. platform-specific flags, post-install steps, multiple make passes).
   #   2. __install_run_source_auto_build__ <src_dir> — framework auto-impl.
-  #      Driven by SOURCE_BUILD_SYSTEM / SOURCE_CONFIGURE_ARGS /
+  #      Driven by SOURCE_BUILD_SYSTEM / SOURCE_CONFIGURE_ARGS / SOURCE_CMAKE_ARGS /
   #      SOURCE_BUILD_ENV (injected via env) / SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS.
-  #      Covers autotools and bare make.
+  #      Covers autotools, bare make, and cmake.
   #      Active when SOURCE_BUILD_SYSTEM is non-empty.
   #
   # Use __install_run_source_pre for pre-build setup (e.g. installing build deps
@@ -1208,7 +1208,8 @@ __install_run_source__() {
 __install_run_source_auto_build__() {
   # Framework auto-build for METHOD=source, driven by SOURCE_BUILD_SYSTEM.
   # Called when __install_run_source_build is not defined.
-  # Supports SOURCE_BUILD_SYSTEM=autotools and SOURCE_BUILD_SYSTEM=make.
+  # Supports SOURCE_BUILD_SYSTEM=autotools, SOURCE_BUILD_SYSTEM=make, and
+  # SOURCE_BUILD_SYSTEM=cmake.
   local _src_dir="$1"
   local _jobs
   _jobs="$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || printf '1')"
@@ -1272,12 +1273,36 @@ __install_run_source_auto_build__() {
         return 1
       }
       ;;
+    cmake)
+      local -a _cmake_args=()
+      if [[ -v SOURCE_CMAKE_ARGS ]]; then __expand_args__ SOURCE_CMAKE_ARGS _cmake_args; fi
+      local -a _cmake_prefix_arg=()
+      if [[ -v _RESOLVED_PREFIX ]]; then
+        _cmake_prefix_arg=(-DCMAKE_INSTALL_PREFIX="${_RESOLVED_PREFIX}")
+      fi
+      env "${_build_env[@]+"${_build_env[@]}"}" \
+        cmake -S "${_src_dir}" -B "${_src_dir}/build" -DCMAKE_BUILD_TYPE=Release \
+        "${_cmake_prefix_arg[@]+"${_cmake_prefix_arg[@]}"}" "${_cmake_args[@]+"${_cmake_args[@]}"}" || {
+        logging__error "CMake build: configure failed in '${_src_dir}'."
+        return 1
+      }
+      env "${_build_env[@]+"${_build_env[@]}"}" \
+        cmake --build "${_src_dir}/build" --parallel "${_jobs}" || {
+        logging__error "CMake build: build step failed in '${_src_dir}'."
+        return 1
+      }
+      env "${_build_env[@]+"${_build_env[@]}"}" \
+        cmake --install "${_src_dir}/build" || {
+        logging__error "CMake build: install step failed in '${_src_dir}'."
+        return 1
+      }
+      ;;
     "")
       logging__error "METHOD=source: SOURCE_BUILD_SYSTEM is not set. Define __install_run_source_build or set source_build_system in metadata."
       return 1
       ;;
     *)
-      logging__error "METHOD=source: SOURCE_BUILD_SYSTEM='${SOURCE_BUILD_SYSTEM}' is not supported. Use 'autotools' or 'make', or define __install_run_source_build."
+      logging__error "METHOD=source: SOURCE_BUILD_SYSTEM='${SOURCE_BUILD_SYSTEM}' is not supported. Use 'autotools', 'make', or 'cmake', or define __install_run_source_build."
       return 1
       ;;
   esac
@@ -3170,10 +3195,10 @@ __main__ "$@"
 #   Receives the path to the top-level extracted source directory.
 #   Use for platform-specific flags, multi-pass builds, or custom install steps
 #   that cannot be expressed declaratively with SOURCE_BUILD_SYSTEM /
-#   SOURCE_CONFIGURE_ARGS / SOURCE_BUILD_ENV / SOURCE_MAKE_FLAGS /
+#   SOURCE_CONFIGURE_ARGS / SOURCE_CMAKE_ARGS / SOURCE_BUILD_ENV / SOURCE_MAKE_FLAGS /
 #   SOURCE_MAKE_TARGETS / SOURCE_INSTALL_BINS.
 #   When absent, __install_run_source_auto_build__ is invoked instead
-#   (driven by SOURCE_BUILD_SYSTEM / SOURCE_CONFIGURE_ARGS /
+#   (driven by SOURCE_BUILD_SYSTEM / SOURCE_CONFIGURE_ARGS / SOURCE_CMAKE_ARGS /
 #   SOURCE_BUILD_ENV / SOURCE_MAKE_FLAGS / SOURCE_MAKE_TARGETS,
 #   followed by __install_run_source_auto_install_bins__ when SOURCE_INSTALL_BINS is non-empty after when-filtering).
 #

@@ -176,10 +176,13 @@ gpg --verify CHECKSUMS.txt.asc CHECKSUMS.txt
 
 ```sh
 jsonschema version
-# Expected output: "v16.0.0" (for the latest release)
+# Expected output: "16.0.0" (for the latest release)
 ```
 
-Note: The version output format uses a `v` prefix (e.g., `v16.0.0`).
+Note: unlike the GitHub release tag (`v16.0.0`), the `version` subcommand's
+own output has no `v` prefix — verified empirically by running the real
+v16.0.0 Linux x86_64 binary (`jsonschema version` prints exactly `16.0.0\n`,
+confirmed byte-for-byte via `od -c`).
 
 #### Configuration Options
 

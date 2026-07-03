@@ -367,12 +367,17 @@
                   "type": "string"
                 },
                 "build_system": {
-                  "description": "Build system for the auto-impl of `__install_run_source_auto_build__`. `autotools` = `./configure` then `make`. `make` = `make` only (no `./configure`). Omit when providing a `__install_run_source_build` hook.",
+                  "description": "Build system for the auto-impl of `__install_run_source_auto_build__`. `autotools` = `./configure` then `make`. `make` = `make` only (no `./configure`). `cmake` = `cmake` configure/build/install (out-of-source, in `<src>/build`). Omit when providing a `__install_run_source_build` hook.",
                   "type": "string",
-                  "enum": ["autotools", "make"]
+                  "enum": ["autotools", "make", "cmake"]
                 },
                 "configure_args": {
                   "description": "Arguments passed to `./configure` when `build_system=autotools`. `--prefix=<PREFIX>` is always appended automatically. Sets the default for the auto-generated `source_configure_args` option.",
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
+                "cmake_args": {
+                  "description": "Arguments passed to `cmake` when `build_system=cmake`. `-DCMAKE_INSTALL_PREFIX=<PREFIX>` is always appended automatically. Sets the default for the auto-generated `source_cmake_args` option.",
                   "type": "array",
                   "items": {"type": "string"}
                 },

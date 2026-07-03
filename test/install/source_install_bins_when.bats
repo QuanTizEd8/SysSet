@@ -107,6 +107,68 @@ _publish_feat_ctx() {
   assert_output --partial "not a valid NAME=value assignment"
 }
 
+@test "__install_run_source_auto_build__: cmake configures, builds, and installs in sequence" {
+  # Stub cmake: logs each invocation's args so the configure/build/install
+  # sequence and their exact flags can be asserted afterwards.
+  local _log="${BATS_TEST_TMPDIR}/cmake-invocations.log"
+  # shellcheck disable=SC2016
+  cat > "${BATS_TEST_TMPDIR}/bin/cmake" << EOF
+#!/bin/sh
+printf '%s\n' "\$*" >> "${_log}"
+exit 0
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/cmake"
+  prepend_fake_bin_path
+
+  local _src_dir="${BATS_TEST_TMPDIR}/src-cmake"
+  local _prefix="${BATS_TEST_TMPDIR}/prefix-cmake"
+  mkdir -p "${_src_dir}" "${_prefix}"
+  _RESOLVED_PREFIX="${_prefix}"
+  SOURCE_BUILD_SYSTEM="cmake"
+  SOURCE_CMAKE_ARGS=("-DJSONSCHEMA_PORTABLE:BOOL=ON")
+
+  run __install_run_source_auto_build__ "${_src_dir}"
+  assert_success
+
+  run cat "${_log}"
+  assert_line --index 0 --partial "-S ${_src_dir} -B ${_src_dir}/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${_prefix} -DJSONSCHEMA_PORTABLE:BOOL=ON"
+  assert_line --index 1 --partial "--build ${_src_dir}/build --parallel"
+  assert_line --index 2 "--install ${_src_dir}/build"
+}
+
+@test "__install_run_source_auto_build__: injects SOURCE_BUILD_ENV into cmake invocations" {
+  # Stub cmake: exits 0 only when FEATURE_TEST_ENV is correctly injected by env.
+  # shellcheck disable=SC2016
+  printf '#!/bin/sh\ntest "${FEATURE_TEST_ENV:-}" = "expected"\n' \
+    > "${BATS_TEST_TMPDIR}/bin/cmake"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/cmake"
+  prepend_fake_bin_path
+
+  local _src_dir="${BATS_TEST_TMPDIR}/src-cmake-env"
+  mkdir -p "${_src_dir}"
+  SOURCE_BUILD_SYSTEM="cmake"
+  SOURCE_BUILD_ENV=("FEATURE_TEST_ENV=expected")
+  SOURCE_CMAKE_ARGS=()
+
+  run __install_run_source_auto_build__ "${_src_dir}"
+  assert_success
+}
+
+@test "__install_run_source_auto_build__: fails when cmake configure step fails" {
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/cmake"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/cmake"
+  prepend_fake_bin_path
+
+  local _src_dir="${BATS_TEST_TMPDIR}/src-cmake-fail"
+  mkdir -p "${_src_dir}"
+  SOURCE_BUILD_SYSTEM="cmake"
+  SOURCE_CMAKE_ARGS=()
+
+  run __install_run_source_auto_build__ "${_src_dir}"
+  assert_failure
+  assert_output --partial "CMake build: configure failed"
+}
+
 @test "__install_run_source_auto_install_bins__: copies built binaries into PREFIX/bin" {
   local _src_dir="${BATS_TEST_TMPDIR}/src"
   local _prefix="${BATS_TEST_TMPDIR}/prefix"

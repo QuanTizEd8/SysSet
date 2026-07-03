@@ -632,6 +632,7 @@ options:
       Build system used by the framework auto-impl for `method=source`.
       `autotools`: runs `./configure` (with `source_configure_args`) then `make`.
       `make`: runs `make` directly (no `./configure`).
+      `cmake`: runs `cmake` configure/build/install (with `source_cmake_args`) out-of-source in `<src>/build`.
       Leave empty only when providing a fully custom `__install_run_source_build` hook.
 
   source_configure_args:
@@ -646,6 +647,21 @@ options:
     description: >-
       Arguments passed to `./configure` when `source_build_system=autotools`.
       `--prefix=<PREFIX>` is always appended automatically.
+      Provide one argument per line to override or extend the defaults.
+      Each argument supports the same substitution tokens as `binary_asset_uri`.
+
+  source_cmake_args:
+    _apply_when: |
+      #{{ return get("_options.method.source") is not None }}#
+    type: array
+    default: |
+      #{{
+        args = get("_options.method.source.cmake_args") or []
+        return "\n".join(args) if args else ""
+      }}#
+    description: >-
+      Arguments passed to `cmake` when `source_build_system=cmake`.
+      `-DCMAKE_INSTALL_PREFIX=<PREFIX>` is always appended automatically.
       Provide one argument per line to override or extend the defaults.
       Each argument supports the same substitution tokens as `binary_asset_uri`.
 
