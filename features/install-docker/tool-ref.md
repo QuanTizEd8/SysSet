@@ -41,7 +41,7 @@ This is the recommended installation method for production environments, as it p
 
 #### Supported Platforms
 
-- **Debian-based**: Ubuntu, Debian, Raspbian, and derivatives[^docs-install-ubuntu][^docs-install-debian]
+- **Debian-based**: Ubuntu, Debian, Raspberry Pi OS (32-bit, formerly Raspbian), and derivatives[^docs-install-ubuntu][^docs-install-debian]
 - **RPM-based**: Fedora, CentOS, RHEL, Rocky Linux[^docs-install-fedora][^docs-install-centos][^docs-install-rhel]
 - **Architectures**: x86_64/amd64, arm64/aarch64, armhf (32-bit), ppc64le, s390x (varies by distribution)[^docs-install-overview]
 
@@ -70,13 +70,14 @@ This is the recommended installation method for production environments, as it p
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/${ID}/gpg -o /etc/apt/keyrings/docker.asc
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-# Add repository (for Ubuntu, use $UBUNTU_CODENAME || $VERSION_CODENAME)
+# Add repository (using OS release codename detection)
+# For Ubuntu: use $UBUNTU_CODENAME, for Debian: use $VERSION_CODENAME
 sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
-URIs: https://download.docker.com/linux/${ID}
+URIs: https://download.docker.com/linux/ubuntu
 Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
 Components: stable
 Architectures: $(dpkg --print-architecture)
@@ -102,12 +103,26 @@ sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin d
 sudo systemctl enable --now docker
 ```
 
-**RPM-based (CentOS/RHEL)**[^docs-install-centos][^docs-install-rhel]:
+**RPM-based (CentOS)**[^docs-install-centos]:
 
 ```bash
 # 1. Set up Docker's repository
 sudo dnf -y install dnf-plugins-core
 sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+# 2. Install Docker packages
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# 3. Start Docker
+sudo systemctl enable --now docker
+```
+
+**RPM-based (RHEL)**[^docs-install-rhel]:
+
+```bash
+# 1. Set up Docker's repository (note: uses rhel-specific repo URL)
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
 
 # 2. Install Docker packages
 sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -227,7 +242,7 @@ No activation scripts are needed for standard installations.
 
 ##### Shell Completions
 
-Docker CLI provides shell completions for bash, zsh, and fish. They can be installed from the `contrib/completion` directory in the Docker source or from distribution packages (`bash-completion` on Debian/Ubuntu).[^docs-docker-completion]
+Docker CLI provides shell completions for bash, zsh, and fish. They can be installed by running `docker completion bash` (or `zsh`/`fish`) or from distribution packages (e.g., `bash-completion` on Debian/Ubuntu).[^docs-docker-completion]
 
 ##### Cleanup
 
@@ -266,7 +281,7 @@ Running the package manager installation multiple times is idempotent: it will u
 
 #### Details
 
-The official Docker convenience script at `get.docker.com` (source: https://github.com/docker/docker-install) performs the following steps[^src-installer]:
+The official Docker convenience script at `get.docker.com` (source: https://github.com/docker/docker-install) performs the package manager installation steps automatically[^src-installer]. It is not a separate installation method — it detects the Linux distribution and configures the appropriate package repository under the hood. The script performs the following:
 
 1. Detects the Linux distribution and version via `/etc/os-release`
 2. Configures the appropriate package repository (apt or rpm) with the correct GPG key
@@ -274,7 +289,7 @@ The official Docker convenience script at `get.docker.com` (source: https://gith
 4. Supports `--version`, `--channel` (stable/test), `--mirror`, and `--dry-run` flags
 5. Optionally starts and enables the Docker systemd service
 
-The script supports Debian-based (Ubuntu, Debian, Raspbian) and RPM-based (CentOS, Fedora, RHEL, Rocky) distributions.
+The script supports Debian-based (Ubuntu, Debian, Raspberry Pi OS) and RPM-based (CentOS, Fedora, RHEL, Rocky) distributions.
 
 #### Notes and Best Practices
 
@@ -330,6 +345,24 @@ sudo cp docker/docker /usr/local/bin/   # Only copy the client binary
 rm -rf docker docker-29.6.1.tgz
 ```
 
+#### Installation Verification
+
+Verify the installation by:
+```bash
+# Check the installed binary versions
+docker --version                   # e.g., Docker version 29.6.1
+dockerd --version                  # Only if daemon was installed
+
+# Run a test container (requires running daemon)
+sudo docker run hello-world
+
+# Check that the binary is statically linked (no "not a dynamic executable" means static)
+file /usr/bin/docker | grep -q "statically linked" && echo "Static binary"
+
+# Verify the daemon is listening on the Docker socket
+sudo docker info
+```
+
 #### Configuration Options
 
 ##### Version Selection
@@ -340,13 +373,60 @@ Set the version by modifying the URL. Available versions are listed at https://d
 
 Binaries can be placed in any directory on PATH. The standard locations are `/usr/bin/` or `/usr/local/bin/`.
 
+##### User Targeting
+
+System-wide only (requires root to copy to system paths). For user-local installation, place binaries in `~/bin/` and add to PATH.
+
 ##### Required Privileges
 
-Copying binaries to system directories and starting the daemon require `root` or `sudo` privileges.
+Copying binaries to system directories and starting the daemon require `root` or `sudo` privileges. Placing binaries in user-local directories (`~/bin/`) does not require root.
+
+##### Tool-Specific Configurations
+
+The same `daemon.json` configuration file at `/etc/docker/daemon.json` is used regardless of installation method. Static binary installations do not include a default config file or systemd service unit, so these must be created manually if needed. The daemon is started directly via `dockerd` with CLI flags instead of systemd.
 
 #### Post-Installation Steps and Cleanup
 
-No automatic service management is configured. For systemd-based systems, create a service unit manually or use `sudo systemctl enable docker` if the package-provided service file is available. Static binary installations do not include systemd service files.
+##### PATH Setup
+
+If binaries were placed in a non-standard location (e.g., `/opt/docker/bin`), add it to PATH:
+```bash
+export PATH="/opt/docker/bin:$PATH"
+```
+For persistence, add to `~/.bashrc` or `/etc/profile.d/docker.sh`.
+
+##### Configuration Files
+
+Create `/etc/docker/daemon.json` manually if custom configuration is needed. No config file is provided by default.
+
+##### Environment Variables
+
+Same environment variables as the package manager installation:
+- `DOCKER_HOST`: Override the daemon socket location
+- `DOCKER_CONFIG`: CLI configuration directory
+
+##### Activation Scripts
+
+No activation scripts are needed. For systemd integration, create a service unit file manually at `/etc/systemd/system/docker.service` with the appropriate `dockerd` command and flags.
+
+##### Shell Completions
+
+Install completions by generating them:
+```bash
+docker completion bash > /usr/share/bash-completion/completions/docker
+```
+Or for user-local installation:
+```bash
+mkdir -p ~/.local/share/bash-completion/completions
+docker completion bash > ~/.local/share/bash-completion/completions/docker
+```
+
+##### Cleanup
+
+Remove the downloaded archive and temporary extraction directory:
+```bash
+rm -rf docker-*.tgz docker/
+```
 
 #### Changing Versions and Uninstallation
 
@@ -361,6 +441,7 @@ Not idempotent. Repeated installations will overwrite existing binaries. The dae
 - Static binaries are primarily for testing. They lack automatic security updates and may not include all functionality of packaged versions.[^docs-install-binaries]
 - The macOS static binary includes only the Docker CLI (no daemon). A separate Docker Engine (via Docker Desktop or a remote daemon) is required to run containers.
 - 32-bit static binary archives do not include the Docker daemon.
+- For production, prefer the OS package manager method for automatic security updates.
 
 ### Rootless Mode Installation
 
@@ -393,26 +474,89 @@ sudo apt-get install -y docker-ce-rootless-extras
 dockerd-rootless-setuptool.sh install
 ```
 
-**Via standalone script**:
+**Via standalone script**[^src-rootless-installer]:
 ```bash
 # Run as non-root user
 curl -fsSL https://get.docker.com/rootless | sh
 ```
 
-The script[^src-rootless-installer]:
-1. Downloads static binaries for Docker and docker-rootless-extras
-2. Extracts them to `~/bin/`
-3. Creates systemd user service at `~/.config/systemd/user/docker.service`
-4. Sets up a Docker context named "rootless"
-5. Enables linger for the user via `sudo loginctl enable-linger <user>`
+The standalone script performs the following:
+1. Validates system requirements (kernel, uidmap, iptables, subuid/subgid)
+2. Downloads static binaries for Docker and docker-rootless-extras
+3. Extracts them to `~/bin/`
+4. Creates systemd user service at `~/.config/systemd/user/docker.service`
+5. Sets up a Docker context named "rootless"
+6. Enables linger for the user via `sudo loginctl enable-linger <user>`
 
-#### Post-Installation Steps
+#### Installation Verification
+
+Verify rootless Docker is running:
+```bash
+# Check that Docker is responding (using rootless context)
+docker info
+
+# The output should show "rootless" in the Security Options
+docker info | grep -i rootless
+
+# Run a test container
+docker run hello-world
+
+# Check the Docker context
+docker context ls
+# Expected: "rootless" context with a DOCKER_HOST pointing to
+# unix:///run/user/<UID>/docker.sock
+```
+
+#### Configuration Options
+
+##### Version Selection
+
+For the package-based installation, the rootless extras version matches the installed rootful Docker version. For the standalone script, a specific channel can be selected:
+```bash
+CHANNEL=test curl -fsSL https://get.docker.com/rootless | sh
+```
+
+##### Installation Path
+
+Binaries are installed to `~/bin/` by default. Override with:
+```bash
+DOCKER_BIN=/custom/path curl -fsSL https://get.docker.com/rootless | sh
+```
+
+##### User Targeting
+
+Always user-local. Each non-root user must install rootless Docker independently. The daemon runs under the user's systemd user instance.
+
+##### Required Privileges
+
+The rootless installation script itself does not require root, but certain system prerequisites (installing `uidmap`, configuring `/etc/subuid`, enabling linger) require `sudo` access.
+
+##### Tool-Specific Configurations
+
+Rootless Docker uses `~/.config/docker/daemon.json` (instead of `/etc/docker/daemon.json`) for daemon configuration. The daemon socket is at `unix:///run/user/$UID/docker.sock` (instead of `/var/run/docker.sock`).
+
+#### Post-Installation Steps and Cleanup
+
+##### PATH Setup
+
+Add `~/bin` to PATH (the script alerts about this):
+```bash
+export PATH=/usr/bin:$HOME/bin:$PATH
+```
+
+##### Configuration Files
+
+Rootless Docker uses `~/.config/docker/daemon.json`. The rootless Docker context configuration is stored in `~/.docker/contexts/meta/`.
+
+##### Environment Variables
 
 The following environment variables need to be set persistently (e.g., in `~/.bashrc`):
 ```bash
 export PATH=/usr/bin:$HOME/bin:$PATH
 export DOCKER_HOST=unix:///run/user/$(id -u)/docker.sock
 ```
+
+##### Activation Scripts
 
 Enable automatic startup on boot:
 ```bash
@@ -421,13 +565,21 @@ systemctl --user enable docker
 systemctl --user start docker
 ```
 
+##### Shell Completions
+
+Same as the package manager method; completions are installed to system paths or user-local paths.
+
+##### Cleanup
+
+The standalone script uses a temporary directory (cleaned up automatically via `trap`). No additional cleanup is needed.
+
 #### Changing Versions and Uninstallation
 
-Stop the docker service (`systemctl --user stop docker`), remove the binaries from `~/bin/`, and re-run the installation script. To fully uninstall, also remove `~/.config/systemd/user/docker.service` and the rootless Docker context.
+Stop the docker service (`systemctl --user stop docker`), remove the binaries from `~/bin/`, and re-run the installation script. To fully uninstall, also remove `~/.config/systemd/user/docker.service` and the rootless Docker context (`docker context rm rootless`).
 
 #### Idempotency
 
-The installation script detects an existing rootless installation and exits without making changes. To upgrade, the existing binaries must be manually removed first.
+The installation script detects an existing rootless installation and exits without making changes. To upgrade, the existing binaries must be manually removed first. The script has a `--force` flag (via `FORCE_ROOTLESS_INSTALL=1`) to override protections.
 
 #### Notes and Best Practices
 
@@ -446,26 +598,32 @@ Docker-in-Docker runs a full Docker daemon inside the container, creating a comp
 
 #### Overview
 
-DinD is based on the Moby project's official `hack/dind` wrapper script[^src-dind], which handles the necessary kernel namespace setup for running a nested Docker daemon. The Feature installs the Docker CLI, daemon, containerd, and supporting tools inside the container, and provides an init script that acts as the container entrypoint to start the nested daemon when the container launches.[^ext-feature-dind][^ext-feature-dind-install]
+DinD uses the Moby project's official `hack/dind` wrapper script[^src-dind] for kernel namespace setup (cgroups, mounts, security) combined with a feature-generated init script that installs and manages the nested daemon lifecycle. The Feature installs the Docker CLI, daemon, containerd, and supporting tools inside the container, and provides an init script (`docker-init.sh`) that acts as the container entrypoint to start the nested daemon when the container launches.[^ext-feature-dind][^ext-feature-dind-install]
 
 #### Architecture
 
 The DinD setup consists of:
-- **Installed packages**: Docker Engine (`docker-ce` or `moby-engine`), CLI (`docker-ce-cli` or `moby-cli`), containerd, Buildx, Docker Compose
+- **Installed packages**: Docker Engine (`docker-ce` or `moby-engine`), CLI (`docker-ce-cli` or `moby-cli`), containerd, Buildx, Docker Compose. For DinD installations using Docker CE, the packages are held at their installed version with `apt-mark hold` to prevent accidental upgrades that could cause compatibility issues.[^ext-feature-dind-install]
 - **Init script** (`/usr/local/share/docker-init.sh`): Acts as the container entrypoint, starting the nested `dockerd` and `containerd` daemons before executing any further commands[^ext-feature-dind-install]
-- **Dind wrapper logic**: Embedded from the Moby project's `hack/dind` script, handling:
+- **Dind wrapper logic**: The init script embeds logic derived from the Moby project's `hack/dind` script[^src-dind] for:
   - AppArmor compatibility (setting `container=docker` environment variable)
   - Security filesystem mounting (`/sys/kernel/security`)
   - Temporary filesystem mounting (`/tmp` as tmpfs)
   - Cgroup v2 nesting support
   - Shared mount propagation
+- **Feature-specific startup logic** (from the devcontainers feature implementation[^ext-feature-dind-install], NOT from Moby's `hack/dind`) for:
+  - PID file cleanup
+  - containerd and dockerd daemon startup
+  - iptables alternative configuration (legacy vs nft)
+  - containerd erofs snapshotter plugin disabling
+  - User command execution
 
 #### Prerequisites and Requirements
 
 - **Privileged mode** is REQUIRED. The container must run with `--privileged` flag (or at minimum `--cap-add SYS_ADMIN --security-opt apparmor=unconfined`) to allow the nested daemon to create cgroups, mount filesystems, and manage iptables.[^ext-feature-dind-docs]
 - **Init process** is strongly recommended (`--init` flag or `init: true` in Docker Compose) to enable the tini init process, which properly handles signals and reaps zombie processes.[^ext-feature-dind-docs]
 - **Host architecture matching**: The host and container must run on the same chip architecture (e.g., both amd64 or both arm64). Emulated cross-architecture containers are NOT supported for DinD.[^ext-feature-dind-docs]
-- **Overlayfs on rootfs**: When the container's root filesystem is an overlayfs mount (common in Kubernetes, GitHub Codespaces, and containerd-backed Docker hosts), dedicated volumes must be mounted for `/var/lib/docker` and `/var/lib/containerd` to prevent overlay-on-overlay mount failures.[^ext-feature-dind-overlayfs]
+- **Overlayfs on rootfs**: When the container's root filesystem is an overlayfs mount (common in Kubernetes, GitHub Codespaces, and containerd-backed Docker hosts), dedicated volumes must be mounted for `/var/lib/docker` and `/var/lib/containerd` to prevent overlay-on-overlay mount failures that cause `invalid argument` errors.[^ext-feature-dind-overlayfs]
 
 #### Mount Configuration
 
@@ -501,7 +659,7 @@ The `${devcontainerId}` variable ensures each dev container gets isolated state 
   "runArgs": ["--init", "--privileged"],
   "overrideCommand": false,
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {}
   }
 }
 ```
@@ -518,18 +676,18 @@ services:
 
 #### Init Script Details (`docker-init.sh`)
 
-The init script generated by the DinD feature performs the following at container startup[^ext-feature-dind-install]:
+The init script generated by the DinD feature performs the following at container startup[^ext-feature-dind-install]. Steps 1-5 are based on the Moby project's `hack/dind` wrapper[^src-dind]; steps 6-10 are from the feature's own implementation:
 
-1. **Set environment**: Exports `container=docker` for AppArmor detection
-2. **Mount security filesystem**: Mounts `/sys/kernel/security` if available
-3. **Mount /tmp**: Mounts `/tmp` as a writable tmpfs if not already mounted
-4. **Configure cgroup v2 nesting**: If running on cgroup v2 (detected by existence of `/sys/fs/cgroup/cgroup.controllers`), moves processes to an `/init` group and enables controllers in the subtree. This is necessary because writing to `cgroup.subtree_control` fails with EBUSY when processes exist in the root cgroup.
-5. **Set shared mount propagation**: Runs `mount --make-rshared /` to make the environment more similar to a modern Linux system with systemd as PID 1.
-6. **Clean PID files**: Removes any stale `docker*.pid` and `container*.pid` files from `/run` and `/var/run`.
-7. **Start containerd**: Starts containerd with the configuration that disables the erofs snapshotter plugin.
-8. **Configure iptables**: Optionally sets the iptables alternative (legacy vs nft) based on runtime detection.
-9. **Start dockerd**: Starts the Docker daemon with the appropriate configuration (address pools, DNS auto-detection, ip6tables settings, etc.).
-10. **Execute user command**: Runs the command passed as arguments (typically the container's CMD).
+1. **Set environment**: Exports `container=docker` for AppArmor detection (from Moby `hack/dind`)
+2. **Mount security filesystem**: Mounts `/sys/kernel/security` if available (from Moby `hack/dind`)
+3. **Mount /tmp**: Mounts `/tmp` as a writable tmpfs if not already mounted (from Moby `hack/dind`)
+4. **Configure cgroup v2 nesting**: If running on cgroup v2, moves processes to an `/init` group and enables controllers in the subtree. This is necessary because writing to `cgroup.subtree_control` fails with EBUSY when processes exist in the root cgroup. (from Moby `hack/dind`)
+5. **Set shared mount propagation**: Runs `mount --make-rshared /` (from Moby `hack/dind`)
+6. **Clean PID files**: Removes any stale `docker*.pid` and `container*.pid` files from `/run` and `/var/run` (feature-specific)
+7. **Start containerd**: Starts containerd with the configuration that disables the erofs snapshotter plugin (feature-specific)
+8. **Configure iptables**: Optionally sets the iptables alternative (legacy vs nft) based on runtime detection (feature-specific)
+9. **Start dockerd**: Starts the Docker daemon with the appropriate configuration (address pools, DNS auto-detection, ip6tables settings, etc.) (feature-specific)
+10. **Execute user command**: Runs the command passed as arguments (typically the container's CMD) (feature-specific)
 
 #### containerd Configuration
 
@@ -701,7 +859,7 @@ Based on the analysis of existing implementations[^ext-feature-dind][^ext-featur
 - **`disableIp6tables`**: Disable ip6tables (useful for Docker 27+ on kernels without ip6tables support)
 - **`iptablesSwitchAtRuntime`**: If `true`, selects the iptables backend (legacy vs nft) at container start based on kernel detection, rather than at build time
 - **`installDockerBuildx`**: Install Docker Buildx plugin (default: `true`)
-- **`installDockerComposeSwitch`**: Install Compose Switch (for compatibility with `docker-compose` v1 commands)
+- **`installDockerComposeSwitch`**: Install Compose Switch for `docker-compose` v1 command compatibility (default: `false` for DinD, `true` for DooD — the actual default varies by implementation[^ext-feature-dind-install][^ext-feature-dood-install])
 - **`dockerDashComposeVersion`**: Docker Compose version to install (`v1`, `v2`, `latest`, or `none`)
 
 #### DooD-Specific Options
@@ -714,9 +872,41 @@ Based on the analysis of existing implementations[^ext-feature-dind][^ext-featur
 - **`channel`**: Installation channel: `stable` or `test`
 - **`mirror`**: Package mirror for restricted environments (e.g., `Aliyun`, `AzureChinaCloud`)
 
+## Plugins and Extensions
+
+Docker Engine supports several plugins and extensions that enhance its functionality. The following are relevant to the Feature:
+
+### Docker Buildx
+
+`docker-buildx` is a CLI plugin that extends the `docker build` command with full BuildKit capabilities, including multi-platform builds, advanced caching, and custom build drivers.
+
+- **Homepage**: https://github.com/docker/buildx
+- **Documentation**: https://docs.docker.com/build/
+- **Installation**: Bundled with Docker packages as `docker-buildx-plugin` on Debian-based systems, or as part of the Docker CE RPM packages. On DinD and DooD installations, it is installed separately from GitHub releases[^ext-feature-dind-install] if the `installDockerBuildx` option is enabled (default: `true`). It is placed in `/usr/libexec/docker/cli-plugins/docker-buildx`.
+
+### Docker Compose
+
+`docker-compose-plugin` (v2) and `docker-compose` (v1) are tools for defining and running multi-container applications.
+
+- **Homepage**: https://github.com/docker/compose
+- **Documentation**: https://docs.docker.com/compose/
+- **Installation**: 
+  - **V2**: Bundled as `docker-compose-plugin` with Docker packages, or as `moby-compose` for Moby-based installations
+  - **V1**: Available as a standalone binary download from GitHub releases, or installed via pip in an isolated virtualenv for architectures where pre-built binaries are unavailable[^ext-feature-dind-install]
+  - **Compose Switch**: An optional utility (`compose-switch`) that maps the old `docker-compose` command to `docker compose` v2, providing backward compatibility
+- In the Feature, the version is controlled by the `dockerDashComposeVersion` option. For DinD, Compose Switch defaults to `false`; for DooD, it defaults to `true`.
+
+### Docker Init (tini)
+
+Docker bundles `tini` (an init process for containers) as `docker-init`. It is used when `--init` is passed to `docker run`.
+
+### VS Code Extension
+
+The **Dev Containers** extension (`ms-azuretools.vscode-remotewsl`) and the **Docker** extension (`ms-azuretools.vscode-docker`) provide integrated Docker support in VS Code. The Docker extension can be installed in the dev container for in-editor container management.
+
 ## References
 
-[^latest-release]: [Docker Engine Version Log](https://versionlog.com/docker-engine/) — Version tracking showing 29.6.1 released 26 June 2026.
+[^latest-release]: [Official Docker Engine Release Notes — Version 29](https://docs.docker.com/engine/release-notes/29/) — Official release notes for Docker Engine 29.x, with the latest stable release being 29.6.1 as of 26 June 2026.
 
 [^docs-arch]: [Docker Engine Overview](https://docs.docker.com/engine/) — Official documentation describing Docker Engine architecture and components.
 
@@ -742,17 +932,17 @@ Based on the analysis of existing implementations[^ext-feature-dind][^ext-featur
 
 [^docs-daemon]: [Docker Daemon Configuration Overview](https://docs.docker.com/engine/daemon/) — Official documentation for daemon configuration via daemon.json and CLI flags.
 
-[^docs-docker-completion]: [Docker CLI Completion](https://docs.docker.com/reference/cli/docker/) — Docker CLI reference, including shell completion setup.
+[^docs-docker-completion]: [Docker CLI Completion Reference](https://docs.docker.com/reference/cli/docker/completion/) — Official documentation for Docker CLI shell completion setup for bash, zsh, and fish.
 
-[^src-installer]: [docker-install install.sh](https://github.com/docker/docker-install/blob/master/install.sh) — Source code of the official Docker installation convenience script.
+[^src-installer]: [docker-install install.sh](https://github.com/docker/docker-install/blob/master/install.sh) — Source code of the official Docker installation convenience script, showing distribution detection, repository configuration, and package installation logic.
 
-[^src-rootless-installer]: [docker-install rootless-install.sh](https://github.com/docker/docker-install/blob/master/rootless-install.sh) — Source code of the official rootless Docker installation script.
+[^src-rootless-installer]: [docker-install rootless-install.sh](https://github.com/docker/docker-install/blob/master/rootless-install.sh) — Source code of the official rootless Docker installation script, including requirements checking, binary download, and systemd service setup.
 
-[^src-dind]: [Moby project hack/dind](https://github.com/moby/moby/blob/master/hack/dind) — The official Docker-in-Docker wrapper script from the Moby project, containing the core logic for nested Docker daemon setup.
+[^src-dind]: [Moby project hack/dind](https://github.com/moby/moby/blob/master/hack/dind) — The official Docker-in-Docker wrapper script from the Moby project, handling cgroup v2 nesting, security filesystem mounting, and shared mount propagation for nested daemon environments.
 
 [^ext-feature-dind]: [Devcontainers Docker-in-Docker Feature](https://github.com/devcontainers/features/tree/main/src/docker-in-docker) — Official devcontainers feature implementing Docker-in-Docker for dev containers.
 
-[^ext-feature-dind-install]: [Devcontainers Docker-in-Docker install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/docker-in-docker/install.sh) — Source code of the official docker-in-docker feature installation script showing all configuration options, iptables handling, containerd erofs workaround, and container init script generation.
+[^ext-feature-dind-install]: [Devcontainers Docker-in-Docker install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/docker-in-docker/install.sh) — Source code of the official docker-in-docker feature installation script showing all configuration options, iptables handling, containerd erofs workaround, `apt-mark hold` for Docker CE packages, and container init script generation.
 
 [^ext-feature-dind-docs]: [Devcontainers Docker-in-Docker README](https://github.com/devcontainers/features/blob/main/src/docker-in-docker/README.md) — Official documentation for the docker-in-docker feature, including requirements for privileged mode, init process, and architecture compatibility.
 
@@ -760,7 +950,7 @@ Based on the analysis of existing implementations[^ext-feature-dind][^ext-featur
 
 [^ext-feature-dood]: [Devcontainers Docker-outside-of-Docker Feature](https://github.com/devcontainers/features/tree/main/src/docker-outside-of-docker) — Official devcontainers feature implementing Docker-outside-of-Docker for dev containers.
 
-[^ext-feature-dood-install]: [Devcontainers Docker-outside-of-Docker install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/docker-outside-of-docker/install.sh) — Source code of the official docker-outside-of-docker feature installation script showing socket handling, GID matching, and socat proxy setup.
+[^ext-feature-dood-install]: [Devcontainers Docker-outside-of-Docker install.sh](https://raw.githubusercontent.com/devcontainers/features/main/src/docker-outside-of-docker/install.sh) — Source code of the official docker-outside-of-docker feature installation script showing socket handling, GID matching, socat proxy setup, and the default value of `installDockerComposeSwitch=true`.
 
 [^ext-feature-dood-docs]: [Devcontainers Docker-outside-of-Docker README](https://github.com/devcontainers/features/blob/main/src/docker-outside-of-docker/README.md) — Official documentation for the docker-outside-of-docker feature, including bind mount path resolution and rootless Docker configuration.
 
