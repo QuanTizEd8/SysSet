@@ -23,10 +23,11 @@ _FAMILY = "method_matrix"
 
 # Methods whose observable result (a working binary, verified identically to
 # `default`) doesn't depend on the install mechanism, so they reuse the
-# `default` check group verbatim rather than emitting their own. `npm` is
-# handled separately (needs a pre-provisioned env — see `_npm_default`).
+# `default` check group verbatim rather than emitting their own. `npm` and
+# `cargo` are handled separately (each needs a pre-provisioned env — see
+# `_npm_default`/`_cargo_default`).
 _VERBATIM_METHODS = frozenset(
-    {"binary", "source", "npm-bundled", "cargo", "script", "git-clone"},
+    {"binary", "source", "npm-bundled", "script", "git-clone"},
 )
 
 
@@ -68,6 +69,8 @@ class MethodMatrixRule:
             return self._pm_managed_default(method, when, facts, cfg, envs)
         if method == "npm":
             return self._npm_default(when, facts, cfg, envs)
+        if method == "cargo":
+            return self._cargo_default(when, facts, cfg, envs)
         if method == "git-clone" and not facts.is_git_clone_only:
             # Only a distinct scenario when git-clone is one of *several*
             # methods — if it's the only one, `default` already covers it.
@@ -146,6 +149,34 @@ class MethodMatrixRule:
         scenario["tests"] = ["default"]
         return GeneratedScenario(
             name=method_scenario_name("npm"),
+            scenario=scenario,
+            checks={},
+        )
+
+    def _cargo_default(
+        self,
+        when: dict | list | None,
+        facts: FeatureFacts,  # noqa: ARG002
+        cfg: GenerationConfig,
+        envs: dict,
+    ) -> GeneratedScenario | None:
+        """`cargo` needs a Rust toolchain already installed — not a WhenSpec attribute.
+
+        Features declaring a `cargo` method only list build tools (make, a C
+        compiler) in `_dependencies.build.method-cargo` — cargo/rustc itself is
+        assumed pre-installed, not bootstrapped by the feature. Confirmed via a
+        real Docker run: method=cargo on the bare primary env (no rustc) fails
+        outright. `cfg.cargo_env` points at a pre-provisioned environment
+        instead, mirroring `_npm_default`.
+        """
+        if not envselect.feasible_envs(when, envs, candidates=[cfg.cargo_env]):
+            return None
+        scenario = base_scenario(
+            [cfg.cargo_env], cfg, _FAMILY, options={"method": "cargo"}
+        )
+        scenario["tests"] = ["default"]
+        return GeneratedScenario(
+            name=method_scenario_name("cargo"),
             scenario=scenario,
             checks={},
         )

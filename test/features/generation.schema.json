@@ -37,7 +37,7 @@
     "environments": {
       "description": "Pointers to keys already defined in test/environments.yaml — no environment data is duplicated here.",
       "type": "object",
-      "required": ["primary", "nonroot_env", "npm_env", "pool"],
+      "required": ["primary", "nonroot_env", "npm_env", "cargo_env", "pool"],
       "additionalProperties": false,
       "properties": {
         "primary": {
@@ -50,6 +50,10 @@
         },
         "npm_env": {
           "description": "Environment with Node.js/npm pre-installed, used by method_matrix's npm_default. 'npm already installed' isn't a WhenSpec-expressible attribute, so this is a direct pointer rather than a when:-driven pool selection.",
+          "type": "string"
+        },
+        "cargo_env": {
+          "description": "Environment with a Rust toolchain pre-installed, used by method_matrix's cargo_default. 'a Rust toolchain is already installed' isn't a WhenSpec-expressible attribute either, so this is a direct pointer rather than a when:-driven pool selection.",
           "type": "string"
         },
         "pool": {

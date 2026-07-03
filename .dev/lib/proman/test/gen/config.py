@@ -45,6 +45,7 @@ class GenerationConfig:
     primary_env: str
     nonroot_env: str
     npm_env: str = ""
+    cargo_env: str = ""
     env_pool: tuple[str, ...] = ()
     families: dict[str, FamilyConfig] = field(default_factory=dict)
     require_anchored_regex: bool = True
@@ -124,6 +125,7 @@ def load() -> GenerationConfig:
         primary_env=data["environments"]["primary"],
         nonroot_env=data["environments"]["nonroot_env"],
         npm_env=data["environments"]["npm_env"],
+        cargo_env=data["environments"]["cargo_env"],
         env_pool=tuple(data["environments"]["pool"]),
         families=families,
         require_anchored_regex=assertions.get("require_anchored_regex", True),

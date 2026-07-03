@@ -38,6 +38,12 @@ environments:
   # attribute (it's a Dockerfile-layer fact), so this points at one specific
   # pre-provisioned env rather than going through the normal when:-driven pool.
   npm_env: ubuntu-stable+node
+  # method_matrix's cargo_default: "a Rust toolchain is already installed"
+  # isn't a WhenSpec attribute either (same reasoning as npm_env above) — a
+  # plain env has no cargo/rustc, so method=cargo would fail outright on any
+  # bare pool env regardless of when: feasibility (confirmed via a real
+  # Docker run of install-just's cargo_default on bare ubuntu-stable).
+  cargo_env: ubuntu-current+rust
   # One representative per plat.pm, used for e.g. method_matrix's package_default
   # (one scenario per feasible package manager). alpine/rocky/opensuse-leap need
   # their +bash variant since generated checks use `bash -c '...'`; ubuntu/debian/
