@@ -23,9 +23,14 @@ _options:
   verify:
     args: "--version"
     description: Verify ripgrep is installed and working.
+    functional:
+      description: rg searches plain text
+      cmd: 'echo "hello world" | {bin} "hello"'
   gh_repo: BurntSushi/ripgrep
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["14.1.1"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ripgrep-{feat.version}-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==i386?i686-unknown-linux-gnu:{plat.rust_triple}}}:{plat.rust_triple}}.tar.gz"

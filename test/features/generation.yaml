@@ -22,6 +22,7 @@ rollout:
     - install-codex
     - install-opencode
     - install-claude
+    - install-ripgrep
   denylist:
     - install
     - install-os-pkg

@@ -1,64 +1,12 @@
-default:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  tests: [default]
-
-binary_pinned_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    version: "14.1.1"
-    method: binary
-  tests: [binary_pinned_version]
-
-binary_custom_prefix:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    prefix: /opt/rg-bin
-    prefix_discovery: symlink
-    if_exists: reinstall
-  tests: [binary_custom_prefix]
-
-package_default:
-  envs:
-    - debian-stable+bash
-    - alpine-current+bash
-    - fedora-current+bash
-    - archlinux-current
-    - opensuse-leap-current+bash
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [package_default]
-
-upstream_package_default:
-  envs: [rockylinux-current+bash]
-  modes: [devcontainer, standalone]
-  options:
-    method: upstream-package
-  tests: [upstream_package_default]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep 99.99.99\nfeatures:-simd-accel\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/rg
-    chmod +x /usr/local/bin/rg
-  options:
-    if_exists: fail
-  tests: [if_exists_fail]
-
-if_exists_skip:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep 99.99.99\nfeatures:-simd-accel\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/rg
-    chmod +x /usr/local/bin/rg
-  options:
-    if_exists: skip
-  tests: [if_exists_skip]
+# Every scenario is now auto-generated from features/install-ripgrep/metadata.yaml
+# (_options.verify.functional, _options.version.test_pins, _options.method,
+# _options.prefix, if_exists, invalid enum values, log_file) by
+# .dev/lib/proman/test/gen/. See test/features/generation.yaml for the
+# generator config, and run `proman-test-gen-preview install-ripgrep` to
+# inspect the generated output.
+#
+# The prior hand-written binary_custom_prefix scenario combined a custom
+# prefix with if_exists: reinstall, but declared no setup: seeding a
+# pre-existing install — so if_exists was inert (nothing to reinstall over),
+# making it a fresh custom-prefix install identical in substance to the
+# generated custom_prefix_symlink.
