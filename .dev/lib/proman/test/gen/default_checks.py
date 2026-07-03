@@ -1,0 +1,81 @@
+"""The "does the tool work" check bundle shared by two rules.
+
+Used by `existence_default` and `method_matrix`'s method variants that reuse
+it verbatim (source/npm/npm-bundled/cargo/script/git-clone) — a composed
+builder, not a rule itself, so rules that need it import this module rather
+than each other (rules stay mutually independent per the plug-in design in
+`registry.py`).
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from proman.test.gen import checks_builtin
+from proman.test.gen.errors import GenerationConfigError
+from proman.test.gen.types import CheckItem
+
+if TYPE_CHECKING:
+    from proman.test.gen.config import GenerationConfig
+    from proman.test.gen.facts import FeatureFacts
+
+
+def build(facts: FeatureFacts, cfg: GenerationConfig) -> list[CheckItem]:
+    """Build the existence/version/functional (or git-clone) check bundle."""
+    if facts.is_git_clone_only:
+        return _git_clone_checks(facts)
+
+    bins = facts.bins or [facts.primary_bin]
+    items: list[CheckItem] = [
+        CheckItem(title=f"{b} is on PATH", cmd=f"command -v {b}") for b in bins
+    ]
+    primary = facts.primary_bin
+    items.append(
+        CheckItem(
+            title=f"{primary} binary is executable",
+            cmd=f"bash -c 'test -x \"$(command -v {primary})\"'",
+        ),
+    )
+    items.append(checks_builtin.version_format_check(primary, facts.version_flag))
+    items.extend(_functional_items(facts, cfg, primary))
+    return items
+
+
+def _functional_items(
+    facts: FeatureFacts,
+    cfg: GenerationConfig,
+    bin_value: str,
+) -> list[CheckItem]:
+    functional = facts.functional
+    if functional is not None:
+        cmd_template, description = functional
+        return [checks_builtin.functional_check(cmd_template, description, bin_value)]
+    if cfg.functional_smoke_required and (facts.methods or facts.version):
+        msg = (
+            f"{facts.feature_id}: _options.method/_options.version is declared but "
+            "_options.verify.functional is missing. Declare it (required by "
+            "generation.yaml's assertions.functional_smoke_required), or disable "
+            "that assertion globally if this feature genuinely has no meaningful "
+            "functional smoke test."
+        )
+        raise GenerationConfigError(msg)
+    return []
+
+
+def _git_clone_checks(facts: FeatureFacts) -> list[CheckItem]:
+    prefix = facts.default_prefix_root
+    items: list[CheckItem] = [
+        CheckItem(title="install directory exists", cmd=f'test -d "{prefix}"'),
+        CheckItem(
+            title="install directory is a git repository",
+            cmd=f'test -d "{prefix}/.git"',
+        ),
+    ]
+    for key, value in facts.git_clone_config().items():
+        items.append(
+            CheckItem(
+                title=f"{key} git config set",
+                cmd=f'bash -c \'test "$(git -C "{prefix}" config {key})" = "{value}"\'',
+            ),
+        )
+    return items

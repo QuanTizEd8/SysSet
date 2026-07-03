@@ -10,6 +10,7 @@ rule (or, before this pipeline existed, every hand-written checks.yaml).
 from __future__ import annotations
 
 import re
+import shlex
 
 from proman.test.gen.types import CheckItem
 
@@ -80,9 +81,17 @@ def functional_check(cmd_template: str, description: str, bin_value: str) -> Che
 
     Substitutes the literal `{bin}` placeholder with either a bare PATH name
     or an absolute custom-prefix path, depending on the calling scenario's
-    context.
+    context. Always wrapped in `bash -c '...'`: `codegen.py` renders a
+    single-line `cmd` as literal, unquoted trailing words on the generated
+    `check "title" ...` script line, so any shell metacharacters in the
+    substituted command (pipes, redirects — the natural shape of most
+    functional smoke tests, e.g. `echo "{}" | {bin} .`) would otherwise be
+    parsed by the *script's* shell instead of executed as part of the check.
+    Wrapping here means metadata authors never need to remember this and can
+    declare `functional.cmd` as a plain, natural shell one-liner.
     """
-    return CheckItem(title=description, cmd=cmd_template.replace("{bin}", bin_value))
+    rendered = cmd_template.replace("{bin}", bin_value)
+    return CheckItem(title=description, cmd=f"bash -c {shlex.quote(rendered)}")
 
 
 def symlink_present_checks(target_path: str, link_path: str) -> list[CheckItem]:
@@ -108,13 +117,16 @@ def pm_managed_check(bin_name: str, pkg_name: str, pms: list[str]) -> CheckItem:
     Uses only the probe commands for `pms` (the package managers actually
     feasible for the selected env(s)) — a single `check` when only one PM is
     feasible, else `kind: multiple, min: 1` (passes regardless of which of
-    several PMs actually installed it).
+    several PMs actually installed it). Duplicate commands (e.g. dnf and
+    zypper both probe via `rpm -qf`) are deduplicated, preserving order.
     """
-    cmds = [
-        _PM_CHECK_CMD[pm].format(bin=bin_name, pkg_name=pkg_name)
-        for pm in pms
-        if pm in _PM_CHECK_CMD
-    ]
+    cmds = list(
+        dict.fromkeys(
+            _PM_CHECK_CMD[pm].format(bin=bin_name, pkg_name=pkg_name)
+            for pm in pms
+            if pm in _PM_CHECK_CMD
+        ),
+    )
     title = "binary is package-manager-managed"
     if len(cmds) == 1:
         return CheckItem(title=title, cmd=cmds[0])

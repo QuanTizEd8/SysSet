@@ -44,6 +44,7 @@ class GenerationConfig:
     denylist: frozenset[str]
     primary_env: str
     nonroot_env: str
+    env_pool: tuple[str, ...] = ()
     families: dict[str, FamilyConfig] = field(default_factory=dict)
     require_anchored_regex: bool = True
     version_cross_validate: bool = True
@@ -121,6 +122,7 @@ def load() -> GenerationConfig:
         denylist=frozenset(rollout.get("denylist", ())),
         primary_env=data["environments"]["primary"],
         nonroot_env=data["environments"]["nonroot_env"],
+        env_pool=tuple(data["environments"]["pool"]),
         families=families,
         require_anchored_regex=assertions.get("require_anchored_regex", True),
         version_cross_validate=assertions.get("version_cross_validate", True),

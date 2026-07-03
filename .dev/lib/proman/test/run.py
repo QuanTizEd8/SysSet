@@ -105,19 +105,29 @@ def _standalone_install_block(
                 'rm -f "$_FEATURE_INSTALL_RC_FILE"',
             ],
         )
+        unexpected_success_msg = shlex.quote(
+            f"⛔ standalone scenario {scenario_key}: install unexpectedly succeeded "
+            "(expect_install_failure=true).",
+        )
         lines.append(
             'if [ "${FEATURE_INSTALL_RC}" -eq 0 ]; then '
-            f'echo "⛔ standalone scenario {scenario_key}: '
-            "install unexpectedly succeeded "
-            '(expect_install_failure=true)." >&2; '
+            f"echo {unexpected_success_msg} >&2; "
             "exit 1; fi"
         )
         for pattern in failure_patterns:
             qpat = shlex.quote(pattern)
+            # Quote the whole diagnostic message (not just `pattern`) — building it
+            # via an f-string with `{pattern!r}` inside a hand-rolled `echo "..."`
+            # breaks whenever the pattern itself contains a single quote (Python's
+            # repr() then switches to double-quote wrapping, which prematurely
+            # closes the outer double-quoted shell string).
+            missing_msg = shlex.quote(
+                f"⛔ standalone scenario {scenario_key}: install output missing "
+                f"expected message: {pattern!r}",
+            )
             lines.append(
                 f'if ! grep -Fq {qpat} "${{_FEATURE_INSTALL_LOG}}"; then '
-                f'echo "⛔ standalone scenario {scenario_key}: install output missing '
-                f'expected message: {pattern!r}" >&2; '
+                f"echo {missing_msg} >&2; "
                 "exit 1; fi"
             )
         lines.append('rm -f "${_FEATURE_INSTALL_LOG}"')

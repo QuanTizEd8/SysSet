@@ -37,7 +37,7 @@
     "environments": {
       "description": "Pointers to keys already defined in test/environments.yaml — no environment data is duplicated here.",
       "type": "object",
-      "required": ["primary", "nonroot_env"],
+      "required": ["primary", "nonroot_env", "pool"],
       "additionalProperties": false,
       "properties": {
         "primary": {
@@ -47,6 +47,12 @@
         "nonroot_env": {
           "description": "Environment with a pre-created non-root user, used by nonroot prefix/configure_users scenarios.",
           "type": "string"
+        },
+        "pool": {
+          "description": "Candidate environments for multi-environment selection (e.g. method_matrix's package_default, one per plat.pm). Deliberately a curated list, not every test/environments.yaml key — the file also contains many special-purpose `+tool[-version]`/`+toolchain` layers (pre-installed tool states, build toolchains) that are never appropriate as a generic 'which OS represents this package manager' pick, and some base images (alpine/rocky/opensuse-leap) need their `+bash` variant here since generated checks use `bash -c '...'`.",
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
         }
       }
     },

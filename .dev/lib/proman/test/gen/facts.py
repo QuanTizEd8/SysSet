@@ -80,6 +80,62 @@ class FeatureFacts:
         return list(pins.get("pinned", ())), list(pins.get("legacy", ()))
 
     @property
+    def default_prefix_root(self) -> str:
+        """`_options.prefix.root`, default `/usr/local`."""
+        return self.prefix.get("root", "/usr/local")
+
+    @property
+    def default_prefix_nonroot(self) -> str:
+        """`_options.prefix.nonroot`, default `${HOME}/.local`."""
+        return self.prefix.get("nonroot", "${HOME}/.local")
+
+    @property
+    def bin_dir(self) -> str:
+        """`_options.prefix.bin_dir`, default `bin`."""
+        return self.prefix.get("bin_dir", "bin")
+
+    @property
+    def symlink_root(self) -> str:
+        """Root symlink target, default `/usr/local/bin` (ignores custom `prefix`)."""
+        return self.prefix.get("symlink", {}).get("root", "/usr/local/bin")
+
+    @property
+    def symlink_nonroot(self) -> str:
+        """Non-root symlink target, default `~/.local/bin`."""
+        return self.prefix.get("symlink", {}).get("nonroot", "~/.local/bin")
+
+    @property
+    def symlink_skipped(self) -> bool:
+        """Whether `_options.prefix.symlink.skip` suppresses symlink creation."""
+        return bool(self.prefix.get("symlink", {}).get("skip", False))
+
+    def resolved_bin_path(self, prefix: str, bin_name: str) -> str:
+        """Full binary path under a given prefix: `{prefix}/{bin_dir}/{bin_name}`."""
+        return f"{prefix}/{self.bin_dir}/{bin_name}"
+
+    @property
+    def is_git_clone_only(self) -> bool:
+        """Whether this feature has no bins and declares a git-clone method.
+
+        When true, the generic PATH/binary existence model doesn't apply —
+        rules fall back to directory/git-config-based checks instead.
+        """
+        return not self.bins and "git-clone" in self.methods
+
+    def git_clone_config(self) -> dict[str, str]:
+        """`_options.method.git-clone.config`, with `{feat.version}` resolved.
+
+        Resolved to `_options.version.default` — the version a `default`
+        scenario install actually resolves to.
+        """
+        config = self.methods.get("git-clone", {}).get("config", {})
+        default_version = self.version.get("default", "")
+        return {
+            key: str(value).replace("{feat.version}", default_version)
+            for key, value in config.items()
+        }
+
+    @property
     def has_if_exists(self) -> bool:
         """Whether the auto-generated `if_exists` option exists on this feature.
 

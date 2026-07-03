@@ -16,7 +16,8 @@ enabled: true
 # from) and this scaffolding is retired.
 rollout:
   mode: allowlist
-  allowlist: []
+  allowlist:
+    - install-jq
   denylist:
     - install
     - install-os-pkg
@@ -24,6 +25,18 @@ rollout:
 environments:
   primary: ubuntu-stable
   nonroot_env: ubuntu-stable+vscode
+  # One representative per plat.pm, used for e.g. method_matrix's package_default
+  # (one scenario per feasible package manager). alpine/rocky/opensuse-leap need
+  # their +bash variant since generated checks use `bash -c '...'`; ubuntu/debian/
+  # fedora/arch ship bash by default.
+  pool:
+    - ubuntu-stable
+    - debian-stable+bash
+    - alpine-current+bash
+    - fedora-current+bash
+    - rockylinux-current+bash
+    - opensuse-leap-current+bash
+    - archlinux-current
 
 families:
   existence_default:

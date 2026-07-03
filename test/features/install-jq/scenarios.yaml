@@ -1,100 +1,28 @@
-default:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  tests: [default]
-
-binary_pinned_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    version: "1.8.1"
-    method: binary
-  tests: [binary_pinned_version]
-
-legacy_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    version: "1.6"
-    method: binary
-  tests: [legacy_version]
-
-binary_custom_prefix:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    prefix: /opt/jq-bin
-    prefix_discovery: symlink
-    if_exists: reinstall
-  tests: [binary_custom_prefix]
-
-custom_prefix_no_symlink:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    prefix: /opt/jq-bin
-    prefix_discovery: none
-  tests: [custom_prefix_no_symlink]
-
-package_default:
-  envs: [debian-stable+bash, alpine-current+bash, fedora-current+bash]
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [default]
-
-version_match_idempotency:
-  expect_install_failure: true
-  envs: [ubuntu-stable+jq-1.8.1]
-  modes: [standalone]
-  options:
-    version: "1.8.1"
-    if_exists: fail
-  tests: [version_match_idempotency]
-
-reinstall:
-  envs: [ubuntu-stable+jq-1.8.1]
-  modes: [devcontainer, standalone]
-  options:
-    version: "1.7.1"
-    method: binary
-    if_exists: reinstall
-  tests: [reinstall]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
-    chmod +x /usr/local/bin/jq
-  tests: [if_exists_fail]
-  options:
-    method: auto
-    if_exists: fail
-  standalone:
-    skip_install: false
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "jq-9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/jq
-    chmod +x /usr/local/bin/jq
-  options:
-    method: auto
-    if_exists: skip
-  tests: [if_exists_skip]
-
-source_default:
-  envs: [debian-stable+autotools]
-  modes: [standalone]
-  options:
-    method: source
-    version: "1.8.1"
-  tests: [source_default]
+# Every scenario except the one below is now auto-generated from
+# features/install-jq/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix, if_exists,
+# invalid enum values, log_file, completions) by .dev/lib/proman/test/gen/.
+# See test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-jq` to inspect the generated output.
+#
+# generation.suppress.scenarios drops if_exists_reinstall/if_exists_update:
+# both seed a fake `jq` stub script on PATH to simulate a pre-existing
+# install, but jq is uniquely self-referential — lib/github.bash's own
+# version-resolution code calls bootstrap__jq() to parse the GitHub releases
+# API response, which finds the fake stub via `command -v jq`, assumes it's a
+# real working jq, and skips installing a real one. The fake stub silently
+# no-ops for any invocation other than `--version`, so the JSON query returns
+# nothing and version resolution fails with a misleading "no release
+# matching" error — a jq-specific bootstrap collision (confirmed via a real
+# Docker run + reading lib/bootstrap.bash's bootstrap__jq), not a defect in
+# the generic if_exists rule, which works correctly for every other feature.
+#
+# package_manifest_override exercises an inline ospkg_manifest_method_package_run
+# override — a manifest-DSL escape hatch orthogonal to jq's own metadata shape,
+# not something the generator can derive.
+generation:
+  suppress:
+    scenarios: [if_exists_reinstall, if_exists_update]
 
 package_manifest_override:
   envs: [ubuntu-stable]
