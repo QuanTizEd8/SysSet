@@ -86,11 +86,21 @@ def _standalone_install_block(
     feature: str,
     scenario_key: str,
     *,
+    user: str,
     expect_install_failure: bool,
     failure_patterns: list[str],
 ) -> str:
     """Shell fragment: run install once; tee only when validating failure output."""
     install_cmd = f"sh /repo/src/{feature}/install.sh"
+    if user:
+        # `su <user> -c '...'` (no -l/--login) preserves the parent root shell's
+        # exported vars (confirmed empirically) EXCEPT PATH, which it resets to
+        # the system default from /etc/login.defs. Re-threading PATH explicitly
+        # — via a *double*-quoted -c argument so `$PATH` is expanded by the
+        # parent (root) shell before su even runs, not by the su'd shell —
+        # preserves setup-time PATH prepends (e.g. the sudo-stub shim
+        # directory from _SUDO_STUB) that would otherwise silently vanish.
+        install_cmd = f'su {user} -c "PATH=\\"$PATH\\" {install_cmd}"'
     lines: list[str] = []
 
     if expect_install_failure:
@@ -513,6 +523,22 @@ def _run_standalone(
         _feat_env_str = " ".join(
             f"{k}={shlex.quote(v)}" for k, v in resolved_env_vars(feature).items()
         )
+        if user:
+            # Export feature env vars (e.g. `_FEAT_NAME='Bash Installation'`) in
+            # the outer root shell rather than inlining them into the `su -c`
+            # argument: nesting a shlex.quote()-quoted value (which uses '...'
+            # escaping) inside the su -c '...' wrapper's own single quotes
+            # breaks the argument in two wherever a value needs quoting (any
+            # value containing a space, which is every human-readable feature
+            # name) — su then silently runs a truncated no-op command instead
+            # of the test script, with zero output and exit code 0. Plain `su
+            # <user> -c '...'` (confirmed empirically) inherits exported vars
+            # from the parent shell, so exporting here has the same effect
+            # without the nesting hazard.
+            for k, v in resolved_env_vars(feature).items():
+                test_cmd_lines.append(f"export {k}={shlex.quote(v)}")
+            test_cmd_lines.append("export REPO_ROOT=/repo")
+            test_cmd_lines.append("export FEATURE_INSTALL_RC")
         for ts in test_scripts:
             ts_name = f"{ts}.sh"
             ts_path = f"/tmp/{ts_name}"  # noqa: S108 — path is inside the container
@@ -522,12 +548,18 @@ def _run_standalone(
             heredoc = f"cat > {ts_path} << '{sentinel}'\n{content}{sentinel}"
             test_cmd_lines.append(f"{heredoc}\nchmod +x {ts_path}")
             if user:
+                # Double-quoted -c argument so `$PATH` is expanded by the outer
+                # (root) shell before su runs — see _standalone_install_block.
+                # `\$HOME` is left escaped so it's expanded by the su'd shell
+                # instead (after su resets HOME to the target user's home),
+                # adding the framework's universal nonroot bin dir default
+                # (PREFIX_SYMLINK_NONROOT=~/.local/bin) so a check script's own
+                # `#!/usr/bin/env bash` shebang — and any nonroot-installed
+                # binary it invokes — resolves even when the feature installed
+                # somewhere `su`'s non-login PATH doesn't otherwise cover.
                 test_cmd_lines.append(
-                    f"su {user} -c '"
-                    f"{_feat_env_str}"
-                    f" PATH=/tmp/_testlib:$PATH"
-                    f" REPO_ROOT=/repo FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC"
-                    f" {ts_path}'",
+                    f'su {user} -c "PATH=\\"/tmp/_testlib:\\$HOME/.local/bin:'
+                    f'$PATH\\" {ts_path}"',
                 )
             else:
                 test_cmd_lines.append(
@@ -535,6 +567,14 @@ def _run_standalone(
                     f" PATH=/tmp/_testlib:$PATH REPO_ROOT=/repo"
                     f" FEATURE_INSTALL_RC=$FEATURE_INSTALL_RC {ts_path}",
                 )
+            # Without this, the container's outer `sh -c "$run_cmd"` (no set -e)
+            # just continues past a failing test script to the next statement —
+            # the final statement in the whole assembled script is always the
+            # trailing copy-log-to-bind-mount fragment, which always exits 0,
+            # so a genuinely failing check silently reported an overall PASS.
+            test_cmd_lines.append(
+                '_TS_RC=$?; if [ "${_TS_RC}" -ne 0 ]; then exit "${_TS_RC}"; fi',
+            )
 
         parts = [
             RETRY_SHELL_PREAMBLE,
@@ -548,6 +588,7 @@ def _run_standalone(
                 _standalone_install_block(
                     feature,
                     key,
+                    user=user,
                     expect_install_failure=expect_install_failure,
                     failure_patterns=failure_patterns,
                 ),

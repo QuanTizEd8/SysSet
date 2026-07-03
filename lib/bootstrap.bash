@@ -90,9 +90,90 @@ _bootstrap__tool() {
 }
 
 bootstrap__jq() {
-  # @brief bootstrap__jq — Ensure jq is on PATH, installing via ospkg if absent.
+  # @brief bootstrap__jq — Ensure jq is on PATH, downloading the upstream release
+  # binary from GitHub if absent.
+  #
+  # Deliberately does not use ospkg (the OS package manager) the way most
+  # other bootstrap__* functions do: that requires root or passwordless sudo,
+  # which defeats non-privileged installs entirely. It also cannot resolve
+  # the version via github__resolve_version like most other tools do — that
+  # function calls bootstrap__jq internally (via json__query) to parse the
+  # GitHub API response, which would make bootstrapping jq depend on jq
+  # already being installed. github__latest_tag breaks that cycle: it falls
+  # back to grep/sed parsing when jq is not yet available. Otherwise mirrors
+  # bootstrap__yq's direct-binary-download approach; jq publishes a
+  # sha256sum.txt release asset, so install__release_asset's sidecar
+  # auto-probe verifies the download without any extra checksum handling.
+  #
   # Returns: 0 on success, 1 if jq cannot be installed.
-  _bootstrap__tool --cmd jq --pkg jq --group "lib-json"
+  command -v jq > /dev/null 2>&1 && return 0
+
+  # Fast path: previously bootstrapped binary still alive.
+  local _state_ctx _state_path _state_group
+  install__read_state "jq" _state_ctx _state_path _state_group
+  if [[ -x "${_state_path:-}" ]]; then
+    logging__skip "Reusing bootstrapped jq at '${_state_path}'."
+    local _state_dir
+    _state_dir="$(dirname "${_state_path}")"
+    export PATH="${_state_dir}:${PATH}"
+    return 0
+  fi
+
+  logging__install "Bootstrapping jq from the upstream GitHub release."
+
+  local _tag
+  _tag="$(github__latest_tag "jqlang/jq")"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to resolve the latest jq release tag."
+    return "$_rc"
+  }
+
+  local _os _arch
+  _os="$(os__release_kernel macos)"
+  _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to detect OS kernel."
+    return "$_rc"
+  }
+  _arch="$(os__release_arch)"
+  _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to detect CPU architecture."
+    return "$_rc"
+  }
+  case "${_arch}" in
+    amd64 | arm64) ;;
+    *)
+      logging__error "unsupported architecture '${_arch}' for jq bootstrap."
+      return 1
+      ;;
+  esac
+
+  local _asset="jq-${_os}-${_arch}"
+  local _base="https://github.com/jqlang/jq/releases/download/${_tag}"
+  local _install_dir
+  _install_dir="$(file__tmpdir "bootstrap/jq")"
+  logging__install "Installing jq binary '${_asset}' from '${_base}'."
+  # install__release_asset (via uri__fetch_asset) prints the installed path to
+  # stdout — harmless for bootstrap__yq's callers, which capture it via
+  # $(bootstrap__yq), but bootstrap__jq's callers don't capture its stdout at
+  # all, and this function is itself called deep inside other $(...)
+  # captures (e.g. github__resolve_version resolving a *different* tool's
+  # version) — left unsuppressed, that path silently corrupts whichever
+  # outer capture happens to be active. Discard it here.
+  install__release_asset \
+    --asset-uri "${_base}/${_asset}" \
+    --binary-dest "${_install_dir}/jq" > /dev/null
+  _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to install jq binary '${_asset}' from '${_base}'."
+    return "$_rc"
+  }
+
+  install__state_record "jq" "internal" "binary" "${_install_dir}/jq" "devfeats-bootstrap-jq" || true
+  export PATH="${_install_dir}:${PATH}"
+  command -v jq > /dev/null 2>&1
 }
 
 bootstrap__flock() {

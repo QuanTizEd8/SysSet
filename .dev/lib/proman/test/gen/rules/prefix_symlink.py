@@ -1,19 +1,19 @@
 """Custom-prefix + symlink-discovery scenario family.
 
-Covers `custom_prefix_symlink`/`custom_prefix_no_symlink`: install at a
-non-default prefix, verify symlink discovery behaves as configured. Trigger:
-`_options.prefix.bins` non-empty and symlinks aren't globally skipped.
+Covers `custom_prefix_symlink`/`custom_prefix_no_symlink`/
+`custom_prefix_symlink_nonroot`: install at a non-default prefix, verify
+symlink discovery behaves as configured. Trigger: `_options.prefix.bins`
+non-empty and symlinks aren't globally skipped.
 
-A non-root variant (`custom_prefix_symlink_nonroot`) was tried and reverted:
-the test runner always installs as root regardless of the chosen
-environment's user (confirmed by a real Docker run — the generated
-"symlink at ~/.local/bin" checks failed because the install never actually
-ran as the non-root user). install-git's own non-root scenario needs
-`standalone.skip_install: true` plus a hand-written `pre:` that manually
-re-invokes install.sh via `su <user>` — there's no generic, feature-agnostic
-form of that yet, and devcontainer mode has the same problem (image builds
-always run as root regardless of `remoteUser`). Left as follow-up work
-rather than shipping a confirmed-broken generated scenario.
+`custom_prefix_symlink_nonroot` (standalone-only — devcontainer image builds
+always run as root regardless of `remoteUser`, so there's no non-root mode to
+target there) requires `standalone.user` to actually run the install as that
+user, which `run.py` did not honor until it was fixed; the scenario was
+dropped rather than shipped confirmed-broken. Now that the runner wires
+`standalone.user` through to the install step, and the custom prefix's setup:
+chown gives the target user write access without needing privileged
+bookkeeping (see the `_FEAT_SHARE_DIR_NONROOT` fix in
+`features/install.tmpl.bash`), it's safe to generate again.
 """
 
 from __future__ import annotations
@@ -49,12 +49,19 @@ class PrefixSymlinkRule:
         cfg: GenerationConfig,
         envs: dict,  # noqa: ARG002
     ) -> list[GeneratedScenario]:
-        """Generate the root symlink and no-symlink scenarios."""
+        """Generate the root symlink, no-symlink, and non-root symlink scenarios."""
         return [
             self._symlink(
                 facts, cfg, "custom_prefix_symlink", cfg.primary_env, root=True
             ),
             self._no_symlink(facts, cfg),
+            self._symlink(
+                facts,
+                cfg,
+                "custom_prefix_symlink_nonroot",
+                cfg.nonroot_env,
+                root=False,
+            ),
         ]
 
     def _custom_prefix(self, facts: FeatureFacts) -> str:
@@ -81,6 +88,28 @@ class PrefixSymlinkRule:
             _FAMILY,
             options={"prefix": custom_prefix, "prefix_discovery": "symlink"},
         )
+        if not root:
+            # /opt/... is outside the target user's home, so it needs to be
+            # pre-created and chowned before a non-privileged install can write
+            # to it — mirrors install-git/install-zsh's hand-written non-root
+            # custom-prefix scenarios. devcontainer mode can't exercise this at
+            # all (image builds always run as root), so force standalone-only
+            # regardless of the family's configured modes.
+            #
+            # curl/ca-certificates are pre-installed here (as root, before the
+            # su-wrapped install) because the non-root install has no privilege
+            # to bootstrap a fetch tool itself — confirmed by a real Docker run
+            # against install-jq, whose bootstrap needs curl to resolve
+            # `version: stable` against the GitHub API.
+            scenario["modes"] = ["standalone"]
+            scenario["setup"] = (
+                "retry apt-get update -qq\n"
+                "retry apt-get install -y --no-install-recommends "
+                "curl ca-certificates\n"
+                f"mkdir -p {custom_prefix}\n"
+                f"chown vscode:vscode {custom_prefix}"
+            )
+            scenario["standalone"] = {"user": "vscode"}
         scenario["tests"] = [name]
 
         checks: list[CheckItem] = [
@@ -109,10 +138,11 @@ class PrefixSymlinkRule:
                     bin_,
                 ),
             )
+        location = "default" if root else "non-root default"
         group = CheckGroup(
             description=f"prefix={custom_prefix}, prefix_discovery=symlink: binary "
-            "installs at the custom prefix and a symlink is created at the default "
-            "location.",
+            f"installs at the custom prefix and a symlink is created at the "
+            f"{location} location.",
             checks=checks,
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})

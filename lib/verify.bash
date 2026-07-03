@@ -112,13 +112,24 @@ verify__gpg_detached() {
   # removes the temporary keyring. The caller is responsible for downloading
   # `sig_file` and `key_file` before calling this function.
   #
+  # Unlike most bootstrap__* tools, gpg has no official prebuilt Linux binary
+  # to fall back to (upstream ships source tarballs only, with its own
+  # dependency chain — libgcrypt, libksba, libassuan, npth — so downloading a
+  # static binary the way bootstrap__jq/bootstrap__yq do isn't viable). When
+  # gpg cannot be installed because the caller lacks privilege, verification
+  # is skipped with a warning rather than failing the whole install — the
+  # same graceful-degradation policy already used for privileged-only side
+  # operations elsewhere (e.g. package-manager cache cleanup, dependency
+  # auto-install). A privileged caller with a genuinely broken gpg install
+  # still fails loudly.
+  #
   # Args:
   #   <file>      Path to the artifact to verify.
   #   <sig_file>  Path to the detached PGP signature file (`.asc` or `.sig`).
   #   <key_file>  Path to the ASCII-armored or binary public key.
   #   [group_id]  Tracking group used when auto-installing gpg (default: `lib-verify`).
   #
-  # Returns: 0 on successful verification, 1 on failure.
+  # Returns: 0 on successful (or skipped) verification, 1 on failure.
   local _file="$1" _sig="${2-}" _key="${3-}" _group="${4:-lib-verify}"
   [[ -f "$_file" ]] || {
     logging__error "artifact not found: '${_file}'."
@@ -135,10 +146,14 @@ verify__gpg_detached() {
 
   bootstrap__gpg "$_group"
   local _rc=$?
-  [[ $_rc == 0 ]] || {
+  if [[ $_rc != 0 ]]; then
+    if ! users__is_privileged; then
+      logging__warn "gpg is not available and cannot be installed without privilege; skipping signature verification for '$(basename "$_file")'."
+      return 0
+    fi
     logging__error "gpg is required for detached signature verification."
     return "$_rc"
-  }
+  fi
 
   local _ghome
   _ghome="$(file__mktmpdir "verify-gpg")"

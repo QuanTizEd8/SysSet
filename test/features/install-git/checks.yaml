@@ -418,7 +418,8 @@ source_custom_prefix_nonroot:
     bash "${REPO_ROOT}/src/install-git/install.bash" \
       --method source \
       --prefix /opt/git \
-      --version stable
+      --version stable \
+      --no_flags rust
 
   checks:
     - title: running as non-root user

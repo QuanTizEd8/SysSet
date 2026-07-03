@@ -59,6 +59,7 @@ source_custom_prefix_nonroot:
     Non-root user with custom prefix installs zsh under the prefix and symlinks into ~/.local/bin.
   pre: |
     _ZSH="${HOME}/.local/bin/zsh"
+    export _ZSH
   checks:
     - title: zsh binary installed under user prefix
       cmd: test -f /opt/zsh/bin/zsh

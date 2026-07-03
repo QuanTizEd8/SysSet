@@ -40,6 +40,9 @@ source_custom_prefix:
 source_custom_prefix_nonroot:
   envs: [debian-stable+build-essential+ncurses+vscode]
   modes: [standalone]
+  setup: |
+    mkdir -p /opt/zsh
+    chown vscode:vscode /opt/zsh
   options:
     method: source
     version: "5.9.1"

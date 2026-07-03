@@ -407,7 +407,9 @@ __detect_existing_method__() {
   if [[ -n "${GIT_CLONE_URI:-}" && -d "${_FEAT_EXISTING_PATH}/.git" ]]; then
     _FEAT_EXISTING_METHOD="git-clone"
   elif ospkg__is_managed "${_FEAT_EXISTING_PATH}" 2>/dev/null; then
-    local _method_state="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+    local _method_state_base="${_FEAT_SHARE_DIR_ROOT}"
+    users__is_user_path "${_FEAT_EXISTING_PATH}" && _method_state_base="${_FEAT_SHARE_DIR_NONROOT}"
+    local _method_state="${_method_state_base}/state/installed-method"
     if [[ -f "${_method_state}" ]]; then
       _FEAT_EXISTING_METHOD="$(< "${_method_state}")"
     else
@@ -1609,10 +1611,14 @@ __install_finish__() {
 
   __install_register_dummy__
   if [[ -v METHOD && -n "${METHOD:-}" ]]; then
-    local _method_state_dir="${_FEAT_SHARE_DIR_ROOT}/state"
+    local _method_state_base="${_FEAT_SHARE_DIR_ROOT}"
+    if users__is_user_path "${_RESOLVED_PREFIX:-${_FEAT_SHARE_DIR_ROOT}}"; then
+      _method_state_base="${_FEAT_SHARE_DIR_NONROOT}"
+    fi
+    local _method_state_dir="${_method_state_base}/state"
     file__mkdir "${_method_state_dir}"
     printf '%s\n' "${METHOD}" | file__tee "${_method_state_dir}/installed-method"
-    logging__info "Recorded installed method '${METHOD}'."
+    logging__info "Recorded installed method '${METHOD}' at '${_method_state_dir}'."
   fi
   ${{ _script.shell_completions_call }}$
   __deploy_lifecycle_scripts__
