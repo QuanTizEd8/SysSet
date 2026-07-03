@@ -404,10 +404,11 @@ _ctx__load_darwin_os() {
 _ctx__populate_plat() {
   # @brief _ctx__populate_plat — Populate `plat.*` keys from `os.bash` release helpers.
   #
-  # Always sets `plat.kernel`, `plat.machine`, `plat.platform`, and `plat.machine_release`.
-  # Optional keys are set only when the underlying helper returns non-empty:
-  # `plat.kernel_gh`, `plat.kernel_macos`, `plat.kernel_osx`, `plat.machine_gh`,
-  # `plat.machine_node`, `plat.machine_bitness`, `plat.rust_triple`, `plat.libc`.
+  # Always sets `plat.kernel`, `plat.machine`, `plat.platform`, `plat.machine_release`,
+  # and `plat.musl_suffix`. Optional keys are set only when the underlying helper
+  # returns non-empty: `plat.kernel_gh`, `plat.kernel_macos`, `plat.kernel_osx`,
+  # `plat.machine_gh`, `plat.machine_node`, `plat.machine_go`, `plat.machine_gnu`,
+  # `plat.machine_bitness`, `plat.rust_triple`, `plat.libc`.
   #
   # Returns: 0.
   local _v
@@ -426,6 +427,10 @@ _ctx__populate_plat() {
   if [[ -n "${_v}" ]]; then ctx__set "plat.machine_gh=${_v}"; fi
   _v="$(os__release_arch --flavor node 2> /dev/null || true)"
   if [[ -n "${_v}" ]]; then ctx__set "plat.machine_node=${_v}"; fi
+  _v="$(os__release_arch --flavor go 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.machine_go=${_v}"; fi
+  _v="$(os__release_arch --flavor gnu 2> /dev/null || true)"
+  if [[ -n "${_v}" ]]; then ctx__set "plat.machine_gnu=${_v}"; fi
   _v="$(os__release_arch --flavor bitness 2> /dev/null || true)"
   if [[ -n "${_v}" ]]; then ctx__set "plat.machine_bitness=${_v}"; fi
   _v="$(os__rust_triple 2> /dev/null || true)"
@@ -436,6 +441,11 @@ _ctx__populate_plat() {
     ctx__set "plat.avx2=true"
   else
     ctx__set "plat.avx2=false"
+  fi
+  if [[ "${_v}" == "musl" ]]; then
+    ctx__set "plat.musl_suffix=-musl"
+  else
+    ctx__set "plat.musl_suffix="
   fi
 }
 

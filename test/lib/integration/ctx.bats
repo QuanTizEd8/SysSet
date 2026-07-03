@@ -181,6 +181,37 @@ _expected_version_id_mm() {
   esac
 }
 
+@test "ctx_real: plat.machine_go is a recognised GOARCH-style token" {
+  local _actual
+  _actual="$(ctx__get plat.machine_go)"
+  [[ -n "${_actual}" ]] || fail "plat.machine_go is empty"
+  case "${_actual}" in
+    amd64 | arm64 | arm | 386 | ppc64le | s390x | riscv64 | loong64) ;;
+    *) fail "unrecognised plat.machine_go: '${_actual}'" ;;
+  esac
+}
+
+@test "ctx_real: plat.machine_go is 'amd64' on x86_64/amd64 hosts" {
+  local _machine
+  _machine="$(uname -m)"
+  case "${_machine}" in x86_64 | amd64) ;; *) skip "not an x86_64 host" ;; esac
+  [[ "$(ctx__get plat.machine_go)" == "amd64" ]]
+}
+
+@test "ctx_real: plat.machine_gnu is 'x86_64' on x86_64/amd64 hosts" {
+  local _machine
+  _machine="$(uname -m)"
+  case "${_machine}" in x86_64 | amd64) ;; *) skip "not an x86_64 host" ;; esac
+  [[ "$(ctx__get plat.machine_gnu)" == "x86_64" ]]
+}
+
+@test "ctx_real: plat.machine_gnu equals plat.machine_release on non-x86_64 hosts" {
+  local _machine
+  _machine="$(uname -m)"
+  case "${_machine}" in x86_64 | amd64) skip "x86_64 host — gnu flavor canonicalises" ;; esac
+  [[ "$(ctx__get plat.machine_gnu)" == "$(ctx__get plat.machine_release)" ]]
+}
+
 @test "ctx_real: plat.kernel_gh is 'linux' on Linux" {
   [[ "$(uname -s)" == "Linux" ]] || skip "linux-only"
   [[ "$(ctx__get plat.kernel_gh)" == "linux" ]]
@@ -320,6 +351,22 @@ _expected_version_id_mm() {
   _id="$(_os_release_field ID || true)"
   case "${_id,,}" in debian | ubuntu) ;; *) skip "not debian/ubuntu" ;; esac
   [[ "$(ctx__get plat.libc)" == "gnu" ]]
+}
+
+@test "ctx_real: plat.musl_suffix is '-musl' iff plat.libc is 'musl'" {
+  local _libc _suffix
+  _libc="$(ctx__get plat.libc || true)"
+  _suffix="$(ctx__get plat.musl_suffix)"
+  if [[ "${_libc}" == "musl" ]]; then
+    [[ "${_suffix}" == "-musl" ]]
+  else
+    [[ -z "${_suffix}" ]]
+  fi
+}
+
+@test "ctx_real: plat.musl_suffix is empty on Darwin" {
+  [[ "$(uname -s)" == "Darwin" ]] || skip "darwin-only"
+  [[ -z "$(ctx__get plat.musl_suffix)" ]]
 }
 
 @test "ctx_real: plat.rust_triple is non-empty" {

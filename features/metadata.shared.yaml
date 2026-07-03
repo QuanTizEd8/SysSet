@@ -540,6 +540,31 @@ options:
       Supports the same runtime substitutions as `binary_asset_uri`.
       When set, passed to `--gpg-sig` during `install__release_asset`.
 
+  binary_sidecar_gpg_key_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary.sidecar_gpg_key_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.binary.sidecar_gpg_key_uri", "") }}#
+    description: >-
+      URI of the GPG public key used to verify the `binary_sidecar_uri` checksum
+      file itself, independent of (and combinable with) `binary_gpg_key_uri`/
+      `binary_gpg_sig_uri`, which verify the binary asset directly. Use this when
+      upstream only GPG-signs its checksums file rather than each release asset.
+      When set, passed to `--sidecar-gpg-key` during `install__release_asset`.
+
+  binary_sidecar_gpg_sig_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.binary.sidecar_gpg_sig_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.binary.sidecar_gpg_sig_uri", "") }}#
+    description: >-
+      URI of the detached GPG signature for the `binary_sidecar_uri` checksum file.
+      Supports the same runtime substitutions as `binary_asset_uri`.
+      Defaults to `binary_sidecar_uri` with `.asc` appended.
+      When set, passed to `--sidecar-gpg-sig` during `install__release_asset`.
+
   script_asset_uri:
     _apply_when: |
       #{{ return bool(get("_options.method.script")) }}#

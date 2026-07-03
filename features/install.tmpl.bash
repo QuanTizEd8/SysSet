@@ -850,6 +850,7 @@ __install_run_binary__() {
     fi
     local _asset_uri _asset_name _bin_dest _primary_name _src
     local -a _sha256_args=() _sidecar_args=() _installer_dir_arg=() _binary_src_args=() _netrc_arg=() _gpg_key_arg=() _gpg_sig_arg=()
+    local -a _sidecar_gpg_key_arg=() _sidecar_gpg_sig_arg=()
     _asset_uri="$(ctx__expand_pattern "${BINARY_ASSET_URI}")"
     _asset_name="${_asset_uri%%\?*}"
     _asset_name="${_asset_name##*/}"
@@ -892,6 +893,16 @@ __install_run_binary__() {
       _gpg_sig_uri="$(ctx__expand_pattern "${BINARY_GPG_SIG_URI}")"
       _gpg_sig_arg=(--gpg-sig "${_gpg_sig_uri}")
     fi
+    if [[ -v BINARY_SIDECAR_GPG_KEY_URI && -n "${BINARY_SIDECAR_GPG_KEY_URI}" ]]; then
+      local _sidecar_gpg_key_uri
+      _sidecar_gpg_key_uri="$(ctx__expand_pattern "${BINARY_SIDECAR_GPG_KEY_URI}")"
+      _sidecar_gpg_key_arg=(--sidecar-gpg-key "${_sidecar_gpg_key_uri}")
+    fi
+    if [[ -v BINARY_SIDECAR_GPG_SIG_URI && -n "${BINARY_SIDECAR_GPG_SIG_URI}" ]]; then
+      local _sidecar_gpg_sig_uri
+      _sidecar_gpg_sig_uri="$(ctx__expand_pattern "${BINARY_SIDECAR_GPG_SIG_URI}")"
+      _sidecar_gpg_sig_arg=(--sidecar-gpg-sig "${_sidecar_gpg_sig_uri}")
+    fi
     [[ -n "${INSTALLER_DIR:-}" ]] && _installer_dir_arg=(--installer-dir "${INSTALLER_DIR}")
     [[ -n "${BINARY_NETRC:-}" ]] && _netrc_arg=(--netrc-file "${BINARY_NETRC}")
     logging__install "Installing binary '${_asset_name}' from '${_asset_uri}' to '${_bin_dest}'."
@@ -904,7 +915,9 @@ __install_run_binary__() {
       "${_installer_dir_arg[@]+"${_installer_dir_arg[@]}"}" \
       "${_netrc_arg[@]+"${_netrc_arg[@]}"}" \
       "${_gpg_key_arg[@]+"${_gpg_key_arg[@]}"}" \
-      "${_gpg_sig_arg[@]+"${_gpg_sig_arg[@]}"}"
+      "${_gpg_sig_arg[@]+"${_gpg_sig_arg[@]}"}" \
+      "${_sidecar_gpg_key_arg[@]+"${_sidecar_gpg_key_arg[@]}"}" \
+      "${_sidecar_gpg_sig_arg[@]+"${_sidecar_gpg_sig_arg[@]}"}"
     if [[ -v BINARY_COMPANION_BINS && "${#BINARY_COMPANION_BINS[@]}" -gt 0 && -v _RESOLVED_PREFIX ]]; then
       local _comp_name
       for _comp_name in "${BINARY_COMPANION_BINS[@]+"${BINARY_COMPANION_BINS[@]}"}"; do

@@ -113,6 +113,11 @@ os__release_arch() {
   # Flavor `node`:             x64,  arm64, armv7l, ppc64le, s390x.
   # Flavor `gh`:               amd64, arm64, armv6, 386.
   # Flavor `bitness`:          64 (64-bit arches) or 32 (32-bit arches).
+  # Flavor `go`:                GOARCH-style: amd64, arm64, arm (armv7/armv6), 386, ppc64le,
+  #                             s390x, riscv64, loong64.
+  # Flavor `gnu`:                GNU-triple-style: x86_64 for amd64/x64/x86_64; every other
+  #                             architecture passes through its `github`-flavor (i.e.
+  #                             `plat.machine_release`-equivalent) token unchanged.
   #
   # Returns: 0 on success, 1 if the arch/flavor combination is unsupported.
   # shellcheck disable=SC2120
@@ -131,8 +136,9 @@ os__release_arch() {
   case "$_raw" in
     x86_64 | amd64 | x64)
       case "$_flavor" in
-        github | gh) printf 'amd64\n' ;;
+        github | gh | go) printf 'amd64\n' ;;
         node) printf 'x64\n' ;;
+        gnu) printf 'x86_64\n' ;;
         bitness) printf '64\n' ;;
         *)
           logging__error "unknown flavor '${_flavor}'."
@@ -148,9 +154,10 @@ os__release_arch() {
       ;;
     armv7l | armv7)
       case "$_flavor" in
-        github) printf 'armv7\n' ;;
+        github | gnu) printf 'armv7\n' ;;
         node) printf 'armv7l\n' ;;
         gh) printf 'armv6\n' ;;
+        go) printf 'arm\n' ;;
         bitness) printf '32\n' ;;
         *)
           logging__error "unknown flavor '${_flavor}'."
@@ -161,6 +168,8 @@ os__release_arch() {
     armv6l)
       case "$_flavor" in
         gh) printf 'armv6\n' ;;
+        go) printf 'arm\n' ;;
+        gnu) printf '%s\n' "$_raw" ;;
         bitness) printf '32\n' ;;
         *)
           logging__error "architecture 'armv6l' is not supported for flavor '${_flavor}'."
@@ -170,8 +179,8 @@ os__release_arch() {
       ;;
     i386 | i686)
       case "$_flavor" in
-        github) printf 'i386\n' ;;
-        gh) printf '386\n' ;;
+        github | gnu) printf 'i386\n' ;;
+        gh | go) printf '386\n' ;;
         bitness) printf '32\n' ;;
         *)
           logging__error "architecture '${_raw}' is not supported for flavor '${_flavor}'."
@@ -181,7 +190,7 @@ os__release_arch() {
       ;;
     ppc64le)
       case "$_flavor" in
-        github | node) printf 'ppc64le\n' ;;
+        github | node | go | gnu) printf 'ppc64le\n' ;;
         bitness) printf '64\n' ;;
         *)
           logging__error "architecture 'ppc64le' is not supported for flavor '${_flavor}'."
@@ -191,7 +200,7 @@ os__release_arch() {
       ;;
     s390x)
       case "$_flavor" in
-        github | node) printf 's390x\n' ;;
+        github | node | go | gnu) printf 's390x\n' ;;
         bitness) printf '64\n' ;;
         *)
           logging__error "architecture 's390x' is not supported for flavor '${_flavor}'."
@@ -201,7 +210,7 @@ os__release_arch() {
       ;;
     riscv64)
       case "$_flavor" in
-        github) printf 'riscv64\n' ;;
+        github | go | gnu) printf 'riscv64\n' ;;
         bitness) printf '64\n' ;;
         *)
           logging__error "architecture 'riscv64' is not supported for flavor '${_flavor}'."
@@ -211,7 +220,7 @@ os__release_arch() {
       ;;
     loong64 | loongarch64)
       case "$_flavor" in
-        github) printf 'loong64\n' ;;
+        github | go | gnu) printf 'loong64\n' ;;
         bitness) printf '64\n' ;;
         *)
           logging__error "architecture 'loong64' is not supported for flavor '${_flavor}'."

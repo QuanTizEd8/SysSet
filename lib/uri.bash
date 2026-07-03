@@ -323,6 +323,43 @@ _uri__download_to() {
   return 0
 }
 
+_uri__gpg_verify() {
+  # _uri__gpg_verify <target-file> <key-uri> <sig-uri> <sig-dir> <key-dir> <label> [auth-arg]...
+  # Download the detached GPG signature and public key, then verify <target-file>
+  # against them via verify__gpg_detached. <label> (e.g. "GPG" or "sidecar GPG")
+  # is interpolated into the log/error messages. Returns 0 on success, non-zero
+  # (propagating the failing step's exit code) on any download or verify failure.
+  local _target="$1" _key_uri="$2" _sig_uri="$3" _sig_dir="$4" _key_dir="$5" _label="$6"
+  shift 6
+  mkdir -p "$_sig_dir" "$_key_dir"
+  local _sig_base _sig_file
+  _sig_base="$(printf '%s\n' "$(_uri__split_frag "$_sig_uri")" | head -n1)"
+  _sig_file="${_sig_dir}/$(_uri__safe_basename "$_sig_base")"
+  local _key_base _key_file
+  _key_base="$(printf '%s\n' "$(_uri__split_frag "$_key_uri")" | head -n1)"
+  _key_file="${_key_dir}/$(_uri__safe_basename "$_key_base")"
+  logging__download "Fetching ${_label} signature from '${_sig_base}'"
+  _uri__download_to "$_sig_uri" "$_sig_file" "$@"
+  local _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to download ${_label} signature from '${_sig_base}'."
+    return "$_rc"
+  }
+  logging__download "Fetching ${_label} key from '${_key_base}'"
+  _uri__download_to "$_key_uri" "$_key_file" "$@"
+  _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "failed to download ${_label} key from '${_key_base}'."
+    return "$_rc"
+  }
+  verify__gpg_detached "$_target" "$_sig_file" "$_key_file"
+  _rc=$?
+  [[ $_rc == 0 ]] || {
+    logging__error "${_label} signature verification failed for '$(basename "$_target")'."
+    return "$_rc"
+  }
+}
+
 uri__fetch_asset() {
   # @brief uri__fetch_asset <uri> [OPTIONS] — Download, verify, extract, and optionally install one or more files from a single asset.
   #
@@ -341,10 +378,14 @@ uri__fetch_asset() {
   #   sidecar/<basename>      Basename of --sidecar URI (only when --sidecar given).
   #   gpg-sig/<basename>      Basename of --gpg-sig URI (only when --gpg-key given).
   #   gpg-key/<basename>      Basename of --gpg-key URI (only when --gpg-key given).
+  #   sidecar-gpg-sig/<basename> Basename of --sidecar-gpg-sig URI (only when
+  #                           --sidecar-gpg-key given).
+  #   sidecar-gpg-key/<basename> Basename of --sidecar-gpg-key URI (only when
+  #                           --sidecar-gpg-key given).
   # ```
   #
   # `work_dir` is `--installer-dir` when provided, otherwise an auto-cleaned tmpdir
-  # (removed on script exit). When `--installer-dir` is provided, the five managed
+  # (removed on script exit). When `--installer-dir` is provided, the seven managed
   # subdirectories are removed and recreated on each invocation (idempotency).
   #
   # Pairing rules apply independently to the binary pair (`--binary-src` /
@@ -403,9 +444,16 @@ uri__fetch_asset() {
   #                           single-hash (one line, one field). Hard-fails on
   #                           mismatch or missing entry. Cannot be combined with
   #                           `--sha256 none`.
-  #   --gpg-key <uri>         URI of the GPG public key; enables GPG verification.
-  #   --gpg-sig <uri>         URI of the detached GPG signature.
+  #   --gpg-key <uri>         URI of the GPG public key; enables GPG verification of
+  #                           the downloaded asset itself.
+  #   --gpg-sig <uri>         URI of the detached GPG signature for the asset.
   #                           Default: the asset `<uri>` with `.asc` appended.
+  #   --sidecar-gpg-key <uri> URI of the GPG public key used to verify the
+  #                           `--sidecar` checksum file itself (independent of, and
+  #                           combinable with, `--gpg-key`/`--gpg-sig`). Requires
+  #                           `--sidecar`.
+  #   --sidecar-gpg-sig <uri> URI of the detached GPG signature for the `--sidecar`
+  #                           file. Default: the `--sidecar` URI with `.asc` appended.
   #   --filename <name>       Override the URI basename for `archive/` placement
   #                           and sidecar hash lookup. Does not affect the extracted
   #                           tree layout under `asset/`.
@@ -429,6 +477,7 @@ uri__fetch_asset() {
   local _uri=""
   local _installer_dir="" _filename="" _owner_group="" _netrc_file=""
   local _sha256_spec="" _sidecar_uri="" _gpg_key_uri="" _gpg_sig_uri=""
+  local _sidecar_gpg_key_uri="" _sidecar_gpg_sig_uri=""
   local _retry=3
   local -a _headers=() _binary_src=() _binary_dest=() _file_src=() _file_dest=() _chmod_exec_specs=()
 
@@ -487,6 +536,14 @@ uri__fetch_asset() {
         _gpg_sig_uri="$2"
         shift 2
         ;;
+      --sidecar-gpg-key)
+        _sidecar_gpg_key_uri="$2"
+        shift 2
+        ;;
+      --sidecar-gpg-sig)
+        _sidecar_gpg_sig_uri="$2"
+        shift 2
+        ;;
       --filename)
         _filename="$2"
         shift 2
@@ -529,6 +586,10 @@ uri__fetch_asset() {
     logging__error "--sha256 none cannot be combined with --sidecar."
     return 1
   }
+  [[ -n "$_sidecar_gpg_key_uri" && -z "$_sidecar_uri" ]] && {
+    logging__error "--sidecar-gpg-key requires --sidecar."
+    return 1
+  }
 
   local _nbsrc="${#_binary_src[@]}" _nbdest="${#_binary_dest[@]}"
   local _nfsrc="${#_file_src[@]}" _nfdest="${#_file_dest[@]}"
@@ -567,7 +628,7 @@ uri__fetch_asset() {
     _work_dir="$_installer_dir"
     mkdir -p "$_work_dir"
     local _sd
-    for _sd in archive asset sidecar gpg-sig gpg-key; do
+    for _sd in archive asset sidecar gpg-sig gpg-key sidecar-gpg-sig sidecar-gpg-key; do
       rm -rf "${_work_dir:?}/${_sd}"
     done
   else
@@ -653,36 +714,16 @@ uri__fetch_asset() {
 
   # ── GPG verification ──────────────────────────────────────────────────────
   if [[ -n "$_gpg_key_uri" ]]; then
-    local _gpg_sig_dir="${_work_dir}/gpg-sig"
-    local _gpg_key_dir="${_work_dir}/gpg-key"
-    mkdir -p "$_gpg_sig_dir" "$_gpg_key_dir"
     local _sig_uri="${_gpg_sig_uri:-${_base_uri}.asc}"
-    local _sig_base _sig_file
-    _sig_base="$(printf '%s\n' "$(_uri__split_frag "$_sig_uri")" | head -n1)"
-    _sig_file="${_gpg_sig_dir}/$(_uri__safe_basename "$_sig_base")"
-    local _key_base _key_file
-    _key_base="$(printf '%s\n' "$(_uri__split_frag "$_gpg_key_uri")" | head -n1)"
-    _key_file="${_gpg_key_dir}/$(_uri__safe_basename "$_key_base")"
-    logging__download "Fetching GPG signature from '${_sig_base}'"
-    _uri__download_to "$_sig_uri" "$_sig_file" "${_auth_args[@]}"
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "failed to download GPG signature from '${_sig_base}'."
-      return "$_rc"
-    }
-    logging__download "Fetching GPG key from '${_key_base}'"
-    _uri__download_to "$_gpg_key_uri" "$_key_file" "${_auth_args[@]}"
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "failed to download GPG key from '${_key_base}'."
-      return "$_rc"
-    }
-    verify__gpg_detached "$_dl_path" "$_sig_file" "$_key_file"
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "GPG signature verification failed for '${_asset_name}'."
-      return "$_rc"
-    }
+    _uri__gpg_verify "$_dl_path" "$_gpg_key_uri" "$_sig_uri" \
+      "${_work_dir}/gpg-sig" "${_work_dir}/gpg-key" "GPG" "${_auth_args[@]}" || return $?
+  fi
+
+  # ── Sidecar GPG verification ──────────────────────────────────────────────
+  if [[ -n "$_sidecar_gpg_key_uri" ]]; then
+    local _sc_sig_uri="${_sidecar_gpg_sig_uri:-${_sidecar_uri}.asc}"
+    _uri__gpg_verify "$_sidecar_file" "$_sidecar_gpg_key_uri" "$_sc_sig_uri" \
+      "${_work_dir}/sidecar-gpg-sig" "${_work_dir}/sidecar-gpg-key" "sidecar GPG" "${_auth_args[@]}" || return $?
   fi
 
   # ── Archive detection and extraction ──────────────────────────────────────

@@ -309,6 +309,8 @@ install__release_asset() {
   #   --installer-dir <dir>      Passed to uri__fetch_asset.
   #   --gpg-key <uri>            Passed to uri__fetch_asset.
   #   --gpg-sig <uri>            Passed to uri__fetch_asset.
+  #   --sidecar-gpg-key <uri>    Passed to uri__fetch_asset.
+  #   --sidecar-gpg-sig <uri>    Passed to uri__fetch_asset.
   #   --retry <n>                Passed to uri__fetch_asset.
   #   --chmod-exec <spec>        Passed to uri__fetch_asset.
   #
@@ -352,7 +354,8 @@ install__release_asset() {
         ;;
       --file-src | --file-dest | \
         --header | --netrc-file | --filename | --owner-group | \
-        --installer-dir | --gpg-key | --gpg-sig | --retry | --chmod-exec)
+        --installer-dir | --gpg-key | --gpg-sig | \
+        --sidecar-gpg-key | --sidecar-gpg-sig | --retry | --chmod-exec)
         _passthrough+=("$1" "$2")
         shift 2
         ;;

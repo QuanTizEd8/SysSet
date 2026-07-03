@@ -732,6 +732,85 @@ _stub_fa_common() {
   [[ ! -f "$_VERIFY_SHA_CALLS" ]] || [[ ! -s "$_VERIFY_SHA_CALLS" ]]
 }
 
+# ── uri__fetch_asset: sidecar GPG verification ────────────────────────────────
+
+@test "uri__fetch_asset: --sidecar-gpg-key requires --sidecar" {
+  run uri__fetch_asset /tmp/x --sidecar-gpg-key "https://example.com/key.gpg"
+  assert_failure
+  assert_output --partial "--sidecar-gpg-key requires --sidecar"
+}
+
+@test "uri__fetch_asset: sidecar GPG verification calls verify__gpg_detached with the sidecar file" {
+  _stub_fa_common
+  local _src="${BATS_TEST_TMPDIR}/asset.bin"
+  printf 'content\n' > "$_src"
+  local _hash="aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd"
+  local _sc="${BATS_TEST_TMPDIR}/checksums.sha256"
+  printf '%s  asset.bin\n' "$_hash" > "$_sc"
+  local _dst="${BATS_TEST_TMPDIR}/out.bin"
+  run --separate-stderr uri__fetch_asset \
+    "$_src" --sidecar "file://${_sc}" --file-dest "$_dst" \
+    --sidecar-gpg-key "https://example.com/key.gpg" \
+    --sidecar-gpg-sig "https://example.com/checksums.sha256.asc"
+  assert_success
+  run grep -qF "checksums.sha256" "$_VERIFY_GPG_CALLS"
+  assert_success
+}
+
+@test "uri__fetch_asset: --sidecar-gpg-sig defaults to <sidecar-uri>.asc when not set" {
+  _stub_fa_common
+  _FETCH_LOG="${BATS_TEST_TMPDIR}/_fetch_log"
+  export _FETCH_LOG
+  local _hash="aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd"
+  net__fetch_url_file() {
+    printf '%s\n' "$1" >> "$_FETCH_LOG"
+    case "$1" in
+      *checksums.sha256) printf '%s  asset.bin\n' "$_hash" > "$2" ;;
+      *) printf 'stub\n' > "$2" ;;
+    esac
+  }
+  export -f net__fetch_url_file
+
+  local _src="${BATS_TEST_TMPDIR}/asset.bin"
+  printf 'content\n' > "$_src"
+  local _dst="${BATS_TEST_TMPDIR}/out.bin"
+  run --separate-stderr uri__fetch_asset \
+    "$_src" --sidecar "https://example.com/checksums.sha256" --file-dest "$_dst" \
+    --sidecar-gpg-key "https://example.com/key.gpg"
+  assert_success
+  run grep -qF "checksums.sha256.asc" "$_FETCH_LOG"
+  assert_success
+}
+
+@test "uri__fetch_asset: asset GPG and sidecar GPG verify independently when both configured" {
+  _stub_fa_common
+  # Override to record one line per call (space-joined args) so calls are countable.
+  verify__gpg_detached() {
+    printf '%s\n' "$*" >> "$_VERIFY_GPG_CALLS"
+    return 0
+  }
+  export -f verify__gpg_detached
+
+  local _src="${BATS_TEST_TMPDIR}/asset.bin"
+  printf 'content\n' > "$_src"
+  local _hash="aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd"
+  local _sc="${BATS_TEST_TMPDIR}/checksums.sha256"
+  printf '%s  asset.bin\n' "$_hash" > "$_sc"
+  local _dst="${BATS_TEST_TMPDIR}/out.bin"
+  run --separate-stderr uri__fetch_asset \
+    "$_src" --sidecar "file://${_sc}" --file-dest "$_dst" \
+    --gpg-key "https://example.com/asset-key.gpg" \
+    --gpg-sig "https://example.com/asset.asc" \
+    --sidecar-gpg-key "https://example.com/sidecar-key.gpg" \
+    --sidecar-gpg-sig "https://example.com/checksums.sha256.asc"
+  assert_success
+  [[ "$(wc -l < "$_VERIFY_GPG_CALLS")" -eq 2 ]]
+  run grep -qF "asset.bin" "$_VERIFY_GPG_CALLS"
+  assert_success
+  run grep -qF "checksums.sha256" "$_VERIFY_GPG_CALLS"
+  assert_success
+}
+
 # ── uri__fetch_asset: installer-dir and work-dir layout ──────────────────────
 
 @test "uri__fetch_asset: no install flags prints asset/ directory path" {

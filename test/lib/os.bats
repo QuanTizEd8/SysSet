@@ -329,6 +329,100 @@ _os__platform_stub_release() {
 }
 
 # ---------------------------------------------------------------------------
+# os__release_arch — go/gnu flavors
+# ---------------------------------------------------------------------------
+
+@test "os__release_arch --flavor go maps x86_64/amd64/x64 to amd64" {
+  reload_lib
+  run os__release_arch x86_64 --flavor go
+  assert_output "amd64"
+  run os__release_arch amd64 --flavor go
+  assert_output "amd64"
+  run os__release_arch x64 --flavor go
+  assert_output "amd64"
+}
+
+@test "os__release_arch --flavor go maps aarch64/arm64 to arm64" {
+  reload_lib
+  run os__release_arch aarch64 --flavor go
+  assert_output "arm64"
+  run os__release_arch arm64 --flavor go
+  assert_output "arm64"
+}
+
+@test "os__release_arch --flavor go maps armv7l/armv7 to arm" {
+  reload_lib
+  run os__release_arch armv7l --flavor go
+  assert_output "arm"
+  run os__release_arch armv7 --flavor go
+  assert_output "arm"
+}
+
+@test "os__release_arch --flavor go maps armv6l to arm" {
+  reload_lib
+  run os__release_arch armv6l --flavor go
+  assert_output "arm"
+}
+
+@test "os__release_arch --flavor go maps i386/i686 to 386" {
+  reload_lib
+  run os__release_arch i386 --flavor go
+  assert_output "386"
+  run os__release_arch i686 --flavor go
+  assert_output "386"
+}
+
+@test "os__release_arch --flavor go passes through ppc64le, s390x, riscv64, loong64" {
+  reload_lib
+  run os__release_arch ppc64le --flavor go
+  assert_output "ppc64le"
+  run os__release_arch s390x --flavor go
+  assert_output "s390x"
+  run os__release_arch riscv64 --flavor go
+  assert_output "riscv64"
+  run os__release_arch loongarch64 --flavor go
+  assert_output "loong64"
+}
+
+@test "os__release_arch --flavor gnu maps x86_64/amd64/x64 to x86_64" {
+  reload_lib
+  run os__release_arch x86_64 --flavor gnu
+  assert_output "x86_64"
+  run os__release_arch amd64 --flavor gnu
+  assert_output "x86_64"
+  run os__release_arch x64 --flavor gnu
+  assert_output "x86_64"
+}
+
+@test "os__release_arch --flavor gnu passes through the machine_release-equivalent token for other architectures" {
+  reload_lib
+  run os__release_arch aarch64 --flavor gnu
+  assert_output "arm64"
+  run os__release_arch armv7l --flavor gnu
+  assert_output "armv7"
+  run os__release_arch armv6l --flavor gnu
+  assert_output "armv6l"
+  run os__release_arch i386 --flavor gnu
+  assert_output "i386"
+  run os__release_arch i686 --flavor gnu
+  assert_output "i386"
+  run os__release_arch ppc64le --flavor gnu
+  assert_output "ppc64le"
+  run os__release_arch s390x --flavor gnu
+  assert_output "s390x"
+  run os__release_arch riscv64 --flavor gnu
+  assert_output "riscv64"
+  run os__release_arch loongarch64 --flavor gnu
+  assert_output "loong64"
+}
+
+@test "os__release_arch --flavor go returns 1 for unsupported architecture" {
+  reload_lib
+  run os__release_arch bogus-arch --flavor go
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
 # os__libc
 # ---------------------------------------------------------------------------
 
