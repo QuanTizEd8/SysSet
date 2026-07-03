@@ -109,6 +109,28 @@ class FeatureFacts:
         """Whether `_options.prefix.symlink.skip` suppresses symlink creation."""
         return bool(self.prefix.get("symlink", {}).get("skip", False))
 
+    @property
+    def prefix_compatible_methods(self) -> list[str] | None:
+        """Method names allowed by `_options.prefix.applies_when`, or None.
+
+        `applies_when` restricts prefix machinery to specific install methods
+        (e.g. binary/npm but not package/upstream-package, which install via
+        the OS package manager with no PREFIX concept — `--prefix` is
+        silently ignored outside these methods). `None` means no restriction
+        declared, so prefix always applies (jq's shape). Every current
+        real-world `applies_when` across the project is a single-key
+        `method: [...]` condition (verified project-wide), so this only
+        reads that key — the schema technically allows other option names in
+        `applies_when`, but nothing uses that shape today.
+        """
+        applies_when = self.prefix.get("applies_when")
+        if not applies_when:
+            return None
+        methods: list[str] = []
+        for clause in applies_when:
+            methods.extend(clause.get("method", ()))
+        return methods
+
     def resolved_bin_path(self, prefix: str, bin_name: str) -> str:
         """Full binary path under a given prefix: `{prefix}/{bin_dir}/{bin_name}`."""
         return f"{prefix}/{self.bin_dir}/{bin_name}"

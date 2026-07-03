@@ -78,15 +78,24 @@ def first_feasible_method(
     facts: FeatureFacts,
     envs: dict,
     env_name: str,
+    *,
+    allowed: list[str] | None = None,
 ) -> str | None:
     """Pick the first declared method (declaration order) feasible on `env_name`.
 
     Returns None if the feature declares no methods (or none are feasible
     there). Used to pick an explicit `method:` for scenarios that pin a
     method rather than leaving it to `auto` resolution.
+
+    `allowed`, when given, additionally restricts the pick to method names in
+    that list — e.g. `facts.prefix_compatible_methods`, so a scenario that
+    depends on PREFIX/PATH resolution never pins a method for which
+    `--prefix` would be silently ignored.
     """
     attrs = resolve_attributes(env_name, envs)
     for name, method_config in facts.methods.items():
+        if allowed is not None and name not in allowed:
+            continue
         if when_util.match(method_config.get("when"), attrs):
             return name
     return None

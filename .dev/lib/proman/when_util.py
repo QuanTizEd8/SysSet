@@ -134,9 +134,22 @@ def _match_condition(spec: object, actual: object) -> bool:
 
 
 def _values_overlap(spec_value: object, actual: object) -> bool:
-    spec_set = {spec_value} if isinstance(spec_value, str) else set(spec_value)
-    actual_set = {actual} if isinstance(actual, str) else set(actual)
+    """Set-overlap comparison, case-insensitive for strings.
+
+    Mirrors `ctx-match.jq`'s `ic: ascii_downcase` — the runtime evaluator
+    lowercases both sides of every `eq`/`ne` comparison (e.g. metadata using
+    `plat.kernel: linux` matches the runtime's `Linux`), so this must too or
+    generation-time env/method selection can diverge from what a real install
+    would actually resolve to.
+    """
+    spec_set = _normalized_set(spec_value)
+    actual_set = _normalized_set(actual)
     return bool(spec_set & actual_set)
+
+
+def _normalized_set(value: object) -> set:
+    values = [value] if isinstance(value, str) else list(value)
+    return {v.lower() if isinstance(v, str) else v for v in values}
 
 
 def _semver_op(op: str, actual: object, spec_value: str) -> bool:

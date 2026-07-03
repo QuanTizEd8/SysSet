@@ -25,6 +25,10 @@ rollout:
 environments:
   primary: ubuntu-stable
   nonroot_env: ubuntu-stable+vscode
+  # method_matrix's npm_default: "npm is already installed" isn't a WhenSpec
+  # attribute (it's a Dockerfile-layer fact), so this points at one specific
+  # pre-provisioned env rather than going through the normal when:-driven pool.
+  npm_env: ubuntu-stable+node
   # One representative per plat.pm, used for e.g. method_matrix's package_default
   # (one scenario per feasible package manager). alpine/rocky/opensuse-leap need
   # their +bash variant since generated checks use `bash -c '...'`; ubuntu/debian/

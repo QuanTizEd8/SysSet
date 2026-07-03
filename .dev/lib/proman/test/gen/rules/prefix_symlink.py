@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proman.test.gen import checks_builtin
+from proman.test.gen import checks_builtin, envselect
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
 from proman.test.gen.types import CheckGroup, CheckItem, GeneratedScenario
@@ -47,46 +47,79 @@ class PrefixSymlinkRule:
         self,
         facts: FeatureFacts,
         cfg: GenerationConfig,
-        envs: dict,  # noqa: ARG002
+        envs: dict,
     ) -> list[GeneratedScenario]:
         """Generate the root symlink, no-symlink, and non-root symlink scenarios."""
-        return [
+        results = [
             self._symlink(
-                facts, cfg, "custom_prefix_symlink", cfg.primary_env, root=True
+                facts, cfg, envs, "custom_prefix_symlink", cfg.primary_env, root=True
             ),
-            self._no_symlink(facts, cfg),
+            self._no_symlink(facts, cfg, envs),
             self._symlink(
                 facts,
                 cfg,
+                envs,
                 "custom_prefix_symlink_nonroot",
                 cfg.nonroot_env,
                 root=False,
             ),
         ]
+        return [r for r in results if r is not None]
 
     def _custom_prefix(self, facts: FeatureFacts) -> str:
         return f"/opt/{facts.primary_bin}-test"
+
+    def _method_option(
+        self,
+        facts: FeatureFacts,
+        envs: dict,
+        env: str,
+    ) -> dict | None:
+        """Build `{"method": ...}` when `applies_when` restricts the compatible set.
+
+        Left to `auto` resolution (empty dict) when `applies_when` is
+        undeclared. Returns `None` (caller skips the scenario) when
+        `applies_when` *is* declared but no compatible method is feasible on
+        `env` — generating an unpinned scenario in that case would silently
+        exercise a method for which `--prefix` is ignored, asserting paths
+        that were never actually used.
+        """
+        compatible = facts.prefix_compatible_methods
+        if compatible is None:
+            return {}
+        method = envselect.first_feasible_method(facts, envs, env, allowed=compatible)
+        if method is None:
+            return None
+        return {"method": method}
 
     def _symlink(
         self,
         facts: FeatureFacts,
         cfg: GenerationConfig,
+        envs: dict,
         name: str,
         env: str,
         *,
         root: bool,
-    ) -> GeneratedScenario:
+    ) -> GeneratedScenario | None:
         bin_ = facts.primary_bin
         custom_prefix = self._custom_prefix(facts)
         resolved_path = facts.resolved_bin_path(custom_prefix, bin_)
         link_dir = facts.symlink_root if root else facts.symlink_nonroot
         link_path = f"{link_dir}/{bin_}"
 
+        method_option = self._method_option(facts, envs, env)
+        if method_option is None:
+            return None
         scenario = base_scenario(
             [env],
             cfg,
             _FAMILY,
-            options={"prefix": custom_prefix, "prefix_discovery": "symlink"},
+            options={
+                "prefix": custom_prefix,
+                "prefix_discovery": "symlink",
+                **method_option,
+            },
         )
         if not root:
             # /opt/... is outside the target user's home, so it needs to be
@@ -148,19 +181,29 @@ class PrefixSymlinkRule:
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
 
     def _no_symlink(
-        self, facts: FeatureFacts, cfg: GenerationConfig
-    ) -> GeneratedScenario:
+        self,
+        facts: FeatureFacts,
+        cfg: GenerationConfig,
+        envs: dict,
+    ) -> GeneratedScenario | None:
         name = "custom_prefix_no_symlink"
         bin_ = facts.primary_bin
         custom_prefix = self._custom_prefix(facts)
         resolved_path = facts.resolved_bin_path(custom_prefix, bin_)
         link_path = f"{facts.symlink_root}/{bin_}"
 
+        method_option = self._method_option(facts, envs, cfg.primary_env)
+        if method_option is None:
+            return None
         scenario = base_scenario(
             [cfg.primary_env],
             cfg,
             _FAMILY,
-            options={"prefix": custom_prefix, "prefix_discovery": "none"},
+            options={
+                "prefix": custom_prefix,
+                "prefix_discovery": "none",
+                **method_option,
+            },
         )
         scenario["tests"] = [name]
 

@@ -23,9 +23,10 @@ _FAMILY = "method_matrix"
 
 # Methods whose observable result (a working binary, verified identically to
 # `default`) doesn't depend on the install mechanism, so they reuse the
-# `default` check group verbatim rather than emitting their own.
+# `default` check group verbatim rather than emitting their own. `npm` is
+# handled separately (needs a pre-provisioned env — see `_npm_default`).
 _VERBATIM_METHODS = frozenset(
-    {"source", "npm", "npm-bundled", "cargo", "script", "git-clone"},
+    {"binary", "source", "npm-bundled", "cargo", "script", "git-clone"},
 )
 
 
@@ -63,49 +64,35 @@ class MethodMatrixRule:
         cfg: GenerationConfig,
         envs: dict,
     ) -> GeneratedScenario | None:
-        if method == "package":
-            return self._package_default(when, facts, cfg, envs)
-        if method == "upstream-package":
-            return self._single_env(
-                "upstream_package_default",
-                method,
-                when,
-                facts,
-                cfg,
-                envs,
-                pm_check=True,
-            )
+        if method in ("package", "upstream-package"):
+            return self._pm_managed_default(method, when, facts, cfg, envs)
+        if method == "npm":
+            return self._npm_default(when, facts, cfg, envs)
         if method == "git-clone" and not facts.is_git_clone_only:
             # Only a distinct scenario when git-clone is one of *several*
             # methods — if it's the only one, `default` already covers it.
-            return self._single_env(
-                "git_clone_default",
-                method,
-                when,
-                facts,
-                cfg,
-                envs,
-                pm_check=False,
-            )
+            return self._single_env("git_clone_default", method, when, cfg, envs)
         if method in _VERBATIM_METHODS and method != "git-clone":
             return self._single_env(
-                method_scenario_name(method),
-                method,
-                when,
-                facts,
-                cfg,
-                envs,
-                pm_check=False,
+                method_scenario_name(method), method, when, cfg, envs
             )
         return None
 
-    def _package_default(
+    def _pm_managed_default(
         self,
+        method: str,
         when: dict | list | None,
         facts: FeatureFacts,
         cfg: GenerationConfig,
         envs: dict,
     ) -> GeneratedScenario | None:
+        """Shared body for `package`/`upstream-package`: one env per feasible PM.
+
+        Both install via the OS package manager and are equally likely to have
+        per-PM setup code (repo/key configuration for `upstream-package`, or
+        just differing package availability for `package`) that a single-env
+        test would leave unexercised for every PM but one.
+        """
         selected = envselect.select_envs(
             when,
             envs,
@@ -115,33 +102,67 @@ class MethodMatrixRule:
         )
         if not selected:
             return None
-        name = "package_default"
-        scenario = base_scenario(selected, cfg, _FAMILY, options={"method": "package"})
+        name = method_scenario_name(method)
+        scenario = base_scenario(selected, cfg, _FAMILY, options={"method": method})
         scenario["tests"] = [name]
-        pkg_name = facts.package_name("package")
+        pkg_name = facts.package_name(method)
         pms = sorted({resolve_attributes(e, envs).get("plat.pm") for e in selected})
         checks = [
             *default_checks.build(facts, cfg),
             checks_builtin.pm_managed_check(facts.primary_bin, pkg_name, pms),
         ]
+        verb = (
+            "the OS package manager's standard configured sources"
+            if method == "package"
+            else "the OS package manager after adding/altering package-source "
+            "configuration"
+        )
         group = CheckGroup(
-            description="method=package: installs via the OS package manager's "
-            "standard configured sources.",
+            description=f"method={method}: installs via {verb}.",
             checks=checks,
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
+
+    def _npm_default(
+        self,
+        when: dict | list | None,
+        facts: FeatureFacts,  # noqa: ARG002
+        cfg: GenerationConfig,
+        envs: dict,
+    ) -> GeneratedScenario | None:
+        """`npm` needs Node.js/npm already installed — not a WhenSpec attribute.
+
+        None of the AI-CLI-tool features declare a `method-npm` dependency
+        block (by design — Node.js is expected to be pre-installed, e.g. via
+        `install-node`), so this can't use the normal `when:`-driven env pool
+        the way other methods do. `cfg.npm_env` points at a pre-provisioned
+        environment instead; still respects the method's own `when:` (if any)
+        via `feasible_envs`, so a feature that further restricts `npm` to a
+        specific platform is not silently tested on an incompatible one.
+        """
+        if not envselect.feasible_envs(when, envs, candidates=[cfg.npm_env]):
+            return None
+        scenario = base_scenario([cfg.npm_env], cfg, _FAMILY, options={"method": "npm"})
+        scenario["tests"] = ["default"]
+        return GeneratedScenario(
+            name=method_scenario_name("npm"),
+            scenario=scenario,
+            checks={},
+        )
 
     def _single_env(
         self,
         name: str,
         method: str,
         when: dict | list | None,
-        facts: FeatureFacts,
         cfg: GenerationConfig,
         envs: dict,
-        *,
-        pm_check: bool,
     ) -> GeneratedScenario | None:
+        """Single-env, verbatim reuse of the `default` check group.
+
+        For methods whose observable result is identical to whatever `default`
+        already verifies — no method-specific assertion is needed.
+        """
         selected = envselect.select_envs(
             when,
             envs,
@@ -151,23 +172,6 @@ class MethodMatrixRule:
         )
         if not selected:
             return None
-        env = selected[0]
-        scenario = base_scenario([env], cfg, _FAMILY, options={"method": method})
-        if not pm_check:
-            # Verbatim reuse: point at the existing `default` check group
-            # instead of emitting a new one.
-            scenario["tests"] = ["default"]
-            return GeneratedScenario(name=name, scenario=scenario, checks={})
-        scenario["tests"] = [name]
-        pkg_name = facts.package_name(method)
-        pm = resolve_attributes(env, envs).get("plat.pm")
-        checks = [
-            *default_checks.build(facts, cfg),
-            checks_builtin.pm_managed_check(facts.primary_bin, pkg_name, [pm]),
-        ]
-        group = CheckGroup(
-            description=f"method={method}: installs via the OS package manager "
-            "after adding/altering package-source configuration.",
-            checks=checks,
-        )
-        return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
+        scenario = base_scenario(selected, cfg, _FAMILY, options={"method": method})
+        scenario["tests"] = ["default"]
+        return GeneratedScenario(name=name, scenario=scenario, checks={})

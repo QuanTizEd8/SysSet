@@ -59,7 +59,15 @@ class IfExistsRule:
             # during __reinstall_init__/__resolve_input_version__ even though
             # the exact same version resolves fine with an explicit method —
             # an auto-resolution edge case, not something to silently rely on.
-            method = envselect.first_feasible_method(facts, envs, cfg.primary_env)
+            # Restricted to prefix.applies_when's compatible methods (when
+            # declared) since reinstall/update detection is itself
+            # PREFIX-path-based — the same reasoning as prefix_symlink.py.
+            method = envselect.first_feasible_method(
+                facts,
+                envs,
+                cfg.primary_env,
+                allowed=facts.prefix_compatible_methods,
+            )
             results.append(
                 self._mutating("if_exists_reinstall", "reinstall", method, facts, cfg),
             )
