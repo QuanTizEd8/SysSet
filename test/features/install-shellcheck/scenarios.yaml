@@ -1,53 +1,33 @@
-default:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  tests:
-  - default
-binary_custom_prefix:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: binary
-    prefix: /opt/shellcheck-bin
-    if_exists: reinstall
-  tests:
-  - binary_custom_prefix
-package_default:
-  envs:
-  - debian-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: package
-  tests:
-  - package_default
-if_exists_fail:
-  expect_install_failure: true
-  envs:
-  - debian-stable
-  modes:
-  - standalone
-  setup: 'printf ''#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then printf
-    "ShellCheck - shell script analysis tool\nversion: 0.0.0 (fake)\n"; exit 0; fi\nexit
-    0\n'' > /usr/local/bin/shellcheck
+# Every scenario except installer_dir is now auto-generated from
+# features/install-shellcheck/metadata.yaml (_options.verify.functional,
+# _options.method, _options.prefix, if_exists, invalid enum values, log_file)
+# by .dev/lib/proman/test/gen/. See test/features/generation.yaml for the
+# generator config, and run `proman-test-gen-preview install-shellcheck` to
+# inspect the generated output.
+#
+# installer_dir exercises the universal INSTALLER_DIR option (verifying the
+# downloaded archive is preserved for debugging) — a framework-wide option
+# with no dedicated generator family yet.
+#
+# Dropped as now-generated/superseded: binary_custom_prefix declared
+# if_exists: reinstall with no setup: seeding a pre-existing install, so
+# if_exists was inert — substantively identical to the generated
+# custom_prefix_symlink.
+#
+# generation.suppress.scenarios drops custom_prefix_symlink_nonroot:
+# shellcheck's binary release is a .tar.xz archive, and extracting it
+# requires xz — which, unlike jq/yq, has no privilege-free bootstrap path
+# (bootstrap__xz only installs via the OS package manager). A nonroot user
+# without xz already on the base image genuinely cannot install shellcheck
+# via method=binary — confirmed via a real Docker run (fails at
+# _bootstrap__tool: "xz is required... but could not be installed", not a
+# generator or check bug). Fixing this for real would mean giving
+# bootstrap__xz a static-binary bootstrap path like jq/yq have, which is a
+# separate, larger feature change outside the scope of this migration.
+generation:
+  suppress:
+    scenarios: [custom_prefix_symlink_nonroot]
 
-    chmod +x /usr/local/bin/shellcheck
-
-    '
-  options:
-    method: auto
-    if_exists: fail
-  tests:
-  - if_exists_fail
-  standalone:
-    skip_install: false
 installer_dir:
   envs:
   - ubuntu-stable

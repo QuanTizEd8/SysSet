@@ -25,6 +25,7 @@ rollout:
     - install-ripgrep
     - install-shfmt
     - install-just
+    - install-shellcheck
   denylist:
     - install
     - install-os-pkg

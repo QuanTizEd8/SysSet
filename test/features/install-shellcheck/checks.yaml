@@ -1,32 +1,5 @@
-binary_custom_prefix:
-  description: Verifies method=binary installs shellcheck under a custom prefix.
-  checks:
-    - title: shellcheck binary exists under custom prefix
-      cmd: test -x /opt/shellcheck-bin/bin/shellcheck
-    - title: shellcheck resolves from PATH to custom prefix
-      cmd: bash -c 'resolved=$(command -v shellcheck); test -n "$resolved" && test -x "$resolved" && test "$(readlink -f "$resolved" 2>/dev/null || echo "$resolved")" = "$(readlink -f /opt/shellcheck-bin/bin/shellcheck 2>/dev/null || echo /opt/shellcheck-bin/bin/shellcheck)"'
-    - title: custom-prefix shellcheck lints a valid script
-      cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | /opt/shellcheck-bin/bin/shellcheck -'
-
-default:
-  description: Verifies default install installs a working shellcheck.
-  checks:
-    - title: shellcheck is on PATH
-      cmd: command -v shellcheck
-    - title: shellcheck reports a version
-      cmd: bash -c 'shellcheck --version | grep -Eq "version:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+"'
-    - title: shellcheck lints a valid script
-      cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | shellcheck -'
-
-if_exists_fail:
-  description: "Ensures if_exists=fail exits non-zero when shellcheck already exists."
-  checks:
-    - title: preinstalled shellcheck remains available
-      cmd: command -v shellcheck
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-
+# Every check group except installer_dir is now auto-generated — see
+# scenarios.yaml.
 installer_dir:
   description: |
     installer_dir=/tmp/shellcheck-trace: the downloaded archive must remain in
@@ -43,11 +16,3 @@ installer_dir:
         ls -la /tmp/shellcheck-trace/ 2>/dev/null || echo "(directory missing)"
     - title: shellcheck archive preserved in installer_dir
       cmd: bash -c 'ls /tmp/shellcheck-trace/archive/shellcheck-v*.tar.xz 2>/dev/null | grep -q .'
-
-package_default:
-  description: Verifies method=package installs a working shellcheck.
-  checks:
-    - title: shellcheck is on PATH
-      cmd: command -v shellcheck
-    - title: shellcheck lints a valid script
-      cmd: bash -c 'printf "#!/bin/sh\necho hi\n" | shellcheck -'

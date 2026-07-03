@@ -19,6 +19,9 @@ _options:
   verify:
     args: "--version"
     description: Verify shellcheck is installed and working.
+    functional:
+      description: shellcheck lints a valid script
+      cmd: 'printf "#!/bin/sh\necho hi\n" | {bin} -'
   gh_repo: koalaman/shellcheck
   version:
     resolution: github_release
