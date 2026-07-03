@@ -14,6 +14,9 @@ _options:
   verify:
     args: "--version"
     description: Verify just is installed and working.
+    functional:
+      description: just runs a simple recipe
+      cmd: '{bin} --justfile <(printf "hello:\n\t@echo hi\n") hello | grep -q hi'
   gh_repo: casey/just
   version:
     resolution: github_release

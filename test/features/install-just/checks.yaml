@@ -1,28 +1,5 @@
-binary_custom_prefix:
-  description: Verifies release install to a custom prefix.
-  checks:
-    - title: just binary exists in custom prefix
-      cmd: test -x /opt/just-bin/bin/just
-    - title: custom-prefix just reports version
-      cmd: /opt/just-bin/bin/just --version
-
-default:
-  description: Verifies default install path installs just.
-  checks:
-    - title: just is on PATH
-      cmd: command -v just
-    - title: just reports a version
-      cmd: bash -c 'just --version | grep -Eq "(^|[[:space:]])[0-9]+\.[0-9]+\.[0-9]+([[:space:]]|$)"'
-
-if_exists_fail:
-  description: "Ensures if_exists=fail exits non-zero when just already exists."
-  checks:
-    - title: preinstalled just remains available
-      cmd: command -v just
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-
+# Every check group except installer_dir is now auto-generated — see
+# scenarios.yaml.
 installer_dir:
   description: |
     installer_dir=/tmp/just-trace: the downloaded archive and SHA256SUMS file must
@@ -41,11 +18,3 @@ installer_dir:
       cmd: bash -c 'ls /tmp/just-trace/archive/just-*.tar.gz 2>/dev/null | grep -q .'
     - title: SHA256SUMS preserved in installer_dir
       cmd: bash -c 'ls /tmp/just-trace/sidecar/SHA256SUMS 2>/dev/null | grep -q .'
-
-package_default:
-  description: "Verifies repository-based installation."
-  checks:
-    - title: just is on PATH
-      cmd: command -v just
-    - title: just --version succeeds
-      cmd: just --version

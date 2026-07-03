@@ -24,6 +24,7 @@ rollout:
     - install-claude
     - install-ripgrep
     - install-shfmt
+    - install-just
   denylist:
     - install
     - install-os-pkg

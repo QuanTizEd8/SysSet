@@ -1,46 +1,22 @@
-default:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  tests:
-  - default
-binary_custom_prefix:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: binary
-    prefix: /opt/just-bin
-    if_exists: reinstall
-  tests:
-  - binary_custom_prefix
-package_default:
-  envs:
-  - debian-current
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: package
-    if_exists: reinstall
-  tests:
-  - package_default
-if_exists_fail:
-  expect_install_failure: true
-  envs:
-  - debian-current+just
-  modes:
-  - standalone
-  tests:
-  - if_exists_fail
-  standalone:
-    skip_install: false
-  options:
-    if_exists: fail
+# Every scenario except installer_dir is now auto-generated from
+# features/install-just/metadata.yaml (_options.verify.functional,
+# _options.method, _options.prefix, if_exists, invalid enum values, log_file)
+# by .dev/lib/proman/test/gen/. See test/features/generation.yaml for the
+# generator config, and run `proman-test-gen-preview install-just` to inspect
+# the generated output.
+#
+# installer_dir exercises the universal INSTALLER_DIR option (verifying the
+# downloaded archive/sidecar are preserved for debugging) — a framework-wide
+# option with no dedicated generator family yet.
+#
+# Dropped as now-generated/superseded: binary_custom_prefix and
+# package_default both declared if_exists: reinstall with no setup: seeding
+# a pre-existing install, so if_exists was inert in both — substantively
+# identical to the generated custom_prefix_symlink and package_default (which
+# also covers alpine/fedora, not just debian). if_exists_fail's hand-written
+# version relied on a real pre-installed-via-package env instead of the
+# generated version's fake-stub setup, but both simulate the same
+# already-installed condition equally well.
 installer_dir:
   envs:
   - ubuntu-stable
