@@ -47,7 +47,7 @@ _options:
     shells: [bash, zsh, fish]
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/git-lfs-{plat.kernel:lower}-{plat.machine_release==i386?386:{plat.machine_release==armv7?arm:{plat.machine_release}}}-{feat.tag}.{plat.kernel==Darwin?zip:tar.gz}"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/git-lfs-{plat.kernel:lower}-{plat.machine_go}-{feat.tag}.{plat.kernel==Darwin?zip:tar.gz}"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/sha256sums.asc"
       binary_src:
         - git-lfs

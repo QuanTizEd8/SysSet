@@ -28,7 +28,7 @@ _options:
     resolution: github_release
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/task_{plat.kernel:lower}_{plat.machine_release==i386?386:{plat.machine_release==armv7?arm:{plat.machine_release}}}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/task_{plat.kernel:lower}_{plat.machine_go}.tar.gz"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/task_checksums.txt"
       binary_src:
         - task

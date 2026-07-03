@@ -31,7 +31,7 @@ _options:
     resolution: npm
   method:
     binary:
-      asset_uri: "https://downloads.claude.ai/claude-code-releases/{feat.version}/{plat.kernel:lower}-{plat.machine_node}{plat.kernel==linux?{plat.libc==musl?-musl:}:}/claude"
+      asset_uri: "https://downloads.claude.ai/claude-code-releases/{feat.version}/{plat.kernel:lower}-{plat.machine_node}{plat.musl_suffix}/claude"
       when: {plat.machine_release: [amd64, arm64]}
     package:
       when: {plat.pm: brew}

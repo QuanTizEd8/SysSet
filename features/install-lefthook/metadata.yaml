@@ -23,7 +23,7 @@ _options:
     flag: "version"
   method:
     binary:
-      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/lefthook_{feat.version}_{plat.kernel==linux?Linux:MacOS}_{plat.machine_release==amd64?x86_64:{plat.machine_release}}"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/lefthook_{feat.version}_{plat.kernel==linux?Linux:MacOS}_{plat.machine_gnu}"
       sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/lefthook_checksums.txt"
       when:
         - {plat.kernel: linux, plat.machine_release: amd64}
