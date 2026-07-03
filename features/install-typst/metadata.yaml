@@ -14,9 +14,14 @@ _options:
   verify:
     args: "--version"
     description: Verify typst is installed and working.
+    functional:
+      description: typst compiles markup to PDF
+      cmd: 'test "$(echo "hello world" | {bin} compile - - | wc -c)" -gt 100'
   gh_repo: typst/typst
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["0.14.2"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/typst-{plat.machine_release==armv7?armv7-unknown-linux-musleabi:{plat.rust_triple}}.tar.xz"
@@ -32,6 +37,9 @@ _options:
     bins: [typst]
     applies_when:
       - method: [binary, cargo]
+  # typst's binary release is a .tar.xz archive; extracting it requires xz,
+  # which — unlike jq/yq — has no privilege-free bootstrap path (see
+  # generation.suppress.scenarios in test/features/install-typst/scenarios.yaml).
   completions:
     shells: [bash, zsh, fish]
     subcmd: "completions"

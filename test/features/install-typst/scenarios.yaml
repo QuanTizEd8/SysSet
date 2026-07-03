@@ -1,75 +1,23 @@
-default:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  tests: [default]
-
-binary_pinned_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    version: "0.14.2"
-    method: binary
-  tests: [binary_pinned_version]
-
-binary_custom_prefix:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    prefix: /opt/typst-bin
-    prefix_discovery: symlink
-    if_exists: reinstall
-  tests: [binary_custom_prefix]
-
-completions_fish:
-  envs: [ubuntu-stable+fish]
-  modes: [devcontainer, standalone]
-  tests: [completions_fish]
-
-no_completions:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    shell_completions: ''
-  tests: [no_completions]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 9.9.9"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/typst
-    chmod +x /usr/local/bin/typst
-  options:
-    method: auto
-    if_exists: fail
-  tests: [if_exists_fail]
-  standalone:
-    skip_install: false
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 9.9.9"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/typst
-    chmod +x /usr/local/bin/typst
-  options:
-    method: auto
-    if_exists: skip
-  tests: [if_exists_skip]
-
-reinstall:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "typst 0.1.0 (stub)"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/typst
-    chmod +x /usr/local/bin/typst
-  options:
-    version: "0.14.2"
-    method: binary
-    if_exists: reinstall
-  tests: [reinstall]
+# Every scenario is now auto-generated from features/install-typst/metadata.yaml
+# (_options.verify.functional, _options.version.test_pins, _options.method,
+# _options.prefix, _options.completions, if_exists, invalid enum values,
+# log_file) by .dev/lib/proman/test/gen/. See test/features/generation.yaml
+# for the generator config, and run `proman-test-gen-preview install-typst`
+# to inspect the generated output.
+#
+# generation.suppress.scenarios drops custom_prefix_symlink_nonroot: typst's
+# binary release is a .tar.xz archive, and extracting it needs xz, which —
+# unlike jq/yq — has no privilege-free bootstrap path (bootstrap__xz only
+# installs via the OS package manager). A nonroot user without xz already on
+# the base image genuinely cannot install via method=binary — the same
+# constraint confirmed via a real Docker run for install-shellcheck.
+#
+# Dropped as now-generated/superseded: binary_custom_prefix declared
+# if_exists: reinstall with no setup: seeding a pre-existing install, so
+# if_exists was inert — substantively identical to the generated
+# custom_prefix_symlink. reinstall (with a real setup: stub + version pin)
+# is now covered exactly by the generated if_exists_reinstall, which also
+# pins version to test_pins.pinned[0] once declared.
+generation:
+  suppress:
+    scenarios: [custom_prefix_symlink_nonroot]

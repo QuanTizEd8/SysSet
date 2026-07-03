@@ -26,6 +26,7 @@ rollout:
     - install-shfmt
     - install-just
     - install-shellcheck
+    - install-typst
   denylist:
     - install
     - install-os-pkg
