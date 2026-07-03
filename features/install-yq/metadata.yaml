@@ -22,9 +22,14 @@ _options:
   verify:
     args: "--version"
     description: Verify yq is installed and working.
+    functional:
+      description: yq supports -o=json mode
+      cmd: '{bin} -o=json "." /dev/null > /dev/null 2>&1'
   gh_repo: mikefarah/yq
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["4.44.2"]
   completions:
     subcmd: "shell-completion"
     shells: [bash, zsh, fish]

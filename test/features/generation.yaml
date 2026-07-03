@@ -28,6 +28,7 @@ rollout:
     - install-shellcheck
     - install-typst
     - install-uv
+    - install-yq
   denylist:
     - install
     - install-os-pkg
