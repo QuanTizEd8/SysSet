@@ -18,6 +18,7 @@ rollout:
   mode: allowlist
   allowlist:
     - install-jq
+    - install-copilot
   denylist:
     - install
     - install-os-pkg

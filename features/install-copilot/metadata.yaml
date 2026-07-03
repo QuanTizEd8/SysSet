@@ -39,10 +39,15 @@ _options:
   verify:
     args: "--version"
     description: Verify GitHub Copilot CLI is installed and working.
+    functional:
+      description: copilot lists configured MCP servers
+      cmd: '{bin} mcp list > /dev/null 2>&1'
   gh_repo: github/copilot-cli
   version:
     resolution: github_release
     flag: version
+    test_pins:
+      pinned: ["1.0.68"]
   method:
     binary:
       asset_uri: "https://github.com/github/copilot-cli/releases/download/{feat.tag}/copilot-{plat.kernel:lower}-{plat.machine_node}.tar.gz"

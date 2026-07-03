@@ -1,13 +1,20 @@
-defaults:
-  modes: [devcontainer]
-  options:
-    method: binary
-
-# ── baseline ─────────────────────────────────────────────────────────────────
-
-default:
-  envs: [ubuntu-stable]
-  tests: [default]
+# Every scenario except the ones below is now auto-generated from
+# features/install-copilot/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix, if_exists,
+# invalid enum values, log_file, completions) by .dev/lib/proman/test/gen/.
+# See test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-copilot` to inspect the generated output.
+#
+# macos_package_default stays hand-written: the generator has no macOS-mode
+# support (env-selection pool/families are all Linux-container-oriented).
+#
+# copilot_home/copilot_model/plugins exercise copilot-specific custom options
+# with no generic equivalent. All three pin modes: [devcontainer] explicitly
+# (previously via a file-level `defaults:` block, now removed since it would
+# also apply to every generated scenario) — copilot_home/copilot_model's
+# underlying shell-export mechanism likely also works in standalone, but
+# that's unverified and out of scope here; plugins specifically needs
+# devcontainer mode since lifecycle-hook deployment is skipped in standalone.
 
 macos_package_default:
   envs: [macos-current+brew]
@@ -19,22 +26,23 @@ macos_package_default:
     method: package
   tests: [macos_package_default]
 
-# ── new options ───────────────────────────────────────────────────────────────
-
 copilot_home:
   envs: [ubuntu-stable]
+  modes: [devcontainer]
   options:
     copilot_home: ~/copilot-test
   tests: [copilot_home]
 
 copilot_model:
   envs: [ubuntu-stable]
+  modes: [devcontainer]
   options:
     copilot_model: claude-sonnet-4-6
   tests: [copilot_model]
 
 plugins:
   envs: [ubuntu-stable]
+  modes: [devcontainer]
   options:
     plugins: workiq@copilot-plugins
   tests: [plugins]
