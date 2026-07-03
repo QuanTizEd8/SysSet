@@ -34,6 +34,16 @@ def get_scenarios_validator() -> Draft202012Validator:
     return _build_validator("path.scenarios_schema")
 
 
+def get_environments_validator() -> Draft202012Validator:
+    """Return a Draft 2020-12 validator for ``test/environments.yaml``."""
+    return _build_validator("path.environments_schema")
+
+
+def get_generation_validator() -> Draft202012Validator:
+    """Return a Draft 2020-12 validator for ``test/features/generation.yaml``."""
+    return _build_validator("path.generation_schema")
+
+
 @cache
 def _build_metadata_validator() -> Draft202012Validator:
     """Build and cache the metadata schema validator with its extended registry."""

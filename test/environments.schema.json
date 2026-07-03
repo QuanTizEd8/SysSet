@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "environments.schema.json",
+  "title": "Test Docker/native environments",
+  "description": "Registry of environments referenced by scenarios.yaml's `envs:` — base images plus layered `from:`-chain variants, each optionally carrying WhenSpec-style `attributes:` used by the test-generation pipeline to decide which environments satisfy a feature's `when:` conditions.",
+  "type": "object",
+  "minProperties": 1,
+  "patternProperties": {
+    "^[a-zA-Z][a-zA-Z0-9+._-]*$": {
+      "description": "One named environment.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/baseEnvironment"
+        },
+        {
+          "$ref": "#/$defs/variantEnvironment"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "attributes": {
+      "description": "WhenSpec-style attribute facts about this environment (`os.*`/`plat.*` keys, matching the grammar used by `_options.method.*.when`/`_dependencies.*.when`/`_system_requirements.platforms` in metadata.yaml), used by the test generator to decide which environments satisfy a given `when:` clause. String values are exact facts; array values mean \"any of these\" (e.g. multiple supported architectures).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^(os|plat)\\.[a-z0-9_]+$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {"type": "string"},
+          {"type": "array", "items": {"type": "string"}, "minItems": 1}
+        ]
+      }
+    },
+    "dockerBuild": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dockerfile": {
+          "description": "Shell/Dockerfile RUN body layered on top of the base/parent image (retry() helper already in scope).",
+          "type": "string"
+        }
+      }
+    },
+    "baseEnvironment": {
+      "description": "A root environment with its own image (no `from:`) — must declare `attributes:` since there is no parent to inherit from.",
+      "type": "object",
+      "required": ["image", "attributes"],
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "description": "Docker image reference (Linux) or `macos-*` pseudo-image (native GHA macOS runner, no Docker).",
+          "type": "string"
+        },
+        "attributes": {"$ref": "#/$defs/attributes"},
+        "build": {"$ref": "#/$defs/dockerBuild"},
+        "env_vars": {
+          "description": "Environment variables exported for every scenario running against this environment.",
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        },
+        "clean_path": {
+          "description": "macOS only: strip the GHA runner's pre-installed PATH down to the system baseline before running scenarios.",
+          "type": "boolean"
+        },
+        "path_prepend": {
+          "description": "macOS only: colon-separated PATH entries prepended after `clean_path` stripping.",
+          "type": "string"
+        }
+      }
+    },
+    "variantEnvironment": {
+      "description": "An environment layered on top of another via `from:`. Inherits the parent's `attributes:` (flattened transitively through `from:` chains); only needs its own `attributes:` when it genuinely changes OS identity (e.g. a `+toolchain` layer never does).",
+      "type": "object",
+      "required": ["from"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "description": "Key of the parent environment this one is layered on top of.",
+          "type": "string"
+        },
+        "attributes": {
+          "description": "Optional attribute overrides/additions merged on top of the parent's (flattened) attributes.",
+          "$ref": "#/$defs/attributes"
+        },
+        "build": {"$ref": "#/$defs/dockerBuild"},
+        "env_vars": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        }
+      }
+    }
+  }
+}

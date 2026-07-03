@@ -14,6 +14,9 @@ path:
   test_features: ${{ path.test }}$/features
   test_features_shared_defaults: ${{ path.test_features }}$/defaults.shared.yaml
   test_environments: ${{ path.test }}$/environments.yaml
+  environments_schema: ${{ path.test }}$/environments.schema.json
+  test_generation_config: ${{ path.test_features }}$/generation.yaml
+  generation_schema: ${{ path.test_features }}$/generation.schema.json
   test_envs: ${{ path.test }}$/envs
   test_support: ${{ path.test }}$/support
   test_lib: ${{ path.test }}$/lib

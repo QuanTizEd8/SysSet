@@ -149,6 +149,25 @@
             "pattern": {
               "description": "Filename pattern with `[version]` placeholder for extracting version strings from the sidecar file when `resolution=sidecar` (e.g. `zsh-[version].tar.xz`). The `[version]` marker is parsed by `ver__resolve_from_sidecar` to split filenames into prefix/suffix — it is not a context substitution token and is never expanded by `ctx__expand_pattern`.",
               "type": "string"
+            },
+            "test_pins": {
+              "description": "Explicit version values consumed by the test-generation pipeline (not the install/build pipeline) to generate `version_pinned`/`version_legacy` scenarios with real cross-validation against a known-good value. Static and hand-maintained so generation stays deterministic and offline.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "pinned": {
+                  "description": "Version value(s) to test as an explicit, currently-supported pin (e.g. a recent stable release). Generates one `version_pinned`(`_<n>`) scenario per entry.",
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "minItems": 1
+                },
+                "legacy": {
+                  "description": "Version value(s) to test as an older/legacy release, to catch regressions in legacy-format handling (e.g. older asset-naming conventions). Generates one `version_legacy`(`_<n>`) scenario per entry.",
+                  "type": "array",
+                  "items": {"type": "string"},
+                  "minItems": 1
+                }
+              }
             }
           },
           "if": {
@@ -607,6 +626,22 @@
             "description": {
               "description": "Human-readable description of what the verification command checks.",
               "type": "string"
+            },
+            "functional": {
+              "description": "Feature-specific functional smoke-test command, consumed by the test-generation pipeline (not the install/build pipeline). Declared once and reused verbatim across every generated scenario (`default`, pinned-version, method-matrix, if_exists, custom-prefix, ...), replacing what would otherwise be per-tool hand-written duplication.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["cmd"],
+              "properties": {
+                "cmd": {
+                  "description": "Shell command proving the tool actually works, beyond reporting a version (e.g. `echo \"{}\" | {bin} . > /dev/null 2>&1` for jq, or `{bin} hello file.txt` for a search tool). The literal placeholder `{bin}` is substituted by the test generator with the resolved binary name (PATH-based checks) or an absolute path (custom-prefix checks) depending on scenario context.",
+                  "type": "string"
+                },
+                "description": {
+                  "description": "Human-readable description of what the functional command verifies; used verbatim as the generated check's title.",
+                  "type": "string"
+                }
+              }
             }
           }
         },

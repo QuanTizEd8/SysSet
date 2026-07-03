@@ -152,20 +152,26 @@ def _build_scenario(
 
 def generate(
     feature: str,
-    scenarios_path: Path | str,
+    defaults: dict,
+    scenarios: dict,
     envs_path: Path | str,
     out_dir: Path | str,
     *,
     checks_data: dict,
     option_overrides: dict[str, str] | None = None,
 ) -> None:
-    """Generate scenarios.json and Dockerfiles for all devcontainer test scenarios."""
-    scenarios_path = Path(scenarios_path)
+    """Generate scenarios.json and Dockerfiles for all devcontainer test scenarios.
+
+    `defaults`/`scenarios` are the already-loaded, already-merged (hand-written
+    + generated) effective scenarios for `feature` — see
+    `proman.test.effective.load_effective()`. This function no longer reads
+    scenarios.yaml off disk itself, so it can never see a different scenario
+    set than whatever `FeatureTestLoader` already validated for this run.
+    """
     envs_path = Path(envs_path)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    defaults, scenarios = load_scenarios(scenarios_path)
     cfg = load_config()
     envs = load_envs(envs_path)
     envs_dir = cfg.absolute_path("path.test_envs")
@@ -229,7 +235,8 @@ def main_cli() -> None:
     parser.add_argument("--envs", required=True, type=Path)
     parser.add_argument("--out-dir", required=True, type=Path)
     args = parser.parse_args()
-    generate(args.feature, args.unified, args.envs, args.out_dir)
+    defaults, scenarios = load_scenarios(args.unified)
+    generate(args.feature, defaults, scenarios, args.envs, args.out_dir, checks_data={})
 
 
 if __name__ == "__main__":

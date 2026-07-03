@@ -101,6 +101,21 @@ def is_macos(env_name: str, envs: dict) -> bool:
     return bool(re.match(r"^macos", image))
 
 
+def resolve_attributes(env_name: str, envs: dict) -> dict:
+    """Flatten `attributes:` down an environment's `from:` chain.
+
+    Mirrors `_collect_layers`'s recursive flattening, but for the WhenSpec-style
+    `os.*`/`plat.*` attribute facts instead of Dockerfile bodies: a variant with
+    no `attributes:` of its own inherits its parent's untouched; one that
+    declares its own merges on top (only meaningful for a variant that
+    genuinely changes OS identity, which none do today).
+    """
+    env = envs[env_name]
+    from_env = env.get("from")
+    inherited = resolve_attributes(from_env, envs) if from_env else {}
+    return {**inherited, **env.get("attributes", {})}
+
+
 def _collect_layers(
     env_name: str,
     envs: dict,

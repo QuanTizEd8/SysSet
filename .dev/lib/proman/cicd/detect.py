@@ -34,12 +34,12 @@ import yaml
 from proman.config import load as load_config
 from proman.git import git_repo_root
 from proman.release.detect import detect_releasable
+from proman.test.effective import load_effective
 from proman.test.scenarios import (
     DEFAULT_MODES,
     expand_envs,
     iter_merged_scenarios,
 )
-from proman.test.scenarios import load as load_scenarios
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -186,8 +186,11 @@ def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
         scenarios_file = feat / str(cfg["filename.feature_scenarios"])
         if not scenarios_file.exists():
             continue
-        defaults, scenarios = load_scenarios(scenarios_file)
-        for sc_name, merged in iter_merged_scenarios(defaults, scenarios):
+        effective = load_effective(fid)
+        for sc_name, merged in iter_merged_scenarios(
+            effective.defaults,
+            effective.scenarios,
+        ):
             for key, env_name, _ in expand_envs(sc_name, merged):
                 env_def = envs_data.get(env_name)
                 if not isinstance(env_def, dict):
@@ -237,11 +240,14 @@ def compute_feature_matrix(
         scenarios_file = feat / str(cfg["filename.feature_scenarios"])
         if not scenarios_file.exists():
             continue
-        defaults, scenarios = load_scenarios(scenarios_file)
+        effective = load_effective(fid)
         devcontainer_scenarios: list[str] = []
         linux_scenarios: list[str] = []
         macos_scenarios: list[dict[str, str]] = []
-        for sc_name, merged in iter_merged_scenarios(defaults, scenarios):
+        for sc_name, merged in iter_merged_scenarios(
+            effective.defaults,
+            effective.scenarios,
+        ):
             modes = merged.get("modes", list(DEFAULT_MODES))
             for key, env_name, _ in expand_envs(sc_name, merged):
                 env_def = envs_data.get(env_name)

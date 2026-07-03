@@ -311,6 +311,8 @@ def _run_devcontainer(
     filter_prefix: str,
     entries: list[dict],
     checks_data: dict,
+    defaults: dict,
+    scenarios: dict,
     log_overrides: dict[str, str] | None = None,
 ) -> bool:
     ensure_host_log_dir()
@@ -320,7 +322,6 @@ def _run_devcontainer(
 
     cfg = load_config()
     log_bind_dir = ensure_host_log_dir()
-    feat = cfg.absolute_path("path.test_features") / feature
     success = True
     for key in keys:
         entry = next(e for e in entries if e["key"] == key)
@@ -349,7 +350,8 @@ def _run_devcontainer(
             test_out_dir = tmpdir / "test" / feature
             generate(
                 feature=feature,
-                scenarios_path=feat / str(cfg["filename.feature_scenarios"]),
+                defaults=defaults,
+                scenarios=scenarios,
                 envs_path=cfg.absolute_path("path.test_environments"),
                 out_dir=tmpdir,
                 checks_data=checks_data,
@@ -839,6 +841,8 @@ def main() -> None:
             filter_prefix,
             entries,
             ft.checks,
+            ft.defaults,
+            ft.scenarios,
             log_overrides,
         )
         sys.exit(0 if ok else 1)
@@ -857,6 +861,8 @@ def main() -> None:
         filter_prefix,
         entries,
         ft.checks,
+        ft.defaults,
+        ft.scenarios,
         log_overrides,
     ):
         rc = 1

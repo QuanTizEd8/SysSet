@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "generation.schema.json",
+  "title": "Feature test generation config",
+  "description": "Global, cross-feature configuration for the test-generation pipeline (`.dev/lib/proman/test/gen/`). Contains no per-feature data — feature-specific facts needed to generate correct tests (functional smoke-test command, version pins) live in each feature's own `metadata.yaml` under `_options.verify.functional`/`_options.version.test_pins`.",
+  "type": "object",
+  "required": ["enabled", "rollout", "environments", "families"],
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "description": "Master kill switch for the entire generation pipeline. When false, `load_effective()` returns only hand-written scenarios/checks, unchanged from today.",
+      "type": "boolean"
+    },
+    "rollout": {
+      "description": "Migration-only scaffolding controlling which features generation applies to. Retired (set to `all` with an empty/small permanent `denylist`) once every feature has been individually reviewed.",
+      "type": "object",
+      "required": ["mode"],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "`allowlist`: only features in `allowlist` get generated content. `denylist`: every feature except those in `denylist` gets generated content. `all`: every feature gets generated content (denylist still applies, for permanently-excluded features like install-os-pkg).",
+          "type": "string",
+          "enum": ["allowlist", "denylist", "all"]
+        },
+        "allowlist": {
+          "description": "Feature ids to generate tests for, when mode is `allowlist`.",
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "denylist": {
+          "description": "Feature ids to never generate tests for (e.g. install-os-pkg, install — manifest-DSL/orchestration features with no metadata shape the generator keys off).",
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "environments": {
+      "description": "Pointers to keys already defined in test/environments.yaml — no environment data is duplicated here.",
+      "type": "object",
+      "required": ["primary", "nonroot_env"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "description": "Default environment for scenario families that only need one (e.g. `default`, `version_pinning`).",
+          "type": "string"
+        },
+        "nonroot_env": {
+          "description": "Environment with a pre-created non-root user, used by nonroot prefix/configure_users scenarios.",
+          "type": "string"
+        }
+      }
+    },
+    "families": {
+      "description": "Per-scenario-family generation settings, keyed by the family name a rule registers under (see `.dev/lib/proman/test/gen/rules/`).",
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "type": "object",
+          "required": ["enabled"],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "description": "Whether this family generates anything, globally. A feature's own scenarios.yaml `generation.suppress` can still remove individual generated scenarios/checks when this is true.",
+              "type": "boolean"
+            },
+            "modes": {
+              "description": "Default `modes:` applied to every scenario this family generates.",
+              "type": "array",
+              "items": {"type": "string", "enum": ["devcontainer", "standalone", "macos"]},
+              "minItems": 1
+            },
+            "select": {
+              "description": "Environment-selection policy for families that may span multiple environments (currently only `method_matrix`'s `package_default`).",
+              "type": "string",
+              "enum": ["primary", "one_per_pm", "all"]
+            },
+            "options": {
+              "description": "Enum-typed option names to generate invalid-value scenarios for (`invalid_enum` family only).",
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "reason": {
+              "description": "Free-text justification, mainly documenting why a family is disabled.",
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "assertions": {
+      "description": "Global strictness knobs applied by checks_builtin.py's shared check builders.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "require_anchored_regex": {
+          "description": "Require boundary-anchored regexes in generated version-format/version-value checks (never a bare unanchored digit pattern).",
+          "type": "boolean"
+        },
+        "version_cross_validate": {
+          "description": "Generate exact-value version checks (not just format checks) wherever a specific version is known (pinned/legacy test_pins, if_exists reinstall/update target).",
+          "type": "boolean"
+        },
+        "functional_smoke_required": {
+          "description": "Fail generation loudly for any feature with `_options.method`/`_options.version` that has not declared `_options.verify.functional`, instead of silently generating weaker checks.",
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -1,15 +1,19 @@
-"""Load and validate feature test definitions (checks.yaml and scenarios.yaml)."""
+"""Load and validate feature test definitions.
+
+Covers checks.yaml and scenarios.yaml, merged with any generated content —
+see proman.test.effective.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import yaml
 from jsonschema.exceptions import ValidationError
 
 from proman.config import load as load_config
 from proman.schema_bundle import get_checks_validator, get_scenarios_validator
+from proman.test.effective import FeatureTestError, load_effective
 from proman.test.environments import load as load_environments
 from proman.test.scenarios import (
     DEFAULT_MODES,
@@ -22,14 +26,14 @@ from proman.test.scenarios import (
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from proman.test.effective import Provenance
 
-class FeatureTestError(ValueError):
-    """Raised when checks.yaml or scenarios.yaml fail to load or validate."""
+__all__ = ["FeatureTestError", "FeatureTestLoader", "FeatureTests"]
 
 
 @dataclass(frozen=True)
 class FeatureTests:
-    """Validated feature test definitions for one feature."""
+    """Validated, effective (hand-written + generated) tests for one feature."""
 
     feature_id: str
     checks: dict
@@ -37,6 +41,7 @@ class FeatureTests:
     scenarios: dict
     checks_path: Path
     scenarios_path: Path
+    provenance: dict[str, Provenance] = field(default_factory=dict)
 
     def expand_entries(self, envs: dict) -> list[dict]:
         """Expand validated scenarios into runner matrix entries."""
@@ -78,27 +83,22 @@ class FeatureTestLoader:
             )
             raise FileNotFoundError(msg)
 
-        checks = self._load_yaml(checks_path)
-        scenarios_doc = self._load_yaml(scenarios_path)
+        effective = load_effective(feature_id)
 
-        self._validate_checks_schema(checks, checks_path)
+        self._validate_checks_schema(effective.checks, checks_path)
+        scenarios_doc = dict(effective.scenarios)
+        if effective.defaults:
+            scenarios_doc["defaults"] = effective.defaults
         self._validate_scenarios_schema(scenarios_doc, scenarios_path)
-
-        defaults = scenarios_doc.get("defaults") or {}
-        if not isinstance(defaults, dict):
-            msg = f"{scenarios_path}: 'defaults' must be a mapping"
-            raise FeatureTestError(msg)
-        scenarios = {
-            key: value for key, value in scenarios_doc.items() if key != "defaults"
-        }
 
         ft = FeatureTests(
             feature_id=feature_id,
-            checks=checks,
-            defaults=defaults,
-            scenarios=scenarios,
+            checks=effective.checks,
+            defaults=effective.defaults,
+            scenarios=effective.scenarios,
             checks_path=checks_path,
             scenarios_path=scenarios_path,
+            provenance=effective.provenance,
         )
         self._validate_cross_file(ft)
         return ft
@@ -123,15 +123,6 @@ class FeatureTestLoader:
             return set()
         data = load_environments(self._environments_path)
         return {key for key in data if key != "defaults" and isinstance(key, str)}
-
-    @staticmethod
-    def _load_yaml(path: Path) -> dict:
-        with path.open(encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
-        if not isinstance(data, dict):
-            msg = f"{path}: root value must be a YAML mapping"
-            raise FeatureTestError(msg)
-        return data
 
     def _validate_checks_schema(self, checks: dict, path: Path) -> None:
         try:

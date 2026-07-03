@@ -20,10 +20,14 @@
           }
         }
       ]
+    },
+    "generation": {
+      "description": "Directives controlling how this feature's hand-written scenarios/checks interact with generated ones from .dev/lib/proman/test/gen/. Never itself a scenario.",
+      "$ref": "#/$defs/generation"
     }
   },
   "patternProperties": {
-    "^(?!defaults$)[a-z][a-z0-9_]*$": {
+    "^(?!defaults$|generation$)[a-z][a-z0-9_]*$": {
       "description": "One named scenario in the feature test matrix.",
       "allOf": [
         {
@@ -39,6 +43,43 @@
   },
   "additionalProperties": false,
   "$defs": {
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "suppress": {
+          "description": "Explicitly removes generated scenarios/check-groups for this feature. The only mechanism by which a generated and a hand-written name may share a name — without an entry here, a collision is a hard error, not a silent override.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "scenarios": {
+              "description": "Generated scenario names to drop entirely for this feature.",
+              "type": "array",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+            },
+            "checks": {
+              "description": "Generated check-group names to drop entirely for this feature.",
+              "type": "array",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+            }
+          }
+        },
+        "augment_tests": {
+          "description": "Appends hand-authored checks.yaml group ids to a generated scenario's `tests:` list, so a scenario stays generated (envs/options/modes fully mechanical) while gaining feature-specific deepened assertions on top of the generated baseline checks.",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+          }
+        }
+      }
+    },
     "string_map": {
       "type": "object",
       "additionalProperties": {

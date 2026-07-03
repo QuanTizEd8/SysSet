@@ -1,0 +1,62 @@
+# Global, cross-feature configuration for the test-generation pipeline.
+# Feature-specific test-generation facts (functional smoke-test command, version
+# pins) do NOT live here — they live in each feature's own metadata.yaml under
+# _options.verify.functional / _options.version.test_pins, since they describe
+# that one feature, not generator behavior. This file only tunes settings that
+# apply the same way across every feature.
+enabled: true
+
+# Migration scaffolding: while `allowlist` is empty, generation contributes
+# nothing for any feature, regardless of the family settings below. Features
+# are added here one at a time as their generated output is reviewed via
+# `proman-test-gen-preview <feature> --diff` and confirmed to pass
+# `just test-feats <feature>` end-to-end. Once every feature has been
+# reviewed, `mode` flips to `all` (with a small permanent `denylist` for the
+# manifest-DSL/orchestration features that have no metadata shape to generate
+# from) and this scaffolding is retired.
+rollout:
+  mode: allowlist
+  allowlist: []
+  denylist:
+    - install
+    - install-os-pkg
+
+environments:
+  primary: ubuntu-stable
+  nonroot_env: ubuntu-stable+vscode
+
+families:
+  existence_default:
+    enabled: true
+    modes: [devcontainer, standalone]
+  version_pinning:
+    enabled: true
+    modes: [devcontainer, standalone]
+  method_matrix:
+    enabled: true
+    modes: [standalone]
+    select: one_per_pm
+  if_exists:
+    enabled: true
+    modes: [standalone]
+  prefix_symlink:
+    enabled: true
+    modes: [devcontainer, standalone]
+  invalid_enum:
+    enabled: true
+    modes: [standalone]
+    options: [method, if_exists]
+  completions:
+    enabled: true
+    modes: [standalone]
+  configure_users:
+    enabled: false
+    reason: "Scenario scaffolding only generates a scaffold that requires a hand-authored checks.yaml group; opt in per feature once that group exists."
+  log_file:
+    enabled: true
+    modes: [standalone]
+
+assertions:
+  require_anchored_regex: true
+  version_cross_validate: true
+  functional_smoke_required: true

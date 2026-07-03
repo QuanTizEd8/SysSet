@@ -14,9 +14,15 @@ _options:
   verify:
     args: "--version"
     description: Verify jq is installed and working.
+    functional:
+      description: jq processes JSON
+      cmd: 'echo "{}" | {bin} . > /dev/null 2>&1'
   gh_repo: jqlang/jq
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["1.8.1"]
+      legacy: ["1.6"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/{feat.version>=1.7?jq-{plat.kernel_macos}-{plat.machine_release}:{plat.kernel_osx==linux?jq-linux{plat.machine_bitness}:jq-osx-amd64}}"
