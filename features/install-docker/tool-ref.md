@@ -432,7 +432,7 @@ rm -rf docker-*.tgz docker/
 
 Stop the running daemon, remove the old binaries from the installation directory, and repeat the installation steps with the new version. There is no package manager to track installed files; all files must be removed manually.
 
-#### Idempotency
+##### Idempotency
 
 Not idempotent. Repeated installations will overwrite existing binaries. The daemon must be stopped before upgrading to avoid version mismatches between client and daemon.
 
@@ -577,7 +577,7 @@ The standalone script uses a temporary directory (cleaned up automatically via `
 
 Stop the docker service (`systemctl --user stop docker`), remove the binaries from `~/bin/`, and re-run the installation script. To fully uninstall, also remove `~/.config/systemd/user/docker.service` and the rootless Docker context (`docker context rm rootless`).
 
-#### Idempotency
+##### Idempotency
 
 The installation script detects an existing rootless installation and exits without making changes. To upgrade, the existing binaries must be manually removed first. The script has a `--force` flag (via `FORCE_ROOTLESS_INSTALL=1`) to override protections.
 
@@ -722,7 +722,7 @@ The DooD setup consists of:
 - **Installed CLI**: Docker CLI (from `docker-ce-cli` or `moby-cli` packages), optional Buildx and Compose
 - **Socket configuration**: The host's Docker socket is mounted into the container at a configurable path (default: `/var/run/docker-host.sock`), and optionally symlinked to `/var/run/docker.sock`
 - **Group management**: The feature creates a `docker` group in the container and attempts to match the GID with the socket's group GID
-- **socat proxy**: If GID matching is not possible, `socat` is used as a TCP proxy to forward the socket with appropriate permissions
+- **socat proxy**: If GID matching is not possible, `socat` is used as a Unix socket proxy to forward the socket with appropriate permissions
 
 #### Socket Configuration
 
@@ -902,7 +902,7 @@ Docker bundles `tini` (an init process for containers) as `docker-init`. It is u
 
 ### VS Code Extension
 
-The **Dev Containers** extension (`ms-azuretools.vscode-remotewsl`) and the **Docker** extension (`ms-azuretools.vscode-docker`) provide integrated Docker support in VS Code. The Docker extension can be installed in the dev container for in-editor container management.
+The **Dev Containers** extension (`ms-vscode-remote.remote-containers`) and the **Docker** extension (`ms-azuretools.vscode-docker`) provide integrated Docker support in VS Code. The Docker extension can be installed in the dev container for in-editor container management.
 
 ## References
 
@@ -932,7 +932,7 @@ The **Dev Containers** extension (`ms-azuretools.vscode-remotewsl`) and the **Do
 
 [^docs-daemon]: [Docker Daemon Configuration Overview](https://docs.docker.com/engine/daemon/) — Official documentation for daemon configuration via daemon.json and CLI flags.
 
-[^docs-docker-completion]: [Docker CLI Completion Reference](https://docs.docker.com/reference/cli/docker/completion/) — Official documentation for Docker CLI shell completion setup for bash, zsh, and fish.
+[^docs-docker-completion]: [Docker CLI Completion Reference](https://docs.docker.com/engine/cli/completion/) — Official documentation for Docker CLI shell completion setup for bash, zsh, and fish.
 
 [^src-installer]: [docker-install install.sh](https://github.com/docker/docker-install/blob/master/install.sh) — Source code of the official Docker installation convenience script, showing distribution detection, repository configuration, and package installation logic.
 
