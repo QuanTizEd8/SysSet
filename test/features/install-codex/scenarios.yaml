@@ -1,90 +1,36 @@
-defaults:
-  modes: [devcontainer]
+# Every scenario except the ones below is now auto-generated from
+# features/install-codex/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix, if_exists,
+# invalid enum values, log_file) by .dev/lib/proman/test/gen/. See
+# test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-codex` to inspect the generated output.
+#
+# npm_system stays hand-written: it asserts codex is registered with `npm
+# list -g`, not just that the binary works — method_matrix's generic `npm`
+# handler only reuses the `default` check group verbatim (existence +
+# version + functional), since for most methods the observable result is
+# identical regardless of install mechanism. Here it genuinely isn't: the
+# generated npm_default wouldn't catch a codex install that works but never
+# actually registered with npm. Also runs in devcontainer mode, complementing
+# (not duplicating) the generated npm_default, which is standalone-only per
+# generation.yaml's method_matrix family config.
+#
+# auto_binary_npm_present stays hand-written: it's a narrow regression test
+# for a specific auto-resolution *priority* invariant (binary wins over npm
+# even when npm is present) with no generic equivalent — the generated
+# `default` only exercises whatever auto picks on ubuntu-stable (no npm), not
+# this specific "npm present but not chosen" scenario.
 
-# ── binary method ──────────────────────────────────────────────────────────────
-
-binary_latest:
-  envs: [ubuntu-stable]
-  options:
-    method: binary
-  tests: [binary_latest]
-
-binary_specific_version:
-  envs: [ubuntu-stable]
-  options:
-    method: binary
-    version: "0.130.0"
-  tests: [binary_specific_version]
-
-# ── npm-bundled method ─────────────────────────────────────────────────────────
-
-npm_bundled:
-  envs: [ubuntu-stable]
-  options:
-    method: npm-bundled
-  tests: [npm_bundled]
-
-# ── npm method ─────────────────────────────────────────────────────────────────
-
-# npm is not available by default on ubuntu-stable; the setup block pre-installs it
-# so the feature can use system npm rather than bootstrapping its own.
 npm_system:
   envs: [ubuntu-stable+node]
+  modes: [devcontainer]
   options:
     method: npm
   tests: [npm_system]
 
-# ── auto method ────────────────────────────────────────────────────────────────
-
-# method=auto on a minimal Ubuntu image (no npm or brew) → resolves to npm-bundled.
-auto_npm_bundled:
-  envs: [ubuntu-stable]
-  options:
-    method: auto
-  tests: [auto_npm_bundled]
-
-# method=auto on amd64 with npm pre-installed → binary is preferred because the
-# binary method's when: condition now matches the normalized arch.  Verifies that
-# auto does not fall back to npm on a supported arch just because npm is present.
 auto_binary_npm_present:
   envs: [ubuntu-stable+node]
+  modes: [devcontainer]
   options:
     method: auto
   tests: [auto_binary_npm_present]
-
-# ── if_exists behaviour ────────────────────────────────────────────────────────
-
-if_exists_skip:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    mkdir -p /usr/local/bin
-    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/codex
-    chmod +x /usr/local/bin/codex
-  options:
-    method: binary
-    if_exists: skip
-  tests: [if_exists_skip]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    mkdir -p /usr/local/bin
-    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/codex
-    chmod +x /usr/local/bin/codex
-  options:
-    method: binary
-    if_exists: fail
-  tests: [if_exists_fail]
-
-# ── validation ─────────────────────────────────────────────────────────────────
-
-invalid_method:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  options:
-    method: invalid
-  tests: [invalid_method]

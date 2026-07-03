@@ -19,6 +19,7 @@ rollout:
   allowlist:
     - install-jq
     - install-copilot
+    - install-codex
   denylist:
     - install
     - install-os-pkg

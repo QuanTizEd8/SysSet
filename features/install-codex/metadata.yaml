@@ -26,10 +26,15 @@ _options:
   verify:
     args: "--version"
     description: Verify the Codex CLI is installed and working.
+    functional:
+      description: codex lists configured MCP servers
+      cmd: '{bin} mcp list > /dev/null 2>&1'
   installer_dir: false
   gh_repo: openai/codex
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["0.130.0"]
   method:
     binary:
       asset_uri: "https://github.com/openai/codex/releases/download/{feat.tag}/codex-{plat.rust_triple}.tar.gz"

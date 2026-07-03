@@ -1,81 +1,8 @@
-# ── binary method ──────────────────────────────────────────────────────────────
-
-binary_latest:
-  description: |
-    method=binary, version=latest: direct binary download from GitHub releases
-    (codex-{plat.rust_triple}.tar.gz).  Verifies codex is installed at
-    /usr/local/bin/codex and reports a semver.
-  pre: |
-    echo "=== which codex ==="
-    which codex 2>&1 || echo "(not on PATH)"
-    echo "=== codex --version ==="
-    codex --version 2>&1 || echo "(failed)"
-  checks:
-    - title: codex binary is at /usr/local/bin/codex
-      cmd: test -f /usr/local/bin/codex
-    - title: codex binary is executable
-      cmd: test -x /usr/local/bin/codex
-    - title: codex is on PATH
-      cmd: command -v codex
-    - title: codex --version succeeds
-      cmd: codex --version
-    - title: codex --version reports a semver
-      cmd: bash -c 'codex --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
-      on_fail: |
-        echo "=== actual codex --version output ==="
-        codex --version 2>&1 || echo "(failed)"
-
-binary_specific_version:
-  description: |
-    method=binary, version=0.130.0: pinned semver from GitHub releases.
-    Verifies the binary reports exactly 0.130.0.
-  pre: |
-    echo "=== codex --version ==="
-    codex --version 2>&1 || echo "(failed)"
-  checks:
-    - title: codex binary is at /usr/local/bin/codex
-      cmd: test -f /usr/local/bin/codex
-    - title: codex binary is executable
-      cmd: test -x /usr/local/bin/codex
-    - title: codex is on PATH
-      cmd: command -v codex
-    - title: codex --version succeeds
-      cmd: codex --version
-    - title: codex version is exactly 0.130.0
-      cmd: bash -c 'codex --version 2>/dev/null | grep -Fq "0.130.0"'
-      on_fail: |
-        echo "=== actual codex --version output ==="
-        codex --version 2>&1 || echo "(failed)"
-
-# ── npm-bundled method ─────────────────────────────────────────────────────────
-
-npm_bundled:
-  description: |
-    method=npm-bundled: installs codex via a self-contained bundled Node.js
-    runtime (no system Node.js required).  Verifies the binary is on PATH and
-    reports a semver.
-  pre: |
-    echo "=== which codex ==="
-    which codex 2>&1 || echo "(not on PATH)"
-    echo "=== codex --version ==="
-    codex --version 2>&1 || echo "(failed)"
-  checks:
-    - title: codex is on PATH
-      cmd: command -v codex
-    - title: codex --version succeeds
-      cmd: codex --version
-    - title: codex --version reports a semver
-      cmd: bash -c 'codex --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
-      on_fail: |
-        echo "=== actual codex --version output ==="
-        codex --version 2>&1 || echo "(failed)"
-
-# ── npm method ─────────────────────────────────────────────────────────────────
-
 npm_system:
   description: |
     method=npm with system Node.js (pre-installed via setup): installs codex
-    via system npm.  Verifies the binary is on PATH and reports a semver.
+    via system npm.  Verifies the binary is on PATH, reports a semver, and is
+    registered with npm globally.
   pre: |
     echo "=== which codex ==="
     which codex 2>&1 || echo "(not on PATH)"
@@ -89,7 +16,7 @@ npm_system:
     - title: codex --version succeeds
       cmd: codex --version
     - title: codex --version reports a semver
-      cmd: bash -c 'codex --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
+      cmd: bash -c 'codex --version 2>&1 | grep -Eq "(^|[^0-9A-Za-z.])[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"'
       on_fail: |
         echo "=== actual codex --version output ==="
         codex --version 2>&1 || echo "(failed)"
@@ -97,25 +24,6 @@ npm_system:
       cmd: bash -c 'npm list -g @openai/codex 2>/dev/null | grep -q "@openai/codex"'
       on_fail: |
         npm list -g 2>/dev/null | grep -i codex || echo "(codex not in npm global list)"
-
-# ── auto method ────────────────────────────────────────────────────────────────
-
-auto_npm_bundled:
-  description: |
-    method=auto on Ubuntu 24.04 (no npm or brew): __resolve_method selects
-    npm-bundled as the fallback.  Verifies codex is installed and functional.
-  pre: |
-    echo "=== which codex ==="
-    which codex 2>&1 || echo "(not on PATH)"
-    echo "=== codex --version ==="
-    codex --version 2>&1 || echo "(failed)"
-  checks:
-    - title: codex is on PATH
-      cmd: command -v codex
-    - title: codex --version succeeds
-      cmd: codex --version
-    - title: codex --version reports a semver
-      cmd: bash -c 'codex --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
 
 auto_binary_npm_present:
   description: |
@@ -135,7 +43,7 @@ auto_binary_npm_present:
     - title: codex --version succeeds
       cmd: codex --version
     - title: codex --version reports a semver
-      cmd: bash -c 'codex --version | grep -Eq "[0-9]+\.[0-9]+\.[0-9]+"'
+      cmd: bash -c 'codex --version 2>&1 | grep -Eq "(^|[^0-9A-Za-z.])[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"'
     - title: codex installed as a binary (not via npm global — binary method was selected)
       cmd: test -f /usr/local/bin/codex
       on_fail: |
@@ -143,41 +51,3 @@ auto_binary_npm_present:
         which codex 2>&1 || echo "(not on PATH)"
         echo "=== npm list -g ==="
         npm list -g 2>/dev/null | head -5 || echo "(npm not available)"
-
-# ── if_exists behaviour ────────────────────────────────────────────────────────
-
-if_exists_skip:
-  description: |
-    method=binary + if_exists=skip + pre-installed stub (9.9.9): verifies the
-    installer skips without touching the existing binary when codex is already
-    present.
-  checks:
-    - title: codex stub still on PATH
-      cmd: command -v codex
-    - title: skip left the stub untouched (version still 9.9.9)
-      cmd: bash -c 'codex --version 2>/dev/null | grep -Fq "9.9.9"'
-      on_fail: |
-        echo "=== actual codex --version output ==="
-        codex --version 2>&1 || echo "(failed)"
-
-if_exists_fail:
-  description: |
-    method=binary + if_exists=fail + pre-installed stub: verifies the installer
-    exits non-zero when codex is already present and leaves the stub untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits non-zero when codex is already installed
-      pattern: "failing (if_exists=fail)"
-    - title: codex stub still on PATH after failed install
-      cmd: command -v codex
-    - title: stub untouched after failed install (version still 9.9.9)
-      cmd: bash -c 'codex --version 2>/dev/null | grep -Fq "9.9.9"'
-
-# ── validation ─────────────────────────────────────────────────────────────────
-
-invalid_method:
-  description: Invalid method value causes the installer to exit non-zero.
-  checks:
-    - kind: install_failure
-      title: invalid method rejected by the argument validator
-      pattern: "Invalid value for 'method'"
