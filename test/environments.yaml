@@ -7,23 +7,23 @@
 
 ubuntu-stable:
   image: ubuntu:24.04
-  attributes: {os.id: ubuntu, os.id_like: [debian], plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64]}
+  attributes: {os.id: ubuntu, os.id_like: [debian], plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64], os.version_id: "24.04", os.version_codename: noble}
 
 ubuntu-current:
   image: ubuntu:26.04
-  attributes: {os.id: ubuntu, os.id_like: [debian], plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64]}
+  attributes: {os.id: ubuntu, os.id_like: [debian], plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64], os.version_id: "26.04", os.version_codename: resolute}
 
 debian-stable:
   image: debian:12
-  attributes: {os.id: debian, plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64]}
+  attributes: {os.id: debian, plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64], os.version_id: "12", os.version_codename: bookworm}
 
 debian-current:
   image: debian:13
-  attributes: {os.id: debian, plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64]}
+  attributes: {os.id: debian, plat.pm: apt, plat.kernel: linux, plat.machine_release: [amd64, arm64], os.version_id: "13", os.version_codename: trixie}
 
 alpine-current:
   image: alpine:3.24
-  attributes: {os.id: alpine, plat.pm: apk, plat.kernel: linux, plat.machine_release: [amd64, arm64]}
+  attributes: {os.id: alpine, plat.pm: apk, plat.kernel: linux, plat.machine_release: [amd64, arm64], os.version_id: "3.24.1"}
 
 fedora-current:
   image: fedora:44
@@ -31,7 +31,7 @@ fedora-current:
 
 rockylinux-current:
   image: rockylinux/rockylinux:10
-  attributes: {os.id: rocky, os.id_like: [rhel, fedora], plat.pm: dnf, plat.kernel: linux, plat.machine_release: [amd64, arm64]}
+  attributes: {os.id: rocky, os.id_like: [rhel, fedora], plat.pm: dnf, plat.kernel: linux, plat.machine_release: [amd64, arm64], os.version_id: "10.2", os.version_id_major: "10"}
 
 opensuse-leap-current:
   image: opensuse/leap:16.0
