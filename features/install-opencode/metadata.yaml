@@ -30,9 +30,14 @@ _options:
   verify:
     args: "--version"
     description: Verify OpenCode is installed and working.
+    functional:
+      description: opencode lists configured MCP servers
+      cmd: '{bin} mcp list > /dev/null 2>&1'
   gh_repo: anomalyco/opencode
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["1.17.12"]
   method:
     binary:
       asset_uri: "https://github.com/anomalyco/opencode/releases/download/{feat.tag}/opencode-{plat.kernel:lower}-{plat.machine_node}{plat.avx2==false?-baseline:}{plat.musl_suffix}{plat.kernel==Darwin?.zip:.tar.gz}"

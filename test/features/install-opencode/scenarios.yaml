@@ -1,28 +1,30 @@
-defaults:
-  modes: [devcontainer, standalone]
-
-# ── binary method ──────────────────────────────────────────────────────────────
-
-binary_stable:
-  envs: [ubuntu-stable]
-  options:
-    method: binary
-  tests: [binary_stable]
-
-binary_specific_version:
-  envs: [ubuntu-stable]
-  options:
-    method: binary
-    version: "1.17.12"
-  tests: [binary_specific_version]
+# Every scenario except the ones below is now auto-generated from
+# features/install-opencode/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix, if_exists,
+# invalid enum values, log_file) by .dev/lib/proman/test/gen/. See
+# test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-opencode` to inspect the generated output.
+#
+# package_pacman dropped as redundant: the generated package_default already
+# selects archlinux-current — the only env in the pool offering pacman, the
+# one PM opencode's `package` method targets (`when: {plat.pm: [brew,
+# pacman]}`, and brew isn't in the Linux-container env pool) — so it's the
+# exact same coverage.
+#
+# binary_musl stays hand-written: verifies LIBC detection selects the musl
+# binary variant on Alpine — no generic concept of a libc dimension exists in
+# the generator.
+#
+# persist_dirs/persist_dirs_custom stay hand-written: workspace-symlink
+# onCreateCommand behavior is a devcontainer-lifecycle concern with no
+# generic rule (a future rule could absorb this, but that's out of scope
+# here).
 
 binary_musl:
   envs: [alpine-current+bash]
   options:
     method: binary
   tests: [binary_musl]
-
-# ── persist dirs (onCreateCommand symlinks) ─────────────────────────────────────
 
 persist_dirs:
   envs: [ubuntu-stable]
@@ -36,48 +38,3 @@ persist_dirs_custom:
     config_dir: .config/opencode
     data_dir: .local/share/opencode
   tests: [persist_dirs_custom]
-
-# ── package method ─────────────────────────────────────────────────────────────
-
-package_pacman:
-  envs: [archlinux-current]
-  options:
-    method: package
-  tests: [package_pacman]
-
-# ── if_exists behaviour ────────────────────────────────────────────────────────
-
-if_exists_skip:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    mkdir -p /usr/local/bin
-    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/opencode
-    chmod +x /usr/local/bin/opencode
-  options:
-    method: binary
-    if_exists: skip
-  tests: [if_exists_skip]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    mkdir -p /usr/local/bin
-    printf '#!/bin/sh\necho "9.9.9"\n' > /usr/local/bin/opencode
-    chmod +x /usr/local/bin/opencode
-  options:
-    method: binary
-    if_exists: fail
-  tests: [if_exists_fail]
-
-# ── validation ─────────────────────────────────────────────────────────────────
-
-invalid_method:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  options:
-    method: invalid
-  tests: [invalid_method]

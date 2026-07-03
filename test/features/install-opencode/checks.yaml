@@ -1,52 +1,3 @@
-# ── binary method ──────────────────────────────────────────────────────────────
-
-binary_stable:
-  description: |
-    method=binary, version=stable (default): direct binary download from GitHub
-    Releases.  Verifies opencode is installed at /usr/local/bin/opencode and
-    reports a valid semver.
-  pre: |
-    echo "=== which opencode ==="
-    which opencode 2>&1 || echo "(not on PATH)"
-    echo "=== opencode --version ==="
-    opencode --version 2>&1 || echo "(failed)"
-  checks:
-    - title: opencode binary is at /usr/local/bin/opencode
-      cmd: test -f /usr/local/bin/opencode
-    - title: opencode binary is executable
-      cmd: test -x /usr/local/bin/opencode
-    - title: opencode is on PATH
-      cmd: command -v opencode
-    - title: opencode --version succeeds
-      cmd: opencode --version
-    - title: opencode --version reports a semver
-      cmd: bash -c 'opencode --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
-      on_fail: |
-        echo "=== actual opencode --version output ==="
-        opencode --version 2>&1 || echo "(failed)"
-
-binary_specific_version:
-  description: |
-    method=binary, version=1.17.12: pinned semver from GitHub Releases.
-    Verifies the binary reports exactly 1.17.12.
-  pre: |
-    echo "=== opencode --version ==="
-    opencode --version 2>&1 || echo "(failed)"
-  checks:
-    - title: opencode binary is at /usr/local/bin/opencode
-      cmd: test -f /usr/local/bin/opencode
-    - title: opencode binary is executable
-      cmd: test -x /usr/local/bin/opencode
-    - title: opencode is on PATH
-      cmd: command -v opencode
-    - title: opencode --version succeeds
-      cmd: opencode --version
-    - title: opencode version is exactly 1.17.12
-      cmd: bash -c '[[ "$(opencode --version 2>/dev/null | cut -d" " -f1)" == "1.17.12" ]]'
-      on_fail: |
-        echo "=== actual opencode --version output ==="
-        opencode --version 2>&1 || echo "(failed)"
-
 binary_musl:
   description: |
     method=binary on Alpine (musl libc): verifies that LIBC detection
@@ -71,8 +22,6 @@ binary_musl:
       on_fail: |
         echo "=== actual opencode --version output ==="
         opencode --version 2>&1 || echo "(failed)"
-
-# ── persist dirs (onCreateCommand symlinks) ─────────────────────────────────────
 
 persist_dirs:
   description: |
@@ -112,64 +61,3 @@ persist_dirs_custom:
       cmd: test -L "$HOME/.local/share/opencode"
     - title: data dir symlink target is a directory
       cmd: bash -c 'test -d "$(readlink "$HOME/.local/share/opencode")"'
-
-# ── package method ─────────────────────────────────────────────────────────────
-
-package_pacman:
-  description: |
-    method=package on Arch Linux: installs opencode from the community repo.
-    Verifies opencode is on PATH, reports a version, and is pacman-managed.
-  pre: |
-    echo "=== which opencode ==="
-    which opencode 2>&1 || echo "(not on PATH)"
-    echo "=== pacman -Q opencode ==="
-    pacman -Q opencode 2>&1 || echo "(not installed via pacman)"
-    echo "=== opencode --version ==="
-    opencode --version 2>&1 || echo "(failed)"
-  checks:
-    - title: opencode is on PATH
-      cmd: command -v opencode
-    - title: opencode --version succeeds
-      cmd: opencode --version
-    - title: opencode --version reports a semver
-      cmd: bash -c 'opencode --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+"'
-    - title: opencode is pacman-managed
-      cmd: bash -c 'pacman -Q opencode >/dev/null 2>&1'
-
-# ── if_exists behaviour ────────────────────────────────────────────────────────
-
-if_exists_skip:
-  description: |
-    method=binary + if_exists=skip + pre-installed stub (9.9.9): verifies the
-    installer skips without touching the existing binary when opencode is already
-    present.
-  checks:
-    - title: opencode stub still on PATH
-      cmd: command -v opencode
-    - title: skip left the stub untouched (version still 9.9.9)
-      cmd: bash -c 'opencode --version 2>/dev/null | grep -Fq "9.9.9"'
-      on_fail: |
-        echo "=== actual opencode --version output ==="
-        opencode --version 2>&1 || echo "(failed)"
-
-if_exists_fail:
-  description: |
-    method=binary + if_exists=fail + pre-installed stub: verifies the installer
-    exits non-zero when opencode is already present and leaves the stub untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits non-zero when opencode is already installed
-      pattern: "failing (if_exists=fail)"
-    - title: opencode stub still on PATH after failed install
-      cmd: command -v opencode
-    - title: stub untouched after failed install (version still 9.9.9)
-      cmd: bash -c 'opencode --version 2>/dev/null | grep -Fq "9.9.9"'
-
-# ── validation ─────────────────────────────────────────────────────────────────
-
-invalid_method:
-  description: Invalid method value causes the installer to exit non-zero.
-  checks:
-    - kind: install_failure
-      title: invalid method rejected by the argument validator
-      pattern: "Invalid value for 'method'"
