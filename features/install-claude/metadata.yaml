@@ -27,8 +27,13 @@ _options:
   verify:
     args: "--version"
     description: Verify the Claude Code CLI is installed and working.
+    functional:
+      description: claude lists configured MCP servers
+      cmd: '{bin} mcp list > /dev/null 2>&1'
   version:
     resolution: npm
+    test_pins:
+      pinned: ["2.1.153"]
   method:
     binary:
       asset_uri: "https://downloads.claude.ai/claude-code-releases/{feat.version}/{plat.kernel:lower}-{plat.machine_node}{plat.musl_suffix}/claude"

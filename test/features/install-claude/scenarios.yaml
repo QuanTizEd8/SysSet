@@ -1,20 +1,26 @@
-defaults:
-  modes: [devcontainer]
-
-# ── binary method ──────────────────────────────────────────────────────────────
-
-binary_stable:
-  envs: [ubuntu-stable]
-  options:
-    method: binary
-  tests: [binary_stable]
-
-binary_specific_version:
-  envs: [ubuntu-stable]
-  options:
-    method: binary
-    version: "2.1.153"
-  tests: [binary_specific_version]
+# Every scenario except the ones below is now auto-generated from
+# features/install-claude/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix, if_exists,
+# invalid enum values, log_file) by .dev/lib/proman/test/gen/. See
+# test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-claude` to inspect the generated output.
+#
+# binary_musl stays hand-written: verifies LIBC detection selects the musl
+# binary variant from the Anthropic CDN — no generic concept of a libc
+# dimension exists in the generator.
+#
+# macos_package_default stays hand-written: the generator has no macOS-mode
+# support (env-selection pool/families are all Linux-container-oriented).
+#
+# upstream_package_apt_latest stays hand-written: tests that version=latest
+# switches to the "latest" apt channel rather than "stable" — a claude-
+# specific URL-template nuance (`{feat.version_input==latest?latest:stable}`
+# in the repo URL), not something the generic upstream-package handler knows
+# about.
+#
+# upstream_package_keep_repos stays hand-written: exercises the keep_repos
+# custom option (repo retention after install), which has no generic
+# equivalent.
 
 binary_musl:
   envs: [alpine-current+bash]
@@ -32,14 +38,6 @@ macos_package_default:
     method: package
   tests: [macos_package_default]
 
-# ── upstream-package method ────────────────────────────────────────────────────
-
-upstream_package_default:
-  envs: [ubuntu-stable, alpine-current+bash, fedora-current+bash]
-  options:
-    method: upstream-package
-  tests: [upstream_package_default]
-
 upstream_package_apt_latest:
   envs: [ubuntu-stable]
   options:
@@ -53,58 +51,3 @@ upstream_package_keep_repos:
     method: upstream-package
     keep_repos: true
   tests: [upstream_package_keep_repos]
-
-# ── npm-bundled method ─────────────────────────────────────────────────────────
-
-npm_bundled:
-  envs: [ubuntu-stable]
-  options:
-    method: npm-bundled
-  tests: [npm_bundled]
-
-# ── auto method ────────────────────────────────────────────────────────────────
-
-# method=auto on a system with apt → resolves to upstream-package.
-# Tests that __resolve_method correctly selects upstream-package on Ubuntu.
-auto_apt:
-  envs: [ubuntu-stable]
-  options:
-    method: auto
-  tests: [auto_apt]
-
-# ── if_exists behaviour ────────────────────────────────────────────────────────
-
-if_exists_skip:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    mkdir -p /usr/local/bin
-    printf '#!/bin/sh\necho "9.9.9 (Claude Code)"\n' > /usr/local/bin/claude
-    chmod +x /usr/local/bin/claude
-  options:
-    method: binary
-    if_exists: skip
-  tests: [if_exists_skip]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    mkdir -p /usr/local/bin
-    printf '#!/bin/sh\necho "9.9.9 (Claude Code)"\n' > /usr/local/bin/claude
-    chmod +x /usr/local/bin/claude
-  options:
-    method: binary
-    if_exists: fail
-  tests: [if_exists_fail]
-
-# ── validation ─────────────────────────────────────────────────────────────────
-
-invalid_method:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  options:
-    method: invalid
-  tests: [invalid_method]

@@ -21,6 +21,7 @@ rollout:
     - install-copilot
     - install-codex
     - install-opencode
+    - install-claude
   denylist:
     - install
     - install-os-pkg
