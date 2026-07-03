@@ -23,6 +23,7 @@ rollout:
     - install-opencode
     - install-claude
     - install-ripgrep
+    - install-shfmt
   denylist:
     - install
     - install-os-pkg

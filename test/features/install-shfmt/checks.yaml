@@ -1,36 +1,21 @@
-binary_custom_prefix:
-  description: Verifies method=binary installs shfmt under a custom prefix.
-  checks:
-    - title: shfmt binary exists under custom prefix
-      cmd: test -x /opt/shfmt-bin/bin/shfmt
-    - title: shfmt resolves from PATH to custom prefix
-      cmd: bash -c 'resolved=$(command -v shfmt); test -n "$resolved" && test -x "$resolved" && test "$(readlink -f "$resolved" 2>/dev/null || echo "$resolved")" = "$(readlink -f /opt/shfmt-bin/bin/shfmt 2>/dev/null || echo /opt/shfmt-bin/bin/shfmt)"'
-    - title: custom-prefix shfmt formats shell code
-      cmd: bash -c 'printf "if true\nthen\necho hi\nfi\n" | /opt/shfmt-bin/bin/shfmt -'
-
-default:
-  description: Verifies default install installs a working shfmt.
-  checks:
-    - title: shfmt is on PATH
-      cmd: command -v shfmt
-    - title: shfmt reports a version
-      cmd: bash -c 'shfmt --version | grep -Eq "^v?[0-9]+\.[0-9]+\.[0-9]+"'
-    - title: shfmt formats shell code
-      cmd: bash -c 'printf "if true\nthen\necho hi\nfi\n" | shfmt -'
-
-if_exists_fail:
-  description: "Ensures if_exists=fail exits non-zero when shfmt already exists."
-  checks:
-    - title: preinstalled shfmt remains available
-      cmd: command -v shfmt
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
+# Every check group is auto-generated except package_default below — see
+# scenarios.yaml for why.
 
 package_default:
-  description: Verifies method=package installs a working shfmt.
+  description: 'method=package: installs via the OS package manager''s standard configured
+    sources.'
   checks:
     - title: shfmt is on PATH
       cmd: command -v shfmt
+    - title: shfmt binary is executable
+      cmd: bash -c 'test -x "$(command -v shfmt)"'
     - title: shfmt formats shell code
       cmd: bash -c 'printf "if true\nthen\necho hi\nfi\n" | shfmt -'
+    - title: binary is package-manager-managed
+      kind: multiple
+      min: 1
+      cmd:
+        - bash -c 'apk info -e shfmt >/dev/null 2>&1'
+        - bash -c 'dpkg -S "$(command -v shfmt)" >/dev/null 2>&1'
+        - bash -c 'rpm -qf "$(command -v shfmt)" >/dev/null 2>&1'
+        - bash -c 'pacman -Qo "$(command -v shfmt)" >/dev/null 2>&1'

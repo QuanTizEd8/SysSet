@@ -15,6 +15,9 @@ _options:
   verify:
     args: "--version"
     description: Verify shfmt is installed and working.
+    functional:
+      description: shfmt formats shell code
+      cmd: 'printf "if true\nthen\necho hi\nfi\n" | {bin} -'
   gh_repo: mvdan/sh
   version:
     resolution: github_release
