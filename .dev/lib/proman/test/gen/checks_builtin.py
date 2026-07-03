@@ -15,8 +15,11 @@ import shlex
 from proman.test.gen.types import CheckItem
 
 # Boundary-anchored so stray digits in unrelated output can't match, but
-# tool-agnostic — no assumption about a `name-` version-string prefix.
-_VERSION_FORMAT_PATTERN = r"(^|[^0-9A-Za-z.])[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"
+# tool-agnostic — no assumption about a `name-` version-string prefix. The
+# optional `v` (bounded the same way as the digits themselves) covers the
+# extremely common `vX.Y.Z` tag convention (e.g. shfmt's `v3.13.1`) without
+# also matching a stray digit run preceded by an unrelated letter.
+_VERSION_FORMAT_PATTERN = r"(^|[^0-9A-Za-z.])v?[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"
 
 # One file-ownership/name-existence probe per `plat.pm` value, verified against
 # real checks.yaml usage and lib/ospkg.bash's own ospkg__is_managed(). The
@@ -69,9 +72,12 @@ def version_exact_check(bin_name: str, flag: str, expected: str) -> CheckItem:
     """Build a check cross-validating the installed version against `expected`.
 
     Uses boundary-anchored substring match — no per-tool prefix-stripping
-    needed, unlike `sed 's/^tool-//'`-style parsing.
+    needed, unlike `sed 's/^tool-//'`-style parsing. `expected` is given
+    without a `v` prefix (as declared in `test_pins`), but the tool's actual
+    output may print it as `vX.Y.Z` (e.g. yq/shfmt), so the boundary allows
+    an optional literal `v` directly before the expected value.
     """
-    pattern = rf"(^|[^0-9A-Za-z.]){re.escape(expected)}([^0-9.]|$)"
+    pattern = rf"(^|[^0-9A-Za-z.])v?{re.escape(expected)}([^0-9.]|$)"
     cmd = f"bash -c '{bin_name} {flag} 2>&1 | grep -Eq \"{pattern}\"'"
     return CheckItem(title=f"{bin_name} version is {expected}", cmd=cmd)
 
