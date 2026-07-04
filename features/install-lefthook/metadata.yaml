@@ -44,6 +44,10 @@ _options:
       - method: [binary, npm]
 _dependencies:
   run:
+    base:
+      when: {plat.kernel: linux}
+      packages:
+        - ca-certificates
     method-package:
       brew:
         packages:
