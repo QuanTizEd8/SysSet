@@ -822,6 +822,29 @@ def _save_macos_feature_log(feature: str, key: str, options: dict) -> None:
     shutil.copy2(src, dest)
 
 
+def _ensure_github_token() -> None:
+    """Fall back to `gh auth token` when GITHUB_TOKEN isn't set.
+
+    Feature installs and generated Dockerfiles read GITHUB_TOKEN to
+    authenticate GitHub API calls (release/tag resolution). Concurrent
+    Docker test runs easily exhaust the unauthenticated rate limit
+    otherwise; `gh` is already a required devcontainer tool and the
+    fallback stays silent (same as the existing unauthenticated fallback
+    in proman.release.detect) when `gh` is missing or not logged in.
+    """
+    if os.environ.get("GITHUB_TOKEN") or not shutil.which("gh"):
+        return
+    result = subprocess.run(
+        ["gh", "auth", "token"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    token = result.stdout.strip()
+    if token:
+        os.environ["GITHUB_TOKEN"] = token
+
+
 def main() -> None:
     """Entry point for proman-test-run CLI."""
     parser = argparse.ArgumentParser(
@@ -864,6 +887,8 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
+
+    _ensure_github_token()
 
     cfg = load_config()
     os.environ.setdefault("REPO_ROOT", str(cfg.root_path))
