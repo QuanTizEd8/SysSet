@@ -48,11 +48,12 @@ _options:
     applies_when:
       - method: [binary, npm]
 _dependencies:
-  run:
+  build:
     base:
       when: {plat.kernel: linux}
       packages:
         - ca-certificates
+  run:
     method-package:
       brew:
         packages:
