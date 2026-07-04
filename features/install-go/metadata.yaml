@@ -1,0 +1,110 @@
+version: 0.1.0
+name: Go Installation
+description: Install the [Go](https://go.dev) programming language toolchain from an official prebuilt binary tarball.
+keywords:
+  - go
+  - golang
+  - language
+  - compiler
+  - toolchain
+_long_description: |-
+  Downloads the official prebuilt Go toolchain tarball from `go.dev/dl` and verifies
+  its integrity via SHA256 (resolved from the official JSON release index) and a GPG
+  signature (Google's Linux Packages Signing Authority key). Supports Linux glibc
+  (amd64, arm64, 386, armv6l, ppc64le, riscv64, s390x, loong64) and macOS (amd64,
+  arm64). On musl-based Linux (Alpine), automatically falls back to the OS package
+  manager (`apk add go`), since the official binaries are glibc-only.
+_tool_name: Go
+options:
+  gopath:
+    type: string
+    default: ""
+    description: >-
+      Custom `GOPATH` to export for each configured user (supports `~` and
+      env-var expansion, resolved per user). Leave empty (default) to rely on
+      Go's own built-in default of `$HOME/go` (automatic since Go 1.8), which
+      already gives every user an isolated module cache with no extra
+      configuration.
+  cgo_deps:
+    type: boolean
+    default: false
+    description: >-
+      Install the C toolchain (`gcc`, `make`, `pkg-config`, plus `libc6-dev` /
+      `glibc-devel` / `musl-dev`) required for `cgo`. Most Go usage does not
+      need this — pure-Go builds work with no C compiler present. Set to
+      `true` if you need to compile packages that use `cgo`.
+_options:
+  configure_users: true
+  verify:
+    args: version
+    description: Verify Go is installed and working.
+    functional:
+      description: go compiles and runs a program
+      cmd: |-
+        d=$(mktemp -d) && printf 'package main\nfunc main() { println(1) }\n' > "$d/m.go" && {bin} run "$d/m.go" > /dev/null 2>&1 && rm -rf "$d"
+  version:
+    resolution: none
+    inputs: [latest, stable, semver]
+    flag: version
+    test_pins:
+      pinned: ["1.25.11"]
+      legacy: ["1.22.12"]
+    description: >-
+      Go version to install. Accepts: `stable` (latest final release,
+      default), `latest` (most recent release, may be a pre-release), a
+      major.minor (e.g. `1.25`), or an exact version (e.g. `1.25.11`).
+      Resolved against the official `go.dev/dl` JSON release index.
+  method:
+    binary:
+      asset_uri: "https://go.dev/dl/go{feat.version}.{plat.kernel:lower}-{plat.machine_go}.tar.gz"
+      gpg_key_uri: "https://dl.google.com/linux/linux_signing_key.pub"
+      binary_src: [bin/go]
+      when:
+        - plat.kernel: darwin
+        - plat.libc: gnu
+    package: {}
+    source:
+      asset_uri: "https://go.dev/dl/go{feat.version}.src.tar.gz"
+  prefix:
+    root: /usr/local/go
+    nonroot: "${HOME}/.local/go"
+    bins: [go, gofmt]
+    symlink: {}
+    applies_when:
+      - method: [binary, source]
+customizations:
+  vscode:
+    extensions:
+      - golang.Go
+_dependencies:
+  run:
+    method-package:
+      packages:
+        - name: go
+          apt: golang-go
+          dnf: golang
+          yum: golang
+          version: "{feat.pm_version}"
+    option-cgo_deps:
+      when: {plat.pm: [apt, dnf, yum, apk]}
+      packages:
+        - make
+        - pkg-config
+        - when: {plat.pm: apt}
+          packages: [gcc, libc6-dev]
+        - when: {plat.pm: [dnf, yum]}
+          packages: [gcc, glibc-devel]
+        - when: {plat.pm: apk}
+          packages: [gcc, musl-dev]
+  build:
+    method-source:
+      # glibc systems bootstrap from a freshly downloaded official binary
+      # tarball instead (see __install_run_source_build) — OS package repos
+      # structurally lag Go's own bootstrap policy (build N requires >= N-2),
+      # confirmed empirically: Ubuntu 24.04's golang-go (1.22) cannot bootstrap
+      # building Go 1.26. Alpine's apk go (musl-only, no official binary
+      # alternative) tracks upstream closely enough to stay sufficient.
+      when: {plat.libc: musl}
+      packages:
+        - go
+# installsAfter: []

@@ -1,0 +1,19 @@
+goroot_and_cross_compile:
+  description: |
+    GOROOT is exported correctly, gofmt works, and the toolchain can
+    cross-compile for a different GOOS/GOARCH with no extra toolchain.
+  checks:
+    - title: GOROOT matches the resolved install prefix
+      cmd: bash -c '[ "$(go env GOROOT)" = "/usr/local/go" ]'
+    - title: gofmt formats a file
+      cmd: bash -c 'd=$(mktemp -d) && printf "package main\nfunc main(){}\n" > "$d/m.go" && gofmt -l "$d/m.go"; rc=$?; rm -rf "$d"; exit "$rc"'
+    - title: cross-compiles linux/arm64 with no extra toolchain
+      cmd: bash -c 'd=$(mktemp -d) && printf "package main\nfunc main(){}\n" > "$d/m.go" && GOOS=linux GOARCH=arm64 go build -o "$d/out" "$d/m.go" && test -f "$d/out" && rm -rf "$d"'
+
+cgo_enabled:
+  description: cgo_deps=true installs a C toolchain so CGO_ENABLED=1 builds succeed.
+  checks:
+    - title: gcc is available
+      cmd: command -v gcc
+    - title: CGO_ENABLED=1 build succeeds
+      cmd: bash -c 'd=$(mktemp -d) && printf "package main\nfunc main(){}\n" > "$d/m.go" && CGO_ENABLED=1 go build -o "$d/out" "$d/m.go" && test -f "$d/out" && rm -rf "$d"'
