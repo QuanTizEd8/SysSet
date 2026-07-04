@@ -23,9 +23,14 @@ _options:
   verify:
     args: "--version"
     description: Verify Task is installed and working.
+    functional:
+      description: task runs a simple Taskfile task
+      cmd: '{bin} --taskfile <(printf "version: 3\ntasks:\n  hello:\n    cmds:\n      - echo hi\n") hello | grep -q hi'
   gh_repo: go-task/task
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["3.50.0"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/task_{plat.kernel:lower}_{plat.machine_go}.tar.gz"

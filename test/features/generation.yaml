@@ -30,6 +30,7 @@ rollout:
     - install-uv
     - install-yq
     - install-lefthook
+    - install-taskfile
   denylist:
     - install
     - install-os-pkg

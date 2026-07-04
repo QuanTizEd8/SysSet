@@ -1,42 +1,30 @@
-default:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  tests:
-  - default
-
-binary_custom_prefix:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: binary
-    prefix: /opt/task-bin
-    if_exists: reinstall
-  tests:
-  - binary_custom_prefix
-
-if_exists_fail:
-  expect_install_failure: true
-  envs:
-  - ubuntu-stable
-  modes:
-  - standalone
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "9.9.9\n"; exit 0; fi\nexit 0' > /usr/local/bin/task
-    chmod +x /usr/local/bin/task
-  options:
-    method: auto
-    if_exists: fail
-  tests:
-  - if_exists_fail
-  standalone:
-    skip_install: false
-
+# Every scenario except installer_dir and macos_package_default is now
+# auto-generated from features/install-taskfile/metadata.yaml
+# (_options.verify.functional, _options.version.test_pins, _options.method,
+# _options.prefix, _options.completions, if_exists, invalid enum values,
+# log_file) by .dev/lib/proman/test/gen/. See test/features/generation.yaml
+# for the generator config, and run `proman-test-gen-preview install-taskfile`
+# to inspect the generated output.
+#
+# installer_dir exercises the universal INSTALLER_DIR option (verifying the
+# downloaded archive/checksums are preserved for debugging) — a
+# framework-wide option with no dedicated generator family yet.
+# macos_package_default stays hand-written: the generator has no macOS
+# support currently (method.package here is brew-only, not testable in the
+# Linux-only env pool).
+#
+# Dropped as now-generated/superseded: binary_custom_prefix declared
+# if_exists: reinstall with no setup: seeding a pre-existing install, so
+# if_exists was inert — substantively identical to the generated
+# custom_prefix_symlink. method_npm/npm_bundled had the same inert
+# if_exists: reinstall pattern, superseded by the generated npm_default/
+# npm_bundled_default. The hand-written upstream_package_default used bare
+# alpine-current with a `shell: sh` workaround (the feature's own bootstrap
+# bash is removed after install on that env) and only covered apt/apk,
+# fully superseded by the generated version, which correctly uses
+# alpine-current+bash and additionally covers fedora/opensuse — real
+# coverage that would have caught the ca-certificates/sslcacert bugs fixed
+# in commits 4aa2578e/43284146 immediately, had it existed sooner.
 installer_dir:
   envs:
   - ubuntu-stable
@@ -48,54 +36,6 @@ installer_dir:
     installer_dir: /tmp/task-trace
   tests:
   - installer_dir
-
-specific_version:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    version: "3.50.0"
-    method: binary
-  tests:
-  - specific_version
-
-method_npm:
-  envs:
-  - ubuntu-stable+node
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: npm
-    if_exists: reinstall
-  tests:
-  - method_npm
-
-npm_bundled:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: npm-bundled
-    if_exists: reinstall
-  tests:
-  - npm_bundled
-
-upstream_package_default:
-  envs:
-  - ubuntu-stable
-  - alpine-current
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: upstream-package
-  tests:
-  - upstream_package_default
 
 macos_package_default:
   envs:
