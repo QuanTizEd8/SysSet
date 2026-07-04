@@ -15,6 +15,9 @@ _options:
   gh_repo: devcontainers/cli
   version:
     resolution: npm
+    flag: "--version"
+    test_pins:
+      pinned: ["0.86.1"]
   method:
     npm-bundled:
       package: "@devcontainers/cli"
@@ -29,6 +32,9 @@ _options:
   verify:
     args: "--help"
     description: Verify `devcontainer` is installed and working.
+    functional:
+      description: devcontainer CLI lists its subcommands
+      cmd: '{bin} --help | grep -q "Commands:"'
 customizations:
   vscode:
     extensions:

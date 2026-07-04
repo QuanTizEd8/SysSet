@@ -1,31 +1,35 @@
+# All scenarios are now auto-generated from
+# features/install-devcontainer-cli/metadata.yaml (_options.verify.functional,
+# _options.version.{flag,test_pins}, _options.method, _options.prefix,
+# if_exists, invalid enum values, log_file) by .dev/lib/proman/test/gen/. See
+# test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-devcontainer-cli` to inspect the generated
+# output.
+#
+# _options.version.flag overrides the generic {flag} fallback (which would
+# otherwise use verify.args="--help", not a version-reporting flag) so
+# generated version checks use `devcontainer --version` correctly.
+#
+# `defaults.options.if_exists: reinstall` predates this migration and applies
+# uniformly to every scenario (generated included) via scenarios.py's
+# per-scenario default-merging — kept as-is since none of the generated
+# scenarios that don't set their own if_exists (default, version_pinned,
+# package/npm method scenarios, custom_prefix_*, log_file) have anything
+# pre-existing to reinstall over, so this is a no-op for them; verified via
+# real Docker runs that the merge doesn't break anything.
+#
+# generation.suppress.scenarios drops custom_prefix_symlink_nonroot: the
+# npm-bundled method's self-contained Node.js runtime is distributed as a
+# .tar.xz archive, and bootstrap__xz (unlike bootstrap__jq/bootstrap__yq)
+# has no privilege-free install path, so a nonroot install fails outright
+# (`xz is required to extract .tar.xz archives but could not be
+# installed`). Same pre-existing gap already worked around for
+# install-shellcheck and install-typst — see
+# project_bootstrap_xz_privilege_gap in memory / a future dedicated fix.
 defaults:
   options:
     if_exists: reinstall
 
-npm_bundled:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: npm-bundled
-  tests: [npm_bundled]
-
-npm:
-  envs: [ubuntu-stable+node]
-  modes: [devcontainer, standalone]
-  options:
-    method: npm
-  tests: [npm]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [[ "${1-}" == "--version" ]]; then echo "0.0.0"; exit 0; fi\nexit 0\n' > /usr/local/bin/devcontainer
-    chmod +x /usr/local/bin/devcontainer
-  options:
-    method: npm-bundled
-    if_exists: fail
-  tests: [if_exists_fail]
-  standalone:
-    skip_install: false
+generation:
+  suppress:
+    scenarios: [custom_prefix_symlink_nonroot]

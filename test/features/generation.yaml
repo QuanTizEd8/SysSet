@@ -35,6 +35,7 @@ rollout:
     - install-fzf
     - install-ruff
     - install-direnv
+    - install-devcontainer-cli
     - install-go
     - install-rust
   denylist:
