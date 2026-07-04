@@ -17,10 +17,15 @@ _options:
   verify:
     args: "version"
     description: Verify lefthook is installed and working.
+    functional:
+      description: lefthook generates shell completions
+      cmd: '{bin} completion bash | grep -q "lefthook"'
   gh_repo: evilmartians/lefthook
   version:
     resolution: github_release
     flag: "version"
+    test_pins:
+      pinned: ["2.1.6"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/lefthook_{feat.version}_{plat.kernel==linux?Linux:MacOS}_{plat.machine_gnu}"

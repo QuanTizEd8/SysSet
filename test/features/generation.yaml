@@ -29,6 +29,7 @@ rollout:
     - install-typst
     - install-uv
     - install-yq
+    - install-lefthook
   denylist:
     - install
     - install-os-pkg
