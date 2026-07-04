@@ -1,0 +1,8 @@
+{
+   "features": {
+      "ghcr.io/quantized8/devfeats/install-act:0.1.0": {}
+   },
+   "image": "ubuntu:latest",
+   "name": "Try install-act",
+   "remoteUser": "ubuntu"
+}

@@ -1,0 +1,25 @@
+# Every scenario except macos_package_default is now auto-generated from
+# features/install-act/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix,
+# _options.completions, if_exists, invalid enum values, log_file) by
+# .dev/lib/proman/test/gen/. See test/features/generation.yaml for the
+# generator config, and run `proman-test-gen-preview install-act` to
+# inspect the generated output.
+#
+# macos_package_default stays hand-written: the generator has no macOS
+# support currently (method.package here covers brew and pacman, but
+# pacman is already exercised by the generated package_default on
+# archlinux-current, and brew has no matching env in the Linux-only
+# generation pool — mirrors install-taskfile/install-lefthook precedent).
+
+macos_package_default:
+  envs:
+  - macos-current+brew
+  modes:
+  - macos
+  setup: |
+    brew list --formula act >/dev/null 2>&1 && brew uninstall --formula act || true
+  options:
+    method: package
+  tests:
+  - macos_package_default

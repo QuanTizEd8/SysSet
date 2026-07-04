@@ -1,0 +1,112 @@
+version: 0.1.0
+name: act Installation
+description: Install [act](https://github.com/nektos/act) — run GitHub Actions workflows locally.
+keywords:
+  - act
+  - github-actions
+  - ci
+  - workflow
+  - docker
+  - local-ci
+  - cli
+_long_description: |-
+  Installs `act`, a CLI that runs GitHub Actions workflows locally using the Docker Engine
+  API to pull/build the images referenced by each job's `runs-on` runner and execute steps
+  in containers on the local machine. `act` is a single, statically-linked Go binary — it
+  does not have a client-server architecture and requires no background service of its own.
+
+  Docker Engine (or any Docker Engine API-compatible host) must be reachable at runtime via
+  the socket configured by `DOCKER_HOST` (defaults to the local Docker daemon socket). This
+  is a runtime concern only — DevFeats does not manage a Docker installation as part of this
+  feature; ensure a Docker feature/tooling is available separately.
+
+  By default, `method=auto` downloads the official GitHub release binary with checksum
+  verification. Homebrew and Arch Linux's official package repositories also ship an `act`
+  package. On Fedora, a community-maintained COPR repository provides an `act-cli` package.
+  Building from source (Go toolchain) is also available.
+_tool_name: act
+_options:
+  verify:
+    args: "--version"
+    description: Verify act is installed and working.
+    functional:
+      description: act lists jobs from a workflow file
+      cmd: 'printf "on: push\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps: []\n" > /tmp/act-check.yml && {bin} -l -W /tmp/act-check.yml >/dev/null'
+  gh_repo: nektos/act
+  version:
+    resolution: github_release
+    test_pins:
+      pinned: ["0.2.80"]
+      legacy: ["0.2.50"]
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/act_{plat.kernel}_{plat.machine_release==amd64?x86_64:{plat.machine_release}}.tar.gz"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/checksums.txt"
+      binary_src:
+        - act
+      when:
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, armv7, i386, riscv64]}
+        - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
+    package:
+      when:
+        - {plat.pm: brew}
+        - {plat.pm: pacman}
+    upstream-package:
+      when: {plat.pm: [dnf, yum], os.id: fedora}
+      registers_as: act-cli
+    source:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/archive/refs/tags/{feat.tag}.tar.gz"
+      build_system: make
+      build_env:
+        - "VERSION={feat.version}"
+        - "PREFIX={feat.prefix}"
+        - "GOTOOLCHAIN=auto"
+      make_targets:
+        - install
+  prefix:
+    bins: [act]
+    applies_when:
+      - method: [binary, source]
+  completions:
+    subcmd: "completion"
+    shells: [bash, zsh, fish]
+customizations:
+  vscode:
+    extensions:
+      - sanjulaganepola.github-local-actions
+_dependencies:
+  run:
+    method-package:
+      packages:
+        - name: act
+          version: "{feat.pm_version}"
+          when: ${{ _options.method.package.when }}$
+    method-upstream-package:
+      packages:
+        - name: act-cli
+          version: "{feat.pm_version}"
+          when: ${{ _options.method.upstream-package.when }}$
+      dnf:
+        repos:
+          - &copr-repo |
+            [copr:copr.fedorainfracloud.org:goncalossilva:act]
+            name=Copr repo for act owned by goncalossilva
+            baseurl=https://download.copr.fedorainfracloud.org/results/goncalossilva/act/fedora-$releasever-$basearch/
+            type=rpm-md
+            skip_if_unavailable=True
+            gpgcheck=1
+            gpgkey=https://download.copr.fedorainfracloud.org/results/goncalossilva/act/pubkey.gpg
+            repo_gpgcheck=0
+            enabled=1
+            enabled_metadata=1
+      yum:
+        repos:
+          - *copr-repo
+  build:
+    method-source:
+      packages:
+        - make
+        - name: go
+          apt: golang-go
+          dnf: golang
+# installsAfter: []

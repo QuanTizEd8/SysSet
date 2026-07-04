@@ -1,0 +1,21 @@
+# Every check group except macos_package_default is now auto-generated —
+# see scenarios.yaml.
+
+macos_package_default:
+  description: |
+    method=package on macOS installs act from the standard Homebrew formula.
+    Verifies act is on PATH, functional, listed by brew, and records
+    installed-method=package.
+  pre: |
+    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
+  checks:
+    - title: brew is on PATH
+      cmd: command -v brew
+    - title: act is on PATH
+      cmd: command -v act
+    - title: act reports a version
+      cmd: bash -c 'act --version 2>&1 | grep -Eq "(^|[^0-9.])v?[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"'
+    - title: brew lists the act formula
+      cmd: brew list --formula act
+    - title: installed-method state is package
+      cmd: grep -Fqx "package" "${_installed_method}"
