@@ -1618,15 +1618,19 @@ __install_finish__() {
 
     # -- write_group --
     [[ -n "${WRITE_GROUP:-}" ]] && {
-      local _wargs=()
-      if [[ "${#WRITE_USERS[@]}" -gt 0 ]]; then
-        _wargs=(--current false --remote false --container false)
-        for _u in "${WRITE_USERS[@]}"; do _wargs+=(--user "$_u"); done
+      if users__is_privileged; then
+        local _wargs=()
+        if [[ "${#WRITE_USERS[@]}" -gt 0 ]]; then
+          _wargs=(--current false --remote false --container false)
+          for _u in "${WRITE_USERS[@]}"; do _wargs+=(--user "$_u"); done
+        fi
+        mapfile -t _write_users < <(users__resolve_list "${_wargs[@]}")
+        logging__install "Configuring write group '${WRITE_GROUP}' on prefix '${_RESOLVED_PREFIX}'."
+        users__set_write_permissions "${_RESOLVED_PREFIX}" \
+          "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
+      else
+        logging__warn "write_group='${WRITE_GROUP}' requested but no privilege available (groupadd/chown require root/sudo); skipping."
       fi
-      mapfile -t _write_users < <(users__resolve_list "${_wargs[@]}")
-      logging__install "Configuring write group '${WRITE_GROUP}' on prefix '${_RESOLVED_PREFIX}'."
-      users__set_write_permissions "${_RESOLVED_PREFIX}" \
-        "${INSTALL_USER:-$(id -nu)}" "${WRITE_GROUP}" "${_write_users[@]}"
     }
   elif argparse__var_declared PREFIX; then
     logging__skip "PREFIX configured but prefix guard '${_FEAT_PREFIX_GUARD_VAR:-}'='${!_FEAT_PREFIX_GUARD_VAR:-}' does not apply for METHOD='${METHOD:-unset}'."
