@@ -81,12 +81,27 @@ class IfExistsRule:
         path = facts.resolved_bin_path(facts.default_prefix_root, facts.primary_bin)
         flag = facts.version_flag
         fake_output = f"{facts.primary_bin}-{_FAKE_VERSION} (fake)"
-        return (
+        # mkdir -p first: default_prefix_root isn't always a pre-existing
+        # directory like /usr/local — a feature whose own prefix root is a
+        # dedicated, not-yet-created directory (e.g. /usr/local/cargo) would
+        # otherwise fail here on a fresh container with no prior install.
+        script = (
+            f"mkdir -p {path.rsplit('/', 1)[0]}\n"
             f"printf '#!/usr/bin/env bash\\n"
             f'if [ "${{1-}}" = "{flag}" ]; then echo "{fake_output}"; exit 0; fi\\n'
             f"exit 0' > {path}\n"
             f"chmod +x {path}"
         )
+        # Symlink into symlink_root when the prefix root isn't already on the
+        # default PATH (e.g. /usr/local/go, unlike plain /usr/local): a real
+        # prior install would have gone through prefix-discovery and left this
+        # symlink; if_exists=skip/fail never re-run that step, so `command -v`
+        # would otherwise wrongly report the tool as absent even though
+        # detection (which checks the prefix path directly, not PATH) finds it.
+        link_path = f"{facts.symlink_root}/{facts.primary_bin}"
+        if link_path != path and not facts.symlink_skipped:
+            script += f"\nmkdir -p {facts.symlink_root}\nln -sf {path} {link_path}"
+        return script
 
     def _skip(self, facts: FeatureFacts, cfg: GenerationConfig) -> GeneratedScenario:
         name = "if_exists_skip"
