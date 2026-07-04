@@ -212,12 +212,23 @@ _uri__resolve_oci_to() {
 
 _uri__sidecar_hash() {
   # _uri__sidecar_hash <asset_name> <sidecar_file> — extract the sha256 hex for <asset_name>
-  # from a sidecar checksum file. Supports sha256sum multi-entry format (<hash>  <filename>
-  # or <hash> *<filename>) and raw single-hash files (one line, one field).
-  # Prints the hex string (or empty on no match). Returns 0.
+  # from a sidecar checksum file. Supports the GNU coreutils sha256sum multi-entry format
+  # (<hash>  <filename> or <hash> *<filename>), the OpenSSL/BSD-style format
+  # (ALGO (<filename>) = <hash>, e.g. `SHA256 (tool.tar.gz) = <hash>`), and raw single-hash
+  # files (one line, one field). Prints the hex string (or empty on no match). Returns 0.
   local _name="$1" _file="$2"
   awk -v a="$_name" \
-    '{fn=$NF; sub(/^\*/, "", fn); sub(/.*\//, "", fn)} fn==a{print $1;_f=1;exit} END{if(!_f && NR==1 && NF==1)print $1}' \
+    '{
+      if (NF >= 4 && $1 ~ /^(MD5|SHA1|SHA224|SHA256|SHA384|SHA512)$/ && $(NF - 1) == "=") {
+        fn = $2; sub(/^\(/, "", fn); sub(/\)$/, "", fn); sub(/.*\//, "", fn)
+        hash = $NF
+      } else {
+        fn = $NF; sub(/^\*/, "", fn); sub(/.*\//, "", fn)
+        hash = $1
+      }
+    }
+    fn == a { print hash; _f = 1; exit }
+    END { if (!_f && NR == 1 && NF == 1) print $1 }' \
     "$_file"
 }
 

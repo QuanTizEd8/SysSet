@@ -145,6 +145,34 @@ setup() {
   assert_output ""
 }
 
+@test "_uri__sidecar_hash: OpenSSL/BSD-style 'SHA256 (file) = hash' format" {
+  local _sc="${BATS_TEST_TMPDIR}/CHECKSUMS.txt"
+  printf 'SHA256 (tool.tar.gz) = beef1111beef1111beef1111beef1111beef1111beef1111beef1111beef1111\n' > "$_sc"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'tool.tar.gz' '${_sc}'"
+  assert_success
+  assert_output "beef1111beef1111beef1111beef1111beef1111beef1111beef1111beef1111"
+}
+
+@test "_uri__sidecar_hash: OpenSSL/BSD-style format matches correct entry among multiple platforms" {
+  local _sc="${BATS_TEST_TMPDIR}/CHECKSUMS.txt"
+  {
+    printf 'SHA256 (tool-darwin-arm64.zip) = aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000aaaa0000\n'
+    printf 'SHA256 (tool-linux-x86_64.zip) = beef1111beef1111beef1111beef1111beef1111beef1111beef1111beef1111\n'
+    printf 'SHA256 (tool-linux-arm64.zip) = cccc2222cccc2222cccc2222cccc2222cccc2222cccc2222cccc2222cccc2222\n'
+  } > "$_sc"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'tool-linux-x86_64.zip' '${_sc}'"
+  assert_success
+  assert_output "beef1111beef1111beef1111beef1111beef1111beef1111beef1111beef1111"
+}
+
+@test "_uri__sidecar_hash: OpenSSL/BSD-style format returns empty when asset not present" {
+  local _sc="${BATS_TEST_TMPDIR}/CHECKSUMS.txt"
+  printf 'SHA256 (tool-linux-x86_64.zip) = beef1111beef1111beef1111beef1111beef1111beef1111beef1111beef1111\n' > "$_sc"
+  run bash -c "source '${LIB_ROOT}/uri.bash'; _uri__sidecar_hash 'missing.zip' '${_sc}'"
+  assert_success
+  assert_output ""
+}
+
 # ── uri__resolve ──────────────────────────────────────────────────────────────
 
 @test "uri__resolve copies a local file" {
