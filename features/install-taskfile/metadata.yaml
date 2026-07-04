@@ -56,6 +56,11 @@ customizations:
     extensions:
       - task.vscode-task
 _dependencies:
+  build:
+    base:
+      when: {plat.kernel: linux}
+      packages:
+        - ca-certificates
   run:
     method-package:
       brew:
