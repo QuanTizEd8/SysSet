@@ -32,6 +32,7 @@ rollout:
     - install-lefthook
     - install-taskfile
     - install-fzf
+    - install-ruff
   denylist:
     - install
     - install-os-pkg

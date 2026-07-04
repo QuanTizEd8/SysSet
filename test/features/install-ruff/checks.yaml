@@ -1,32 +1,13 @@
-default:
+# Every check group except the ruff_receipt_* ones below is now auto-generated
+# — see scenarios.yaml for how they're wired to specific generated scenarios
+# via generation.augment_tests.
+
+ruff_receipt_default:
   description: |
-    Default install on Ubuntu puts a functional ruff on PATH via binary auto-selection.
-    Also exercises shell_completions=bash (enabled by default in this scenario) and
-    verifies the cargo-dist install receipt is written with a dynamically-fetched
-    provider version.
+    Default binary install: ruff writes a cargo-dist self-update receipt
+    with the default install_prefix and a dynamically-fetched provider
+    version.
   checks:
-    - title: ruff is on PATH
-      cmd: command -v ruff
-    - title: ruff binary is executable
-      cmd: bash -c 'test -x "$(command -v ruff)"'
-    - title: ruff --version succeeds
-      cmd: ruff --version
-      debug: |
-        echo "=== ruff --version ==="
-        ruff --version 2>&1 || echo "(failed)"
-    - title: ruff reports a semver version
-      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+\.[0-9]+\.[0-9]+"'
-    - title: ruff check runs on sample file
-      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
-    - title: bash completion file exists
-      cmd: test -f /etc/bash_completion.d/ruff
-      debug: |
-        echo "=== /etc/bash_completion.d/ruff ==="
-        cat /etc/bash_completion.d/ruff 2> /dev/null | head -5 || echo "(missing)"
-    - title: bash completion file is non-empty
-      cmd: bash -c 'test -s /etc/bash_completion.d/ruff'
-    - title: bash completion file is valid bash
-      cmd: bash -n /etc/bash_completion.d/ruff
     - title: ruff install receipt exists
       cmd: test -f "${HOME}/.config/ruff/ruff-receipt.json"
       debug: |
@@ -37,24 +18,11 @@ default:
     - title: ruff install receipt has a dynamically-fetched cargo-dist provider version
       cmd: bash -c 'grep -Eq "\"provider\":\{\"source\":\"cargo-dist\",\"version\":\"[0-9]+\.[0-9]+\.[0-9]+\"\}" "${HOME}/.config/ruff/ruff-receipt.json"'
 
-binary_pinned_version:
+ruff_receipt_pinned:
   description: |
-    version=0.15.20 + method=binary: installs a specific pinned release and
-    verifies the binary reports exactly that version.
+    version=0.15.20: ruff writes a cargo-dist self-update receipt reporting
+    exactly that version and the cargo-dist provider version that built it.
   checks:
-    - title: ruff binary is at /usr/local/bin/ruff
-      cmd: test -f /usr/local/bin/ruff
-    - title: ruff binary is executable
-      cmd: test -x /usr/local/bin/ruff
-    - title: ruff --version succeeds
-      cmd: ruff --version
-      debug: |
-        echo "=== ruff --version ==="
-        ruff --version 2>&1 || echo "(failed)"
-    - title: ruff version is 0.15.20
-      cmd: bash -c 'ruff --version 2>/dev/null | grep -q "^ruff 0\.15\.20"'
-    - title: ruff check runs on sample file
-      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
     - title: ruff install receipt exists
       cmd: test -f "${HOME}/.config/ruff/ruff-receipt.json"
     - title: ruff install receipt reports version 0.15.20
@@ -65,125 +33,18 @@ binary_pinned_version:
         echo "=== ruff-receipt.json ==="
         cat "${HOME}/.config/ruff/ruff-receipt.json" 2> /dev/null || echo "(missing)"
 
-binary_custom_prefix:
+ruff_receipt_custom_prefix:
   description: |
-    method=binary, prefix=/opt/ruff-bin, prefix_discovery=symlink: installs ruff at a custom
-    prefix and creates a symlink at /usr/local/bin/ruff pointing to the custom binary.
+    Custom prefix: the receipt reports the custom install_prefix.
   checks:
-    - title: ruff binary is at /opt/ruff-bin/bin/ruff
-      cmd: test -f /opt/ruff-bin/bin/ruff
-    - title: ruff binary at custom prefix is executable
-      cmd: test -x /opt/ruff-bin/bin/ruff
-    - title: /opt/ruff-bin/bin/ruff --version succeeds
-      cmd: /opt/ruff-bin/bin/ruff --version
-    - title: symlink exists at /usr/local/bin/ruff
-      cmd: test -L /usr/local/bin/ruff
-    - title: symlink resolves to /opt/ruff-bin/bin/ruff
-      cmd: bash -c '[ "$(readlink -f /usr/local/bin/ruff)" = "/opt/ruff-bin/bin/ruff" ]'
-    - title: ruff resolves from PATH
-      cmd: command -v ruff
-    - title: ruff check runs via PATH
-      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
     - title: ruff install receipt reports the custom install_prefix
-      cmd: bash -c 'grep -q "\"install_prefix\":\"/opt/ruff-bin/bin\"" "${HOME}/.config/ruff/ruff-receipt.json"'
+      cmd: bash -c 'grep -q "\"install_prefix\":\"/opt/ruff-test/bin\"" "${HOME}/.config/ruff/ruff-receipt.json"'
 
-package_default:
-  description: method=package installs ruff via the OS package manager.
+ruff_receipt_absent:
+  description: |
+    Non-binary install methods (package, upstream-package, cargo) must not
+    write a cargo-dist self-update receipt — that mechanism only applies to
+    the binary release ruff itself ships.
   checks:
-    - title: ruff is on PATH
-      cmd: command -v ruff
-    - title: ruff binary is executable
-      cmd: bash -c 'test -x "$(command -v ruff)"'
-    - title: ruff --version succeeds
-      cmd: ruff --version
-    - title: ruff reports a semver version
-      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+"'
-    - title: ruff check runs on sample file
-      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
-    - title: ruff install receipt is not written for package installs
+    - title: ruff install receipt is not written
       cmd: bash -c '! test -e "${HOME}/.config/ruff/ruff-receipt.json"'
-
-upstream_package_default:
-  description: |
-    method=upstream-package on Rocky Linux installs Ruff via an added package
-    source (EPEL) and leaves a functional rpm-managed binary on PATH.
-  checks:
-    - title: ruff is on PATH
-      cmd: command -v ruff
-    - title: ruff binary is executable
-      cmd: bash -c 'test -x "$(command -v ruff)"'
-    - title: ruff is rpm-managed
-      cmd: bash -c 'rpm -q ruff >/dev/null 2>&1 && rpm -qf "$(command -v ruff)" >/dev/null 2>&1'
-    - title: ruff --version succeeds
-      cmd: ruff --version
-    - title: ruff reports a semver version
-      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+"'
-    - title: ruff check runs on sample file
-      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
-    - title: ruff install receipt is not written for upstream-package installs
-      cmd: bash -c '! test -e "${HOME}/.config/ruff/ruff-receipt.json"'
-
-method_cargo:
-  description: |
-    method=cargo on Ubuntu with Rust pre-installed: builds ruff from crates.io via
-    `cargo install --locked ruff` (exercising the make/gcc build dependency required
-    to compile the vendored jemalloc allocator) and verifies the installed binary.
-    The cargo-dist install receipt must NOT be written for this method.
-  checks:
-    - title: ruff binary is at /usr/local/bin/ruff
-      cmd: test -f /usr/local/bin/ruff
-    - title: ruff binary is executable
-      cmd: test -x /usr/local/bin/ruff
-    - title: ruff --version succeeds
-      cmd: ruff --version
-      debug: |
-        echo "=== ruff --version ==="
-        ruff --version 2>&1 || echo "(failed)"
-    - title: ruff reports a semver version
-      cmd: bash -c 'ruff --version | grep -Eq "^ruff [0-9]+\.[0-9]+\.[0-9]+"'
-    - title: ruff check runs on sample file
-      cmd: bash -c 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache ruff check /tmp/ruff-test.py'
-    - title: ruff install receipt is not written for cargo installs
-      cmd: bash -c '! test -e "${HOME}/.config/ruff/ruff-receipt.json"'
-
-completions_zsh:
-  description: |
-    shell_completions=zsh (root): Verifies ruff zsh completion file is written to the
-    system-wide zsh completions directory.
-  checks:
-    - title: ruff binary installed
-      cmd: command -v ruff
-    - title: ruff --version succeeds
-      cmd: ruff --version
-    - title: zsh completion file exists in system zsh completions dir
-      cmd: bash -c 'test -f /etc/zsh/completions/_ruff || test -f /usr/share/zsh/completions/_ruff || test -f /etc/completions/_ruff'
-      debug: |
-        echo "=== searching for _ruff completion ==="
-        ls -la /etc/zsh/completions/_ruff 2> /dev/null || echo "(missing /etc/zsh/completions/_ruff)"
-        ls -la /usr/share/zsh/completions/_ruff 2> /dev/null || echo "(missing /usr/share/zsh/completions/_ruff)"
-        ls -la /etc/completions/_ruff 2> /dev/null || echo "(missing /etc/completions/_ruff)"
-    - title: zsh completion file is non-empty
-      cmd: bash -c 'f=""; for p in /etc/zsh/completions/_ruff /usr/share/zsh/completions/_ruff /etc/completions/_ruff; do [ -f "$p" ] && f="$p" && break; done; test -s "$f"'
-
-if_exists_fail:
-  description: |
-    if_exists=fail aborts when ruff is already present on PATH, leaving the
-    pre-installed stub untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-    - title: pre-installed ruff stub still present
-      cmd: command -v ruff
-    - title: stub version is unchanged
-      cmd: bash -c 'ruff --version 2>/dev/null | grep -q "99\.99\.99"'
-
-if_exists_skip:
-  description: |
-    if_exists=skip exits 0 when ruff is already present on PATH, leaving the
-    pre-installed stub and its version untouched.
-  checks:
-    - title: ruff remains available after skip
-      cmd: command -v ruff
-    - title: stub version is unchanged (skip did not reinstall)
-      cmd: bash -c 'ruff --version 2>/dev/null | grep -q "99\.99\.99"'

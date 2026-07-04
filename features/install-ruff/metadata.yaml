@@ -24,9 +24,14 @@ _options:
   verify:
     args: "--version"
     description: Verify Ruff is installed and working.
+    functional:
+      description: ruff check runs on sample file
+      cmd: 'printf "x=1\n" > /tmp/ruff-test.py && RUFF_CACHE_DIR=/tmp/ruff-cache {bin} check /tmp/ruff-test.py'
   gh_repo: astral-sh/ruff
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["0.15.20"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ruff-{plat.rust_triple}{plat.kernel==Windows?.zip:.tar.gz}"
