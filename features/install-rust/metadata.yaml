@@ -1,0 +1,147 @@
+version: 0.1.0
+name: Rust Installation
+description: Install the [Rust](https://www.rust-lang.org) programming language toolchain (`rustc`, `cargo`, `rustup`).
+keywords:
+  - rust
+  - rustc
+  - cargo
+  - rustup
+  - toolchain
+  - systems programming
+_long_description: |-
+  Installs the Rust toolchain — the `rustc` compiler, the `cargo` package manager
+  and build tool, and the `rustup` toolchain multiplexer/installer — using the
+  official `rustup-init` installer by default. This is the method recommended
+  upstream: `rustup-init.sh` auto-detects musl vs glibc, Rosetta 2 on Apple
+  Silicon, and other platform nuances far more reliably than re-deriving them
+  independently. A standalone offline installer (downloaded release tarball with
+  a bundled `install.sh`) and OS package manager installs (`apt`/`dnf`/`pacman`/
+  `apk`/`brew`) are also available via the `method` option. Supports channel
+  (`stable`/`beta`/`nightly`) and exact version pinning, `rustup` install
+  profiles, additional components (`clippy`, `rustfmt`, `rust-analyzer`, ...),
+  and cross-compilation targets.
+
+options:
+  profile:
+    type: string
+    default: default
+    description: >-
+      `rustup` install profile controlling which components ship with the
+      default toolchain. Passed to `rustup-init --profile`. `complete` is not
+      exposed here — upstream documents it as "almost always fails" and not
+      recommended.
+    enum:
+      - value: minimal
+        description: rustc, cargo, rust-std only — smallest footprint (CI/containers).
+      - value: default
+        description: minimal plus rust-docs, rustfmt, clippy.
+  components:
+    type: array
+    default: ""
+    description: >-
+      Additional rustup components to install alongside the profile's
+      defaults (e.g. `rust-analyzer`, `rust-src`). Passed to
+      `rustup-init -c` / `rustup component add`.
+    proposals:
+      - value: rust-analyzer
+        description: Language server for IDE integration.
+      - value: rust-src
+        description: Standard library source; required for rust-analyzer's full IDE features.
+      - value: llvm-tools
+        description: Collection of LLVM tools (unstable).
+      - value: miri
+        description: Experimental interpreter for detecting undefined behavior.
+      - value: rustc-dev
+        description: Compiler as a library.
+  targets:
+    type: array
+    default: ""
+    description: >-
+      Additional cross-compilation targets to install (e.g.
+      `wasm32-unknown-unknown`, `x86_64-unknown-linux-musl`). Passed to
+      `rustup-init -t` / `rustup target add`.
+  rustup_home:
+    type: string
+    default: ""
+    description: >-
+      Directory for `RUSTUP_HOME` — where `rustup` stores installed toolchains
+      and its `settings.toml`, kept as a sibling of the resolved `--prefix`
+      (`CARGO_HOME`). Empty (default) computes `/usr/local/rustup` when
+      installing system-wide, or `${HOME}/.rustup` otherwise — mirroring
+      upstream `rustup`'s own defaults.
+
+_options:
+  gh_repo: rust-lang/rust
+  verify:
+    cmd: rustc
+    args: "--version"
+    description: Verify rustc is installed and working.
+    functional:
+      description: rustc compiles and runs a trivial program
+      cmd: 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && {bin} "$d/m.rs" -o "$d/m" && "$d/m"; rc=$?; rm -rf "$d"; exit $rc'
+  version:
+    resolution: github_release
+    default: stable
+    description: >-
+      Rust version to install. Accepts an exact release (`1.85.0`), a partial
+      prefix (`1.85`, `1`), `stable`/`latest` (resolved to the current stable
+      release), or a rolling channel: `beta`, `nightly`, or a dated nightly
+      (`nightly-2026-05-01`).
+    proposals:
+      - value: beta
+        description: Latest beta channel release.
+      - value: nightly
+        description: Latest nightly channel build.
+      - value: nightly-2026-01-01
+        description: "A dated nightly build (format: nightly-YYYY-MM-DD)."
+    test_pins:
+      pinned: ["1.85.0"]
+      legacy: ["1.75.0"]
+  method:
+    script:
+      asset_uri: "https://raw.githubusercontent.com/rust-lang/rustup/main/rustup-init.sh"
+    source:
+      # {feat.rust_real_triple} is a feature-local context token, registered by
+      # __install_run_source_pre in install.bash (via ctx__set) before this
+      # pattern is expanded. It intentionally does NOT reuse {plat.rust_triple}:
+      # that token is deliberately musl-biased everywhere (portable static
+      # builds, used by e.g. install-uv/install-jq), but rustup's own
+      # target-triple selection must match the *actual* host libc — using the
+      # musl triple on a glibc host would silently install a musl-linked
+      # toolchain with a mismatched ABI.
+      asset_uri: "https://static.rust-lang.org/dist/rust-{feat.version}-{feat.rust_real_triple}.tar.xz"
+      sidecar_uri: "https://static.rust-lang.org/dist/rust-{feat.version}-{feat.rust_real_triple}.tar.xz.sha256"
+    package:
+      registers_as: rustup
+      when: {plat.pm: [apt, dnf, pacman, apk, brew, zypper]}
+  prefix:
+    root: /usr/local/cargo
+    nonroot: "${HOME}/.cargo"
+    bins: [rustc, cargo, rustup, rustdoc]
+    write_group:
+      default: rustlang
+  completions:
+    subcmd: completions
+    shells: [bash, zsh, fish]
+
+customizations:
+  vscode:
+    extensions:
+      - rust-lang.rust-analyzer
+      - vadimcn.vscode-lldb
+      - tamasfe.even-better-toml
+
+_dependencies:
+  run:
+    base:
+      packages:
+        - ca-certificates
+        - name: gcc
+          apt: build-essential
+          apk: build-base
+    method-package:
+      # The OS package only bootstraps the rustup manager itself (tool-ref.md);
+      # __install_run_package_post in install.bash then provisions the actual
+      # toolchain via 'rustup toolchain install' into the resolved prefix.
+      packages:
+        - name: rustup

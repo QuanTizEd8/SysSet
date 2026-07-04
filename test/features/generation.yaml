@@ -35,6 +35,7 @@ rollout:
     - install-fzf
     - install-ruff
     - install-go
+    - install-rust
   denylist:
     - install
     - install-os-pkg

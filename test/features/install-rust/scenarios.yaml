@@ -1,0 +1,110 @@
+# Every scenario except the four below is auto-generated from
+# features/install-rust/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix, if_exists,
+# invalid enum values, log_file, completions) by .dev/lib/proman/test/gen/.
+# See test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-rust` to inspect the generated output.
+# All four overrides below were discovered via real container test runs, not
+# assumed — see the comment on each for the confirmed root cause.
+#
+# package_default: its "binary is package-manager-managed" check probes
+# ownership of the PRIMARY bin (rustc) via dpkg/rpm/pacman file-ownership
+# queries. That's wrong for install-rust — METHOD=package only bootstraps the
+# `rustup` manager via the OS package manager (tool-ref.md); the actual
+# rustc/cargo proxies are then provisioned by __install_run_package_post via
+# `rustup toolchain install` into the resolved prefix, so they are never
+# owned by any OS package. Only `rustup` itself is (or, on Alpine/Fedora
+# where the package only provides the `rustup-init` bootstrap binary, the
+# proxies are genuinely rustup-init-created, same as METHOD=script). The
+# hand-written package_default below reuses every other generated check
+# verbatim and replaces just that one probe to target `rustup` instead of
+# the primary bin.
+#
+# source_default: the generic method_matrix rule reuses the shared "default"
+# check group verbatim for every _VERBATIM_METHODS entry, including "source"
+# — but that group asserts `rustup is on PATH`, which is false for the
+# standalone installer (it has no rustup at all, by design; only script and
+# package methods provision a rustup manager). source_default_checks below
+# is identical to "default" minus that one assertion.
+#
+# source_default_checks additionally includes source_triple_correctness
+# directly in its tests list below (not via generation.augment_tests, which
+# only augments a generator-emitted scenario body — source_default is
+# suppressed and hand-written here instead). It verifies the
+# _rust_real_triple helper in install.bash correctly selects the host's
+# actual libc (glibc on ubuntu-stable) rather than the musl-biased
+# {plat.rust_triple} token used by other features' portable static-binary
+# downloads — using that token directly for Rust's own toolchain would
+# silently install a musl-linked toolchain with a mismatched ABI.
+#
+# custom_prefix_symlink / custom_prefix_symlink_nonroot: the generic
+# prefix_symlink rule asserts `readlink -f <symlink> == <prefix>/bin/<bin>`.
+# That holds for an ordinary binary, but rustup's own proxy mechanism
+# implements rustc/cargo/rustdoc as symlinks (or hardlinks resolving the
+# same way) to the single `rustup` binary within the prefix — confirmed
+# empirically: `readlink -f` on the framework's own PATH symlink resolves
+# all the way through to `<prefix>/bin/rustup`, not `<prefix>/bin/rustc`.
+# The hand-written versions below replace that one assertion with a check
+# that the symlink resolves to *something* inside the custom prefix's bin
+# directory (which is what the generic check is actually trying to verify),
+# and reuse every other generated check verbatim.
+generation:
+  suppress:
+    scenarios: [package_default, source_default, custom_prefix_symlink, custom_prefix_symlink_nonroot]
+    checks: [package_default, custom_prefix_symlink, custom_prefix_symlink_nonroot]
+
+package_default:
+  envs:
+    [
+      ubuntu-stable,
+      alpine-current+bash,
+      fedora-current+bash,
+      opensuse-leap-current+bash,
+      archlinux-current,
+    ]
+  modes: [standalone]
+  options:
+    method: package
+  tests: [package_default]
+
+source_default:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    method: source
+  tests: [source_default_checks, source_triple_correctness]
+
+custom_prefix_symlink:
+  envs: [ubuntu-stable]
+  modes: [devcontainer, standalone]
+  options:
+    prefix: /opt/rustc-test
+    prefix_discovery: symlink
+  tests: [custom_prefix_symlink]
+
+custom_prefix_symlink_nonroot:
+  envs: [ubuntu-stable+vscode]
+  modes: [standalone]
+  options:
+    prefix: /opt/rustc-test
+    prefix_discovery: symlink
+  # build-essential installed here (root, before the vscode user install
+  # below runs) since the vscode user has no sudo — install-rust's own
+  # run.base dependency (`gcc`, mapped to `apt: build-essential` in
+  # metadata.yaml; genuinely needed at runtime for cargo/rustc to link
+  # anything) can't install itself without privilege, and the framework
+  # already logs a clear warning and continues rather than failing
+  # outright when that happens (confirmed empirically). Bare `gcc` isn't
+  # enough here: --no-install-recommends skips libc6-dev (only a
+  # Recommends of the gcc package, not a hard Depends), leaving no CRT
+  # startup objects for the linker (confirmed empirically: "cannot open
+  # Scrt1.o"/crti.o). build-essential matches exactly what the feature's
+  # own dependency manifest would have installed with privilege.
+  setup: |
+    retry apt-get update -qq
+    retry apt-get install -y --no-install-recommends curl ca-certificates build-essential
+    mkdir -p /opt/rustc-test
+    chown vscode:vscode /opt/rustc-test
+  standalone:
+    user: vscode
+  tests: [custom_prefix_symlink_nonroot]

@@ -1,0 +1,124 @@
+package_default:
+  description: >-
+    method=package: installs via the OS package manager's standard configured
+    sources (only `rustup`/`rustup-init` itself; the toolchain is then
+    provisioned by `rustup toolchain install` or `rustup-init` into the
+    resolved prefix).
+  checks:
+    - title: rustc is on PATH
+      cmd: command -v rustc
+    - title: cargo is on PATH
+      cmd: command -v cargo
+    - title: rustup is on PATH
+      cmd: command -v rustup
+    - title: rustdoc is on PATH
+      cmd: command -v rustdoc
+    - title: rustc binary is executable
+      cmd: bash -c 'test -x "$(command -v rustc)"'
+    - title: rustc reports a version
+      cmd: bash -c 'rustc --version 2>&1 | grep -Eq "(^|[^0-9A-Za-z.])v?[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"'
+    - title: rustc compiles and runs a trivial program
+      cmd: bash -c 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && rustc "$d/m.rs" -o "$d/m" && "$d/m"; rc=$?; rm -rf "$d"; exit $rc'
+    - title: rustup (or rustup-init) binary is package-manager-managed
+      # Alpine/Fedora only package the rustup-init bootstrap binary (confirmed
+      # empirically); after it runs, `rustup` on PATH is a NEW self-installed
+      # file it created, no longer the package-tracked one, so the file-owner
+      # probes must check rustup-init there instead. Debian/Ubuntu/Arch/
+      # openSUSE package `rustup` itself directly, and rustup-init doesn't
+      # exist on those, so `command -v rustup-init` cleanly falls through to
+      # rustup.
+      # No intermediate `p=$(...)` variable: `kind: multiple` commands get
+      # double-quote-wrapped by codegen's _dquote before reaching
+      # checkMultiple, so the outer shell expands $(...) AND any bare $var
+      # *before* the nested `bash -c` ever runs — a lone `$p` reference would
+      # expand to empty right then (confirmed empirically: this produced
+      # `dpkg -S ""`, failing every command). Inlining the substitution
+      # directly into each dpkg/rpm/pacman invocation avoids any bare $var,
+      # matching the safe pattern the generator's own checks use.
+      kind: multiple
+      min: 1
+      cmd:
+        - bash -c 'apk info -e rustup >/dev/null 2>&1'
+        - bash -c 'dpkg -S "$(command -v rustup-init || command -v rustup)" >/dev/null 2>&1'
+        - bash -c 'rpm -qf "$(command -v rustup-init || command -v rustup)" >/dev/null 2>&1'
+        - bash -c 'pacman -Qo "$(command -v rustup-init || command -v rustup)" >/dev/null 2>&1'
+
+source_default_checks:
+  description: >-
+    method=source: standalone installer puts a functional tool on PATH.
+    Identical to the generated "default" check group, minus the `rustup is
+    on PATH` assertion — the standalone installer has no rustup at all, by
+    design (only script/package methods provision a rustup manager).
+  checks:
+    - title: rustc is on PATH
+      cmd: command -v rustc
+    - title: cargo is on PATH
+      cmd: command -v cargo
+    - title: rustdoc is on PATH
+      cmd: command -v rustdoc
+    - title: rustc binary is executable
+      cmd: bash -c 'test -x "$(command -v rustc)"'
+    - title: rustc reports a version
+      cmd: bash -c 'rustc --version 2>&1 | grep -Eq "(^|[^0-9A-Za-z.])v?[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"'
+    - title: rustc compiles and runs a trivial program
+      cmd: bash -c 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && rustc "$d/m.rs" -o "$d/m" && "$d/m"; rc=$?; rm -rf "$d"; exit $rc'
+
+source_triple_correctness:
+  description: >-
+    METHOD=source (standalone installer) must select the target triple
+    matching the host's actual libc, not the musl-biased default used
+    elsewhere for portable static binaries.
+  checks:
+    - title: rustc host triple matches the actual glibc libc (not musl)
+      cmd: "bash -c 'rustc -vV | grep -q \"^host: .*-gnu$\"'"
+
+custom_prefix_symlink:
+  description: >-
+    prefix=/opt/rustc-test, prefix_discovery=symlink: binary installs at the
+    custom prefix and a symlink is created at the default location. Identical
+    to the generated check group, except the symlink-resolution assertion
+    checks that it resolves to *something* inside the custom prefix's bin
+    directory rather than the literal rustc path — rustup's own proxy
+    mechanism makes rustc/cargo/rustdoc symlinks (or equivalent) to the single
+    `rustup` binary within the prefix, so `readlink -f` legitimately resolves
+    all the way through to `rustup`, not `rustc` (confirmed empirically).
+  checks:
+    - title: rustc binary is at /opt/rustc-test/bin/rustc
+      cmd: test -f /opt/rustc-test/bin/rustc
+    - title: rustc binary is executable
+      cmd: test -x /opt/rustc-test/bin/rustc
+    - title: rustc --version succeeds at custom path
+      cmd: /opt/rustc-test/bin/rustc --version
+    - title: symlink exists at /usr/local/bin/rustc
+      cmd: test -L /usr/local/bin/rustc
+    - title: symlink ultimately resolves within the custom prefix's bin directory
+      cmd: "bash -c 'case \"$(readlink -f /usr/local/bin/rustc)\" in /opt/rustc-test/bin/*) exit 0 ;; *) exit 1 ;; esac'"
+    - title: rustc resolves from PATH
+      cmd: command -v rustc
+    - title: rustc compiles and runs a trivial program via custom path
+      cmd: bash -c 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && /opt/rustc-test/bin/rustc "$d/m.rs" -o "$d/m" && "$d/m"; rc=$?; rm -rf "$d"; exit $rc'
+    - title: rustc compiles and runs a trivial program via PATH
+      cmd: bash -c 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && rustc "$d/m.rs" -o "$d/m" && "$d/m"; rc=$?; rm -rf "$d"; exit $rc'
+
+custom_prefix_symlink_nonroot:
+  description: >-
+    prefix=/opt/rustc-test, prefix_discovery=symlink: binary installs at the
+    custom prefix and a symlink is created at the non-root default location.
+    Same rustup-proxy-symlink correction as custom_prefix_symlink above.
+  checks:
+    - title: rustc binary is at /opt/rustc-test/bin/rustc
+      cmd: test -f /opt/rustc-test/bin/rustc
+    - title: rustc binary is executable
+      cmd: test -x /opt/rustc-test/bin/rustc
+    - title: rustc --version succeeds at custom path
+      cmd: /opt/rustc-test/bin/rustc --version
+    - title: symlink exists at ~/.local/bin/rustc
+      cmd: test -L ~/.local/bin/rustc
+    - title: symlink ultimately resolves within the custom prefix's bin directory
+      cmd: "bash -c 'case \"$(readlink -f ~/.local/bin/rustc)\" in /opt/rustc-test/bin/*) exit 0 ;; *) exit 1 ;; esac'"
+    - title: rustc resolves from PATH
+      cmd: command -v rustc
+    - title: rustc compiles and runs a trivial program via custom path
+      cmd: bash -c 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && /opt/rustc-test/bin/rustc "$d/m.rs" -o "$d/m" && "$d/m"; rc=$?; rm -rf "$d"; exit $rc'
+    - title: rustc compiles and runs a trivial program via PATH
+      cmd: bash -c 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && rustc "$d/m.rs" -o "$d/m" && "$d/m"; rc=$?; rm -rf "$d"; exit $rc'
