@@ -15,9 +15,14 @@ _options:
   verify:
     args: "--version"
     description: Verify direnv is installed and working.
+    functional:
+      description: direnv exports a variable from .envrc
+      cmd: 'mkdir -p /tmp/direnv-test && printf "export DIRENV_TEST=1\n" > /tmp/direnv-test/.envrc && {bin} allow /tmp/direnv-test && {bin} exec /tmp/direnv-test env | grep -q "^DIRENV_TEST=1$"'
   gh_repo: direnv/direnv
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["2.37.1"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/direnv.{plat.kernel:lower}-{plat.machine_release}"
