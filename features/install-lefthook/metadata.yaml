@@ -76,14 +76,14 @@ _dependencies:
           - |
             [evilmartians-lefthook]
             name=evilmartians-lefthook
-            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/{id==fedora?fedora:el}/{id==fedora?{os.version_id}:{os.version_id_major}}/$basearch
+            baseurl=https://dl.cloudsmith.io/public/evilmartians/lefthook/rpm/{os.id==fedora?fedora:el}/{os.id==fedora?{os.version_id}:{os.version_id_major}}/$basearch
             repo_gpgcheck=1
             enabled=1
             skip_if_unavailable=1
             gpgkey=https://dl.cloudsmith.io/public/evilmartians/lefthook/gpg.A05F5DDE3A0BB1D2.key
             gpgcheck=1
             sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            sslcacert={os.id==fedora?/etc/pki/ca-trust/extracted/openssl/ca-bundle.trust.crt:/etc/pki/tls/certs/ca-bundle.crt}
             metadata_expire=300
             type=rpm-md
       yum:
@@ -113,7 +113,7 @@ _dependencies:
             gpgkey=https://dl.cloudsmith.io/public/evilmartians/lefthook/gpg.A05F5DDE3A0BB1D2.key
             gpgcheck=1
             sslverify=1
-            sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+            sslcacert=/etc/ssl/ca-bundle.pem
             metadata_expire=300
             type=rpm-md
 # installsAfter: []
