@@ -1,47 +1,34 @@
-default:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  tests: [default]
-
-specific_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    version: "0.72.0"
-    method: binary
-  tests: [specific_version]
-
-binary_custom_prefix:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    prefix: /opt/fzf-bin
-    prefix_discovery: symlink
-    if_exists: reinstall
-  tests: [binary_custom_prefix]
-
-custom_prefix_no_symlink:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    method: binary
-    prefix: /opt/fzf-bin
-    prefix_discovery: none
-  tests: [custom_prefix_no_symlink]
-
-package_default:
-  envs:
-    - debian-stable+bash
-    - ubuntu-stable
-    - fedora-current+bash
-    - alpine-current+bash
-    - archlinux-current
-    - opensuse-leap-current+bash
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [package_default]
+# Every scenario except fish_hook, installer_dir, and version_match_idempotency
+# is now auto-generated from features/install-fzf/metadata.yaml
+# (_options.verify.functional, _options.version.test_pins, _options.method,
+# _options.prefix, if_exists, invalid enum values, log_file) by
+# .dev/lib/proman/test/gen/. See test/features/generation.yaml for the
+# generator config, and run `proman-test-gen-preview install-fzf` to inspect
+# the generated output.
+#
+# generation.augment_tests appends hand-written check groups (below, in
+# checks.yaml) to specific generated scenarios for fzf's shell-activation-hook
+# injection (_options.prefix.activation) — a metadata concept the generator
+# has no family for, since fzf is the only migrated feature with it so far.
+#
+# fish_hook stays hand-written: it needs a real fish binary pre-installed to
+# verify `fish -c "source ..."` succeeds — no generic pre-provisioned-env
+# pointer exists for it yet (unlike npm_env/cargo_env). installer_dir
+# exercises the universal INSTALLER_DIR option. version_match_idempotency is
+# a regression test for if_exists=fail firing regardless of version match,
+# same pattern as install-yq's version_match_idempotency.
+#
+# Dropped as now-generated/superseded: specific_version (-> version_pinned),
+# binary_custom_prefix (-> custom_prefix_symlink + fzf_activation_custom_prefix
+# augmentation), custom_prefix_no_symlink (-> generated equivalent),
+# package_default (-> generated equivalent, now additionally covering
+# opensuse/archlinux), if_exists_fail/if_exists_skip (-> generated
+# equivalents), reinstall (-> if_exists_reinstall).
+generation:
+  augment_tests:
+    default: [fzf_activation_default]
+    version_pinned: [fzf_activation_default]
+    custom_prefix_symlink: [fzf_activation_custom_prefix]
 
 fish_hook:
   envs: [ubuntu-stable+fish]
@@ -54,46 +41,6 @@ installer_dir:
   options:
     installer_dir: /tmp/fzf-trace
   tests: [installer_dir]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "0.99.0 (fake)"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/fzf
-    chmod +x /usr/local/bin/fzf
-  options:
-    method: auto
-    if_exists: fail
-  tests: [if_exists_fail]
-  standalone:
-    skip_install: false
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "0.99.0 (fake)"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/fzf
-    chmod +x /usr/local/bin/fzf
-  options:
-    method: auto
-    if_exists: skip
-  tests: [if_exists_skip]
-
-reinstall:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "0.45.0 (stub)"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/fzf
-    chmod +x /usr/local/bin/fzf
-  options:
-    version: "0.72.0"
-    method: binary
-    if_exists: reinstall
-  tests: [reinstall]
 
 version_match_idempotency:
   expect_install_failure: true

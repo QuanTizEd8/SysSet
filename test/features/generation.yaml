@@ -31,6 +31,7 @@ rollout:
     - install-yq
     - install-lefthook
     - install-taskfile
+    - install-fzf
   denylist:
     - install
     - install-os-pkg

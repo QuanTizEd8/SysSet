@@ -17,9 +17,14 @@ _options:
   verify:
     args: "--version"
     description: Verify fzf is installed and working.
+    functional:
+      description: fzf filters input
+      cmd: 'printf "alpha\nbeta\ngamma\n" | {bin} --filter=beta | grep -q beta'
   gh_repo: junegunn/fzf
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["0.72.0"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/fzf-{feat.version}-{plat.kernel:lower}_{plat.machine_release}.tar.gz"
