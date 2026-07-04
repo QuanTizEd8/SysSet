@@ -1,0 +1,142 @@
+version: 0.1.0
+name: jsonschema Installation
+description: Install [jsonschema](https://github.com/sourcemeta/jsonschema) — the JSON Schema command-line interface.
+keywords:
+  - jsonschema
+  - json-schema
+  - json
+  - validation
+  - cli
+_long_description: |-
+  Installs `jsonschema`, the command-line interface for working with JSON Schema:
+  formatting, linting, validating, testing, bundling, and upgrading schemas. It is
+  a single, self-contained C++ binary with no interpreted-runtime dependency.
+
+  Supports GitHub release binary download with checksum + GPG-signed-checksum
+  verification, the official Homebrew tap (macOS), npm global install, a
+  self-contained npm-bundled install (no system Node.js required), and building
+  from source via CMake.
+
+  Note: on Linux/BSD, the binary `dlopen`s `libcurl.so.4` at runtime for any
+  networked command (resolving remote `$ref`s, `jsonschema install`); the
+  runtime dependency is installed automatically. Fully offline commands
+  (`fmt`, `lint`, `compile`, ...) work without it.
+_tool_name: jsonschema
+_options:
+  verify:
+    args: "version"
+    description: Verify jsonschema is installed and working.
+    functional:
+      description: jsonschema validates a schema against its meta-schema, offline
+      cmd: 'd=$(mktemp -d) && printf %s "{\"type\": \"object\"}" > "$d/s.json" && {bin} metaschema -d https://json-schema.org/draft/2020-12/schema "$d/s.json" > /dev/null 2>&1 && rm -rf "$d"'
+  gh_repo: sourcemeta/jsonschema
+  version:
+    resolution: github_release
+    test_pins:
+      pinned: ["16.0.0"]
+      legacy: ["15.11.0"]
+  method:
+    binary:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/jsonschema-{feat.version}-{plat.kernel:lower}-{plat.machine_gnu}{plat.musl_suffix}.zip"
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/CHECKSUMS.txt"
+      sidecar_gpg_key_uri: "https://www.sourcemeta.com/gpg.asc"
+      # Note: sidecar_gpg_sig_uri defaults to sidecar_uri + ".asc", which
+      # matches upstream's CHECKSUMS.txt.asc exactly — no override needed.
+      # Note: the release zip also bundles static shell completion files
+      # (share/bash-completion/completions/jsonschema,
+      # share/zsh/site-functions/_jsonschema), but there is no generic
+      # mechanism to install extra non-primary files besides binary_src.
+      # Deliberately skipped for now (documented gap, not a blocker).
+      binary_src:
+        - path: "bin/jsonschema"
+          when: {plat.kernel: [linux, darwin]}
+        - path: "bin/jsonschema.exe"
+          when: {plat.kernel: windows}
+      when:
+        - {plat.kernel: [linux, darwin], plat.machine_release: [amd64, arm64]}
+        - {plat.kernel: windows, plat.machine_release: amd64}
+    upstream-package:
+      when: {plat.pm: brew}
+    npm:
+      package: "@sourcemeta/jsonschema"
+    npm-bundled:
+      package: "@sourcemeta/jsonschema"
+    source:
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/archive/refs/tags/{feat.tag}.tar.gz"
+      build_system: cmake
+      cmake_args:
+        - "-DJSONSCHEMA_PORTABLE:BOOL=ON"
+      # jsonschema uses C++23 std::print/std::println (<print>), only
+      # implemented in libstdc++ starting GCC 14. Pin an explicit newer
+      # compiler where the distro's default is too old but a newer one is
+      # available via the default repos (Ubuntu 24.04-25.x: g++-14 is in the
+      # built-in universe component). NOTE: `method.source` has no
+      # declarative feasibility gate in this framework (unlike binary/
+      # package/upstream-package) — it is always considered available and
+      # is last in METHOD=auto's priority order, so this only matters when a
+      # user explicitly forces METHOD=source. On distros with no path to a
+      # <print>-capable compiler (Debian <= 12 bookworm, Ubuntu <= 22.04
+      # jammy — confirmed empirically: no g++-13/g++-14 package exists in
+      # their default repos), forcing METHOD=source will fail at compile
+      # time with a real (if not maximally friendly) `<print>` error.
+      build_env:
+        - value: "CXX=g++-14"
+          when: {os.id: ubuntu, os.version_id: {gte: "24.04", lt: "26.04"}}
+        - value: "CC=gcc-14"
+          when: {os.id: ubuntu, os.version_id: {gte: "24.04", lt: "26.04"}}
+  prefix:
+    bins: [jsonschema]
+    applies_when:
+      - method: [binary, npm, npm-bundled, source]
+_dependencies:
+  run:
+    base:
+      packages:
+        - name: libcurl4t64
+          when: {plat.pm: apt, os.version_codename: [noble, trixie, oracular, plucky, questing, resolute]}
+        - name: libcurl4
+          when: {plat.pm: apt, os.version_codename: [bookworm, jammy, focal, bullseye]}
+        - name: libcurl
+          when: {plat.pm: [dnf, apk]}
+        - name: libcurl4
+          when: {plat.pm: zypper}
+        - name: curl
+          when: {plat.pm: pacman}
+    method-upstream-package:
+      taps:
+        - sourcemeta/apps
+      packages:
+        - name: jsonschema
+          version: "{feat.pm_version}"
+          when: {plat.pm: brew}
+  build:
+    method-source:
+      apt:
+        packages:
+          - build-essential
+          # g++-14/gcc-14 from Ubuntu noble's built-in universe component:
+          # fixes 24.04-25.x (default g++ is 13, too old for <print>).
+          # Not attempted on Debian or on Ubuntu <= 22.04 jammy — neither
+          # has a g++-14 package available at all (confirmed empirically).
+          - name: g++-14
+            when: {os.id: ubuntu, os.version_id: {gte: "24.04", lt: "26.04"}}
+          - name: gcc-14
+            when: {os.id: ubuntu, os.version_id: {gte: "24.04", lt: "26.04"}}
+          - cmake
+      dnf:
+        packages:
+          - gcc-c++
+          - cmake
+      zypper:
+        packages:
+          - gcc-c++
+          - cmake
+      pacman:
+        packages:
+          - base-devel
+          - cmake
+      apk:
+        packages:
+          - build-base
+          - cmake
+# installsAfter: []

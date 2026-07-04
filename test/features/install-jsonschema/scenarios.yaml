@@ -1,0 +1,43 @@
+# Every scenario is now auto-generated from
+# features/install-jsonschema/metadata.yaml (_options.verify.functional,
+# _options.version.test_pins, _options.method, _options.prefix, if_exists,
+# invalid enum values, log_file) by .dev/lib/proman/test/gen/. See
+# test/features/generation.yaml for the generator config, and run
+# `proman-test-gen-preview install-jsonschema` to inspect the generated
+# output.
+#
+# method_matrix generates binary_default/npm_default/npm_bundled_default/
+# source_default scenarios, but no upstream-package_default: none of
+# generation.yaml's pool/primary envs have plat.pm=brew (Homebrew tap is
+# macOS-only), so that method is correctly never exercised by the standard
+# matrix — consistent with install-opencode's identical brew-only
+# upstream-package method.
+#
+# generation.suppress.scenarios drops the generated custom_prefix_symlink_nonroot
+# and replaces it with an identical hand-written copy (same envs/options/checks,
+# reusing the generator's own check group via `tests:`) whose `setup:` also
+# installs `unzip`. The generic prefix_symlink rule's non-root setup script only
+# pre-installs curl+ca-certificates (sufficient for tar.gz-based tools), but
+# jsonschema's binary release asset is a `.zip`; a non-root/no-sudo install has
+# no privilege to self-install unzip via the package manager (confirmed via a
+# real Docker run: `_bootstrap__tool`/`ospkg__install` fails with "insufficient
+# privilege to install packages" when it tries to bootstrap unzip mid-install).
+generation:
+  suppress:
+    scenarios: [custom_prefix_symlink_nonroot]
+
+custom_prefix_symlink_nonroot:
+  envs: [ubuntu-stable+vscode]
+  modes: [standalone]
+  options:
+    prefix: /opt/jsonschema-test
+    prefix_discovery: symlink
+    method: binary
+  setup: |
+    retry apt-get update -qq
+    retry apt-get install -y --no-install-recommends curl ca-certificates unzip
+    mkdir -p /opt/jsonschema-test
+    chown vscode:vscode /opt/jsonschema-test
+  standalone:
+    user: vscode
+  tests: [custom_prefix_symlink_nonroot]
