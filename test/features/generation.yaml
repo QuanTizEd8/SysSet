@@ -42,6 +42,11 @@ rollout:
   denylist:
     - install
     - install-os-pkg
+    - setup-shell
+    # No primary binary/command (no _options.verify.cmd or _options.prefix.bins):
+    # every generator family builds binary-presence scenarios and fails without one.
+    - install-bash-completion
+    - install-zsh-completion
 
 environments:
   primary: ubuntu-stable
