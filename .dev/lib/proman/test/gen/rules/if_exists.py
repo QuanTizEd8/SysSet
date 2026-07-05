@@ -70,11 +70,16 @@ class IfExistsRule:
             # Restricted to prefix.applies_when's compatible methods (when
             # declared) since reinstall/update detection is itself
             # PREFIX-path-based — the same reasoning as prefix_symlink.py.
+            # Pass the pinned version (when any) so the pick is channel-aware:
+            # reinstall/update pin `test_pins.pinned[0]`, an exact version that
+            # must not land on a PM method that cannot resolve it.
+            pinned, _legacy = facts.test_pins
             method = envselect.first_feasible_method(
                 facts,
                 envs,
                 cfg.primary_env,
-                allowed=facts.prefix_compatible_methods,
+                allowed=facts.prefix_capable_methods,
+                version=pinned[0] if pinned else None,
             )
             results.append(
                 self._mutating("if_exists_reinstall", "reinstall", method, facts, cfg),

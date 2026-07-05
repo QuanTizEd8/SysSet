@@ -75,19 +75,21 @@ class PrefixSymlinkRule:
         envs: dict,
         env: str,
     ) -> dict | None:
-        """Build `{"method": ...}` when `applies_when` restricts the compatible set.
+        """Pin the prefix-capable method this custom-prefix scenario should use.
 
-        Left to `auto` resolution (empty dict) when `applies_when` is
-        undeclared. Returns `None` (caller skips the scenario) when
-        `applies_when` *is* declared but no compatible method is feasible on
-        `env` — generating an unpinned scenario in that case would silently
-        exercise a method for which `--prefix` is ignored, asserting paths
-        that were never actually used.
+        Always an explicit `method:` — never `auto` — because a custom-prefix
+        scenario must exercise a method that honors `--prefix`. Even without a
+        declared `applies_when`, `auto` can resolve to `package`/
+        `upstream-package` (e.g. install-rust), which install to a PM-managed
+        location and ignore `--prefix`, so every path assertion would fail.
+        `prefix_capable_methods` excludes the PM methods; the canonical-first
+        feasible one is pinned. Returns `None` (caller skips) when none is
+        feasible on `env` — a PM-only feature, or a compatible set all gated
+        out here — since an unpinned scenario would assert an unused prefix.
         """
-        compatible = facts.prefix_compatible_methods
-        if compatible is None:
-            return {}
-        method = envselect.first_feasible_method(facts, envs, env, allowed=compatible)
+        method = envselect.first_feasible_method(
+            facts, envs, env, allowed=facts.prefix_capable_methods
+        )
         if method is None:
             return None
         return {"method": method}

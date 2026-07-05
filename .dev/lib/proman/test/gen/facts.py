@@ -131,6 +131,23 @@ class FeatureFacts:
             methods.extend(clause.get("method", ()))
         return methods
 
+    @property
+    def prefix_capable_methods(self) -> list[str]:
+        """Declared methods that actually honor `--prefix` (never the PM methods).
+
+        A custom-prefix or prefix-detected scenario must pin one of these:
+        `package`/`upstream-package` install to a PM-managed location and
+        silently ignore `--prefix`, so a scenario left on `auto` that resolves
+        to a PM method would assert paths under the custom prefix that were
+        never used. Narrowed by `prefix.applies_when` when declared, otherwise
+        all declared non-PM methods. May be empty (a PM-only feature), in which
+        case the caller skips the scenario entirely.
+        """
+        pm = {"package", "upstream-package"}
+        applies = self.prefix_compatible_methods
+        source = applies if applies is not None else self.method_names
+        return [m for m in source if m not in pm]
+
     def resolved_bin_path(self, prefix: str, bin_name: str) -> str:
         """Full binary path under a given prefix: `{prefix}/{bin_dir}/{bin_name}`."""
         return f"{prefix}/{self.bin_dir}/{bin_name}"

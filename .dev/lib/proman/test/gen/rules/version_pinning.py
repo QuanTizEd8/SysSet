@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 
 from proman.test.gen import checks_builtin, context, envselect
 from proman.test.gen import outcome as outcome_mod
-from proman.test.gen.method_resolver import feasible_methods
 from proman.test.gen.naming import legacy_scenario_name, pinned_scenario_name
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
@@ -25,24 +24,18 @@ _FAMILY = "version_pinning"
 
 
 def _pin_method(facts: FeatureFacts, cfg: GenerationConfig, envs: dict, value: str):  # noqa: ANN202
-    """Pick the method a pinned exact version should install with, on the primary env.
+    """Pick the method + expected outcome for a pinned exact version, primary env.
 
-    Returns the first declared method (canonical priority order) that is
-    *feasible for this specific version* — so an exact-semver pin is never
+    `first_feasible_method(version=value)` picks the canonical-first method that
+    is *feasible for this specific version* — so an exact-semver pin is never
     assigned to `package`/`upstream-package`, which cannot resolve an arbitrary
-    upstream version host-side (the zsh/rust class of bug). Falls back to the
-    when-only `first_feasible_method` when the resolver finds none feasible, so
-    a feature with only PM methods still gets a (best-effort) pinned scenario
-    rather than silently losing coverage.
+    upstream version host-side (the zsh/rust class of bug).
     """
+    method = envselect.first_feasible_method(
+        facts, envs, cfg.primary_env, version=value
+    )
     ctx = context.for_env(
         cfg.primary_env, envs, version_input=value, resolved_version=value
-    )
-    feasible = feasible_methods(facts, ctx)
-    method = (
-        feasible[0]
-        if feasible
-        else envselect.first_feasible_method(facts, envs, cfg.primary_env)
     )
     outcome = (
         outcome_mod.compute(facts, ctx, method=method, version=value)

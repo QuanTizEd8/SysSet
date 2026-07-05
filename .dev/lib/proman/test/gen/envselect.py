@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Literal
 
 from proman import when_util
 from proman.test.environments import resolve_attributes
+from proman.test.gen import context
+from proman.test.gen.method_resolver import feasible_methods
 
 if TYPE_CHECKING:
     from proman.test.gen.facts import FeatureFacts
@@ -80,22 +82,43 @@ def first_feasible_method(
     env_name: str,
     *,
     allowed: list[str] | None = None,
+    version: str | None = None,
+    privileged: bool = True,
+    has_npm: bool = False,
+    has_cargo: bool = False,
+    has_git: bool = False,
 ) -> str | None:
-    """Pick the first declared method (declaration order) feasible on `env_name`.
+    """Pick the method a scenario should pin on `env_name` for `version`.
 
-    Returns None if the feature declares no methods (or none are feasible
-    there). Used to pick an explicit `method:` for scenarios that pin a
-    method rather than leaving it to `auto` resolution.
+    The first declared method in *canonical priority order* that is fully
+    feasible under the resolver's gates (`method_resolver.is_feasible`) — the
+    same method a `METHOD=auto` install would land on — not merely the first
+    declaration-order method whose `when:` clause matches. This aligns pinned
+    scenarios with the runtime auto-resolver (16 features declare methods in
+    non-canonical order) and makes selection version-channel aware: an exact
+    `version` is judged against package/upstream-package's channel gates, so a
+    specific-version pin never lands on a PM method that can't resolve it.
+
+    Returns None if the feature declares no methods, or none are feasible here
+    under the given provisioning (`has_npm`/`has_cargo`/`has_git` default to a
+    bare env — an npm/cargo/git-only method is infeasible unless provisioned).
 
     `allowed`, when given, additionally restricts the pick to method names in
     that list — e.g. `facts.prefix_compatible_methods`, so a scenario that
-    depends on PREFIX/PATH resolution never pins a method for which
-    `--prefix` would be silently ignored.
+    depends on PREFIX/PATH resolution never pins a method for which `--prefix`
+    would be silently ignored.
     """
-    attrs = resolve_attributes(env_name, envs)
-    for name, method_config in facts.methods.items():
-        if allowed is not None and name not in allowed:
-            continue
-        if when_util.match(method_config.get("when"), attrs):
+    ctx = context.for_env(
+        env_name,
+        envs,
+        privileged=privileged,
+        version_input=version,
+        resolved_version=version,
+        has_npm=has_npm,
+        has_cargo=has_cargo,
+        has_git=has_git,
+    )
+    for name in feasible_methods(facts, ctx):
+        if allowed is None or name in allowed:
             return name
     return None
