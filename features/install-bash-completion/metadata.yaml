@@ -1,23 +1,33 @@
-name: Bash Completion Installation
 version: 0.1.0
-description: Install [bash-completion](https://github.com/scop/bash-completion) v2 and activate it for Bash.
+name: Bash Completion Installation
+description: Install [bash-completion](https://github.com/scop/bash-completion) v2 and activate it for interactive Bash sessions.
 keywords:
 - bash
 - completion
 - shell
-_long_description: >-
+_long_description: |-
   Installs [bash-completion](https://github.com/scop/bash-completion) v2 via the
-  system package manager. On Linux, bash-completion is loaded automatically via
-  `/etc/profile.d/`; on macOS with Homebrew, a guarded source line is injected into
-  each user's Bash theme file so the entry point at
-  `${HOMEBREW_PREFIX}/etc/profile.d/bash_completion.sh` is activated in interactive
-  sessions.
-options:
-  install_bash_completion:
-    type: boolean
-    default: true
-    description: |-
-      Install [bash-completion](https://github.com/scop/bash-completion) (v2).
-      Provides programmable tab-completion for Bash commands and arguments.
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-shell
+  system package manager (the `bash-completion` package on every major
+  distribution; the `bash-completion@2` formula on Homebrew). On Linux no
+  activation step is needed: the package's `/etc/profile.d/bash_completion.sh`
+  entry point covers login shells, and setup-shell's system bashrc completion
+  block covers interactive non-login shells (devcontainers, VS Code terminals).
+  On Homebrew — where `/etc/profile.d` is not sourced — a guarded source line for
+  `$(brew --prefix)/etc/profile.d/bash_completion.sh` is written to each
+  configured user's `~/.bashrc` as a managed block. bash-completion v2 requires
+  Bash >= 4.2; on macOS install a modern Bash first (see `install-bash`) — the
+  system Bash 3.2 is incompatible.
+options: {}
+_options:
+  configure_users: true
+  method:
+    package: {}
+installsAfter:
+  - ghcr.io/quantized8/devfeats/install-bash
+  - ghcr.io/quantized8/devfeats/setup-shell
+_dependencies:
+  run:
+    method-package:
+      packages:
+        - name: bash-completion
+          brew: bash-completion@2

@@ -1,0 +1,13 @@
+default:
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  tests: [default]
+
+uninstall_after_install:
+  # Install in setup, then run with if_exists=uninstall: the package is removed.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: sh /repo/src/install-bash-completion/install.sh
+  options:
+    if_exists: uninstall
+  tests: [uninstall_after_install]

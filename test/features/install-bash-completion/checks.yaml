@@ -1,0 +1,16 @@
+default:
+  description: The bash-completion v2 package is installed and functional.
+  checks:
+    - title: main completion file installed
+      cmd: test -f /usr/share/bash-completion/bash_completion
+    - title: profile.d entry point installed
+      cmd: test -f /etc/profile.d/bash_completion.sh
+    - title: completion framework loads and defines _init_completion
+      cmd: |-
+        bash -c '. /usr/share/bash-completion/bash_completion && type -t _init_completion > /dev/null'
+
+uninstall_after_install:
+  description: Uninstall removes the bash-completion package.
+  checks:
+    - title: main completion file removed
+      cmd: bash -c '! test -f /usr/share/bash-completion/bash_completion'
