@@ -40,6 +40,7 @@ rollout:
     - install-go
     - install-rust
     - install-tokei
+    - install-zsh
   denylist:
     - install
     - install-os-pkg

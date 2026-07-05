@@ -24,8 +24,13 @@ _options:
   verify:
     args: "--version"
     description: Verify zsh is installed and working.
+    functional:
+      description: zsh executes a command and returns its output
+      cmd: 'test "$({bin} -c "print -rn ok")" = ok'
   version:
     resolution: sidecar
+    test_pins:
+      pinned: ["5.9"]
     uri: "https://www.zsh.org/pub/SHA256SUM"
     pattern: "zsh-[version].tar.xz"
   method:

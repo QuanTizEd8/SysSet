@@ -1,94 +1,22 @@
-default:
-  envs: [debian-stable]
-  modes: [devcontainer, standalone]
-  tests: [default]
-
-package_default:
-  envs: [debian-stable+bash, alpine-current+bash, fedora-current+bash]
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [package_default]
-
-source_default:
-  envs: [debian-stable+build-essential+ncurses]
-  modes: [standalone]
-  options:
-    method: source
-    version: "5.9.1"
-  tests: [source_default]
-
-source_pinned_version:
-  envs: [debian-stable+build-essential+ncurses]
-  modes: [standalone]
-  options:
-    method: source
-    version: "5.9"
-  tests: [source_pinned_version]
-
-source_custom_prefix:
-  envs: [debian-stable+build-essential+ncurses]
-  modes: [devcontainer, standalone]
-  options:
-    method: source
-    version: "5.9.1"
-    prefix: /opt/zsh
-    prefix_discovery: symlink
-    if_exists: reinstall
-  tests: [source_custom_prefix]
-
-source_custom_prefix_nonroot:
-  envs: [debian-stable+build-essential+ncurses+vscode]
-  modes: [standalone]
-  setup: |
-    mkdir -p /opt/zsh
-    chown vscode:vscode /opt/zsh
-  options:
-    method: source
-    version: "5.9.1"
-    prefix: /opt/zsh
-    prefix_discovery: symlink
-  standalone:
-    user: vscode
-  tests: [source_custom_prefix_nonroot]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then echo "zsh 9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/zsh
-    chmod +x /usr/local/bin/zsh
-  options:
-    method: auto
-    if_exists: fail
-  tests: [if_exists_fail]
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then echo "zsh 9.9.9 (fake)"; exit 0; fi\nexit 0' > /usr/local/bin/zsh
-    chmod +x /usr/local/bin/zsh
-  options:
-    method: auto
-    if_exists: skip
-  tests: [if_exists_skip]
-
-invalid_method:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  options:
-    method: binary
-  tests: [invalid_method]
-
+# Most scenarios are auto-generated from features/install-zsh/metadata.yaml
+# (_options.verify.functional, _options.version.test_pins, _options.method,
+# _options.prefix, if_exists, invalid enum values, log_file) by
+# .dev/lib/proman/test/gen/. Run `proman-test-gen-preview install-zsh` to
+# inspect the generated output.
+#
+# The generated version_pinned/source_default/custom_prefix scenarios pin
+# method=source (package is dropped for a specific version and is not
+# prefix-capable), and the non-root custom-prefix scenario pre-installs zsh's
+# build deps (build-essential/libncurses-dev) as root so the su-wrapped source
+# build has a toolchain — derived from _dependencies.build.method-source.
+#
+# Residue: set_login_shell is a zsh-specific configure-user behavior (register
+# zsh in /etc/shells and set it as a user's login shell) with no generic
+# generator equivalent, so it stays hand-written.
 set_login_shell:
-  # set_login_shell (default true) sets the resolved user's login shell to the
-  # installed zsh. Migrated from setup-shell's former set_user_shells option.
   envs: [debian-stable]
   modes: [standalone]
-  setup: useradd -m -s /bin/bash shelluser
+  setup: "useradd -m -s /bin/bash shelluser"
   options:
     method: package
     set_login_shell: true
