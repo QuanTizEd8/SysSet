@@ -162,6 +162,23 @@ def installed_method_check(method: str, share_var: str) -> CheckItem:
     )
 
 
+def installed_method_recorded_check(share_var: str) -> CheckItem:
+    """Assert the framework recorded *some* installed method (value-agnostic).
+
+    Used for `method=auto` scenarios, where the resolved method is a prediction
+    the generator can't guarantee — a feature's `__resolve_method` hook or a
+    nuanced `when:` clause can pick a method the generation-time resolver
+    doesn't foresee (e.g. install-rust auto-resolves to `script`, not
+    `package`). Asserting the state file exists and is non-empty verifies the
+    recording mechanism ran without pinning a specific, possibly-wrong value.
+    """
+    path = f'"${{{share_var}}}/state/installed-method"'
+    return CheckItem(
+        title="installed-method state recorded",
+        cmd=f"bash -c 'test -s {path}'",
+    )
+
+
 def path_export_present_check() -> CheckItem:
     """Assert the prefix PATH-export profile.d drop-in was written."""
     path = '"/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'

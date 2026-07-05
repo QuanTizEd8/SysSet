@@ -25,14 +25,19 @@ def build(
     facts: FeatureFacts,
     cfg: GenerationConfig,
     outcome: ExpectedOutcome | None = None,
+    *,
+    method_pinned: bool = True,
 ) -> list[CheckItem]:
     """Build the existence/version/functional (or git-clone) check bundle.
 
-    When `outcome` is given, the bundle is enriched with the expected-outcome
-    assertions the model predicts: the recorded installed-method, and (for a
-    prefix install) that the binary is at its resolved location. Called without
-    `outcome`, behaves exactly as before (used by check groups that can't be
-    tied to a single resolved method/env).
+    When `outcome` is given, the bundle is enriched with expected-outcome
+    assertions. `method_pinned` distinguishes the two ways the outcome's method
+    was obtained: `True` (the scenario pinned an explicit `method:`) means the
+    recorded installed-method and install location are guaranteed, so both are
+    asserted by value. `False` (the scenario ran `method=auto`) means the
+    method is a generation-time *prediction* that a feature `__resolve_method`
+    hook can override — so only "a method was recorded" is asserted, not which.
+    Called without `outcome`, behaves as before (no outcome assertions).
     """
     if facts.is_git_clone_only:
         return _git_clone_checks(facts)
@@ -50,17 +55,23 @@ def build(
     )
     items.append(checks_builtin.version_format_check(primary, facts.version_flag))
     items.extend(_functional_items(facts, cfg, primary))
-    items.extend(_outcome_items(facts, outcome))
+    items.extend(_outcome_items(facts, outcome, method_pinned=method_pinned))
     return items
 
 
 def _outcome_items(
     facts: FeatureFacts,
     outcome: ExpectedOutcome | None,
+    *,
+    method_pinned: bool,
 ) -> list[CheckItem]:
     """Expected-outcome assertions layered onto the base bundle."""
     if outcome is None or outcome.method is None:
         return []
+    if not method_pinned:
+        # Auto-resolved: the method (and hence install location) is a prediction
+        # a feature hook can override, so assert only that recording happened.
+        return [checks_builtin.installed_method_recorded_check(outcome.share_dir_var)]
     items = [
         checks_builtin.installed_method_check(outcome.method, outcome.share_dir_var),
     ]

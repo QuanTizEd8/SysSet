@@ -52,7 +52,10 @@ class ExistenceDefaultRule:
         outcome = outcome_mod.compute(facts, ctx)
         group = CheckGroup(
             description="Verifies the default install puts a functional tool on PATH.",
-            checks=default_checks.build(facts, cfg, outcome),
+            # method_pinned=False: `default` runs method=auto, so the resolved
+            # method is a prediction a feature `__resolve_method` hook can
+            # override — assert only that a method was recorded, not which.
+            checks=default_checks.build(facts, cfg, outcome, method_pinned=False),
         )
         return [
             GeneratedScenario(
