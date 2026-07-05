@@ -423,9 +423,45 @@ github__latest_tag() {
   #
   # Stdout: the tag name (e.g. `v1.2.3`).
   #
-  # Returns: 0 on success, 1 if the API call fails or the tag cannot be parsed.
+  # Resolves via the rate-limit-free github.com `/releases/latest` redirect
+  # first, falling back to the authenticated releases API only if the redirect
+  # yields nothing. Both resolve the *same* release — GitHub defines "latest"
+  # identically for the web redirect and the `/releases/latest` API endpoint
+  # (newest non-prerelease, non-draft release) — so this is a pure rate-limit
+  # win with no change in which tag is returned. It keeps the overwhelmingly
+  # common "latest" lookup (every jq bootstrap, every stable-channel install)
+  # off the rate-limited api.github.com, where a large CI matrix otherwise
+  # exhausts the shared token's secondary rate limit. The redirect path also
+  # needs no jq to parse (plain `sed` on the HTML), so it doubly suits the jq
+  # bootstrap, which cannot rely on jq being present yet.
+  #
+  # Returns: 0 on success, 1 if neither the redirect nor the API resolves a tag.
   local _repo="$1"
-  local _json="" _tag=""
+  local _tag=""
+
+  # ── Primary: github.com /releases/latest redirect (no API rate limit) ──
+  # Normalise to an owner/repo slug; a full API URL (https://api.github.com/
+  # repos/<owner/repo>) is accepted by stripping the API prefix.
+  local _slug
+  if [[ "$_repo" == https://* || "$_repo" == http://* ]]; then
+    _slug="${_repo##*/repos/}"
+  else
+    _slug="$_repo"
+  fi
+  if [[ "$_slug" != *://* ]]; then
+    _tag="$(
+      net__fetch_url_stdout "https://github.com/${_slug}/releases/latest" |
+        sed -n 's|.*href="/'"${_slug}"'/releases/tag/\([^"?#]*\)".*|\1|p' |
+        head -1 || true
+    )"
+    if [ -n "$_tag" ]; then
+      echo "$_tag"
+      return 0
+    fi
+  fi
+
+  # ── Fallback: authenticated releases API ──
+  local _json=""
   _json="$(github__fetch_release_json "$_repo")" || true
   if [ -n "$_json" ]; then
     _tag="$(printf '%s\n' "$_json" | _json__root_scalar_stdin tag_name)" || _tag=""
@@ -444,29 +480,7 @@ github__latest_tag() {
   if [ -n "$_json" ]; then
     logging__error "could not parse tag_name from API response for '${_repo}'."
   fi
-
-  # Fallback: resolve tag via the /releases/latest redirect on github.com.
-  # Only applicable when _repo is an owner/repo slug (not a full API URL).
-  local _fallback_tag="" _slug
-  if [[ "$_repo" == https://* || "$_repo" == http://* ]]; then
-    _slug="${_repo##*/repos/}"
-  else
-    _slug="$_repo"
-  fi
-  if [[ "$_slug" != *://* ]]; then
-    _fallback_tag="$(
-      net__fetch_url_stdout "https://github.com/${_slug}/releases/latest" |
-        sed -n 's|.*href="/'"${_slug}"'/releases/tag/\([^"?#]*\)".*|\1|p' |
-        head -1 || true
-    )"
-  fi
-
-  if [ -n "$_fallback_tag" ]; then
-    echo "$_fallback_tag"
-    return 0
-  fi
-
-  logging__error "failed to resolve latest tag for '${_repo}' (GitHub API unreachable and redirect fallback failed)."
+  logging__error "failed to resolve latest tag for '${_repo}' (github.com redirect and GitHub API both failed)."
   return 1
 }
 
