@@ -10,6 +10,7 @@ def test_standalone_install_streams_without_log_file() -> None:
     block = _standalone_install_block(
         "install-miniforge",
         "default",
+        user="",
         expect_install_failure=False,
         failure_patterns=[],
     )
@@ -24,6 +25,7 @@ def test_standalone_install_failure_validation_tees_to_log() -> None:
     block = _standalone_install_block(
         "install-miniforge",
         "invalid_version",
+        user="",
         expect_install_failure=True,
         failure_patterns=["github__resolve_version: no release matching"],
     )

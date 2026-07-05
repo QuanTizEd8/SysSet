@@ -622,9 +622,17 @@ def _run_standalone(
             f"{cfg.absolute_path('path.src') / feature}:/repo/src/{feature}:ro",
             "--bind",
             f"{cfg.root_path / 'test' / 'support'}:/repo/test/support:ro",
-            "--run",
-            run_cmd,
         ]
+        # Make the feature's own test dir (support scripts, golden `expected/`
+        # fixtures) available to check `cmd`s at /repo/test/features/<feature>.
+        # Read-only; a no-op for features that don't reference it.
+        feature_test_dir = cfg.root_path / "test" / "features" / feature
+        if feature_test_dir.is_dir():
+            container_cmd += [
+                "--bind",
+                f"{feature_test_dir}:/repo/test/features/{feature}:ro",
+            ]
+        container_cmd += ["--run", run_cmd]
         if network == "none":
             container_cmd.append("--network-none")
 
