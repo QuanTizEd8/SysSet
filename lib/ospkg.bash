@@ -2497,9 +2497,21 @@ ospkg__run() {
       if [[ -n "${_pkgversion:-}" ]]; then
         # Resolve the user spec (e.g. "5.9") to the PM's exact version string
         # (e.g. "5.9-6ubuntu2") so the install command uses an exact match.
-        # Falls back to the raw spec when resolution fails or the PM is unknown.
-        _resolved_ver="$(ospkg__resolve_version "${_pkgname}" "${_pkgversion}" 2> /dev/null)" ||
-          _resolved_ver="${_pkgversion}"
+        if ! _resolved_ver="$(ospkg__resolve_version "${_pkgname}" "${_pkgversion}" 2> /dev/null)"; then
+          # On a supported PM, a resolution failure means the repository has no
+          # version matching the spec. Fail fast with a clear message rather than
+          # building an unsatisfiable versioned spec (e.g. `zsh=5.9.1` when the
+          # repo only ships 5.9), which the installer would otherwise retry many
+          # times over before finally giving up. Unknown PMs keep the previous
+          # best-effort raw-spec fallback.
+          case "$_OSPKG__FAMILY" in
+            apt | apk | dnf | yum | zypper | pacman | brew)
+              logging__error "No version of '${_pkgname}' matching '${_pkgversion}' is available in the ${_OSPKG__FAMILY} repositories."
+              return 1
+              ;;
+            *) _resolved_ver="${_pkgversion}" ;;
+          esac
+        fi
         case "$_OSPKG__FAMILY" in
           apt | apk | pacman | zypper) _pkginstall="${_pkgname}=${_resolved_ver}" ;;
           dnf | yum) _pkginstall="${_pkgname}-${_resolved_ver}" ;;
