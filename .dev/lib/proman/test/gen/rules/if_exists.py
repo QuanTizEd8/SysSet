@@ -22,6 +22,14 @@ if TYPE_CHECKING:
 _FAMILY = "if_exists"
 _FAKE_VERSION = "9.9.9"
 
+# Methods whose `if_exists=update` path operates on real installed state (e.g.
+# `npm install --update` requires the actual package tree at PREFIX) and so
+# cannot be satisfied by the cheap fake-stub seed — for these, if_exists_update
+# seeds a genuine prior install instead. Overwrite-style methods
+# (binary/source/package/cargo) update by reinstalling over the stub and need
+# no real prior state.
+_STATEFUL_UPDATE_METHODS = frozenset({"npm-bundled", "npm"})
+
 
 @register
 class IfExistsRule:
@@ -181,22 +189,29 @@ class IfExistsRule:
         if pinned:
             options["version"] = pinned[0]
         scenario = base_scenario([cfg.primary_env], cfg, _FAMILY, options=options)
-        scenario["setup"] = self._setup(facts)
         scenario["tests"] = [name]
 
         bin_ = facts.primary_bin
         resolved_path = facts.resolved_bin_path(facts.default_prefix_root, bin_)
-        checks = [
-            *checks_builtin.existence_triad(bin_, path=resolved_path),
-            CheckItem(
-                title=f"{bin_} version is no longer the fake stub",
-                cmd=(
-                    f"bash -c '! ({bin_} {facts.version_flag} 2>&1 | "
-                    f'grep -q "{_FAKE_VERSION}")\''
+        real_seed = if_exists == "update" and method in _STATEFUL_UPDATE_METHODS
+        scenario["setup"] = (
+            self._real_seed_setup(facts, method) if real_seed else self._setup(facts)
+        )
+
+        checks = [*checks_builtin.existence_triad(bin_, path=resolved_path)]
+        if not real_seed:
+            # Only meaningful when a fake stub was seeded: prove the mutate
+            # replaced it. (With a real prior install there was never a stub.)
+            checks.append(
+                CheckItem(
+                    title=f"{bin_} version is no longer the fake stub",
+                    cmd=(
+                        f"bash -c '! ({bin_} {facts.version_flag} 2>&1 | "
+                        f'grep -q "{_FAKE_VERSION}")\''
+                    ),
                 ),
-            ),
-            checks_builtin.version_format_check(bin_, facts.version_flag),
-        ]
+            )
+        checks.append(checks_builtin.version_format_check(bin_, facts.version_flag))
         functional = facts.functional
         if functional is not None:
             cmd_template, description = functional
@@ -205,9 +220,20 @@ class IfExistsRule:
                     cmd_template, description, resolved_path
                 ),
             )
+        seeded = "a real prior install" if real_seed else "an existing install"
         group = CheckGroup(
-            description=f"if_exists={if_exists} replaces an existing install with a "
+            description=f"if_exists={if_exists} replaces {seeded} with a "
             "real, working one.",
             checks=checks,
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
+
+    def _real_seed_setup(self, facts: FeatureFacts, method: str | None) -> str:
+        """Seed a genuine prior install (stable, via `method`) for update tests.
+
+        Runs the feature's own install.sh once so `if_exists=update` has real
+        installed state to operate on — required by npm-bundled/npm, whose
+        update path (`npm install --update`) needs the actual package tree.
+        """
+        method_env = f"METHOD={method} " if method is not None else ""
+        return f"{method_env}sh /repo/src/{facts.feature_id}/install.sh"
