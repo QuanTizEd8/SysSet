@@ -363,5 +363,11 @@ __uninstall_run__() {
     logging__remove "Removing Rust installation directory '${_RESOLVED_PREFIX}'."
     rm -rf "${_RESOLVED_PREFIX}"
   fi
-  [[ -n "${RUSTUP_HOME:-}" && -d "${RUSTUP_HOME}" ]] && rm -rf "${RUSTUP_HOME}"
+  # Use an if-block, not `[[ ... ]] && rm`: as the last statement in the
+  # function, a `&&` chain whose test is false would return exit 1 and abort
+  # the (re)install via the ERR trap. RUSTUP_HOME legitimately may not exist —
+  # e.g. reinstalling over a partial or non-rustup install.
+  if [[ -n "${RUSTUP_HOME:-}" && -d "${RUSTUP_HOME}" ]]; then
+    rm -rf "${RUSTUP_HOME}"
+  fi
 }
