@@ -117,31 +117,50 @@ setup() {
 # bootstrap__jq — auto-installs jq when absent
 # ---------------------------------------------------------------------------
 
-@test "bootstrap__jq: calls ospkg__install_tracked when jq absent" {
+@test "bootstrap__jq: downloads the GitHub release binary when jq is absent" {
   reload_lib
 
-  local _install_log="${BATS_TEST_TMPDIR}/install.log"
-  local _fake_jq="${BATS_TEST_TMPDIR}/bin/jq"
-  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  local _asset_log="${BATS_TEST_TMPDIR}/asset.log"
+  local _fake_jq_src="${BATS_TEST_TMPDIR}/jq-src"
+  printf '#!/bin/sh\nexit 0\n' > "$_fake_jq_src"
+  chmod +x "$_fake_jq_src"
 
-  ospkg__update() { return 0; }
-  export -f ospkg__update
-
-  # Stub installs a fake jq so the post-install command -v check passes.
-  ospkg__install_tracked() {
-    echo "install_tracked $*" >> "$_install_log"
-    printf '#!/bin/sh\nexit 0\n' > "$_fake_jq"
-    chmod +x "$_fake_jq"
+  # Resolve the tag without touching the network (redirect/API both skipped).
+  github__latest_tag() {
+    printf 'jq-1.8.2\n'
     return 0
   }
-  export -f ospkg__install_tracked
+  export -f github__latest_tag
 
-  begin_path_isolation
+  # Install our fake jq instead of downloading the real release asset — mirrors
+  # the download-based path (bootstrap__jq no longer uses ospkg__install_tracked).
+  install__release_asset() {
+    echo "release_asset $*" >> "$_asset_log"
+    local _dest=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --binary-dest)
+          _dest="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    cp "$_fake_jq_src" "$_dest"
+    chmod +x "$_dest"
+    printf '%s\n' "$_dest"
+    return 0
+  }
+  export -f install__release_asset
+
+  # cp/chmod are used by the install stub above; jq stays absent so the
+  # bootstrap runs its install path rather than the command -v short-circuit.
+  begin_path_isolation cp chmod
   run bootstrap__jq
   local _rc=$?
   end_path_isolation
 
   [[ $_rc -eq 0 ]]
-  assert_file_exists "$_install_log"
-  grep -q "jq" "$_install_log"
+  assert_file_exists "$_asset_log"
+  grep -q "release_asset" "$_asset_log"
 }

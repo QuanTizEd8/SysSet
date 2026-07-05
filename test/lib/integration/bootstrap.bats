@@ -23,12 +23,6 @@ teardown() {
 
 # ── ospkg-based bootstraps ────────────────────────────────────────────────────
 
-@test "bootstrap__jq: installs jq and makes it available" {
-  run bootstrap__jq
-  assert_success
-  command -v jq > /dev/null 2>&1
-}
-
 @test "bootstrap__curl: installs curl and makes it available" {
   run bootstrap__curl
   assert_success
@@ -116,6 +110,17 @@ teardown() {
 }
 
 # ── binary-download-based bootstraps ─────────────────────────────────────────
+
+@test "bootstrap__jq: downloads jq binary and makes it available on PATH" {
+  # Unlike bootstrap__yq/oras (which print their install path for the caller to
+  # invoke directly), bootstrap__jq is consumed as a bare `jq` command
+  # (json__query runs `jq "$@"`), so it prepends its private install dir to PATH
+  # *in the calling process* and prints nothing. It must therefore be called
+  # in-process here — not via `run`, whose PATH export would die with the
+  # subshell — for the resulting jq to be observable on PATH.
+  bootstrap__jq || fail "bootstrap__jq returned non-zero"
+  command -v jq > /dev/null 2>&1
+}
 
 @test "bootstrap__yq: downloads yq binary and makes it available" {
   local _path
