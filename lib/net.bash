@@ -135,7 +135,13 @@ _net__fetch() {
   }
   local _h
   if [ "$_NET__FETCH_TOOL" = "curl" ]; then
-    set -- -fsSL --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
+    # Force HTTP/1.1: under heavy CI network load GitHub (and other endpoints)
+    # intermittently return HTTP/2 stream/framing errors (curl exit 16/92) that
+    # curl's --retry does NOT treat as transient, so a single flake aborts the
+    # fetch. --retry-all-errors is not an option here — it would retry the
+    # deliberate 404s of the release-sidecar auto-probe 60× each. HTTP/1.1 has
+    # no framing layer to stall and is plenty fast for our small fetches.
+    set -- -fsSL --http1.1 --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
     [ -n "$_netrc" ] && set -- "$@" --netrc-file "$_netrc"
     while IFS= read -r _h; do
       [ -z "$_h" ] && continue
