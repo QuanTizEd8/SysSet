@@ -255,6 +255,17 @@ ctx_test__stub_ospkg_pm() {
 }
 
 ctx_test__stub_darwin_platform() {
+  # Prime a host-platform jq BEFORE stubbing uname to Darwin. ctx__json needs
+  # jq, and if it isn't already on PATH (as in CI's minimal lib-test envs)
+  # bootstrap__jq downloads it for the *currently detected* platform. Once
+  # uname reports Darwin, that download would be a macOS jq — a Mach-O binary
+  # that can't execute on the Linux runner ("cannot execute binary file: Exec
+  # format error"), failing every ctx__json call in the darwin-stub tests.
+  # Bootstrapping here (while uname is still real) records the correct Linux jq
+  # in install-state, which the later stubbed ctx__json reuses instead of
+  # re-downloading. On a real macOS host this is a harmless no-op (jq is
+  # already present); the stub is only ever applied on Linux CI runners.
+  bootstrap__jq > /dev/null 2>&1 || true
   # shellcheck disable=SC2329  # exported for use in subshells via export -f
   uname() {
     case "${1:-}" in
