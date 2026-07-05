@@ -628,12 +628,19 @@ users__set_login_shell() {
     return 0
   fi
 
-  # Register the shell in /etc/shells.
+  # Register the shell in /etc/shells. Guarded so a privilege failure (e.g. a
+  # non-root user with no sudo can't write the system /etc/shells) warns and
+  # continues rather than aborting the whole install — matching this function's
+  # documented "warnings logged, not propagated" contract. chsh on one's own
+  # login shell still works without the /etc/shells entry.
   local _shells_file=/etc/shells
   [ -f /usr/share/defaults/etc/shells ] && _shells_file=/usr/share/defaults/etc/shells
   if [ -f "$_shells_file" ] && ! grep -qx "$_shell" "$_shells_file" 2> /dev/null; then
-    printf '%s\n' "$_shell" | file__append_privileged "$_shells_file"
-    logging__info "Added '${_shell}' to '${_shells_file}'."
+    if printf '%s\n' "$_shell" | file__append_privileged "$_shells_file" 2> /dev/null; then
+      logging__info "Added '${_shell}' to '${_shells_file}'."
+    else
+      logging__warn "Could not add '${_shell}' to '${_shells_file}' (no privilege); skipping."
+    fi
   fi
 
   # Alpine PAM: chsh requires a password even when run as root unless
