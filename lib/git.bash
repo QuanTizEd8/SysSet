@@ -26,9 +26,17 @@ git__resolve_ref() {
   #   <url>  Repository URL.
   #   <ref>  Branch name, tag name, or commit SHA.
   #
-  # Returns: 0 always; network failure is treated as "not a named ref".
-  local _raw _remote_sha
-  _raw="$(git ls-remote "$1" "$2" 2> /dev/null || true)"
+  # Returns: 0 always. A failed probe (network/TLS error) falls back to
+  # treating <ref> as a commit SHA, but is logged loudly — a silent fallback
+  # here once masked a missing CA bundle and degraded every pinned tag/branch
+  # to the SHA fetch path.
+  local _raw _rc=0 _remote_sha _err
+  _err="$(mktemp)"
+  _raw="$(git ls-remote "$1" "$2" 2> "$_err")" || _rc=$?
+  if [ "$_rc" -ne 0 ]; then
+    logging__warn "ls-remote probe of '$1' failed (exit ${_rc}): $(head -1 "$_err" 2> /dev/null). Treating '$2' as a commit SHA."
+  fi
+  rm -f "$_err"
   # Prefer the peeled (^{}) entry for annotated tags: it holds the commit SHA,
   # which matches git__head_sha after checkout. Branches and lightweight tags
   # produce no ^{} line, so the grep returns empty and we fall back to head -1.

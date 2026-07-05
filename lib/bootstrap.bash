@@ -606,9 +606,15 @@ bootstrap__oras() {
 
 bootstrap__git() {
   # @brief bootstrap__git — Ensure git is available via the OS package manager.
+  #
+  # Also ensures a CA bundle is present: ospkg installs run without recommends,
+  # so git can arrive without ca-certificates — and every git use in this
+  # codebase is https, which then fails TLS verification ("CAfile: none").
+  #
   # Returns: 0 on success, 1 on failure.
   logging__install "Ensuring git is available (ospkg tracked: lib-git)."
-  ospkg__install_tracked "lib-git" git
+  ospkg__install_tracked "lib-git" git || return 1
+  bootstrap__ca_certs
 }
 
 bootstrap__xcode() {
