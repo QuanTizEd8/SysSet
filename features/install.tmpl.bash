@@ -3062,6 +3062,20 @@ VERIFY_NOOP
       } > "${_FEAT_LIFECYCLE_POST_CREATE}verification.sh"
     else
       local _vcmd="${_FEAT_VERIFY_CMD:-${_DF_EXPECTED_CMD:-${_FEAT_CONTRACT_PRIMARY_BIN}}}"
+      # When verify.cmd names a declared prefix bin, prefer the discovery-
+      # resolved command (_DF_EXPECTED_CMD): under prefix_discovery=none that's
+      # the full prefix path, whereas the bare verify.cmd name isn't on PATH in
+      # the non-login postCreate shell and would fail with 127. verify.cmd stays
+      # authoritative for prefix-less features (no _DF_EXPECTED_CMD).
+      if [[ -n "${_FEAT_VERIFY_CMD:-}" && -n "${_DF_EXPECTED_CMD:-}" && -v PREFIX_BINS ]]; then
+        local _pb
+        for _pb in "${PREFIX_BINS[@]}"; do
+          [[ "${_pb}" == "${_FEAT_VERIFY_CMD}" ]] && {
+            _vcmd="${_DF_EXPECTED_CMD}"
+            break
+          }
+        done
+      fi
       if [[ -z "${_vcmd}" ]]; then
         logging__error "Cannot write verification script — _DF_EXPECTED_CMD is empty and _options.verify.cmd is not set. Declare _options.verify.cmd or add _options.prefix.bins."
         return 1

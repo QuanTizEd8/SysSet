@@ -73,7 +73,6 @@ options:
 _options:
   gh_repo: rust-lang/rust
   verify:
-    cmd: rustc
     args: "--version"
     description: Verify rustc is installed and working.
     functional:

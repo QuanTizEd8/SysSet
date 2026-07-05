@@ -33,7 +33,6 @@ _long_description: |-
     Version is controlled by the distribution's package policy.
 _options:
   verify:
-    cmd: tlmgr
     args: "version"
     description: Verify the TeX Live installation via tlmgr.
   user_file_fetch: true
