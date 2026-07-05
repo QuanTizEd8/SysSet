@@ -1,58 +1,23 @@
-default:
-  envs: [fedora-current+bash, archlinux-current]
-  modes: [devcontainer, standalone]
-  tests: [default]
-
-binary_pinned_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    version: "12.1.2"
-    method: binary
-  tests: [binary_pinned_version]
-
-package_default:
-  envs:
-    - alpine-current+bash
-    - opensuse-leap-current+bash
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [package_default]
-
-upstream_package_default:
-  envs: [rockylinux-current+bash]
-  modes: [devcontainer, standalone]
-  options:
-    method: upstream-package
-  tests: [upstream_package_default]
-
-method_cargo:
-  envs: [ubuntu-current+rust]
-  modes: [standalone]
-  options:
-    method: cargo
-  tests: [method_cargo]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "tokei 99.99.99\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/tokei
-    chmod +x /usr/local/bin/tokei
-  options:
-    if_exists: fail
-  tests: [if_exists_fail]
-
-if_exists_skip:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "tokei 99.99.99\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/tokei
-    chmod +x /usr/local/bin/tokei
-  options:
-    if_exists: skip
-  tests: [if_exists_skip]
+# Every scenario is now auto-generated from features/install-tokei/metadata.yaml
+# (_options.verify.functional, _options.version.test_pins, _options.method,
+# _options.prefix, if_exists, invalid enum values, log_file) by
+# .dev/lib/proman/test/gen/. See test/features/generation.yaml for the
+# generator config, and run `proman-test-gen-preview install-tokei` to inspect
+# the generated output.
+#
+# The generated version_pinned (12.1.2) exercises the version-gated `binary`
+# method (prebuilt assets exist only up to 12.1.2; the resolver drops binary
+# above that), and package/upstream_package/cargo defaults cover the rest
+# across distros (one scenario per package manager).
+#
+# Residue: tokei's binary and cargo (`--features all`) builds ship with full
+# serialization support (json/cbor/yaml) and can emit JSON — a tokei-specific
+# capability distro packages omit, which the generic generator can't derive.
+# Kept as the hand-authored tokei_full_features group and appended only to the
+# full-feature-build scenarios (mirrors the prior hand-written coverage, which
+# asserted it for binary_pinned_version and method_cargo but not the PM
+# defaults).
+generation:
+  augment_tests:
+    version_pinned: [tokei_full_features]
+    cargo_default: [tokei_full_features]

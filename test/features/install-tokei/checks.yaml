@@ -1,119 +1,18 @@
-default:
+# All generic check groups are auto-generated — see scenarios.yaml.
+#
+# Only the tokei-specific residue remains: the full-serialization/JSON-output
+# capability of tokei's binary and cargo builds. Appended to version_pinned and
+# cargo_default via scenarios.yaml's generation.augment_tests.
+tokei_full_features:
   description: |
-    Default install on Fedora and Arch (auto selects package method): verifies tokei is
-    installed, reports a version, and counts lines of code on a small test file.
+    tokei's binary and cargo (`--features all`) builds are compiled with full
+    serialization support (json/cbor/yaml) and can emit machine-readable JSON —
+    capabilities distro packages typically omit, so this is asserted only for
+    the full-feature-build scenarios.
   checks:
-    - title: tokei is on PATH
-      cmd: command -v tokei
-    - title: tokei binary is executable
-      cmd: bash -c 'test -x "$(command -v tokei)"'
-    - title: tokei --version succeeds
-      cmd: tokei --version
-      debug: |
-        echo "=== tokei --version ==="
-        tokei --version 2>&1 || echo "(failed)"
-    - title: tokei reports a semver version
-      cmd: bash -c 'tokei --version | grep -Eq "^tokei [0-9]+\.[0-9]+\.[0-9]+"'
-    - title: tokei counts lines of a shell file
-      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
-
-binary_pinned_version:
-  description: |
-    version=12.1.2 + method=binary: installs the last stable release with GitHub binary
-    assets, verifies the exact version, and that JSON/CBOR/YAML serialization is compiled in.
-  checks:
-    - title: tokei binary is at /usr/local/bin/tokei
-      cmd: test -f /usr/local/bin/tokei
-    - title: tokei binary is executable
-      cmd: test -x /usr/local/bin/tokei
-    - title: tokei --version succeeds
-      cmd: tokei --version
-      debug: |
-        echo "=== tokei --version ==="
-        tokei --version 2>&1 || echo "(failed)"
-    - title: tokei version is 12.1.2
-      cmd: bash -c 'tokei --version 2>/dev/null | grep -q "^tokei 12\.1\.2"'
     - title: tokei is compiled with full serialization support
       cmd: bash -c 'tokei --version 2>/dev/null | grep -q "json, cbor, yaml"'
-    - title: tokei counts lines of a shell file
-      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
-    - title: tokei JSON output is valid
-      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei --output json /tmp/test.sh | grep -q "Total"'
-
-package_default:
-  description: method=package installs tokei via the OS package manager.
-  checks:
-    - title: tokei is on PATH
-      cmd: command -v tokei
-    - title: tokei binary is executable
-      cmd: bash -c 'test -x "$(command -v tokei)"'
-    - title: tokei --version succeeds
-      cmd: tokei --version
-    - title: tokei reports a semver version
-      cmd: bash -c 'tokei --version | grep -Eq "^tokei [0-9]+"'
-    - title: tokei counts lines of a shell file
-      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
-
-upstream_package_default:
-  description: |
-    method=upstream-package on Rocky Linux installs tokei via an added package
-    source (EPEL) and leaves a functional rpm-managed binary on PATH.
-  checks:
-    - title: tokei is on PATH
-      cmd: command -v tokei
-    - title: tokei binary is executable
-      cmd: bash -c 'test -x "$(command -v tokei)"'
-    - title: tokei is rpm-managed
-      cmd: bash -c 'rpm -q tokei >/dev/null 2>&1 && rpm -qf "$(command -v tokei)" >/dev/null 2>&1'
-    - title: tokei --version succeeds
-      cmd: tokei --version
-    - title: tokei reports a semver version
-      cmd: bash -c 'tokei --version | grep -Eq "^tokei [0-9]+"'
-    - title: tokei counts lines of a shell file
-      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
-
-method_cargo:
-  description: |
-    method=cargo on Ubuntu with Rust pre-installed: builds tokei from crates.io with
-    --features all (json, cbor, yaml serialization) and verifies the installed binary.
-  checks:
-    - title: tokei binary is at /usr/local/bin/tokei
-      cmd: test -f /usr/local/bin/tokei
-    - title: tokei binary is executable
-      cmd: test -x /usr/local/bin/tokei
-    - title: tokei --version succeeds
-      cmd: tokei --version
-      debug: |
-        echo "=== tokei --version ==="
-        tokei --version 2>&1 || echo "(failed)"
-    - title: tokei reports a semver version
-      cmd: bash -c 'tokei --version | grep -Eq "^tokei [0-9]+"'
-    - title: tokei is compiled with full serialization support
-      cmd: bash -c 'tokei --version 2>/dev/null | grep -q "json, cbor, yaml"'
-    - title: tokei counts lines of a shell file
-      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei /tmp/test.sh'
-    - title: tokei JSON output is valid
-      cmd: bash -c 'printf "#!/bin/sh\necho hello\n" > /tmp/test.sh && tokei --output json /tmp/test.sh | grep -q "Total"'
-
-if_exists_fail:
-  description: |
-    if_exists=fail aborts when tokei is already present on PATH, leaving the
-    pre-installed stub untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-    - title: pre-installed tokei stub still present
-      cmd: command -v tokei
-    - title: stub version is unchanged
-      cmd: bash -c 'tokei --version 2>/dev/null | grep -q "99\.99\.99"'
-
-if_exists_skip:
-  description: |
-    if_exists=skip exits 0 when tokei is already present on PATH, leaving the
-    pre-installed stub and its version untouched.
-  checks:
-    - title: tokei remains available after skip
-      cmd: command -v tokei
-    - title: stub version is unchanged (skip did not reinstall)
-      cmd: bash -c 'tokei --version 2>/dev/null | grep -q "99\.99\.99"'
+    - title: tokei emits valid JSON output
+      cmd: >-
+        bash -c 'd=$(mktemp -d) && printf "#!/bin/sh\necho hello\n" > "$d/f.sh"
+        && tokei --output json "$d" | grep -q "Total"; rc=$?; rm -rf "$d"; exit $rc'

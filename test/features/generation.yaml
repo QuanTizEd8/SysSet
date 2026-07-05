@@ -39,6 +39,7 @@ rollout:
     - install-devcontainer-cli
     - install-go
     - install-rust
+    - install-tokei
   denylist:
     - install
     - install-os-pkg

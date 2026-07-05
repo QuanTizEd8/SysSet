@@ -23,9 +23,14 @@ _options:
   verify:
     args: "--version"
     description: Verify tokei is installed and working.
+    functional:
+      description: tokei counts lines across a source tree
+      cmd: 'd=$(mktemp -d) && printf "fn main() {}\n" > "$d/m.rs" && {bin} "$d" > /dev/null; rc=$?; rm -rf "$d"; exit $rc'
   gh_repo: XAMPPRocky/tokei
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["12.1.2"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/tokei-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==i386?i686-unknown-linux-gnu:{plat.rust_triple}}}:{plat.rust_triple}}{plat.kernel==Windows?.exe:.tar.gz}"
