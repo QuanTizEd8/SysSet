@@ -215,6 +215,31 @@ class FeatureFacts:
             return packages[0]["name"]
         return self.primary_bin
 
+    def build_packages(self, method: str, pm: str) -> list[str]:
+        """OS build-dep package names for `method` on package manager `pm`.
+
+        Reads `_dependencies.build.{base,method-<method>}` in either declared
+        shape: PM-keyed (`build.<group>.<pm>.packages`) or a run-deps-style
+        package list (`build.<group>.packages` of bare names or `{name, <pm>:
+        ...}` per-PM overrides). These are the packages the framework installs
+        as root before a source/compile build; a non-root install can't install
+        them itself, so a custom-prefix nonroot scenario must pre-install them.
+        """
+        build = self.dependencies.get("build", {})
+        names: list[str] = []
+        for group in ("base", f"method-{method}"):
+            section = build.get(group)
+            if not isinstance(section, dict):
+                continue
+            if "packages" in section:  # run-deps-style list
+                names.extend(
+                    spec if isinstance(spec, str) else spec.get(pm, spec.get("name"))
+                    for spec in section["packages"]
+                )
+            elif isinstance(section.get(pm), dict):  # PM-keyed
+                names.extend(section[pm].get("packages", []))
+        return [n for n in names if n]
+
 
 def extract(metadata: dict) -> FeatureFacts:
     """Extract FeatureFacts from one feature's augmented metadata.yaml dict.

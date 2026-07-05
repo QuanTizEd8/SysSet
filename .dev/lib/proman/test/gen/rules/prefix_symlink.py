@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from proman.test.environments import resolve_attributes
 from proman.test.gen import checks_builtin, envselect
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
@@ -135,12 +136,17 @@ class PrefixSymlinkRule:
             # su-wrapped install) because the non-root install has no privilege
             # to bootstrap a fetch tool itself — confirmed by a real Docker run
             # against install-jq, whose bootstrap needs curl to resolve
-            # `version: stable` against the GitHub API.
+            # `version: stable` against the GitHub API. The pinned method's
+            # build deps (e.g. install-zsh's build-essential/libncurses-dev for
+            # method=source) are pre-installed for the same reason: a source
+            # build needs a toolchain the non-root user can't apt-install.
+            pm = resolve_attributes(env, envs).get("plat.pm", "apt")
+            build_pkgs = facts.build_packages(method_option["method"], pm)
+            pkgs = " ".join(["curl", "ca-certificates", *build_pkgs])
             scenario["modes"] = ["standalone"]
             scenario["setup"] = (
                 "retry apt-get update -qq\n"
-                "retry apt-get install -y --no-install-recommends "
-                "curl ca-certificates\n"
+                f"retry apt-get install -y --no-install-recommends {pkgs}\n"
                 f"mkdir -p {custom_prefix}\n"
                 f"chown vscode:vscode {custom_prefix}"
             )

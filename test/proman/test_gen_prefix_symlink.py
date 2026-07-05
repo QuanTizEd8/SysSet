@@ -65,3 +65,46 @@ def test_pm_only_feature_skips_custom_prefix() -> None:
     names = {s.name for s in PrefixSymlinkRule().generate(facts, _CFG, _ENVS)}
     assert "custom_prefix_symlink" not in names
     assert "custom_prefix_no_symlink" not in names
+
+
+def _facts_with_build(methods: dict, build: dict) -> FeatureFacts:
+    return FeatureFacts(
+        feature_id="install-fixture",
+        verify={"args": "--version"},
+        methods=methods,
+        prefix={"bins": ["tool"]},
+        dependencies={"build": build},
+    )
+
+
+def test_build_packages_resolves_both_shapes() -> None:
+    """PM-keyed and run-deps-style package lists both resolve for a PM."""
+    pm_keyed = _facts_with_build(
+        {"source": {}},
+        {"method-source": {"apt": {"packages": ["build-essential", "libncurses-dev"]}}},
+    )
+    assert pm_keyed.build_packages("source", "apt") == [
+        "build-essential",
+        "libncurses-dev",
+    ]
+    pkg_list = _facts_with_build(
+        {"source": {}},
+        {"method-source": {"packages": ["make", {"name": "gcc", "apk": "build-base"}]}},
+    )
+    assert pkg_list.build_packages("source", "apt") == ["make", "gcc"]
+    assert pkg_list.build_packages("source", "apk") == ["make", "build-base"]
+
+
+def test_nonroot_custom_prefix_preinstalls_build_deps() -> None:
+    """The nonroot custom-prefix setup pre-installs the pinned method's build deps."""
+    facts = _facts_with_build(
+        {"source": {}},
+        {"method-source": {"apt": {"packages": ["build-essential", "libncurses-dev"]}}},
+    )
+    scenarios = {s.name: s for s in PrefixSymlinkRule().generate(facts, _CFG, _ENVS)}
+    nonroot = scenarios["custom_prefix_symlink_nonroot"]
+    setup = nonroot.scenario["setup"]
+    assert "build-essential" in setup
+    assert "libncurses-dev" in setup
+    # Root custom-prefix installs build deps itself → no pre-install in setup.
+    assert "setup" not in scenarios["custom_prefix_symlink"].scenario
