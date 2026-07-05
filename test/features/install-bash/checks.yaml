@@ -112,3 +112,14 @@ invalid_method:
     - kind: install_failure
       title: invalid method rejected
       pattern: "Invalid value for 'method'"
+
+set_login_shell:
+  description: set_login_shell changes the resolved user's default login shell to bash and registers it in /etc/shells, even when bash pre-exists (skip path).
+  checks:
+    - title: bash is on PATH
+      cmd: command -v bash
+    - title: bash registered in /etc/shells
+      cmd: grep -qx "$(command -v bash)" /etc/shells
+    - title: shelluser default shell is bash
+      cmd: |-
+        bash -c '[ "$(getent passwd shelluser | cut -d: -f7)" = "$(command -v bash)" ]'

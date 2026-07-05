@@ -10,8 +10,19 @@ _long_description: >-
   Installs the Bash shell from the OS native package manager or compiles a release
   tarball from [ftp.gnu.org](https://ftp.gnu.org/gnu/bash/). Supports version
   pinning, system-wide installs under `/usr/local`, and user-scoped installs under
-  `${HOME}/.local` when building from source.
+  `${HOME}/.local` when building from source. Optionally sets Bash as the default
+  login shell (via `chsh`) for the resolved users.
+options:
+  set_login_shell:
+    type: boolean
+    default: true
+    description: >-
+      Set the default login shell to the installed Bash (via `chsh`) for the
+      resolved users (`add_current_user`, `add_remote_user`, `add_container_user`,
+      `add_users`). If both `install-bash` and `install-zsh` set this, the feature
+      that runs last in `devcontainer.json` order wins.
 _options:
+  configure_users: true
   verify:
     args: "--version"
     description: Verify bash is installed and working.

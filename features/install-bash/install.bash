@@ -15,6 +15,24 @@ __init_args_post() {
 }
 
 # shellcheck disable=SC2329,SC2317
+__configure_user() {
+  # Per-user hook (invoked once per resolved user by __feat_do_configure_users__,
+  # from both __install_finish__ and the if_exists=skip branch). Sets the login
+  # shell to the bash this feature installed when set_login_shell is true.
+  [[ "${SET_LOGIN_SHELL:-false}" == true ]] || return 0
+  local _username="$1" _bash
+  _bash="$(command -v bash 2> /dev/null || true)"
+  if [[ -z "${_bash}" && "${METHOD:-}" == source && -n "${_RESOLVED_PREFIX:-}" ]]; then
+    _bash="${_RESOLVED_PREFIX}/bin/bash"
+  fi
+  if [[ -z "${_bash}" ]]; then
+    logging__warn "set_login_shell=true but no bash binary found; skipping chsh for '${_username}'."
+    return 0
+  fi
+  users__set_login_shell "${_bash}" "${_username}"
+}
+
+# shellcheck disable=SC2329,SC2317
 __skip_post() {
   # Safety net: if somehow the feature reaches skip with bootstrap vars still set
   # (e.g. a future if_exists mode we don't anticipate), keep the bootstrap bash.

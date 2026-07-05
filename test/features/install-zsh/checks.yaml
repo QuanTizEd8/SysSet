@@ -91,3 +91,14 @@ invalid_method:
     - kind: install_failure
       title: invalid method rejected
       pattern: "Invalid value for 'method'"
+
+set_login_shell:
+  description: set_login_shell changes the resolved user's default login shell to zsh and registers it in /etc/shells.
+  checks:
+    - title: zsh is on PATH
+      cmd: command -v zsh
+    - title: zsh registered in /etc/shells
+      cmd: grep -qx "$(command -v zsh)" /etc/shells
+    - title: shelluser default shell is zsh
+      cmd: |-
+        bash -c '[ "$(getent passwd shelluser | cut -d: -f7)" = "$(command -v zsh)" ]'

@@ -82,3 +82,18 @@ invalid_method:
   options:
     method: binary
   tests: [invalid_method]
+
+set_login_shell:
+  # set_login_shell (default true) sets the resolved user's login shell to the
+  # installed zsh. Migrated from setup-shell's former set_user_shells option.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: useradd -m -s /bin/bash shelluser
+  options:
+    method: package
+    set_login_shell: true
+    add_users: shelluser
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+  tests: [set_login_shell]

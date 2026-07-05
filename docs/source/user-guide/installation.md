@@ -16,8 +16,10 @@ Features are published to GHCR under `ghcr.io/|{{github_user}}|/|{{github_repo}}
 
     // latest version ('latest' tag) with overridden options
     "ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:latest": {
-      "ohmyzsh_theme":   "romkatv/powerlevel10k",
-      "set_user_shells": "zsh"
+      "if_exists_sys": "reinstall"
+    },
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-zsh:latest": {
+      "set_login_shell": true
     },
 
     // specific major version with default options
