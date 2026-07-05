@@ -170,12 +170,20 @@ shell__write_block() {
     # continued lines. grep -qF still finds the marker substring, but raw $0
     # equality with begin/end would otherwise never match.
     #
+    # Content is passed via ENVIRON, not `awk -v`: -v assignments undergo awk's
+    # C-escape processing, which mangles backslashes in shell content (gawk
+    # strips unknown escapes like `\u` in PS1 strings and eats `\<newline>`
+    # line continuations).
+    #
     # Formatting: one blank line above the block when it is not the first line
-    # in the file (unless a blank line is already there); one blank line below.
+    # in the file (unless a blank line is already there); one blank line below —
+    # swallowing one pre-existing blank after the old end marker so repeated
+    # updates don't accumulate blank lines.
     local _tmp
     _tmp="$(mktemp)"
-    awk -v begin="$_begin" -v end="$_end" -v content="$_content" "$_SHELL__AWK_NORM"'
-      BEGIN { last_blank = 1 }
+    _SHELL__WB_CONTENT="$_content" \
+      awk -v begin="$_begin" -v end="$_end" "$_SHELL__AWK_NORM"'
+      BEGIN { last_blank = 1; content = ENVIRON["_SHELL__WB_CONTENT"] }
       norm($0) == begin {
         if (NR > 1 && !last_blank) print ""
         print begin
@@ -188,9 +196,11 @@ shell__write_block() {
         print ""
         last_blank = 1
         found = 0
+        swallow_blank = 1
         next
       }
       found { next }
+      swallow_blank { swallow_blank = 0; if (is_blank_line($0)) next }
       { print; last_blank = is_blank_line($0) }
     ' "$_file" > "$_tmp" && file__cp "$_tmp" "$_file"
     rm -f "$_tmp"
@@ -210,6 +220,157 @@ shell__write_block() {
     fi
     logging__success "Appended shell block '${_marker}' to '${_file}'."
   fi
+  return 0
+}
+
+shell__resolve_inject_line_v1() {
+  # @brief shell__resolve_inject_line_v1 --file <f> --anchor <a> — Print the 1-based line number before which a new marker block should be inserted on first inject into an existing file.
+  #
+  # Anchors (v1 — minimal enum, see inject_anchor in feature registries):
+  #   file-top-after-comments          First line that is not a leading `#` comment or blank; falls back to EOF if the whole file is comments/blank.
+  #   after-interactivity-guard-or-eof  Line after a `case $- in ... esac` interactivity guard's closing `esac`; falls back to EOF if no such guard is found.
+  #
+  # A returned value of `<total lines in file> + 1` means "insert at end of
+  # file" (there is no line `n` to insert before). Callers (see
+  # shell__insert_block_at_line) must treat this as an append, not a no-op —
+  # an awk pass keyed purely on `NR == n` would never fire for it.
+  #
+  # Args:
+  #   --file <f>     Path to the file being scanned. A missing file resolves to line 1.
+  #   --anchor <a>   One of the two anchors above (any other value, including `eof`, resolves to end-of-file — callers should prefer shell__write_block directly for plain `eof`).
+  #
+  # Stdout: a single 1-based line number, followed by a newline.
+  local _file="" _anchor="eof"
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --file)
+        shift
+        _file="$1"
+        shift
+        ;;
+      --anchor)
+        shift
+        _anchor="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  [[ -n "$_file" ]] || {
+    logging__error "shell__resolve_inject_line_v1: --file is required."
+    return 1
+  }
+  if [[ ! -f "$_file" ]]; then
+    printf '1\n'
+    return 0
+  fi
+  case "$_anchor" in
+    file-top-after-comments)
+      # Skip existing managed marker blocks too (their begin lines are `#`
+      # comments, but their bodies are code) so a second top-anchored inject
+      # stacks BELOW a previous one instead of landing inside its markers.
+      awk '
+        /^[[:space:]]*# >>> / { inblock = 1; next }
+        /^[[:space:]]*# <<< / { inblock = 0; next }
+        inblock { next }
+        /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+        { print NR; found = 1; exit }
+        END { if (!found) print NR + 1 }
+      ' "$_file"
+      ;;
+    after-interactivity-guard-or-eof)
+      # Find a `case $- in ... esac` interactivity guard and return the line
+      # after its closing `esac`; else EOF. Guards *inside* an existing managed
+      # marker block (# >>> ... >>> / # <<< ... <<<) are skipped — otherwise a
+      # previously-injected guard block would itself be matched, causing every
+      # subsequent block to nest inside it.
+      awk '
+        /^[[:space:]]*# >>> / { inblock = 1; next }
+        /^[[:space:]]*# <<< / { inblock = 0; next }
+        inblock { next }
+        /^[[:space:]]*case[[:space:]]+\$-[[:space:]]+in/ { inguard = 1 }
+        inguard && /^[[:space:]]*esac[[:space:]]*$/ { print NR + 1; found = 1; exit }
+        END { if (!found) print NR + 1 }
+      ' "$_file"
+      ;;
+    *)
+      awk 'END { print NR + 1 }' "$_file"
+      ;;
+  esac
+  return 0
+}
+
+shell__insert_block_at_line() {
+  # @brief shell__insert_block_at_line --file <f> --marker <id> --content <c> --line <n> — Insert a new marker block before 1-based line <n>, appending at end of file when <n> is past the last line.
+  #
+  # If the marker already exists in the file, delegates to shell__write_block
+  # (in-place sync at its current position) instead of inserting a second copy.
+  #
+  # `<n>` past the last line (as returned by shell__resolve_inject_line_v1's
+  # EOF fallback) is handled by an explicit END-block append, not just the
+  # `NR == n` match — a file with N lines never produces a record numbered
+  # N+1, so relying solely on line-number matching would silently insert
+  # nothing when the anchor search comes up empty. This is deliberate, not an
+  # oversight: appending at the true end of file is a safe fallback even when
+  # the anchor isn't found (see the registry's inject_anchor documentation).
+  #
+  # Args:
+  #   --file <f>     Path to the target file.
+  #   --marker <id>  Block identifier used in the begin/end comment markers.
+  #   --content <c>  Content to write inside the block.
+  #   --line <n>     1-based line number to insert before (from shell__resolve_inject_line_v1).
+  local _file="" _marker="" _content="" _line=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --file)
+        shift
+        _file="$1"
+        shift
+        ;;
+      --marker)
+        shift
+        _marker="$1"
+        shift
+        ;;
+      --content)
+        shift
+        _content="$1"
+        shift
+        ;;
+      --line)
+        shift
+        _line="$1"
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  [[ -n "$_file" && -n "$_marker" && -n "$_line" ]] || {
+    logging__error "shell__insert_block_at_line: --file, --marker, and --line are required."
+    return 1
+  }
+  local _begin="# >>> ${_marker} >>>"
+  local _end="# <<< ${_marker} <<<"
+  file__mkdir "$(dirname "$_file")"
+  [[ -f "$_file" ]] || printf '' | file__tee "$_file"
+  if grep -qF "$_begin" "$_file"; then
+    shell__write_block --file "$_file" --marker "$_marker" --content "$_content"
+    return $?
+  fi
+  # Content via ENVIRON, not `awk -v`: -v assignments undergo awk's C-escape
+  # processing, which mangles backslashes in shell content (gawk strips unknown
+  # escapes like `\u` in PS1 strings and eats `\<newline>` line continuations).
+  local _tmp
+  _tmp="$(mktemp)"
+  _SHELL__WB_CONTENT="$_content" \
+    awk -v n="$_line" -v begin="$_begin" -v end="$_end" '
+    BEGIN { content = ENVIRON["_SHELL__WB_CONTENT"] }
+    NR == n { print ""; print begin; print content; print end; print "" }
+    { print }
+    END { if (NR < n) { print ""; print begin; print content; print end; print "" } }
+  ' "$_file" > "$_tmp" && file__cp "$_tmp" "$_file"
+  rm -f "$_tmp"
+  logging__success "Inserted shell block '${_marker}' at line ${_line} in '${_file}'."
   return 0
 }
 

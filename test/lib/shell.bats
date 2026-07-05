@@ -1030,3 +1030,95 @@ ${_home}/.config/zsh/.zshrc"
   run grep "export MULTI_ZSH=1" "${_zdir}/.zshrc"
   assert_success
 }
+
+# ---------------------------------------------------------------------------
+# shell__resolve_inject_line_v1
+# ---------------------------------------------------------------------------
+
+@test "shell__resolve_inject_line_v1 file-top-after-comments finds first code line" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/top"
+  printf '# comment\n\n# another\nFIRST=1\nSECOND=2\n' > "$_f"
+  run shell__resolve_inject_line_v1 --file "$_f" --anchor file-top-after-comments
+  assert_output "4"
+}
+
+@test "shell__resolve_inject_line_v1 file-top-after-comments falls back to EOF on all-comment file" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/allcomments"
+  printf '# a\n# b\n' > "$_f"
+  run shell__resolve_inject_line_v1 --file "$_f" --anchor file-top-after-comments
+  assert_output "3"
+}
+
+@test "shell__resolve_inject_line_v1 finds line after interactivity guard esac" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/guarded"
+  printf '# hdr\ncase $- in\n  *i*) ;;\n    *) return;;\nesac\nAFTER=1\n' > "$_f"
+  run shell__resolve_inject_line_v1 --file "$_f" --anchor after-interactivity-guard-or-eof
+  assert_output "6"
+}
+
+@test "shell__resolve_inject_line_v1 guard anchor falls back to EOF when no guard matches" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/noguard"
+  printf 'A=1\nB=2\nC=3\n' > "$_f"
+  run shell__resolve_inject_line_v1 --file "$_f" --anchor after-interactivity-guard-or-eof
+  assert_output "4"
+}
+
+@test "shell__resolve_inject_line_v1 skips guards inside existing marker blocks" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/markedguard"
+  printf '# >>> some-block >>>\ncase $- in\n  *i*) ;;\n    *) return;;\nesac\n# <<< some-block <<<\nTAIL=1\n' > "$_f"
+  run shell__resolve_inject_line_v1 --file "$_f" --anchor after-interactivity-guard-or-eof
+  assert_output "8"
+}
+
+@test "shell__resolve_inject_line_v1 missing file resolves to line 1" {
+  reload_lib
+  run shell__resolve_inject_line_v1 --file "${BATS_TEST_TMPDIR}/nosuch" --anchor file-top-after-comments
+  assert_output "1"
+}
+
+# ---------------------------------------------------------------------------
+# shell__insert_block_at_line
+# ---------------------------------------------------------------------------
+
+@test "shell__insert_block_at_line inserts before the given line" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/insert"
+  printf 'ONE=1\nTWO=2\n' > "$_f"
+  shell__insert_block_at_line --file "$_f" --marker "ins" --content "MID=1" --line 2
+  run grep -n 'MID=1' "$_f"
+  assert_success
+  # The block (blank, begin, content, end, blank = 5 lines) is inserted before
+  # the old line 2, pushing TWO=2 from line 2 down to line 7.
+  run bash -c "grep -n . '$_f' | grep 'TWO=2' | cut -d: -f1"
+  assert_output "7"
+}
+
+@test "shell__insert_block_at_line appends when line exceeds file length (EOF fallback)" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/eofinsert"
+  printf 'ONLY=1\n' > "$_f"
+  shell__insert_block_at_line --file "$_f" --marker "tailblock" --content "TAIL=1" --line 99
+  run grep -c 'TAIL=1' "$_f"
+  assert_output "1"
+  run grep -c '# >>> tailblock >>>' "$_f"
+  assert_output "1"
+}
+
+@test "shell__insert_block_at_line delegates to in-place sync when marker exists" {
+  reload_lib
+  local _f="${BATS_TEST_TMPDIR}/resync"
+  printf 'HEAD=1\n' > "$_f"
+  shell__insert_block_at_line --file "$_f" --marker "dup" --content "V=1" --line 1
+  shell__insert_block_at_line --file "$_f" --marker "dup" --content "V=2" --line 99
+  run grep -c '# >>> dup >>>' "$_f"
+  assert_output "1"
+  run grep 'V=2' "$_f"
+  assert_success
+  run bash -c "! grep -q 'V=1' '$_f'"
+  assert_success
+}
