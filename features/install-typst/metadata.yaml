@@ -53,4 +53,27 @@ _dependencies:
       packages:
         - name: typst
           version: "{feat.pm_version}"
+  build:
+    method-cargo:
+      # typst-cli's dependency tree builds openssl-sys, which needs a C
+      # toolchain, pkg-config, and the OpenSSL development headers. Without
+      # them `cargo install typst-cli` fails at the openssl-sys build step
+      # ("failed to run custom build command for openssl-sys").
+      packages:
+        - make
+        - name: gcc
+          apt: build-essential
+          apk: build-base
+        - name: pkg-config
+          apk: pkgconf
+          dnf: pkgconf-pkg-config
+          yum: pkgconf-pkg-config
+          pacman: pkgconf
+        - name: libssl-dev
+          apk: openssl-dev
+          dnf: openssl-devel
+          yum: openssl-devel
+          zypper: libopenssl-devel
+          pacman: openssl
+          brew: openssl@3
 # installsAfter: []
