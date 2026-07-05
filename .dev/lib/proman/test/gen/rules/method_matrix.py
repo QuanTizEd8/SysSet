@@ -9,7 +9,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from proman.test.environments import resolve_attributes
-from proman.test.gen import checks_builtin, default_checks, envselect
+from proman.test.gen import checks_builtin, context, default_checks, envselect
+from proman.test.gen import outcome as outcome_mod
+from proman.test.gen.method_resolver import declared_in_order
 from proman.test.gen.naming import method_scenario_name
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
@@ -21,14 +23,43 @@ if TYPE_CHECKING:
 
 _FAMILY = "method_matrix"
 
-# Methods whose observable result (a working binary, verified identically to
-# `default`) doesn't depend on the install mechanism, so they reuse the
-# `default` check group verbatim rather than emitting their own. `npm` and
-# `cargo` are handled separately (each needs a pre-provisioned env — see
-# `_npm_default`/`_cargo_default`).
+# Methods whose observable result is a working binary, verified via the same
+# existence/version/functional bundle as `default` — each still emits its OWN
+# group (asserting *its* recorded method + install location), rather than
+# reusing the auto-resolved `default` group. `npm`/`cargo` need a pre-
+# provisioned env (see `_npm_default`/`_cargo_default`).
 _VERBATIM_METHODS = frozenset(
     {"binary", "source", "npm-bundled", "script", "git-clone"},
 )
+
+
+def _method_ctx(env: str, envs: dict, method: str):  # noqa: ANN202
+    """Resolve context for an explicit-method scenario on `env` (run as root)."""
+    return context.for_env(
+        env,
+        envs,
+        privileged=True,
+        has_npm=method == "npm",
+        has_cargo=method == "cargo",
+        has_git=method == "git-clone",
+    )
+
+
+def _method_group(
+    facts: FeatureFacts,
+    cfg: GenerationConfig,
+    envs: dict,
+    method: str,
+    env: str,
+    description: str,
+) -> tuple[CheckGroup, outcome_mod.ExpectedOutcome | None]:
+    """Build a per-method check group (own installed-method + location asserts)."""
+    ctx = _method_ctx(env, envs, method)
+    outcome = outcome_mod.compute(facts, ctx, method=method)
+    group = CheckGroup(
+        description=description, checks=default_checks.build(facts, cfg, outcome)
+    )
+    return group, outcome
 
 
 @register
@@ -50,8 +81,8 @@ class MethodMatrixRule:
     ) -> list[GeneratedScenario]:
         """One scenario per declared method, per the method-specific handlers below."""
         results: list[GeneratedScenario] = []
-        for method, method_config in facts.methods.items():
-            when = method_config.get("when")
+        for method in declared_in_order(facts):
+            when = facts.methods[method].get("when")
             generated = self._generate_one(method, when, facts, cfg, envs)
             if generated is not None:
                 results.append(generated)
@@ -74,10 +105,10 @@ class MethodMatrixRule:
         if method == "git-clone" and not facts.is_git_clone_only:
             # Only a distinct scenario when git-clone is one of *several*
             # methods — if it's the only one, `default` already covers it.
-            return self._single_env("git_clone_default", method, when, cfg, envs)
+            return self._single_env("git_clone_default", method, when, facts, cfg, envs)
         if method in _VERBATIM_METHODS and method != "git-clone":
             return self._single_env(
-                method_scenario_name(method), method, when, cfg, envs
+                method_scenario_name(method), method, when, facts, cfg, envs
             )
         return None
 
@@ -110,75 +141,77 @@ class MethodMatrixRule:
         scenario["tests"] = [name]
         pkg_name = facts.package_name(method)
         pms = sorted({resolve_attributes(e, envs).get("plat.pm") for e in selected})
-        checks = [
-            *default_checks.build(facts, cfg),
-            checks_builtin.pm_managed_check(facts.primary_bin, pkg_name, pms),
-        ]
         verb = (
             "the OS package manager's standard configured sources"
             if method == "package"
             else "the OS package manager after adding/altering package-source "
             "configuration"
         )
-        group = CheckGroup(
-            description=f"method={method}: installs via {verb}.",
-            checks=checks,
+        group, _ = _method_group(
+            facts,
+            cfg,
+            envs,
+            method,
+            selected[0],
+            f"method={method}: installs via {verb}.",
+        )
+        group["checks"].append(
+            checks_builtin.pm_managed_check(facts.primary_bin, pkg_name, pms),
+        )
+        return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
+
+    def _provisioned_env_default(
+        self,
+        method: str,
+        when: dict | list | None,
+        facts: FeatureFacts,
+        cfg: GenerationConfig,
+        envs: dict,
+        env: str,
+    ) -> GeneratedScenario | None:
+        """`npm`/`cargo` on a pre-provisioned env (npm/cargo not a WhenSpec attr).
+
+        None of these features declare a dependency block bootstrapping the
+        toolchain (Node/Rust is expected pre-installed), so the normal
+        `when:`-driven env pool doesn't apply — `env` points at a pre-
+        provisioned environment. Still respects the method's own `when:` (if
+        any) via `feasible_envs`.
+        """
+        if not envselect.feasible_envs(when, envs, candidates=[env]):
+            return None
+        name = method_scenario_name(method)
+        scenario = base_scenario([env], cfg, _FAMILY, options={"method": method})
+        scenario["tests"] = [name]
+        group, _ = _method_group(
+            facts,
+            cfg,
+            envs,
+            method,
+            env,
+            f"method={method}: installs on a pre-provisioned env.",
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
 
     def _npm_default(
         self,
         when: dict | list | None,
-        facts: FeatureFacts,  # noqa: ARG002
+        facts: FeatureFacts,
         cfg: GenerationConfig,
         envs: dict,
     ) -> GeneratedScenario | None:
-        """`npm` needs Node.js/npm already installed — not a WhenSpec attribute.
-
-        None of the AI-CLI-tool features declare a `method-npm` dependency
-        block (by design — Node.js is expected to be pre-installed, e.g. via
-        `install-node`), so this can't use the normal `when:`-driven env pool
-        the way other methods do. `cfg.npm_env` points at a pre-provisioned
-        environment instead; still respects the method's own `when:` (if any)
-        via `feasible_envs`, so a feature that further restricts `npm` to a
-        specific platform is not silently tested on an incompatible one.
-        """
-        if not envselect.feasible_envs(when, envs, candidates=[cfg.npm_env]):
-            return None
-        scenario = base_scenario([cfg.npm_env], cfg, _FAMILY, options={"method": "npm"})
-        scenario["tests"] = ["default"]
-        return GeneratedScenario(
-            name=method_scenario_name("npm"),
-            scenario=scenario,
-            checks={},
-        )
+        """`npm` isolation test on the pre-provisioned Node env."""
+        return self._provisioned_env_default("npm", when, facts, cfg, envs, cfg.npm_env)
 
     def _cargo_default(
         self,
         when: dict | list | None,
-        facts: FeatureFacts,  # noqa: ARG002
+        facts: FeatureFacts,
         cfg: GenerationConfig,
         envs: dict,
     ) -> GeneratedScenario | None:
-        """`cargo` needs a Rust toolchain already installed — not a WhenSpec attribute.
-
-        Features declaring a `cargo` method only list build tools (make, a C
-        compiler) in `_dependencies.build.method-cargo` — cargo/rustc itself is
-        assumed pre-installed, not bootstrapped by the feature. Confirmed via a
-        real Docker run: method=cargo on the bare primary env (no rustc) fails
-        outright. `cfg.cargo_env` points at a pre-provisioned environment
-        instead, mirroring `_npm_default`.
-        """
-        if not envselect.feasible_envs(when, envs, candidates=[cfg.cargo_env]):
-            return None
-        scenario = base_scenario(
-            [cfg.cargo_env], cfg, _FAMILY, options={"method": "cargo"}
-        )
-        scenario["tests"] = ["default"]
-        return GeneratedScenario(
-            name=method_scenario_name("cargo"),
-            scenario=scenario,
-            checks={},
+        """`cargo` isolation test on the pre-provisioned Rust env."""
+        return self._provisioned_env_default(
+            "cargo", when, facts, cfg, envs, cfg.cargo_env
         )
 
     def _single_env(
@@ -186,13 +219,15 @@ class MethodMatrixRule:
         name: str,
         method: str,
         when: dict | list | None,
+        facts: FeatureFacts,
         cfg: GenerationConfig,
         envs: dict,
     ) -> GeneratedScenario | None:
-        """Single-env, verbatim reuse of the `default` check group.
+        """Single-env method scenario emitting its own outcome-verifying group.
 
-        For methods whose observable result is identical to whatever `default`
-        already verifies — no method-specific assertion is needed.
+        The observable result is a working binary (same shape as `default`),
+        but the group asserts *this* method's recorded installed-method and
+        install location — not the auto-resolved one.
         """
         selected = envselect.select_envs(
             when,
@@ -204,5 +239,13 @@ class MethodMatrixRule:
         if not selected:
             return None
         scenario = base_scenario(selected, cfg, _FAMILY, options={"method": method})
-        scenario["tests"] = ["default"]
-        return GeneratedScenario(name=name, scenario=scenario, checks={})
+        scenario["tests"] = [name]
+        group, _ = _method_group(
+            facts,
+            cfg,
+            envs,
+            method,
+            selected[0],
+            f"method={method}: installs a working tool.",
+        )
+        return GeneratedScenario(name=name, scenario=scenario, checks={name: group})

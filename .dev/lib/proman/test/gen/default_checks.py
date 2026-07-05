@@ -18,10 +18,22 @@ from proman.test.gen.types import CheckItem
 if TYPE_CHECKING:
     from proman.test.gen.config import GenerationConfig
     from proman.test.gen.facts import FeatureFacts
+    from proman.test.gen.outcome import ExpectedOutcome
 
 
-def build(facts: FeatureFacts, cfg: GenerationConfig) -> list[CheckItem]:
-    """Build the existence/version/functional (or git-clone) check bundle."""
+def build(
+    facts: FeatureFacts,
+    cfg: GenerationConfig,
+    outcome: ExpectedOutcome | None = None,
+) -> list[CheckItem]:
+    """Build the existence/version/functional (or git-clone) check bundle.
+
+    When `outcome` is given, the bundle is enriched with the expected-outcome
+    assertions the model predicts: the recorded installed-method, and (for a
+    prefix install) that the binary is at its resolved location. Called without
+    `outcome`, behaves exactly as before (used by check groups that can't be
+    tied to a single resolved method/env).
+    """
     if facts.is_git_clone_only:
         return _git_clone_checks(facts)
 
@@ -38,6 +50,27 @@ def build(facts: FeatureFacts, cfg: GenerationConfig) -> list[CheckItem]:
     )
     items.append(checks_builtin.version_format_check(primary, facts.version_flag))
     items.extend(_functional_items(facts, cfg, primary))
+    items.extend(_outcome_items(facts, outcome))
+    return items
+
+
+def _outcome_items(
+    facts: FeatureFacts,
+    outcome: ExpectedOutcome | None,
+) -> list[CheckItem]:
+    """Expected-outcome assertions layered onto the base bundle."""
+    if outcome is None or outcome.method is None:
+        return []
+    items = [
+        checks_builtin.installed_method_check(outcome.method, outcome.share_dir_var),
+    ]
+    if outcome.install_path is not None:
+        items.append(
+            CheckItem(
+                title=f"{facts.primary_bin} binary is at {outcome.install_path}",
+                cmd=f"test -f {outcome.install_path}",
+            ),
+        )
     return items
 
 

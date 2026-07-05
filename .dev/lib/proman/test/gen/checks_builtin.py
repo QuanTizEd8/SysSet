@@ -144,3 +144,37 @@ def pm_managed_check(bin_name: str, pkg_name: str, pms: list[str]) -> CheckItem:
     if len(cmds) == 1:
         return CheckItem(title=title, cmd=cmds[0])
     return CheckItem(title=title, kind="multiple", min=1, cmd=cmds)
+
+
+def installed_method_check(method: str, share_var: str) -> CheckItem:
+    """Assert the framework recorded `method` as the installed method.
+
+    Reads the `state/installed-method` file under the share dir env var
+    (`_FEAT_SHARE_DIR_ROOT` or `_FEAT_SHARE_DIR_NONROOT`) that the test harness
+    injects, so no project namespace is hardcoded. This is what verifies the
+    *selected* method — the outcome model's central prediction — rather than
+    just "some binary exists".
+    """
+    path = f'"${{{share_var}}}/state/installed-method"'
+    return CheckItem(
+        title=f"installed-method state is {method}",
+        cmd=f"grep -Fqx {shlex.quote(method)} {path}",
+    )
+
+
+def path_export_present_check() -> CheckItem:
+    """Assert the prefix PATH-export profile.d drop-in was written."""
+    path = '"/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
+    return CheckItem(
+        title="PATH export profile.d file written",
+        cmd=f"bash -c 'test -s {path}'",
+    )
+
+
+def path_export_absent_check() -> CheckItem:
+    """Assert no prefix PATH-export profile.d drop-in was written."""
+    path = '"/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
+    return CheckItem(
+        title="no PATH export profile.d file",
+        cmd=f"bash -c '! test -e {path}'",
+    )

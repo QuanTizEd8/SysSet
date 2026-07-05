@@ -51,6 +51,10 @@
 generation:
   suppress:
     scenarios: [source_default]
+    # Method scenarios now emit their own outcome-verifying check group, so the
+    # generated source_default group must be suppressed too (this feature keeps
+    # its hand-written source_default group for the go-toolchain env).
+    checks: [source_default]
   augment_tests:
     default: [direnv_activation_default]
     version_pinned: [direnv_activation_default]

@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proman.test.gen import default_checks
+from proman.test.gen import context, default_checks
+from proman.test.gen import outcome as outcome_mod
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
 from proman.test.gen.types import CheckGroup, GeneratedScenario
@@ -39,14 +40,19 @@ class ExistenceDefaultRule:
         self,
         facts: FeatureFacts,
         cfg: GenerationConfig,
-        envs: dict,  # noqa: ARG002
+        envs: dict,
     ) -> list[GeneratedScenario]:
         """Generate the single `default` scenario."""
         scenario = base_scenario([cfg.primary_env], cfg, _FAMILY)
         scenario["tests"] = ["default"]
+        # The default scenario is `method=auto`: compute what the resolver would
+        # pick on the primary env so the checks assert the recorded method +
+        # install location, not just "a binary exists".
+        ctx = context.for_env(cfg.primary_env, envs)
+        outcome = outcome_mod.compute(facts, ctx)
         group = CheckGroup(
             description="Verifies the default install puts a functional tool on PATH.",
-            checks=default_checks.build(facts, cfg),
+            checks=default_checks.build(facts, cfg, outcome),
         )
         return [
             GeneratedScenario(
