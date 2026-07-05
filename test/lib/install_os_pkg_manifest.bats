@@ -71,6 +71,15 @@ _seed_context() {
   # Restore PATH with fake bins prepended for subsequent commands (ospkg__run).
   prepend_fake_bin_path
 
+  # Put the cached jq binary on PATH so json__query's bootstrap__jq
+  # short-circuits at `command -v jq` instead of attempting a fresh
+  # GitHub-release download. That download path calls os__release_arch →
+  # `uname -m`, which create_fake_bin's `uname` stub answers with "Linux"
+  # (it prints "Linux" for every argument), breaking arch detection. yq is
+  # invoked via its stubbed path (test_bootstrap__stub_yq), but jq is invoked
+  # as a bare `jq` after bootstrap__jq, so it must be resolvable on PATH.
+  ln -sf "${TEST_BOOTSTRAP_JQ_BIN}" "${BATS_TEST_TMPDIR}/bin/jq"
+
   ctx__reset
   ctx__set "plat.pm=${_pm}"
   ctx__set "plat.kernel=linux"

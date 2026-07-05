@@ -5,10 +5,21 @@
 
 bats_require_minimum_version 1.7.0
 
+setup_file() {
+  load 'helpers/bootstrap_tools'
+  test_bootstrap__setup_file_jq_yq
+}
+
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
+  load 'helpers/bootstrap_tools'
   reload_lib
+  # npm__versions/etc. parse registry JSON via json__query → jq. Put the cached
+  # jq on PATH so bootstrap__jq short-circuits instead of running its download
+  # path, whose release fetch the per-test net stubs below would otherwise
+  # hijack (returning canned npm JSON in place of the jq release response).
+  test_bootstrap__prime_jq
   # Stub out network-layer helpers so no real connections are made.
   net__ensure_fetch_tool() {
     _NET__FETCH_TOOL=curl

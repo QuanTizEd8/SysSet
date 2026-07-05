@@ -109,6 +109,21 @@ test_bootstrap__prepend_tools_path() {
   export PATH="${BATS_TEST_TMPDIR}/bin:${PATH}"
 }
 
+# Put the cached jq (from setup_file's test_bootstrap__setup_file_jq_yq) on
+# PATH so json__query's bootstrap__jq short-circuits at `command -v jq` instead
+# of running its GitHub-release download path. Suites that parse JSON via the
+# library but don't otherwise install jq (npm, proc) need this in a bare
+# container, where jq is not pre-installed: without it bootstrap__jq runs
+# mid-test and either hits a partially-sourced library or a per-test net stub
+# that hijacks its release fetch. jq-only (no yq), so suites that don't need yq
+# aren't gated on a yq bootstrap that may not have run.
+test_bootstrap__prime_jq() {
+  [[ -n "${TEST_BOOTSTRAP_JQ_BIN:-}" && -x "${TEST_BOOTSTRAP_JQ_BIN}" ]] || return 0
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  ln -sf "${TEST_BOOTSTRAP_JQ_BIN}" "${BATS_TEST_TMPDIR}/bin/jq"
+  export PATH="${BATS_TEST_TMPDIR}/bin:${PATH}"
+}
+
 test_bootstrap__stub_yq() {
   # shellcheck disable=SC2329  # exported stub for bats run subshells
   bootstrap__yq() {
