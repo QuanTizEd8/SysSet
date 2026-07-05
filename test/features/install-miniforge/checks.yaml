@@ -253,7 +253,7 @@ github_api_unreachable_network_isolated:
   checks:
     - kind: install_failure
       title: network-isolated install fails during version resolution
-      pattern: GitHub API unreachable
+      pattern: failed to resolve latest tag
 
 if_exists_fail:
   description: |

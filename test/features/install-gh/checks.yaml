@@ -380,7 +380,7 @@ network_isolated_version_resolution:
   checks:
     - kind: install_failure
       title: network-isolated install fails during GitHub version resolution
-      pattern: GitHub API unreachable
+      pattern: failed to resolve latest tag
 
 setup_git:
   description: |
