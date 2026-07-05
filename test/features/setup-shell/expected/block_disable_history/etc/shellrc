@@ -1,0 +1,103 @@
+# >>> setup-shell-shellrc-guard >>>
+case $- in
+  *i*) ;;
+    *) return;;
+esac
+# <<< setup-shell-shellrc-guard <<<
+
+# >>> setup-shell-shellrc-shellenv >>>
+. "/etc/shellenv"
+# <<< setup-shell-shellrc-shellenv <<<
+
+# >>> setup-shell-shellrc-gpg-tty >>>
+export GPG_TTY="${TTY:-$(tty)}"
+if command -v gpg-connect-agent >/dev/null 2>&1; then
+    gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
+fi
+# <<< setup-shell-shellrc-gpg-tty <<<
+
+# >>> setup-shell-shellrc-vscode-editor >>>
+if [ "${TERM_PROGRAM}" = "vscode" ]; then
+    _vscode_path=$(printf '%s' "${VSCODE_GIT_ASKPASS_MAIN-}" | tr '[:upper:]' '[:lower:]')
+    case "$_vscode_path" in
+        *insiders*) _vscode_cmd="code-insiders --wait" ;;
+        *code*)     _vscode_cmd="code --wait" ;;
+    esac
+    if [ -n "${_vscode_cmd-}" ]; then
+        export VISUAL="$_vscode_cmd" EDITOR="$_vscode_cmd"
+    fi
+    unset _vscode_path _vscode_cmd
+fi
+# <<< setup-shell-shellrc-vscode-editor <<<
+
+# >>> setup-shell-shellrc-dircolors >>>
+if command -v dircolors >/dev/null 2>&1; then
+    _dc=dircolors
+elif command -v gdircolors >/dev/null 2>&1; then
+    _dc=gdircolors
+fi
+if [ -n "${_dc-}" ]; then
+    test -r ~/.dircolors && eval "$($_dc -b ~/.dircolors)" || eval "$($_dc -b)"
+    unset _dc
+fi
+# <<< setup-shell-shellrc-dircolors <<<
+
+# >>> setup-shell-shellrc-color-aliases >>>
+if ls --color=auto /dev/null >/dev/null 2>&1; then
+    alias ls='ls --color=auto'
+    if command -v dir >/dev/null 2>&1; then alias dir='dir --color=auto'; fi
+    if command -v vdir >/dev/null 2>&1; then alias vdir='vdir --color=auto'; fi
+elif ls -G /dev/null >/dev/null 2>&1; then
+    alias ls='ls -G'
+fi
+if grep --color=auto '' /dev/null >/dev/null 2>&1; then
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+# <<< setup-shell-shellrc-color-aliases <<<
+
+# >>> setup-shell-shellrc-lesspipe >>>
+if command -v lesspipe >/dev/null 2>&1; then
+    eval "$(SHELL=/bin/sh lesspipe)"
+elif command -v lesspipe.sh >/dev/null 2>&1; then
+    eval "$(SHELL=/bin/sh lesspipe.sh)"
+fi
+# <<< setup-shell-shellrc-lesspipe <<<
+
+# >>> setup-shell-shellrc-gcc-colors >>>
+export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
+# <<< setup-shell-shellrc-gcc-colors <<<
+
+# >>> setup-shell-shellrc-cnf >>>
+if [ -x /usr/lib/command-not-found ] || [ -x /usr/share/command-not-found/command-not-found ]; then
+    _command_not_found_handler() {
+        if [ -x /usr/lib/command-not-found ]; then
+            /usr/lib/command-not-found -- "$1"; return $?
+        elif [ -x /usr/share/command-not-found/command-not-found ]; then
+            /usr/share/command-not-found/command-not-found -- "$1"; return $?
+        else
+            printf "%s: command not found\n" "$1" >&2; return 127
+        fi
+    }
+    command_not_found_handle()  { _command_not_found_handler "$@"; }
+    command_not_found_handler() { _command_not_found_handler "$@"; }
+fi
+# <<< setup-shell-shellrc-cnf <<<
+
+# >>> setup-shell-shellrc-sudo-hint >>>
+if [ ! -e "$HOME/.sudo_as_admin_successful" ] && [ ! -e "$HOME/.hushlogin" ] && command -v sudo >/dev/null 2>&1; then
+    case " $(groups) " in
+        *\ admin\ *|*\ sudo\ *)
+            printf '%s\n%s\n\n' \
+                'To run a command as administrator (user "root"), use "sudo <command>".' \
+                'See "man sudo_root" for details.'
+            ;;
+    esac
+fi
+# <<< setup-shell-shellrc-sudo-hint <<<
+
+# >>> setup-shell-shellrc-shellaliases >>>
+. "/etc/shellaliases"
+# <<< setup-shell-shellrc-shellaliases <<<
+

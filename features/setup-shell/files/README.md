@@ -1,7 +1,9 @@
 # Shell Configuration Files
 
-This directory contains the system-wide and per-user skeleton shell configuration
-files installed by the `setup-shell` package.
+This directory backs the system-wide and per-user shell configuration deployed
+by the `setup-shell` package. The configuration is **assembled from marker-
+wrapped blocks** rather than copied from whole files (see [`../notes.md`](../notes.md)
+for the block/target registry architecture).
 
 ---
 
@@ -9,31 +11,35 @@ files installed by the `setup-shell` package.
 
 ```
 files/
-├── shell/
-│   ├── shellenv        → /etc/shellenv
-│   ├── shellrc         → /etc/shellrc
-│   └── shellaliases    → /etc/shellaliases
-├── bash/
-│   ├── bashenv         → /etc/bash/bashenv  (or /etc/bashenv)
-│   └── bashrc          → /etc/bash/bashrc   (or /etc/bash.bashrc)
-├── zsh/
-│   ├── zshenv          → /etc/zsh/zshenv
-│   ├── zprofile        → /etc/zsh/zprofile
-│   └── zshrc           → /etc/zsh/zshrc
-├── profile             → /etc/profile
-└── skel/
-    ├── .shellenv       → /etc/skel/.shellenv  (copied to ~/.shellenv)
-    ├── .shellrc        → /etc/skel/.shellrc   (copied to ~/.shellrc)
-    ├── .bash_profile   → /etc/skel/.bash_profile
-    ├── .bashrc         → /etc/skel/.bashrc
-    ├── .zshenv         → /etc/skel/.zshenv
-    ├── .zprofile       → /etc/skel/.zprofile
-    ├── .zshrc          → /etc/skel/.zshrc
-    └── .zlogin         → /etc/skel/.zlogin
+├── blocks/                 # per-block content slices (kind: fixed blocks)
+│   ├── shellenv-*.slice        → sections of /etc/shellenv
+│   ├── shellrc-*.slice         → sections of /etc/shellrc
+│   ├── sys-bashrc-*.slice      → sections of the system bashrc
+│   ├── zsh-zshrc-*.slice       → sections of /etc/zsh/zshrc
+│   ├── user-*.slice            → sections of the per-user/skel dotfiles
+│   └── …                       # (kind: dynamic blocks are rendered by _dyn_* functions)
+├── lifecycle.bash          # registry-driven apply/probe/uninstall engine
+└── blocks.registry.bash    # GENERATED from metadata _internal (do not edit)
 ```
 
-Files under `skel/` are copied verbatim to a new user's home directory by
-`useradd`/`adduser` at account creation time.
+Deployed destinations (paths configurable via `sys_*` / `user_*` options; exact
+system paths vary by distro — see the tables below):
+
+| Assembled file | Destination |
+|---|---|
+| shellenv | `/etc/shellenv` |
+| shellrc | `/etc/shellrc` |
+| shellaliases | `/etc/shellaliases` |
+| profile | `/etc/profile` |
+| system bashrc / bashenv | `/etc/bash.bashrc` (etc.) / `/etc/bashenv` |
+| zsh env/profile/rc | `/etc/zsh/{zshenv,zprofile,zshrc}` |
+| shellcompletions | `$(shell__detect_zshdir)/shellcompletions` |
+| per-user dotfiles | `~/.shellenv`, `~/.shellrc`, `~/.bashrc`, `~/.bash_profile`, `~/.zshenv`, `$ZDOTDIR/{.zshrc,.zprofile}` |
+| skel templates | the same set under `/etc/skel/…` |
+
+Which config sections appear in each file is controlled by the per-block
+`block_*` options (all default `true`). Per-scope lifecycle is controlled by
+`if_exists_sys` / `if_exists_skel` / `if_exists_user`.
 
 ---
 
@@ -214,8 +220,12 @@ User-specific bash interactive configuration.
 
 ### `.zshenv`
 
-Sourced for every zsh invocation. Delegates to `~/.shellenv` via `emulate sh`
-so the sentinel in `.shellenv` prevents double-sourcing.
+Sourced for every zsh invocation — interactive, non-interactive, login,
+scripts, cron jobs, and remote commands over SSH. Delegates to `~/.shellenv`
+via `emulate sh` so the sentinel in `.shellenv` prevents double-sourcing.
+
+Do NOT put interactive-only config here (aliases, prompt, key bindings) —
+those belong in `.zshrc`. Output here WILL break scripts and scp/rsync.
 
 ### `.zprofile`
 
@@ -229,11 +239,6 @@ Intended content: login-once setup — `ssh-agent`, `keychain`, macOS GUI vars.
 User-specific zsh interactive configuration. Contains the oh-my-zsh block
 (theme, plugins, options). Sources `~/.shellrc` after `oh-my-zsh.sh` so user
 aliases and functions can override framework defaults.
-
-### `.zlogin`
-
-Sourced last in the zsh login shell sequence (after `.zshrc`). Appropriate for
-login announcements, `fortune`, session-level health checks. Empty by default.
 
 ---
 
@@ -303,8 +308,6 @@ login announcements, `fortune`, session-level health checks. Empty by default.
 ~/.zshrc
   └── oh-my-zsh
   └── ~/.shellrc
-
-~/.zlogin                         (announcements, etc.)
 ```
 
 ### Zsh — interactive non-login shell

@@ -1,0 +1,9 @@
+if [ ! -e "$HOME/.sudo_as_admin_successful" ] && [ ! -e "$HOME/.hushlogin" ] && command -v sudo >/dev/null 2>&1; then
+    case " $(groups) " in
+        *\ admin\ *|*\ sudo\ *)
+            printf '%s\n%s\n\n' \
+                'To run a command as administrator (user "root"), use "sudo <command>".' \
+                'See "man sudo_root" for details.'
+            ;;
+    esac
+fi

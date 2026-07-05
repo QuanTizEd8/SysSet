@@ -1,0 +1,9 @@
+if command -v dircolors >/dev/null 2>&1; then
+    _dc=dircolors
+elif command -v gdircolors >/dev/null 2>&1; then
+    _dc=gdircolors
+fi
+if [ -n "${_dc-}" ]; then
+    test -r ~/.dircolors && eval "$($_dc -b ~/.dircolors)" || eval "$($_dc -b)"
+    unset _dc
+fi

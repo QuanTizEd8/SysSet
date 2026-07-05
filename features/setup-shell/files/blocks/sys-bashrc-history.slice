@@ -1,0 +1,7 @@
+HISTIGNORE="pwd:exit:clear"
+HISTCONTROL=erasedups:ignoredups:ignorespace
+HISTSIZE=1000
+HISTFILESIZE=5000
+HISTTIMEFORMAT='%F %T '
+PROMPT_COMMAND="history -a; history -n"
+shopt -s histappend

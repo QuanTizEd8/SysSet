@@ -1,0 +1,4 @@
+# >>> setup-shell-zsh-zshenv-shellenv >>>
+emulate sh -c 'source "/etc/shellenv"'
+# <<< setup-shell-zsh-zshenv-shellenv <<<
+

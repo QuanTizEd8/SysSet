@@ -1,0 +1,43 @@
+# >>> setup-shell-profile-shellenv >>>
+. "/etc/shellenv"
+# <<< setup-shell-profile-shellenv <<<
+
+# >>> setup-shell-profile-profiled >>>
+if [ -d /etc/profile.d ]; then
+    if command -v run-parts >/dev/null 2>&1; then
+        for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d); do
+            if [ -f "$i" ] && [ -r "$i" ]; then
+                . "$i"
+            fi
+        done
+    else
+        for i in /etc/profile.d/*.sh; do
+            if [ -f "$i" ] && [ -r "$i" ]; then
+                . "$i"
+            fi
+        done
+    fi
+    unset i
+fi
+# <<< setup-shell-profile-profiled <<<
+
+# >>> setup-shell-profile-interactive >>>
+if [ "${PS1-}" ]; then
+    if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
+        for _bashrc in /etc/bash.bashrc /etc/bash/bashrc /etc/bashrc; do
+            if [ -f "$_bashrc" ] && [ -r "$_bashrc" ]; then
+                . "$_bashrc"
+                break
+            fi
+        done
+        unset _bashrc
+    else
+        if [ "$(id -u)" -eq 0 ]; then
+            PS1='# '
+        else
+            PS1='$ '
+        fi
+    fi
+fi
+# <<< setup-shell-profile-interactive <<<
+

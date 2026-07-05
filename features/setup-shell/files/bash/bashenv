@@ -1,6 +1,0 @@
-# /etc/bash/bashenv — bash-specific environment configuration.
-# Loads shared environment (PATH, XDG, umask, extend_path) then applies
-# any bash-specific additions below.
-. "/etc/shellenv"
-
-# Bash-specific env additions go here.

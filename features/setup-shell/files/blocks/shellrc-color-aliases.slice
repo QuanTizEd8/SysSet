@@ -1,0 +1,12 @@
+if ls --color=auto /dev/null >/dev/null 2>&1; then
+    alias ls='ls --color=auto'
+    if command -v dir >/dev/null 2>&1; then alias dir='dir --color=auto'; fi
+    if command -v vdir >/dev/null 2>&1; then alias vdir='vdir --color=auto'; fi
+elif ls -G /dev/null >/dev/null 2>&1; then
+    alias ls='ls -G'
+fi
+if grep --color=auto '' /dev/null >/dev/null 2>&1; then
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi

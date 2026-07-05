@@ -1,0 +1,17 @@
+if [ "${PS1-}" ]; then
+    if [ "${BASH-}" ] && [ "$BASH" != "/bin/sh" ]; then
+        for _bashrc in /etc/bash.bashrc /etc/bash/bashrc /etc/bashrc; do
+            if [ -f "$_bashrc" ] && [ -r "$_bashrc" ]; then
+                . "$_bashrc"
+                break
+            fi
+        done
+        unset _bashrc
+    else
+        if [ "$(id -u)" -eq 0 ]; then
+            PS1='# '
+        else
+            PS1='$ '
+        fi
+    fi
+fi

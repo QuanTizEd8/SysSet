@@ -12,17 +12,18 @@ _long_description: >-
   non-interactive, scripts, cron, devcontainer exec, CI runners, and VS Code tasks.
   Deploys shared shell files (`/etc/shellenv`, `/etc/shellrc`, `/etc/shellaliases`,
   `/etc/profile`) and shell-specific system configs (bashrc, bashenv, zshenv,
-  zprofile, zshrc), copies per-user dotfiles from a skeleton directory, and injects
-  `ZDOTDIR` into each user's `~/.zshenv`. Optionally sets the default login shell
-  for all resolved users via `chsh`. Install shells separately with `install-zsh`.
-  Use `setup_bash` and `setup_zsh` to control which shell-specific files are deployed.
+  zprofile, zshrc), copies per-user dotfiles, and injects `ZDOTDIR` into each user's
+  `~/.zshenv`. Install shells separately with `install-bash` / `install-zsh`. Use
+  `setup_bash` and `setup_zsh` to control which shell-specific files are deployed.
+  Per-scope lifecycle is controlled by `if_exists_sys`, `if_exists_skel`, and
+  `if_exists_user`; individual config sections are toggled by `block_*` options.
 options:
   setup_bash:
     type: string
     default: auto
     description: |-
       Whether to deploy Bash-specific system and per-user configuration files
-      (`/etc/bashrc`, `bashenv`, `BASH_ENV`, user `.bashrc`, etc.).
+      (`/etc/bash.bashrc`, `bashenv`, `BASH_ENV`, user `.bashrc`, etc.).
     enum:
     - value: auto
       description: Deploy when `bash` is on PATH.
@@ -46,27 +47,30 @@ options:
   setup_system:
     type: string
     default: auto
-    description: Whether to deploy system-wide configuration files (to `/etc/`).
+    description: |-
+      Whether to deploy the live system-wide configuration files (`/etc/shellenv`,
+      `/etc/shellrc`, `/etc/profile`, the system bashrc/zsh files, and the
+      `BASH_ENV` line). `/etc/skel` templates are governed solely by `setup_skel`.
     enum:
     - value: auto
       description: Deploy when the current process has root privileges or passwordless sudo.
     - value: 'true'
       description: Always deploy system-wide files (fails if insufficient privilege).
     - value: 'false'
-      description: Never deploy system-wide files.
+      description: Never deploy live system-wide files (skel deployment is still controlled by `setup_skel`).
   setup_skel:
     type: string
     default: auto
     description: |-
-      Whether to copy skel files to `/etc/skel` so new users automatically inherit
+      Whether to deploy skel files to `/etc/skel` so new users automatically inherit
       the shell configuration.
     enum:
     - value: auto
-      description: Copy when privileged and `/etc/skel` already exists on the system.
+      description: Deploy when privileged and `/etc/skel` already exists on the system.
     - value: 'true'
-      description: Always copy to `/etc/skel`, creating the directory if needed.
+      description: Always deploy to `/etc/skel`, creating the directory if needed.
     - value: 'false'
-      description: Never copy to `/etc/skel`.
+      description: Never deploy to `/etc/skel`.
   setup_bash_env:
     type: string
     default: auto
@@ -78,122 +82,963 @@ options:
       description: Always set `BASH_ENV` (even when `setup_bash` is `false`).
     - value: 'false'
       description: Never set `BASH_ENV`.
-  bash_env_path:
+  sys_shellenv:
+    type: string
+    default: /etc/shellenv
+    description: |-
+      Deploy path for the system POSIX shell environment file. Sourced by
+      `/etc/profile`, `/etc/zsh/zshenv`, and the bashenv file. Leave empty to skip
+      deploying it (and to omit all `source` lines that reference it).
+  sys_shellrc:
+    type: string
+    default: /etc/shellrc
+    description: |-
+      Deploy path for the shared interactive shell configuration (bash and zsh):
+      GPG TTY, VS Code editor, dircolors, lesspipe, aliases, command-not-found.
+      Leave empty to skip.
+  sys_shellaliases:
+    type: string
+    default: /etc/shellaliases
+    description: |-
+      Deploy path for the system shell aliases file, sourced by the system shellrc
+      for all interactive shells. Only portable `alias name=value` syntax belongs
+      here (shared by bash and zsh); shell-specific aliases (e.g. zsh global/suffix
+      aliases) belong in the respective shell's rc file. Leave empty to skip.
+  sys_shellcompletions:
     type: string
     default: ''
     description: |-
-      Override the path written to `BASH_ENV`. Leave empty to use the automatically
-      computed path next to the system bashrc (e.g. `/etc/bashenv` or `/etc/bash/bashenv`).
-  locale:
+      Deploy path for the Zsh completions hook file (a multi-writer `fpath` region
+      that downstream features such as `install-zsh-completion` also write to).
+      Leave empty to use `$(shell__detect_zshdir)/shellcompletions`. When you
+      customize this, set a matching `rcfile` in `install-zsh-completion`.
+  sys_bashenv:
     type: string
-    default: en_US.UTF-8
+    default: ''
     description: |-
-      Locale to set as `LANG` and `LC_ALL` in `/etc/shellenv`. Leave empty to skip locale setup.
-  umask:
-    type: string
-    default: '022'
-    description: |-
-      `umask` value set in `/etc/shellenv`. Controls default permissions for new files and directories.
-      The default of `022` means owners can read/write, while group and others can read only.
-      Leave empty to skip.
-  default_editor:
-    type: string
-    default: auto
-    description: Default `VISUAL`/`EDITOR` set in `/etc/shellenv`.
-    enum:
-    - value: auto
-      description: Prefer `nano`; fall back to `vi` if nano is not available.
-    - value: nano
-      description: Use `nano`.
-    - value: vim
-      description: Use `vim`.
-    - value: neovim
-      description: Use `nvim`.
-    - value: emacs
-      description: Use `emacs`.
-    - value: code
-      description: Use VS Code (`code --wait`).
-    - value: skip
-      description: Do not set `VISUAL`/`EDITOR`.
+      Deploy path for the system Bash non-interactive environment file (the
+      `BASH_ENV` target). Leave empty to use the path next to the detected system
+      bashrc (e.g. `/etc/bashenv` or `/etc/bash/bashenv`).
   user_shellenv:
     type: string
     default: .shellenv
     description: |-
-      Filename (relative to `$HOME`) for the user shell environment file.
-      Sourced by `~/.zshenv` (for every Zsh invocation) and `~/.bash_profile` (for Bash login shells).
+      Per-user shell environment file (POSIX sh only), relative to `$HOME`. Sourced
+      by `~/.zshenv` (every zsh invocation) and `~/.bash_profile` (bash login).
+      Leave empty to skip deploying it and its source hooks.
   user_shellrc:
     type: string
     default: .shellrc
     description: |-
-      Filename (relative to `$HOME`) for the user interactive shell configuration file.
-      Sourced by `~/.bashrc` and `~/.zshrc`.
-  bash_theme:
+      Per-user interactive config shared by bash and zsh (POSIX sh), relative to
+      `$HOME`. Sourced from `~/.bashrc` and `$ZDOTDIR/.zshrc`. Leave empty to skip.
+  user_bashtheme:
     type: string
     default: '${XDG_CONFIG_HOME:-${HOME}/.config}/bash/bashtheme'
     description: |-
-      Path to the Bash theme scaffold file.
-      Default: `${XDG_CONFIG_HOME:-$HOME/.config}/bash/bashtheme` (per-user).
-      Accepts `~`, `$HOME`, and `${VAR:-default}` expressions, evaluated in each user's
-      login environment.
-      Downstream features (e.g. `install-starship`) may append their configuration
-      to this file via `shell__write_block`.
-  zsh_theme:
+      Per-user Bash theme scaffold file (prompt / Oh My Bash / Starship). Sourced
+      from `~/.bashrc`. Downstream features append to it via `shell__write_block`.
+      Accepts `~`, `$HOME`, and `${VAR:-default}` expressions. Leave empty to skip.
+      When you customize this, set the matching theme-file option in downstream
+      features (`rcfile` in `install-ohmybash`, `bash_rcfile` in `install-starship`)
+      — left empty, they resolve the default path on their own.
+  user_zshtheme:
     type: string
     default: '${ZDOTDIR}/zshtheme'
     description: |-
-      Path to the Zsh theme scaffold file. Does not need to be within `ZDOTDIR`.
-      Default: `${ZDOTDIR}/zshtheme` (adjacent to other Zsh config files).
-      Accepts `~`, `$HOME`, `$ZDOTDIR`, and `${VAR:-default}` expressions, evaluated in
-      each user's login environment.
-      Downstream features (e.g. `install-ohmyzsh`, `install-starship`) append
-      their configuration to this file via `shell__write_block`.
-  set_user_shells:
-    type: string
-    default: zsh
-    description: |-
-      Whether to set users' default login shell via `chsh`.
-      Applies to all users resolved by the `add_current_user`, `add_remote_user`, `add_container_user`, and `add_users` options.
-      Raises an error if `zsh` is selected but Zsh is not available.
-    enum:
-    - value: zsh
-      description: Set all resolved users' default login shell to Zsh.
-    - value: bash
-      description: Set all resolved users' default login shell to Bash.
-    - value: none
-      description: Do not change any user's default login shell.
+      Per-user Zsh theme scaffold file (Oh My Zsh / Starship). Sourced from
+      `$ZDOTDIR/.zshrc`. Downstream features append to it via `shell__write_block`.
+      Accepts `~`, `$HOME`, `$ZDOTDIR`, and `${VAR:-default}` expressions. Leave
+      empty to skip. When you customize this, set the matching theme-file option in
+      downstream features (`rcfile` in `install-ohmyzsh`, `zsh_rcfile` in
+      `install-starship`) — left empty, they resolve the default path on their own.
   zdotdir:
+    type: string
     default: ''
     description: |-
-      Directory where Zsh looks for its per-user config files (`.zshrc`, `.zprofile`, `.zlogin`).
-      Corresponds to the `ZDOTDIR` environment variable set in `~/.zshenv`.
-      Leave empty to use the default: `${XDG_CONFIG_HOME}/zsh` (i.e. `~/.config/zsh`).
-      Accepts paths prefixed with `~` or `$HOME`.
-      Only applies when `setup_zsh` is not `false`.
+      Directory Zsh uses for its per-user config files (`.zshrc`, `.zprofile`);
+      corresponds to the `ZDOTDIR` variable exported in `~/.zshenv`.
+      Leave empty for `${XDG_CONFIG_HOME}/zsh` (i.e. `~/.config/zsh`). Accepts paths
+      prefixed with `~` or `$HOME`. Only applies when `setup_zsh` is not `false`.
+  if_exists_sys:
     type: string
-  if_exists:
-    type: string
-    default: skip
-    description: How to handle existing per-user dotfiles.
+    default: auto
+    description: |-
+      Lifecycle for system files (`/etc/*`) and the `/etc/environment` `BASH_ENV`
+      line. Note: a `fail` conflict in ANY scope aborts the entire run (all scopes),
+      not just the failing one.
     enum:
+    - value: auto
+      description: Devcontainer build → `reinstall`; standalone → `update`.
     - value: skip
-      description: >-
-        For each dotfile: create it if absent; leave it untouched if it already exists.
+      description: Existing paths are left untouched; absent paths are created from enabled blocks.
     - value: update
-      description: >-
-        For each dotfile: create if absent; sync the managed block if markers are present;
-        append the managed block at the end if no markers exist.
+      description: Block-sync on existing paths (inject/sync/remove managed markers); non-managed bytes are never modified.
     - value: reinstall
-      description: >-
-        Delete and recreate all per-user dotfiles unconditionally.
+      description: Assemble enabled blocks into a new file, backing up any existing file first (destructive).
+    - value: fail
+      description: Abort with zero writes if any target would modify an existing file.
     - value: uninstall
-      description: >-
-        Remove all managed blocks from per-user dotfiles; delete files that become empty.
+      description: Strip setup-shell markers; delete the file if it becomes empty.
+  if_exists_skel:
+    type: string
+    default: inherit
+    description: Lifecycle for `/etc/skel/*` targets. Inherits the resolved `if_exists_sys` when `inherit`.
+    enum:
+    - value: inherit
+      description: Use the resolved `if_exists_sys` mode.
+    - value: auto
+      description: Devcontainer build → `reinstall`; standalone → `update`.
+    - value: skip
+      description: Leave existing skel paths untouched; create absent ones from enabled blocks.
+    - value: update
+      description: Block-sync skel targets.
+    - value: reinstall
+      description: Reassemble skel targets from enabled blocks (destructive).
+    - value: fail
+      description: Abort if any skel target would modify an existing file.
+    - value: uninstall
+      description: Strip skel markers; delete empty skel files.
+  if_exists_user:
+    type: string
+    default: inherit
+    description: Lifecycle for live per-user dotfiles. Inherits the resolved `if_exists_sys` when `inherit`.
+    enum:
+    - value: inherit
+      description: Use the resolved `if_exists_sys` mode.
+    - value: auto
+      description: Devcontainer build → `reinstall`; standalone → `update`.
+    - value: skip
+      description: Leave existing user dotfiles untouched; create absent ones from enabled blocks.
+    - value: update
+      description: Block-sync user dotfiles.
+    - value: reinstall
+      description: Reassemble user dotfiles from enabled blocks (destructive).
+    - value: fail
+      description: Abort if any user target would modify an existing file.
+    - value: uninstall
+      description: Strip user dotfile markers; delete empty files.
+  backup:
+    type: string
+    default: auto
+    description: Whether to back up files before a `reinstall` overwrites them.
+    enum:
+    - value: auto
+      description: Back up outside devcontainers/Codespaces; skip inside (disposable container).
+    - value: 'true'
+      description: Always back up before overwriting.
+    - value: 'false'
+      description: Never back up.
+  backup_dir:
+    type: array
+    default: |
+      ${{ _env_vars._FEAT_SHARE_DIR_ROOT }}$/backups
+      ${HOME}/.local/share/${{ _project.namespace }}$/${{ id }}$/backups
+    description: |-
+      Ordered candidate directories for system/skel file backups. The first
+      writable entry is used, resolved via `users__first_writeable_path` at run
+      time. Per-user dotfile backups go to each target user's own share
+      directory instead, falling back to this resolved directory.
+  ? |
+    *{{ #{{
+      blocks = get("_internal.blocks") or {}
+      opts = {}
+      for meta in blocks.values():
+          option = meta.get("option")
+          if not option or option in opts:
+              continue
+          otype = meta.get("option_type", "boolean")
+          default = meta.get("default")
+          if default is None:
+              default = True if otype == "boolean" else ""
+          desc = meta.get("description", f"Include the {option} block.")
+          od = {
+              "type": "boolean" if otype == "boolean" else "string",
+              "default": default,
+              "description": desc,
+          }
+          if otype == "enum" and meta.get("enum"):
+              od["enum"] = meta["enum"]
+          opts[option] = od
+      return opts
+    }}# }}*
+  :
 _options:
   configure_users: true
   installer_dir: false
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-zsh
-#   - ghcr.io/quantized8/devfeats/setup-user
+_internal:
+  blocks:
+    # --- /etc/shellenv (sys_shellenv) ---
+    shellenv-preamble:
+      marker: setup-shell-shellenv-preamble
+      kind: fixed
+      slice: blocks/shellenv-preamble.slice
+      description: 'Always-on double-source guard (_SHELLENV_LOADED): zsh login shells reach the shellenv via both zshenv and zprofile→profile — re-sourcing is safe but wasteful, so the guard returns early.'
+    shellenv-extend-path:
+      marker: setup-shell-shellenv-extend-path
+      kind: fixed
+      slice: blocks/shellenv-extend-path.slice
+      option: block_sys_shellenv_extend_path
+      option_type: boolean
+      default: true
+      description: 'Deploy the extend_path() helper in the system shellenv: prepend/append PATH dirs without duplicates, skipping missing dirs, safe for paths with spaces (newline-IFS internally). Run `extend_path --help` for usage.'
+    shellenv-umask:
+      marker: setup-shell-shellenv-umask
+      kind: dynamic
+      dynamic: _dyn_shellenv_umask
+      option: block_sys_shellenv_umask
+      option_type: string
+      default: '022'
+      description: 'umask value written to the system shellenv. Leave empty to skip.'
+    shellenv-user-home:
+      marker: setup-shell-shellenv-user-home
+      kind: fixed
+      slice: blocks/shellenv-user-home.slice
+      option: block_sys_shellenv_user_home
+      option_type: boolean
+      default: true
+      description: 'Set USER/HOME in the system shellenv when unset (e.g. su without -l).'
+    shellenv-path-helper:
+      marker: setup-shell-shellenv-path-helper
+      kind: fixed
+      slice: blocks/shellenv-path-helper.slice
+      option: block_sys_shellenv_path_helper
+      option_type: boolean
+      default: true
+      description: 'On macOS, run path_helper first so extend_path layers on /etc/paths and /etc/paths.d (guarded; no-op on Linux).'
+    shellenv-path-baseline:
+      marker: setup-shell-shellenv-path-baseline
+      kind: dynamic
+      dynamic: _dyn_shellenv_path_baseline
+      option: block_sys_shellenv_path_baseline
+      option_type: string
+      default: '$HOME/.local/bin $HOME/bin /usr/local/sbin /usr/local/bin /usr/sbin /usr/bin /sbin /bin'
+      description: 'Space-separated directories prepended to PATH via extend_path to establish a known-good baseline (plus /usr/games appended for non-root). sbin dirs are included for all users so tools like ifconfig, ip, and fdisk resolve without sudo -i. Leave empty to skip.'
+    shellenv-xdg-data-dirs:
+      marker: setup-shell-shellenv-xdg-data-dirs
+      kind: dynamic
+      dynamic: _dyn_shellenv_xdg_data_dirs
+      option: block_sys_shellenv_xdg_data_dirs
+      option_type: string
+      default: /usr/local/share:/usr/share
+      description: 'Export XDG_DATA_DIRS (system data dir search path). Leave empty to skip.'
+    shellenv-xdg-config-dirs:
+      marker: setup-shell-shellenv-xdg-config-dirs
+      kind: dynamic
+      dynamic: _dyn_shellenv_xdg_config_dirs
+      option: block_sys_shellenv_xdg_config_dirs
+      option_type: string
+      default: /etc/xdg
+      description: 'Export XDG_CONFIG_DIRS (system config dir search path). Leave empty to skip.'
+    shellenv-xdg-cache-home:
+      marker: setup-shell-shellenv-xdg-cache-home
+      kind: dynamic
+      dynamic: _dyn_shellenv_xdg_cache_home
+      option: block_sys_shellenv_xdg_cache_home
+      option_type: string
+      default: .cache
+      description: 'XDG_CACHE_HOME default relative to HOME (guarded). Leave empty to skip.'
+    shellenv-xdg-config-home:
+      marker: setup-shell-shellenv-xdg-config-home
+      kind: dynamic
+      dynamic: _dyn_shellenv_xdg_config_home
+      option: block_sys_shellenv_xdg_config_home
+      option_type: string
+      default: .config
+      description: 'XDG_CONFIG_HOME default relative to HOME (guarded). Leave empty to skip.'
+    shellenv-xdg-data-home:
+      marker: setup-shell-shellenv-xdg-data-home
+      kind: dynamic
+      dynamic: _dyn_shellenv_xdg_data_home
+      option: block_sys_shellenv_xdg_data_home
+      option_type: string
+      default: .local/share
+      description: 'XDG_DATA_HOME default relative to HOME (guarded). Leave empty to skip.'
+    shellenv-xdg-state-home:
+      marker: setup-shell-shellenv-xdg-state-home
+      kind: dynamic
+      dynamic: _dyn_shellenv_xdg_state_home
+      option: block_sys_shellenv_xdg_state_home
+      option_type: string
+      default: .local/state
+      description: 'XDG_STATE_HOME default relative to HOME (guarded). Leave empty to skip.'
+    shellenv-locale:
+      marker: setup-shell-shellenv-locale
+      kind: dynamic
+      dynamic: _dyn_shellenv_locale
+      option: block_sys_shellenv_locale
+      option_type: string
+      default: en_US.UTF-8
+      description: 'Export LANG and LC_ALL in the system shellenv. Leave empty to skip.'
+    shellenv-editor:
+      marker: setup-shell-shellenv-editor
+      kind: dynamic
+      dynamic: _dyn_shellenv_editor
+      option: block_sys_shellenv_editor
+      option_type: enum
+      default: auto
+      description: 'Set VISUAL (full-screen editor) and EDITOR (line-oriented fallback) when both are unset; honored by sudoedit, crontab, git, etc. Use skip to omit.'
+      enum:
+      - value: auto
+        description: Prefer nano; fall back to vi.
+      - value: nano
+        description: Use nano.
+      - value: vim
+        description: Use vim.
+      - value: neovim
+        description: Use nvim.
+      - value: emacs
+        description: Use emacs.
+      - value: code
+        description: Use VS Code (code --wait).
+      - value: skip
+        description: Do not set VISUAL/EDITOR.
+    # --- /etc/shellrc (sys_shellrc) ---
+    shellrc-guard:
+      marker: setup-shell-shellrc-guard
+      kind: fixed
+      slice: blocks/interactive-guard.slice
+      option: block_sys_shellrc_guard
+      option_type: boolean
+      default: true
+      description: 'Return immediately when the system shellrc is sourced non-interactively.'
+    shellrc-shellenv:
+      marker: setup-shell-shellrc-shellenv
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellenv
+      option: block_sys_shellrc_shellenv
+      option_type: boolean
+      default: true
+      description: 'Source the system shellenv from shellrc so PATH/XDG/umask apply to non-login interactive shells.'
+    shellrc-gpg-tty:
+      marker: setup-shell-shellrc-gpg-tty
+      kind: fixed
+      slice: blocks/shellrc-gpg-tty.slice
+      option: block_sys_shellrc_gpg_tty
+      option_type: boolean
+      default: true
+      description: 'Export GPG_TTY from $TTY (set by the shell at startup — faster and more reliable than $(tty), and safe during powerlevel10k instant prompt) and refresh the agent TTY via gpg-connect-agent so pinentry appears in the current terminal. Fixes "gpg: signing failed: Inappropriate ioctl for device" (VS Code, SSH).'
+    shellrc-vscode-editor:
+      marker: setup-shell-shellrc-vscode-editor
+      kind: fixed
+      slice: blocks/shellrc-vscode-editor.slice
+      option: block_sys_shellrc_vscode_editor
+      option_type: boolean
+      default: true
+      description: 'When TERM_PROGRAM=vscode, set VISUAL/EDITOR to `code --wait` (or `code-insiders --wait`, detected via VSCODE_GIT_ASKPASS_MAIN) for commit messages, sudoedit, crontab -e, etc. Git honors it via $VISUAL when GIT_EDITOR and core.editor are unset; outside VS Code the shellenv editor block applies.'
+    shellrc-dircolors:
+      marker: setup-shell-shellrc-dircolors
+      kind: fixed
+      slice: blocks/shellrc-dircolors.slice
+      option: block_sys_shellrc_dircolors
+      option_type: boolean
+      default: true
+      description: 'Load LS_COLORS via dircolors — or gdircolors on macOS with Homebrew coreutils outside gnubin — honoring a per-user ~/.dircolors override.'
+    shellrc-color-aliases:
+      marker: setup-shell-shellrc-color-aliases
+      kind: fixed
+      slice: blocks/shellrc-color-aliases.slice
+      option: block_sys_shellrc_color_aliases
+      option_type: boolean
+      default: true
+      description: 'Colorized ls (GNU --color=auto, BSD -G fallback on macOS) and grep/fgrep/egrep aliases when supported; dir/vdir aliases only where those GNU-coreutils commands exist.'
+    shellrc-lesspipe:
+      marker: setup-shell-shellrc-lesspipe
+      kind: fixed
+      slice: blocks/shellrc-lesspipe.slice
+      option: block_sys_shellrc_lesspipe
+      option_type: boolean
+      default: true
+      description: 'Enable the lesspipe/lesspipe.sh preprocessor so less can display non-text files (archives, images, etc.).'
+    shellrc-gcc-colors:
+      marker: setup-shell-shellrc-gcc-colors
+      kind: fixed
+      slice: blocks/shellrc-gcc-colors.slice
+      option: block_sys_shellrc_gcc_colors
+      option_type: boolean
+      default: true
+      description: 'Export GCC_COLORS for colorized compiler diagnostics.'
+    shellrc-cnf:
+      marker: setup-shell-shellrc-cnf
+      kind: fixed
+      slice: blocks/shellrc-cnf.slice
+      option: block_sys_shellrc_cnf
+      option_type: boolean
+      default: true
+      description: 'command-not-found handler for bash and zsh when the distro helper is installed.'
+    shellrc-sudo-hint:
+      marker: setup-shell-shellrc-sudo-hint
+      kind: fixed
+      slice: blocks/shellrc-sudo-hint.slice
+      option: block_sys_shellrc_sudo_hint
+      option_type: boolean
+      default: true
+      description: 'One-time sudo usage hint for admin/sudo group members (until first sudo or ~/.hushlogin).'
+    shellrc-shellaliases:
+      marker: setup-shell-shellrc-shellaliases
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellaliases
+      option: block_sys_shellrc_shellaliases
+      option_type: boolean
+      default: true
+      description: 'Source the system shellaliases file from shellrc.'
+    # --- /etc/shellaliases (sys_shellaliases) ---
+    shellaliases-ls:
+      marker: setup-shell-shellaliases-ls
+      kind: fixed
+      slice: blocks/shellaliases-ls.slice
+      option: block_sys_shellaliases_ls
+      option_type: boolean
+      default: true
+      description: 'System-wide ll, la, and l aliases.'
+    # --- shellcompletions (sys_shellcompletions) ---
+    shellcompletions-fpath-baseline:
+      marker: setup-shell-shellcompletions-fpath-baseline
+      kind: dynamic
+      dynamic: _dyn_shellcompletions_fpath_baseline
+      option: block_sys_shellcompletions_fpath_baseline
+      option_type: boolean
+      default: true
+      description: 'Add zsh fpath entries for the system completions dir and ~/.zfunc.'
+    # --- bashenv (sys_bashenv) ---
+    bashenv-shellenv:
+      marker: setup-shell-bashenv-shellenv
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellenv
+      option: block_sys_bashenv_shellenv
+      option_type: boolean
+      default: true
+      description: 'Source the system shellenv from the bashenv (BASH_ENV target).'
+    # --- /etc/profile (sys_profile) ---
+    profile-shellenv:
+      marker: setup-shell-profile-shellenv
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellenv
+      option: block_sys_profile_shellenv
+      option_type: boolean
+      default: true
+      inject_anchor: file-top-after-comments
+      description: 'Source the system shellenv at the top of /etc/profile.'
+    profile-profiled:
+      marker: setup-shell-profile-profiled
+      kind: fixed
+      slice: blocks/profile-profiled.slice
+      option: block_sys_profile_profiled
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source /etc/profile.d/*.sh — via run-parts when available (consistent ordering and filename filtering), else a plain glob.'
+    profile-interactive:
+      marker: setup-shell-profile-interactive
+      kind: fixed
+      slice: blocks/profile-interactive.slice
+      option: block_sys_profile_interactive
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'For interactive shells: in bash, source the first readable system bashrc (searching /etc/bash.bashrc, /etc/bash/bashrc, /etc/bashrc in order); in plain sh, set a minimal PS1 (# for root, $ otherwise).'
+    # --- system bashrc (sys_bashrc) ---
+    sys-bashrc-guard:
+      marker: setup-shell-sys-bashrc-guard
+      kind: fixed
+      slice: blocks/interactive-guard.slice
+      option: block_sys_bashrc_guard
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Return immediately when the system bashrc is sourced non-interactively.'
+    sys-bashrc-shellrc:
+      marker: setup-shell-sys-bashrc-shellrc
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellrc
+      option: block_sys_bashrc_shellrc
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Source the system shellrc from the system bashrc (shared aliases, colors, gpg, etc.).'
+    sys-bashrc-ps1:
+      marker: setup-shell-sys-bashrc-ps1
+      kind: fixed
+      slice: blocks/sys-bashrc-ps1.slice
+      option: block_sys_bashrc_ps1
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Default bash PS1 (\u@\h:\w\$); override in ~/.bashrc.'
+    sys-bashrc-history:
+      marker: setup-shell-sys-bashrc-history
+      kind: fixed
+      slice: blocks/sys-bashrc-history.slice
+      option: block_sys_bashrc_history
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Bash history tuning: HISTIGNORE (pwd/exit/clear), HISTCONTROL dedup (erasedups/ignoredups/ignorespace), size limits, per-entry timestamps for audit, histappend, and a PROMPT_COMMAND that appends+reloads after each command to keep concurrent sessions in sync.'
+    sys-bashrc-shopt:
+      marker: setup-shell-sys-bashrc-shopt
+      kind: fixed
+      slice: blocks/sys-bashrc-shopt.slice
+      option: block_sys_bashrc_shopt
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Enable bash checkwinsize (update LINES/COLUMNS after each command to track terminal resizes).'
+    sys-bashrc-completion:
+      marker: setup-shell-sys-bashrc-completion
+      kind: fixed
+      slice: blocks/sys-bashrc-completion.slice
+      option: block_sys_bashrc_completion
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Load bash-completion when not in posix mode.'
+    sys-bashrc-term-program:
+      marker: setup-shell-sys-bashrc-term-program
+      kind: fixed
+      slice: blocks/sys-bashrc-term-program.slice
+      option: block_sys_bashrc_term_program
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Source a terminal-specific rc (bashrc_$TERM_PROGRAM, next to the system bashrc) when readable. Last block by design so terminal integration can override anything above.'
+    # --- system zshenv (sys_zshenv) ---
+    zsh-zshenv-shellenv:
+      marker: setup-shell-zsh-zshenv-shellenv
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellenv_zsh
+      option: block_sys_zshenv_shellenv
+      option_type: boolean
+      default: true
+      description: 'Source the system shellenv from zshenv via emulate sh (every zsh invocation).'
+    # --- system zprofile (sys_zprofile) ---
+    zsh-zprofile-profile:
+      marker: setup-shell-zsh-zprofile-profile
+      kind: fixed
+      slice: blocks/zsh-zprofile-profile.slice
+      option: block_sys_zprofile_profile
+      option_type: boolean
+      default: true
+      description: 'Source /etc/profile from zprofile via emulate sh (zsh login shells).'
+    # --- system zshrc (sys_zshrc) ---
+    zsh-zshrc-guard:
+      marker: setup-shell-zsh-zshrc-guard
+      kind: fixed
+      slice: blocks/interactive-guard.slice
+      option: block_sys_zshrc_guard
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Return immediately when the system zshrc is sourced non-interactively.'
+    zsh-zshrc-shellrc:
+      marker: setup-shell-zsh-zshrc-shellrc
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellrc
+      option: block_sys_zshrc_shellrc
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Source the system shellrc from the system zshrc (shared interactive config).'
+    zsh-zshrc-prompt:
+      marker: setup-shell-zsh-zshrc-prompt
+      kind: fixed
+      slice: blocks/zsh-zshrc-prompt.slice
+      option: block_sys_zshrc_prompt
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Minimal default zsh PROMPT (%n@%m:%~%# — the %# shows # for root, %% otherwise); themes/oh-my-zsh override it in the user zshrc.'
+    zsh-zshrc-readnullcmd:
+      marker: setup-shell-zsh-zshrc-readnullcmd
+      kind: fixed
+      slice: blocks/zsh-zshrc-readnullcmd.slice
+      option: block_sys_zshrc_readnullcmd
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Set READNULLCMD to $PAGER or /usr/bin/pager for zsh null reads.'
+    zsh-zshrc-keybindings:
+      marker: setup-shell-zsh-zshrc-keybindings
+      kind: fixed
+      slice: blocks/zsh-zshrc-keybindings.slice
+      option: block_sys_zshrc_keybindings
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Terminfo-based key bindings for emacs/vi maps (DEBIAN_PREVENT_KEYBOARD_CHANGES opt-out; smkx/rmkx line init).'
+    zsh-zshrc-zstyle:
+      marker: setup-shell-zsh-zshrc-zstyle
+      kind: fixed
+      slice: blocks/zsh-zshrc-zstyle.slice
+      option: block_sys_zshrc_zstyle
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Completion zstyles set before compinit: sudo command-path extended with sbin dirs, completer order (expand/complete/correct/approximate), case-insensitive and partial matching, LS_COLORS-based colouring, scrollable menu for long lists, and kill-completion process highlighting.'
+    zsh-zshrc-pre-compinit:
+      marker: setup-shell-zsh-zshrc-pre-compinit
+      kind: dynamic
+      dynamic: _dyn_source_sys_shellcompletions
+      option: block_sys_zshrc_pre_compinit
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Source the shellcompletions fpath file before compinit.'
+    zsh-zshrc-compinit:
+      marker: setup-shell-zsh-zshrc-compinit
+      kind: fixed
+      slice: blocks/zsh-zshrc-compinit.slice
+      option: block_sys_zshrc_compinit
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Run compinit after the zstyle block so styles apply before completions load; skip_global_compinit=1 tells oh-my-zsh to skip its own compinit call, ensuring compinit runs exactly once.'
+    zsh-zshrc-run-help:
+      marker: setup-shell-zsh-zshrc-run-help
+      kind: fixed
+      slice: blocks/zsh-zshrc-run-help.slice
+      option: block_sys_zshrc_run_help
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Replace the built-in run-help→man alias with zsh''s autoloadable run-help function, which understands zsh builtins.'
+    zsh-zshrc-history:
+      marker: setup-shell-zsh-zshrc-history
+      kind: fixed
+      slice: blocks/zsh-zshrc-history.slice
+      option: block_sys_zshrc_history
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Zsh history tuning: emacs line editing (bindkey -e), HISTSIZE=10000 in memory / SAVEHIST=5000 in ~/.zsh_history, drop older duplicates, share history across sessions in real time, record timestamps+duration (extended_history), and skip space-prefixed commands.'
+    zsh-zshrc-combining-chars:
+      marker: setup-shell-zsh-zshrc-combining-chars
+      kind: fixed
+      slice: blocks/zsh-zshrc-combining-chars.slice
+      option: block_sys_zshrc_combining_chars
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'setopt COMBINING_CHARS when LC_CTYPE is UTF-8, so characters composed from a base plus combining Unicode codepoints (e.g. accented letters) display correctly.'
+    zsh-zshrc-term-program:
+      marker: setup-shell-zsh-zshrc-term-program
+      kind: fixed
+      slice: blocks/zsh-zshrc-term-program.slice
+      option: block_sys_zshrc_term_program
+      option_type: boolean
+      default: true
+      inject_anchor: after-interactivity-guard-or-eof
+      description: 'Source a terminal-specific rc (zshrc_$TERM_PROGRAM, next to the system zshrc — e.g. dropped in by Terminal.app or iTerm2) when readable; resolves its own directory via ${(%):-%x}. Last block by design so it can override anything above.'
+    # --- /etc/environment BASH_ENV line ---
+    environment-bash-env:
+      marker: setup-shell-environment-bash-env
+      kind: dynamic
+      dynamic: _dyn_environment_bash_env
+      option: block_sys_environment_bash_env
+      option_type: boolean
+      default: true
+      description: 'Set BASH_ENV to the system bashenv path in /etc/environment.'
+    # --- user/skel .shellenv ---
+    user-shellenv-preamble:
+      marker: setup-shell-user-shellenv-preamble
+      kind: fixed
+      slice: blocks/user-shellenv-preamble.slice
+      description: 'Always-on sentinel guard (_USER_SHELLENV_LOADED): prevents double-sourcing when both ~/.zshenv and ~/.zprofile → ~/.bash_profile source the user shellenv in the same session.'
+    user-shellenv-xdg:
+      marker: setup-shell-user-shellenv-xdg
+      kind: dynamic
+      dynamic: _dyn_user_shellenv_xdg
+      option: block_user_shellenv_xdg
+      option_type: boolean
+      default: true
+      description: 'Guarded user XDG_*_HOME exports in the user shellenv, derived from the four block_sys_shellenv_xdg_*_home options (empty option = line omitted).'
+    # --- user/skel .shellrc ---
+    user-shellrc-guard:
+      marker: setup-shell-user-shellrc-guard
+      kind: fixed
+      slice: blocks/interactive-guard.slice
+      option: block_user_shellrc_guard
+      option_type: boolean
+      default: true
+      description: 'Return immediately when the user shellrc is sourced non-interactively.'
+    # --- user/skel .bash_profile ---
+    user-bashprofile-shellenv:
+      marker: setup-shell-user-bashprofile-shellenv
+      kind: dynamic
+      dynamic: _dyn_user_bashprofile_shellenv
+      option: block_user_bashprofile_shellenv
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source user_shellenv from ~/.bash_profile (login env for bash and zsh-via-zprofile).'
+    user-bashprofile-bashrc:
+      marker: setup-shell-user-bashprofile-bashrc
+      kind: fixed
+      slice: blocks/user-bashprofile-bashrc.slice
+      option: block_user_bashprofile_bashrc
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source ~/.bashrc from ~/.bash_profile when BASH is set (skipped when zsh sources this via emulate sh).'
+    # --- user/skel .bashrc ---
+    user-bashrc-interactive-guard:
+      marker: setup-shell-user-bashrc-interactive-guard
+      kind: fixed
+      slice: blocks/interactive-guard.slice
+      option: block_user_bashrc_interactive_guard
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Return immediately when ~/.bashrc is sourced non-interactively.'
+    user-bashrc-bashtheme:
+      marker: setup-shell-user-bashrc-bashtheme
+      kind: dynamic
+      dynamic: _dyn_user_bashrc_bashtheme
+      option: block_user_bashrc_bashtheme
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source user_bashtheme (prompt/framework; Starship, Oh My Bash, etc.).'
+    user-bashrc-shellrc:
+      marker: setup-shell-user-bashrc-shellrc
+      kind: dynamic
+      dynamic: _dyn_user_bashrc_shellrc
+      option: block_user_bashrc_shellrc
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source user_shellrc (shared POSIX aliases, functions, cross-shell tool init) from ~/.bashrc.'
+    # --- user/skel .zshenv ---
+    user-zshenv-shellenv:
+      marker: setup-shell-user-zshenv-shellenv
+      kind: dynamic
+      dynamic: _dyn_user_zshenv_shellenv
+      option: block_user_zshenv_shellenv
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source user_shellenv from ~/.zshenv via emulate sh (every zsh invocation).'
+    user-zshenv-zdotdir:
+      marker: setup-shell-zdotdir
+      kind: dynamic
+      dynamic: _dyn_user_zshenv_zdotdir
+      option: block_user_zshenv_zdotdir
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Export ZDOTDIR for the per-user zsh config directory.'
+    # --- user/skel .zprofile ---
+    user-zprofile-bashprofile:
+      marker: setup-shell-user-zprofile-bashprofile
+      kind: fixed
+      slice: blocks/user-zprofile-bashprofile.slice
+      description: 'Always-on: delegate zsh login-shell setup to ~/.bash_profile via emulate sh, so login config is defined once; the $BASH guard there keeps ~/.bashrc from loading under zsh.'
+    # --- user/skel .zshrc ---
+    user-zshrc-guard:
+      marker: setup-shell-user-zshrc-guard
+      kind: fixed
+      slice: blocks/interactive-guard.slice
+      option: block_user_zshrc_guard
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Return immediately when $ZDOTDIR/.zshrc is sourced non-interactively.'
+    user-zshrc-zshtheme:
+      marker: setup-shell-user-zshrc-zshtheme
+      kind: dynamic
+      dynamic: _dyn_user_zshrc_zshtheme
+      option: block_user_zshrc_zshtheme
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source user_zshtheme (Oh My Zsh, Starship, etc.) from $ZDOTDIR/.zshrc.'
+    user-zshrc-shellrc:
+      marker: setup-shell-user-zshrc-shellrc
+      kind: dynamic
+      dynamic: _dyn_user_zshrc_shellrc
+      option: block_user_zshrc_shellrc
+      option_type: boolean
+      default: true
+      inject_anchor: eof
+      description: 'Source user_shellrc from $ZDOTDIR/.zshrc.'
+  targets:
+  - id: sys_shellenv
+    lifecycle_scope: system
+    deploy_option: sys_shellenv
+    default_path: /etc/shellenv
+    when: _ss_target_system_shared
+    blocks: [shellenv-preamble, shellenv-extend-path, shellenv-umask, shellenv-user-home, shellenv-path-helper, shellenv-path-baseline, shellenv-xdg-data-dirs, shellenv-xdg-config-dirs, shellenv-xdg-cache-home, shellenv-xdg-config-home, shellenv-xdg-data-home, shellenv-xdg-state-home, shellenv-locale, shellenv-editor]
+  - id: sys_shellrc
+    lifecycle_scope: system
+    deploy_option: sys_shellrc
+    default_path: /etc/shellrc
+    when: _ss_target_system_shared
+    blocks: [shellrc-guard, shellrc-shellenv, shellrc-gpg-tty, shellrc-vscode-editor, shellrc-dircolors, shellrc-color-aliases, shellrc-lesspipe, shellrc-gcc-colors, shellrc-cnf, shellrc-sudo-hint, shellrc-shellaliases]
+  - id: sys_shellaliases
+    lifecycle_scope: system
+    deploy_option: sys_shellaliases
+    default_path: /etc/shellaliases
+    when: _ss_target_system_shared
+    blocks: [shellaliases-ls]
+  - id: sys_shellcompletions
+    lifecycle_scope: system
+    path_resolver: _ss_resolve_sys_shellcompletions
+    when: _ss_target_system_zsh
+    blocks: [shellcompletions-fpath-baseline]
+  - id: sys_bashenv
+    lifecycle_scope: system
+    path_resolver: _ss_resolve_sys_bashenv
+    when: _ss_target_system_bashenv
+    blocks: [bashenv-shellenv]
+  - id: sys_profile
+    lifecycle_scope: system
+    default_path: /etc/profile
+    when: _ss_target_system_shared
+    blocks: [profile-shellenv, profile-profiled, profile-interactive]
+  - id: sys_bashrc
+    lifecycle_scope: system
+    path_resolver: _ss_resolve_sys_bashrc
+    when: _ss_target_system_bash
+    blocks: [sys-bashrc-guard, sys-bashrc-shellrc, sys-bashrc-ps1, sys-bashrc-history, sys-bashrc-shopt, sys-bashrc-completion, sys-bashrc-term-program]
+  - id: sys_zshenv
+    lifecycle_scope: system
+    path_resolver: _ss_resolve_sys_zshenv
+    when: _ss_target_system_zsh
+    blocks: [zsh-zshenv-shellenv]
+  - id: sys_zprofile
+    lifecycle_scope: system
+    path_resolver: _ss_resolve_sys_zprofile
+    when: _ss_target_system_zsh
+    blocks: [zsh-zprofile-profile]
+  - id: sys_zshrc
+    lifecycle_scope: system
+    path_resolver: _ss_resolve_sys_zshrc
+    when: _ss_target_system_zsh
+    blocks: [zsh-zshrc-guard, zsh-zshrc-shellrc, zsh-zshrc-prompt, zsh-zshrc-readnullcmd, zsh-zshrc-keybindings, zsh-zshrc-zstyle, zsh-zshrc-pre-compinit, zsh-zshrc-compinit, zsh-zshrc-run-help, zsh-zshrc-history, zsh-zshrc-combining-chars, zsh-zshrc-term-program]
+  - id: environment_bash_env
+    lifecycle_scope: line
+    default_path: /etc/environment
+    when: _ss_target_environment_line
+    line_resolver: _ss_line_bash_env
+    blocks: [environment-bash-env]
+  - id: skel_shellenv
+    lifecycle_scope: skel
+    path_resolver: _ss_resolve_skel_shellenv
+    when: _ss_target_skel_shared
+    blocks: [user-shellenv-preamble, user-shellenv-xdg]
+  - id: skel_shellrc
+    lifecycle_scope: skel
+    path_resolver: _ss_resolve_skel_shellrc
+    when: _ss_target_skel_shared
+    blocks: [user-shellrc-guard]
+  - id: skel_bash_profile
+    lifecycle_scope: skel
+    default_path: /etc/skel/.bash_profile
+    when: _ss_target_skel_bash
+    blocks: [user-bashprofile-shellenv, user-bashprofile-bashrc]
+  - id: skel_bashrc
+    lifecycle_scope: skel
+    default_path: /etc/skel/.bashrc
+    when: _ss_target_skel_bash
+    blocks: [user-bashrc-interactive-guard, user-bashrc-bashtheme, user-bashrc-shellrc]
+  - id: skel_zshenv
+    lifecycle_scope: skel
+    default_path: /etc/skel/.zshenv
+    when: _ss_target_skel_zsh
+    blocks: [user-zshenv-shellenv, user-zshenv-zdotdir]
+  - id: skel_zprofile
+    lifecycle_scope: skel
+    path_resolver: _ss_resolve_skel_zprofile
+    when: _ss_target_skel_zsh
+    blocks: [user-zprofile-bashprofile]
+  - id: skel_zshrc
+    lifecycle_scope: skel
+    path_resolver: _ss_resolve_skel_zshrc
+    when: _ss_target_skel_zsh
+    blocks: [user-zshrc-guard, user-zshrc-zshtheme, user-zshrc-shellrc]
+  - id: user_shellenv
+    lifecycle_scope: user
+    deploy_option: user_shellenv
+    path_resolver: _ss_resolve_user_shellenv
+    when: _ss_target_user_shared
+    blocks: [user-shellenv-preamble, user-shellenv-xdg]
+  - id: user_shellrc
+    lifecycle_scope: user
+    deploy_option: user_shellrc
+    path_resolver: _ss_resolve_user_shellrc
+    when: _ss_target_user_shared
+    blocks: [user-shellrc-guard]
+  - id: user_bash_profile
+    lifecycle_scope: user
+    path_resolver: _ss_resolve_user_bash_profile
+    when: _ss_target_user_bash
+    blocks: [user-bashprofile-shellenv, user-bashprofile-bashrc]
+  - id: user_bashrc
+    lifecycle_scope: user
+    path_resolver: _ss_resolve_user_bashrc
+    when: _ss_target_user_bash
+    blocks: [user-bashrc-interactive-guard, user-bashrc-bashtheme, user-bashrc-shellrc]
+  - id: user_zshenv
+    lifecycle_scope: user
+    path_resolver: _ss_resolve_user_zshenv
+    when: _ss_target_user_zsh
+    blocks: [user-zshenv-shellenv, user-zshenv-zdotdir]
+  - id: user_zprofile
+    lifecycle_scope: user
+    path_resolver: _ss_resolve_user_zprofile
+    when: _ss_target_user_zsh
+    blocks: [user-zprofile-bashprofile]
+  - id: user_zshrc
+    lifecycle_scope: user
+    path_resolver: _ss_resolve_user_zshrc
+    when: _ss_target_user_zsh
+    blocks: [user-zshrc-guard, user-zshrc-zshtheme, user-zshrc-shellrc]
+_files:
+- path: blocks.registry.bash
+  content: |
+    #{{
+      import json
+      blocks = get("_internal.blocks") or {}
+      targets = get("_internal.targets") or []
+      lines = [
+          "# shellcheck shell=bash",
+          "# Generated from metadata _internal via pyserials — do not edit.",
+          "",
+      ]
+      order = " ".join('"%s"' % t["id"] for t in targets)
+      lines.append("_FEAT_SS_TARGET_ORDER=( %s )" % order)
+      lines.append("")
+
+      def emit_map(name, pairs):
+          # pairs: list of (key, value); skip empty values.
+          items = [(k, v) for k, v in pairs if v != "" and v is not None]
+          if not items:
+              lines.append("declare -gA %s=()" % name)
+              return
+          lines.append("declare -gA %s=(" % name)
+          for k, v in items:
+              lines.append('  [%s]=%s' % (json.dumps(k), json.dumps(str(v))))
+          lines.append(")")
+
+      emit_map("_FEAT_SS_TARGET_SCOPE", [(t["id"], t["lifecycle_scope"]) for t in targets])
+      emit_map("_FEAT_SS_TARGET_WHEN", [(t["id"], t.get("when", "")) for t in targets])
+      emit_map("_FEAT_SS_TARGET_DEPLOY_OPTION", [(t["id"], t.get("deploy_option", "").upper()) for t in targets])
+      emit_map("_FEAT_SS_TARGET_DEFAULT_PATH", [(t["id"], t.get("default_path", "")) for t in targets])
+      emit_map("_FEAT_SS_TARGET_PATH_RESOLVER", [(t["id"], t.get("path_resolver", "")) for t in targets])
+      emit_map("_FEAT_SS_TARGET_BLOCKS", [(t["id"], " ".join(t.get("blocks", []))) for t in targets])
+      emit_map("_FEAT_SS_LINE_RESOLVER", [(t["id"], t.get("line_resolver", "")) for t in targets])
+
+      emit_map("_FEAT_SS_BLOCK_MARKER", [(b, m.get("marker", "setup-shell-%s" % b)) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_KIND", [(b, m.get("kind", "fixed")) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_OPTION", [(b, m.get("option", "").upper()) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_OPTION_TYPE", [(b, m.get("option_type", "")) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_SLICE", [(b, m.get("slice", "")) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_DYNAMIC", [(b, m.get("dynamic", "")) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_WHEN", [(b, m.get("when", "")) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_ANCHOR", [(b, m.get("inject_anchor", "")) for b, m in blocks.items()])
+      emit_map("_FEAT_SS_BLOCK_PRECONDITION", [(b, m.get("precondition", "")) for b, m in blocks.items()])
+      lines.append("")
+      return "\n".join(lines) + "\n"
+    }}#
 _dependencies:
   run:
     base:

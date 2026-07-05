@@ -1,8 +1,9 @@
-## Configuration files
+## Configuration Files
 
 The feature deploys a two-tier configuration architecture: **system-wide**
-files in `/etc/` that establish sane defaults for all users, and
-**per-user** dotfiles (skel templates) in each user's home directory.
+files in `/etc/` that establish sane defaults for all users, and **per-user**
+dotfiles deployed to each configured user's home directory (and mirrored to
+`/etc/skel` so future users inherit them).
 
 ### Design principles
 
@@ -12,84 +13,81 @@ files in `/etc/` that establish sane defaults for all users, and
    what is unique to that shell.
 
 2. **One-write pattern.** Environment variables (`PATH`, `XDG_*`, locale,
-   editor) are set once in `/etc/shellenv` with a sentinel guard
-   (`_SHELLENV_LOADED`), so they are never recomputed regardless of how many
-   config files source it.
+   editor) are set once in `/etc/shellenv` with a sentinel guard, so they are
+   never recomputed regardless of how many config files source it. The
+   per-user `~/.shellenv` uses the same pattern with its own sentinel.
 
-3. **Theme scaffold files.** Empty `$ZDOTDIR/zshtheme` and
-   `~/.config/bash/bashtheme` files are created as scaffolds for downstream
-   features (e.g. `install-ohmyzsh`, `install-starship`). These features
-   append their own guarded blocks via `shell__write_block`. The skel
-   `.zshrc` / `.bashrc` source them unconditionally, so they must exist
-   before the first interactive session.
+3. **Theme scaffold files.** Empty theme files (by default
+   `~/.config/bash/bashtheme` and `$ZDOTDIR/zshtheme`) are created as
+   scaffolds for downstream features (e.g. `install-ohmyzsh`,
+   `install-ohmybash`, `install-starship`), which append their own managed
+   blocks to them. Pre-existing theme files are left untouched. The user
+   `.bashrc`/`.zshrc` source hooks are existence-guarded, so a removed theme
+   file never breaks shell startup.
 
 4. **Non-interactive non-login coverage.** `BASH_ENV` is set in
    `/etc/environment` so that VS Code tasks, `devcontainer exec`, CI runners,
-   and other non-interactive non-login Bash sessions source the environment.
+   and other non-interactive non-login Bash sessions get the shared
+   environment (see [`BASH_ENV`](#bash_env) below).
 
 ### System-wide files
 
-| Destination | Source | Purpose |
-|---|---|---|
-| `/etc/shellenv` | `files/shell/shellenv` | POSIX environment: `extend_path` helper, `PATH`, `XDG_*`, locale, umask, default editor. Sourced by `/etc/profile` (sh/bash login) and `/etc/zsh/zshenv` (all zsh). |
-| `/etc/shellrc` | `files/shell/shellrc` | Shared interactive config: `GPG_TTY`, VS Code editor integration, `dircolors`, `lesspipe`, `GCC_COLORS`, `command-not-found` handler. Sourced by both bashrc and zshrc. |
-| `/etc/shellaliases` | `files/shell/shellaliases` | Shared aliases (`ll`, `la`, `l`). Sourced by `/etc/shellrc`. |
-| `/etc/profile` | `files/profile` | Login shell profile for sh/bash. Sources `/etc/shellenv`, runs `/etc/profile.d/*.sh`, and for interactive bash sources the system bashrc. |
-| `/etc/bash.bashrc`\* | `files/bash/bashrc` | Bash interactive config: prompt (`PS1`), history (append, deduplicate, timestamps), `shopt` settings, bash-completion. Sources `/etc/shellrc`. |
-| `/etc/bash/bashenv`\* | `files/bash/bashenv` | Bash non-interactive environment. Sources `/etc/shellenv`. Pointed to by `BASH_ENV` in `/etc/environment`. |
-| `/etc/zsh/zshenv`\* | `files/zsh/zshenv` | Sources `/etc/shellenv` via `emulate sh`. Runs for every zsh invocation. |
-| `/etc/zsh/zprofile`\* | `files/zsh/zprofile` | Sources `/etc/profile` via `emulate sh`. Runs for zsh login shells. |
-| `/etc/zsh/zshrc`\* | `files/zsh/zshrc` | Zsh interactive config: key bindings (terminfo-based), completion styles (`zstyle`), `compinit`, `run-help`, history settings, `COMBINING_CHARS`. Sources `/etc/shellrc`. |
-
-\* Exact path varies by distribution — see [System path detection](#system-path-detection).
-
-### Per-user skel files
-
-These are copied from `files/skel/` to each configured user's home directory.
-
-| Skel file | Deployed location | Purpose |
-|---|---|---|
-| `.shellenv` | `~/` | User environment variables and `PATH` additions. Sourced by `.zshenv` and `.bash_profile`. Has a sentinel guard to prevent double-sourcing. Sets `XDG_*` directories. |
-| `.shellrc` | `~/` | User interactive config shared across bash and zsh (aliases, functions, cross-shell tool initialisers). |
-| `.bash_profile` | `~/` | Login shell setup for bash (and zsh via `.zprofile`). Sources `.shellenv`, then `.bashrc` (guarded by `$BASH`). |
-| `.bashrc` | `~/` | Bash interactive config. Sources `~/.config/bash/bashtheme` (theme scaffold) then `.shellrc`. |
-| `.zshenv` | `~/` | Delegates to `.shellenv` via `emulate sh`. Has `ZDOTDIR` injected dynamically (see [ZDOTDIR](#zdotdir)). Must live in `$HOME` so Zsh can find it before `ZDOTDIR` is set. |
-| `.zprofile` | `$ZDOTDIR/` | Delegates to `.bash_profile` via `emulate sh` for unified login setup. |
-| `.zshrc` | `$ZDOTDIR/` | Zsh interactive config. Sources `$ZDOTDIR/zshtheme` (theme scaffold) then `.shellrc`. |
-| `.zlogin` | `$ZDOTDIR/` | Runs after `.zshrc` for login shells. Empty by default — suitable for login announcements. |
-
-### Theme scaffold files
-
-`$ZDOTDIR/zshtheme` and `~/.config/bash/bashtheme` are created as empty
-files during user configuration. Downstream features append their managed
-configuration blocks to these files using `shell__write_block`. The skel
-`.zshrc` and `.bashrc` source them unconditionally — they must exist before
-the first interactive session.
-
-If the scaffold files already exist (e.g. from a downstream feature), they
-are left untouched by setup-shell.
-
-### `if_exists` behavior
-
-The `if_exists` option controls how existing per-user dotfiles are handled
-during re-runs. It has no effect on the initial install.
-
-| Value | Per-user dotfile behavior |
+| Destination | Purpose |
 |---|---|
-| `skip` (default) | Create each file if absent; leave it untouched if it already exists |
-| `update` | Sync managed blocks in place; append block if not yet present |
-| `reinstall` | Delete existing file and recreate with managed-block content |
-| `uninstall` | Remove managed blocks; delete file if it becomes empty |
+| `/etc/shellenv` | POSIX environment: `extend_path` helper, `PATH`, `XDG_*`, locale, umask, default editor. Sourced by `/etc/profile` (sh/bash login), `/etc/zsh/zshenv` (all zsh), and the bashenv file. |
+| `/etc/shellrc` | Shared interactive config: `GPG_TTY`, VS Code editor integration, `dircolors`, `lesspipe`, `GCC_COLORS`, `command-not-found` handler, sudo hint. Sourced by both the system bashrc and zshrc. |
+| `/etc/shellaliases` | Shared aliases (`ll`, `la`, `l`). Sourced by `/etc/shellrc`. |
+| `/etc/profile` | Login shell profile for sh/bash. Sources `/etc/shellenv`, runs `/etc/profile.d/*.sh`, and for interactive bash sources the system bashrc. |
+| `/etc/bash.bashrc`\* | Bash interactive config: prompt (`PS1`), history, `shopt` settings, bash-completion, terminal-program hook. Sources `/etc/shellrc`. |
+| `/etc/bashenv`\* | Bash non-interactive environment. Sources `/etc/shellenv`. Pointed to by `BASH_ENV` in `/etc/environment`. |
+| `/etc/environment` | Carries the `BASH_ENV=…` line (managed as a single line, not a marker block). |
+| `/etc/zsh/zshenv`\* | Sources `/etc/shellenv` via `emulate sh`. Runs for every zsh invocation. |
+| `/etc/zsh/zprofile`\* | Sources `/etc/profile` via `emulate sh`. Runs for zsh login shells. |
+| `/etc/zsh/zshrc`\* | Zsh interactive config: key bindings (terminfo-based), completion styles (`zstyle`), `compinit`, `run-help`, history, `COMBINING_CHARS`, terminal-program hook. Sources `/etc/shellrc` and the completions hook file. |
+| `/etc/zsh/shellcompletions`\* | Zsh completions hook (`fpath` additions), sourced by the system zshrc right before `compinit`. A multi-writer file: downstream features (e.g. `install-zsh-completion`) append their own managed blocks. |
+
+\* Exact path varies by distribution — see
+[System path detection](#system-path-detection).
+
+### Per-user files
+
+Deployed to each configured user's home directory, and to `/etc/skel` as
+templates for future users.
+
+| File | Location | Purpose |
+|---|---|---|
+| `.shellenv` | `~/` | User environment variables and `PATH` additions (POSIX sh). Sourced by `.zshenv` and `.bash_profile`; a sentinel guard prevents double-sourcing. Sets user `XDG_*` defaults. |
+| `.shellrc` | `~/` | User interactive config shared across bash and zsh (aliases, functions, cross-shell tool initialisers; POSIX sh). |
+| `.bash_profile` | `~/` | Login shell setup for bash (and zsh via `.zprofile`). Sources `.shellenv`, then `.bashrc` (guarded by `$BASH`). |
+| `.bashrc` | `~/` | Bash interactive config. Sources the bash theme scaffold, then `.shellrc`. |
+| `.zshenv` | `~/` | Delegates to `.shellenv` via `emulate sh` and exports `ZDOTDIR`. Must live in `$HOME` so Zsh can find it before `ZDOTDIR` is set. |
+| `.zprofile` | `$ZDOTDIR/` | Delegates to `.bash_profile` via `emulate sh` for unified login setup. |
+| `.zshrc` | `$ZDOTDIR/` | Zsh interactive config. Sources the zsh theme scaffold, then `.shellrc`. |
+
+### Managed marker blocks
+
+Every configuration section the feature writes is wrapped in a marker pair:
+
+```
+# >>> setup-shell-<section> >>>
+…
+# <<< setup-shell-<section> <<<
+```
+
+Only the content between a block's markers is ever rewritten on re-runs
+(`update` mode); everything outside the markers — distro-shipped content or
+your own edits — is never touched. Disabling a section's `block_*` option
+removes its marker block on the next `update` run.
 
 ### ZDOTDIR
 
-By default Zsh looks for per-user config files (`.zshrc`, `.zprofile`,
-`.zlogin`) in `$ZDOTDIR`. This feature sets `ZDOTDIR` to `~/.config/zsh`
-(i.e. `${XDG_CONFIG_HOME}/zsh`), keeping Zsh dotfiles out of the home
-directory root. The `.zshenv` must stay in `$HOME` so that Zsh can find it
-before `ZDOTDIR` is set.
+By default Zsh looks for per-user config files (`.zshrc`, `.zprofile`) in
+`$ZDOTDIR`. This feature sets `ZDOTDIR` to `~/.config/zsh` (i.e.
+`${XDG_CONFIG_HOME}/zsh`), keeping Zsh dotfiles out of the home directory
+root. The `.zshenv` must stay in `$HOME` so that Zsh can find it before
+`ZDOTDIR` is set.
 
-The `zdotdir` option lets you override the directory. Accepted forms:
+The `zdotdir` option overrides the directory. Accepted forms:
 
 | Value | Resolved to |
 |---|---|
@@ -98,12 +96,12 @@ The `zdotdir` option lets you override the directory. Accepted forms:
 | `$HOME/.something` | `<user_home>/.something` (expanded per user) |
 | `/absolute/path` | `/absolute/path` (shared across all users) |
 
-The resolved `ZDOTDIR` is injected into `~/.zshenv` between
-`# >>> setup-shell-zdotdir >>>` / `# <<< setup-shell-zdotdir <<<` markers.
+The resolved value is exported from `~/.zshenv` inside the
+`setup-shell-zdotdir` marker block.
 
 ---
 
-## Source chain
+## Source Chains
 
 The following diagrams show the source chain for each shell invocation type.
 
@@ -119,7 +117,7 @@ The following diagrams show the source chain for each shell invocation type.
 ~/.bash_profile
  └── ~/.shellenv (user PATH, XDG)
  └── ~/.bashrc
-      ├── sources ~/.config/bash/bashtheme (downstream feature blocks)
+      ├── ~/.config/bash/bashtheme (downstream feature blocks)
       └── ~/.shellrc (user aliases/functions)
 ```
 
@@ -130,7 +128,7 @@ The following diagrams show the source chain for each shell invocation type.
  └── /etc/shellrc → /etc/shellaliases
  └── /etc/shellenv (via sentinel re-entry)
 ~/.bashrc
- ├── sources ~/.config/bash/bashtheme (downstream feature blocks)
+ ├── ~/.config/bash/bashtheme (downstream feature blocks)
  └── ~/.shellrc
 ```
 
@@ -138,7 +136,7 @@ The following diagrams show the source chain for each shell invocation type.
 CI runners):
 
 ```
-$BASH_ENV → /etc/bash/bashenv
+$BASH_ENV → /etc/bashenv
  └── /etc/shellenv (PATH, XDG, locale, umask)
 ```
 
@@ -146,35 +144,35 @@ $BASH_ENV → /etc/bash/bashenv
 
 ```
 /etc/zsh/zshenv → /etc/shellenv
-~/.zshenv → ~/.shellenv + injects ZDOTDIR=~/.config/zsh
+~/.zshenv → ~/.shellenv + exports ZDOTDIR=~/.config/zsh
 /etc/zsh/zprofile → /etc/profile → /etc/shellenv (sentinel skip) + profile.d
 $ZDOTDIR/.zprofile → ~/.bash_profile → ~/.shellenv (sentinel skip)
 /etc/zsh/zshrc → /etc/shellrc → /etc/shellaliases
+ └── /etc/zsh/shellcompletions (fpath) → compinit
 $ZDOTDIR/.zshrc
- ├── sources $ZDOTDIR/zshtheme (downstream feature blocks)
+ ├── $ZDOTDIR/zshtheme (downstream feature blocks)
  └── ~/.shellrc
-$ZDOTDIR/.zlogin
 ```
 
-**Zsh non-interactive** (e.g. `zsh -c "cmd"`, scripts with `#!/usr/bin/env zsh`):
+**Zsh non-interactive** (e.g. `zsh -c "cmd"`, scripts with
+`#!/usr/bin/env zsh`):
 
 ```
 /etc/zsh/zshenv → /etc/shellenv
-~/.zshenv → ~/.shellenv + injects ZDOTDIR (not used in non-interactive)
+~/.zshenv → ~/.shellenv + exports ZDOTDIR (not used in non-interactive)
 ```
 
 ---
 
-## System path detection
+## System Path Detection
 
 The installer auto-detects the correct system configuration file paths for
-each distribution. This is necessary because different Linux distributions
-place bash and zsh config files in different locations.
+each distribution, since different Linux distributions place bash and zsh
+config files in different locations.
 
 ### Bash system bashrc
 
-The `shell__detect_bashrc` function probes these paths in order and returns
-the first one that exists:
+These paths are probed in order and the first one that exists is used:
 
 | Path | Distributions |
 |---|---|
@@ -184,7 +182,7 @@ the first one that exists:
 
 ### Bash bashenv
 
-Placed next to the detected bashrc:
+Placed next to the detected bashrc (override with `sys_bashenv`):
 
 | Bashrc path | Bashenv path |
 |---|---|
@@ -194,7 +192,8 @@ Placed next to the detected bashrc:
 
 ### Zsh system directory
 
-The `shell__detect_zshdir` function returns:
+Location of the system `zshenv`, `zprofile`, `zshrc`, and the
+`shellcompletions` hook file:
 
 | Path | Distributions |
 |---|---|
@@ -207,12 +206,12 @@ The `shell__detect_zshdir` function returns:
 
 Non-interactive non-login Bash sessions (e.g. `devcontainer exec`,
 `docker exec`, VS Code tasks, CI runners) do **not** read `/etc/profile`,
-`/etc/bash.bashrc`, or any dotfiles. The only mechanism for injecting
+the system bashrc, or any dotfiles. The only mechanism for injecting
 environment variables into these sessions is the `BASH_ENV` variable.
 
 The installer sets `BASH_ENV` in `/etc/environment`, which is read by PAM
 (`pam_env`), systemd, and container runtimes. This causes non-interactive
-Bash to source the `bashenv` file, which in turn sources `/etc/shellenv` to
+Bash to source the bashenv file, which in turn sources `/etc/shellenv` to
 provide `PATH`, `XDG_*`, locale, and other environment variables.
 
 > **Note:** `BASH_ENV` is honored only by Bash, not by `sh`, `dash`, or Zsh.
@@ -221,11 +220,12 @@ provide `PATH`, `XDG_*`, locale, and other environment variables.
 
 ---
 
-## `extend_path` helper
+## `extend_path` Helper
 
 The `/etc/shellenv` file defines an `extend_path` function available in all
-shells. It adds directories to `$PATH` without creating duplicates, silently
-skips non-existent directories, and correctly handles paths with spaces.
+shells (including your own `~/.shellenv`). It adds directories to `$PATH`
+without creating duplicates, silently skips non-existent directories, and
+correctly handles paths with spaces. Run `extend_path --help` for details.
 
 ```sh
 # Prepend (inserted at front, preserving argument order):
@@ -236,59 +236,4 @@ extend_path --append "/opt/myapp/bin"
 
 # Both in one call:
 extend_path --prepend "$HOME/bin" --append "/usr/games"
-```
-
----
-
-## System paths summary
-
-| Path | Purpose |
-|---|---|
-| `/etc/shellenv` | Shared POSIX environment (PATH, XDG, locale, umask, `extend_path`) |
-| `/etc/shellrc` | Shared interactive config (GPG_TTY, editor, dircolors, aliases) |
-| `/etc/shellaliases` | Shared aliases (`ll`, `la`, `l`) |
-| `/etc/profile` | Login shell profile for sh/bash |
-| `/etc/bash.bashrc`\* | System-wide Bash interactive config |
-| `/etc/bash/bashenv`\* | `BASH_ENV` target for non-interactive Bash |
-| `/etc/environment` | `BASH_ENV` variable declaration |
-| `/etc/zsh/zshenv`\* | System-wide Zsh environment (all invocations) |
-| `/etc/zsh/zprofile`\* | System-wide Zsh login profile |
-| `/etc/zsh/zshrc`\* | System-wide Zsh interactive config |
-| `~/.config/zsh/` | `ZDOTDIR` — per-user Zsh config dir (`.zshrc`, `.zprofile`, `.zlogin`) |
-| `~/.config/zsh/zshtheme` | Theme scaffold for downstream features (e.g. `install-ohmyzsh`) |
-| `~/.config/bash/bashtheme` | Theme scaffold for downstream features (e.g. `install-ohmybash`) |
-
-\* Exact path varies by distribution.
-
----
-
-## File tree
-
-```
-files/
-├── profile                    # → /etc/profile
-│
-├── shell/
-│   ├── shellenv               # → /etc/shellenv
-│   ├── shellrc                # → /etc/shellrc
-│   └── shellaliases           # → /etc/shellaliases
-│
-├── bash/
-│   ├── bashrc                 # → /etc/bash.bashrc (or equivalent)
-│   └── bashenv                # → /etc/bash/bashenv (BASH_ENV target)
-│
-├── zsh/
-│   ├── zshenv                 # → /etc/zsh/zshenv (or /etc/zshenv)
-│   ├── zprofile               # → /etc/zsh/zprofile
-│   └── zshrc                  # → /etc/zsh/zshrc
-│
-└── skel/
-    ├── .shellenv              # → ~/
-    ├── .shellrc               # → ~/
-    ├── .bash_profile          # → ~/
-    ├── .bashrc                # → ~/
-    ├── .zshenv                # → ~/.zshenv  (always HOME; receives ZDOTDIR block)
-    ├── .zprofile              # → $ZDOTDIR/
-    ├── .zshrc                 # → $ZDOTDIR/
-    └── .zlogin                # → $ZDOTDIR/
 ```

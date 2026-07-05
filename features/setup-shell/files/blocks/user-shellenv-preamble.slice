@@ -1,0 +1,2 @@
+[ "${_USER_SHELLENV_LOADED:-}" = 1 ] && return 0
+_USER_SHELLENV_LOADED=1

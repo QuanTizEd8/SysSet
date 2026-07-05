@@ -1,0 +1,7 @@
+# >>> setup-shell-user-shellrc-guard >>>
+case $- in
+  *i*) ;;
+    *) return;;
+esac
+# <<< setup-shell-user-shellrc-guard <<<
+

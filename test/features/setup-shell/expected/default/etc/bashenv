@@ -1,0 +1,4 @@
+# >>> setup-shell-bashenv-shellenv >>>
+. "/etc/shellenv"
+# <<< setup-shell-bashenv-shellenv <<<
+

@@ -1,0 +1,8 @@
+bindkey -e
+HISTSIZE=10000
+SAVEHIST=5000
+HISTFILE="$HOME/.zsh_history"
+setopt histignorealldups
+setopt sharehistory
+setopt extended_history
+setopt hist_ignore_space

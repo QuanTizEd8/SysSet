@@ -1,0 +1,6 @@
+# >>> setup-shell-shellaliases-ls >>>
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+# <<< setup-shell-shellaliases-ls <<<
+

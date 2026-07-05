@@ -1,0 +1,4 @@
+() {
+  local _zshrc_dir="${${(%):-%x}:h}"
+  [ -r "${_zshrc_dir}/zshrc_$TERM_PROGRAM" ] && . "${_zshrc_dir}/zshrc_$TERM_PROGRAM"
+}

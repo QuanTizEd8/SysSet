@@ -1,0 +1,2 @@
+[ -n "$_SHELLENV_LOADED" ] && return
+_SHELLENV_LOADED=1

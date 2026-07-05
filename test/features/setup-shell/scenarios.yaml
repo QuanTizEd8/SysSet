@@ -1,30 +1,210 @@
+# setup-shell is excluded from the generic test-gen pipeline (see
+# test/features/generation.yaml denylist) — its if_exists semantics are
+# file-lifecycle based, not binary-presence based, so all scenarios are
+# hand-authored here.
+#
+# Two kinds of checks are used:
+#   * GOLDEN scenarios (standalone only) assert the entire deployed tree
+#     byte-for-byte against reviewed fixtures under expected/<scenario>/ (see
+#     support/assert_golden.sh and generate_golden.py). Golden capture reads the
+#     feature test dir, which is only bind-mounted into the container in
+#     standalone mode — hence `modes: [standalone]` for these.
+#   * DECLARATIVE scenarios use targeted grep/test checks (narrow assertions,
+#     devcontainer smoke, and install-failure cases where nothing is deployed).
+
 defaults:
   options:
     setup_zsh: true
     setup_bash: auto
-    set_user_shells: none
+
+# ── Golden scenarios (standalone; byte-for-byte tree diff) ──────────────────
 
 default:
   envs: [debian-stable]
-  modes: [devcontainer]
+  modes: [standalone]
   options:
     setup_zsh: auto
   tests: [default]
 
 setup_zsh_true:
   envs: [debian-stable]
-  modes: [devcontainer, standalone]
+  modes: [standalone]
   options:
     setup_zsh: true
-    setup_bash: auto
   tests: [setup_zsh_true]
 
-setup_zsh_auto:
+setup_system_false:
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    setup_system: false
+  tests: [setup_system_false]
+
+if_exists_reinstall_foreign_bashrc:
+  # A stock distro /etc/bash.bashrc is present; reinstall assembles a fresh file
+  # (destructive). The backup (under /usr/local/share) is outside the golden
+  # scan roots, so it doesn't pollute the fixture; a declarative check confirms it.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: printf '\n# MY_CUSTOM_BASHRC_LINE\n' >> /etc/bash.bashrc
+  options:
+    if_exists_sys: reinstall
+    backup: 'true'
+    setup_zsh: false
+  tests: [if_exists_reinstall_foreign_bashrc, reinstall_backup]
+
+if_exists_update_foreign_bashrc:
+  # A stock /etc/bash.bashrc with a custom admin line; update injects our marker
+  # blocks; the golden fixture captures the custom line preserved alongside them.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: printf '\n# MY_CUSTOM_BASHRC_LINE\n' >> /etc/bash.bashrc
+  options:
+    if_exists_sys: update
+    setup_zsh: false
+  tests: [if_exists_update_foreign_bashrc]
+
+block_disable_history:
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    block_sys_bashrc_history: false
+    setup_zsh: false
+  tests: [block_disable_history]
+
+add_users:
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: useradd -m -s /bin/bash devuser
+  options:
+    add_users: devuser
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+  tests: [add_users]
+
+no_user_bashtheme:
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    user_bashtheme: ''
+    setup_zsh: false
+  tests: [no_user_bashtheme]
+
+update_rerun_idempotent:
+  # A second update run over an already-configured system must be byte-for-byte
+  # idempotent: the setup step performs the first install with the same options,
+  # the harness install is the second run, and the result must still match the
+  # `default` golden fixtures exactly.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: SETUP_ZSH=auto SETUP_BASH=auto sh /repo/src/setup-shell/install.sh
+  options:
+    setup_zsh: auto
+  tests: [update_rerun_idempotent]
+
+# ── Declarative scenarios ───────────────────────────────────────────────────
+
+uninstall_after_install:
+  # Install (in setup), then run with if_exists_sys=uninstall: managed files are
+  # removed, markers are stripped from pre-existing files, and foreign content
+  # survives.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: SETUP_ZSH=false SETUP_BASH=true sh /repo/src/setup-shell/install.sh
+  options:
+    if_exists_sys: uninstall
+    setup_zsh: false
+  tests: [uninstall_after_install]
+
+if_exists_fail_skel_aborts_all:
+  # A fail conflict in ONE scope (skel: stock /etc/skel/.bashrc exists) aborts
+  # the ENTIRE run — the sys scope (update) must write nothing either.
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    if_exists_sys: update
+    if_exists_skel: fail
+    setup_skel: true
+    setup_zsh: false
+  expect_install_failure: true
+  tests: [if_exists_fail_skel_aborts_all]
+
+if_exists_fail_user_probed:
+  # A user added via add_users IS covered by the fail probe: the stock skel
+  # .bashrc copied by useradd conflicts, aborting the whole run with zero
+  # writes (including the sys-scope skip creations).
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: useradd -m -s /bin/bash devuser
+  options:
+    if_exists_sys: skip
+    if_exists_user: fail
+    add_users: devuser
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+    setup_zsh: false
+  expect_install_failure: true
+  tests: [if_exists_fail_user_probed]
+
+skip_still_configures_new_user:
+  # System-scope skip on a pre-existing foreign /etc/shellenv must not block
+  # per-user configuration (the old template-wide skip bug).
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: |
+    printf '# FOREIGN SHELLENV\n' > /etc/shellenv
+    useradd -m -s /bin/bash devuser
+  options:
+    if_exists_sys: skip
+    if_exists_user: update
+    add_users: devuser
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+    setup_zsh: false
+  tests: [skip_still_configures_new_user]
+
+update_resync_dynamic_block:
+  # Changing a dynamic block's option between runs re-syncs the managed block
+  # in place (first install in setup with the default umask, second run with a
+  # new value).
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: SETUP_ZSH=false SETUP_BASH=true sh /repo/src/setup-shell/install.sh
+  options:
+    block_sys_shellenv_umask: '077'
+    setup_zsh: false
+  tests: [update_resync_dynamic_block]
+
+custom_user_bashtheme:
   envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
+    user_bashtheme: /tmp/mybashtheme
+    setup_zsh: false
+  tests: [custom_user_bashtheme]
+
+xdg_custom_config_home:
+  # A custom XDG_CONFIG_HOME option flows into the system shellenv, the skel
+  # shellenv, and the live user shellenv (all guarded).
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  options:
+    block_sys_shellenv_xdg_config_home: .local/config
+    setup_skel: true
+    setup_zsh: false
+  tests: [xdg_custom_config_home]
+
+default_devcontainer:
+  # Devcontainer-mode smoke test (golden capture is standalone-only). Confirms
+  # the same deployment happens when installed as a devcontainer feature.
+  envs: [debian-stable]
+  modes: [devcontainer]
+  options:
     setup_zsh: auto
-  tests: [setup_zsh_auto]
+  tests: [system_files, root_dotfiles]
 
 setup_zsh_false:
   envs: [debian-stable]
@@ -32,206 +212,121 @@ setup_zsh_false:
   setup: retry apt-get update && retry apt-get install -y --no-install-recommends zsh
   options:
     setup_zsh: false
-  tests: [setup_zsh_false]
+  tests: [system_files, no_zsh_system_files]
 
 setup_bash_false:
   envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
     setup_bash: false
-    setup_zsh: false
-  tests: [setup_bash_false]
-
-with_install_zsh:
-  envs: [debian-stable]
-  modes: [devcontainer, standalone]
-  setup: retry apt-get update && retry apt-get install -y --no-install-recommends zsh
-  options:
-    setup_zsh: auto
-  tests: [default_with_zsh]
-
-set_shell_zsh:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  setup: retry apt-get update && retry apt-get install -y --no-install-recommends zsh
-  options:
-    set_user_shells: zsh
-    add_users: root
-    setup_zsh: auto
-  tests: [set_shell_zsh]
-
-user_config:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  tests: [user_config]
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  setup: |
-    mkdir -p /root/.config/zsh
-    echo '# MY_CUSTOM_ZSHRC' > /root/.config/zsh/.zshrc
-    echo '# MY_CUSTOM_BASHRC' > /root/.bashrc
-  options:
-    setup_zsh: true
-  tests: [if_exists_skip]
-
-if_exists_update:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  setup: |
-    mkdir -p /root/.config/zsh
-    echo '# MY_CUSTOM_ZSHRC' > /root/.config/zsh/.zshrc
-  options:
-    if_exists: update
-    setup_zsh: true
-  tests: [if_exists_update]
-
-if_exists_reinstall:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  setup: |
-    mkdir -p /root/.config/zsh
-    echo '# MY_CUSTOM_ZSHRC' > /root/.config/zsh/.zshrc
-  options:
-    if_exists: reinstall
-    setup_zsh: true
-  tests: [if_exists_reinstall]
-
-setup_system_false:
-  envs: [debian-stable]
-  modes: [devcontainer, standalone]
-  options:
-    setup_system: false
-    setup_zsh: true
-  tests: [setup_system_false]
+  tests: [no_bash_system_files]
 
 setup_skel:
   envs: [debian-stable]
-  modes: [devcontainer]
+  modes: [devcontainer, standalone]
   options:
     setup_skel: true
-  tests: [setup_skel]
+    setup_zsh: true
+  tests: [skel_files]
 
-zdotdir_default:
+if_exists_skip_existing_shellenv:
+  # Pre-seed a foreign /etc/shellenv; skip leaves it byte-for-byte untouched
+  # (and injects no markers). Not golden: the untouched foreign file carries no
+  # setup-shell marker, so it is outside the golden scan.
   envs: [debian-stable]
-  modes: [devcontainer]
-  tests: [zdotdir_default]
+  modes: [standalone]
+  setup: printf '# FOREIGN SHELLENV\n' > /etc/shellenv
+  options:
+    if_exists_sys: skip
+    setup_zsh: false
+  tests: [skip_existing_shellenv]
+
+if_exists_fail_conflict:
+  # A stock /etc/bash.bashrc is present; fail must abort non-zero and write nothing.
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    if_exists_sys: fail
+    setup_zsh: false
+  expect_install_failure: true
+  tests: [fail_conflict]
+
+custom_sys_shellaliases:
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  options:
+    sys_shellaliases: /etc/my-aliases
+    setup_zsh: false
+  tests: [custom_sys_shellaliases]
+
+custom_sys_shellenv:
+  # Moving the highest-fan-out path: the file lands at the custom path and every
+  # source line referencing it (profile, shellrc, bashenv, zsh zshenv) follows.
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  options:
+    sys_shellenv: /etc/my-shellenv
+    setup_zsh: true
+  tests: [custom_sys_shellenv]
+
+custom_user_zshtheme:
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  options:
+    user_zshtheme: /tmp/myzshtheme
+    setup_zsh: true
+  tests: [custom_user_zshtheme]
+
+no_sys_shellaliases:
+  # Empty deploy-path contract: the file is not deployed AND its source line is
+  # omitted from the shellrc.
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  options:
+    sys_shellaliases: ''
+    setup_zsh: false
+  tests: [no_sys_shellaliases]
+
+block_disable_on_update:
+  # Disabling a block on a re-run removes its managed marker in place (update
+  # mode: marker present + option disabled → remove), leaving other blocks
+  # intact. Standalone-only: the setup step runs the first install from /repo.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: SETUP_ZSH=false SETUP_BASH=true sh /repo/src/setup-shell/install.sh
+  options:
+    block_sys_bashrc_history: false
+    setup_zsh: false
+  tests: [block_disable_on_update]
+
+setup_skel_false:
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  options:
+    setup_skel: false
+    setup_zsh: false
+  tests: [setup_skel_false]
+
+custom_locale_editor:
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  options:
+    block_sys_shellenv_locale: C.UTF-8
+    block_sys_shellenv_editor: vim
+    setup_zsh: false
+  tests: [custom_locale_editor]
 
 zdotdir_custom:
   envs: [debian-stable]
-  modes: [devcontainer]
+  modes: [devcontainer, standalone]
   options:
-    zdotdir: "~/.zsh"
+    zdotdir: ~/.zsh
   tests: [zdotdir_custom]
-
-skel_placement:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  tests: [skel_placement]
-
-remote_user:
-  envs: [debian-stable+vscode]
-  modes: [devcontainer]
-  options:
-    add_remote_user: true
-  devcontainer:
-    remoteUser: vscode
-  tests: [remote_user]
-
-container_user:
-  envs: [debian-stable+vscode]
-  modes: [devcontainer]
-  options:
-    add_container_user: true
-  devcontainer:
-    containerUser: vscode
-  tests: [container_user]
-
-add_users:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  setup: useradd -m -s /bin/bash devuser
-  options:
-    add_users: devuser
-    add_container_user: false
-    add_remote_user: false
-  tests: [add_users]
 
 no_bash_env:
   envs: [debian-stable]
   modes: [devcontainer, standalone]
   options:
     setup_bash_env: false
+    setup_zsh: false
   tests: [no_bash_env]
-
-locale_custom:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    locale: C.UTF-8
-  tests: [locale_custom]
-
-no_locale:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    locale: ''
-  tests: [no_locale]
-
-editor_vim:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    default_editor: vim
-  tests: [editor_vim]
-
-custom_shellrc:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    user_shellrc: .config/shell/rc
-  tests: [custom_shellrc]
-
-custom_zsh_theme:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    zsh_theme: /tmp/mytheme
-  tests: [custom_zsh_theme]
-
-custom_bash_theme:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    bash_theme: /tmp/mybashtheme
-  tests: [custom_bash_theme]
-
-no_umask:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    umask: ''
-  tests: [no_umask]
-
-no_editor:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    default_editor: skip
-  tests: [no_editor]
-
-tilde_themes:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    zsh_theme: ~/myzshtheme
-    bash_theme: ~/mybashtheme
-  tests: [tilde_themes]
-
-custom_bash_env_path:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    bash_env_path: /tmp/mybashenv
-  tests: [custom_bash_env_path]

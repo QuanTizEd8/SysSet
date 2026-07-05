@@ -1,0 +1,11 @@
+if [ "${TERM_PROGRAM}" = "vscode" ]; then
+    _vscode_path=$(printf '%s' "${VSCODE_GIT_ASKPASS_MAIN-}" | tr '[:upper:]' '[:lower:]')
+    case "$_vscode_path" in
+        *insiders*) _vscode_cmd="code-insiders --wait" ;;
+        *code*)     _vscode_cmd="code --wait" ;;
+    esac
+    if [ -n "${_vscode_cmd-}" ]; then
+        export VISUAL="$_vscode_cmd" EDITOR="$_vscode_cmd"
+    fi
+    unset _vscode_path _vscode_cmd
+fi

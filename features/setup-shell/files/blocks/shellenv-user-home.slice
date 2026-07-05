@@ -1,0 +1,2 @@
+if [ -z "$USER" ]; then USER=$(whoami); export USER; fi
+if [ -z "$HOME" ]; then eval HOME="~$USER"; export HOME; fi

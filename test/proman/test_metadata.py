@@ -759,3 +759,61 @@ def test_schema_rejects_invalid_files_entries(files_entry: dict) -> None:
     metadata = _minimal_feature_metadata(_files=[files_entry])
     errors = list(get_validator().iter_errors(metadata))
     assert errors
+
+
+def test_setup_shell_block_catalog_codegen() -> None:
+    """setup-shell's _internal catalog generates block options and the registry.
+
+    The block_* options and files/blocks.registry.bash are both generated from
+    _internal.blocks/_internal.targets via pyserials templates in metadata.yaml
+    (same splice pattern as the shared ospkg_manifest_* options); this guards
+    the catalog → options → registry pipeline end to end.
+    """
+    meta = MetadataLoader().load()["setup-shell"]
+    options = meta["options"]
+    blocks = meta["_internal"]["blocks"]
+    targets = meta["_internal"]["targets"]
+
+    # Every catalog entry with an option emitted exactly one generated option.
+    catalog_options = {b["option"] for b in blocks.values() if b.get("option")}
+    generated = {k for k in options if k.startswith("block_")}
+    assert generated == catalog_options
+    assert len(generated) == 64
+
+    # Spot-check option shapes.
+    assert options["block_sys_bashrc_history"]["type"] == "boolean"
+    assert options["block_sys_bashrc_history"]["default"] is True
+    assert options["block_sys_shellenv_umask"]["default"] == "022"
+    assert options["block_sys_shellenv_editor"]["enum"][0]["value"] == "auto"
+
+    # The lifecycle knobs replaced the shared-name collision (if_exists_sys is
+    # local; the shared if_exists keeps its clean, unduplicated 5-value enum).
+    assert options["if_exists_sys"]["default"] == "auto"
+    assert len(options["if_exists"]["enum"]) == 5
+
+    # Registry file is generated with the associative arrays the engine reads,
+    # and every target/block id appears in it.
+    files = {f["path"]: f["content"] for f in meta["_files"]}
+    registry = files["blocks.registry.bash"]
+    for var in (
+        "_FEAT_SS_TARGET_ORDER=(",
+        "declare -gA _FEAT_SS_TARGET_SCOPE=(",
+        "declare -gA _FEAT_SS_BLOCK_MARKER=(",
+        "declare -gA _FEAT_SS_LINE_RESOLVER=(",
+    ):
+        assert var in registry
+    for target in targets:
+        assert f'["{target["id"]}"]' in registry
+    for block_id in blocks:
+        assert f'["{block_id}"]' in registry
+
+    # Every fixed block's slice file exists on disk.
+    files_dir = _REPO_ROOT / "features" / "setup-shell" / "files"
+    blocks_dir = files_dir / "blocks"
+    for block_id, block in blocks.items():
+        if block.get("slice"):
+            slice_path = files_dir / block["slice"]
+            assert slice_path.is_file(), f"{block_id}: missing slice {block['slice']}"
+        else:
+            assert block.get("dynamic"), f"{block_id}: neither slice nor dynamic"
+    assert blocks_dir.is_dir()
