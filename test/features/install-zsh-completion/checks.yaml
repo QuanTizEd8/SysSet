@@ -1,0 +1,32 @@
+default:
+  description: zsh-completions is cloned and its fpath block written to the default hook file.
+  checks:
+    - title: completions tree cloned with completion functions
+      cmd: test -f /usr/local/share/zsh-completions/src/_golang
+    - title: fpath block written to the default hook file
+      cmd: grep -qF '# >>> install-zsh-completion-fpath >>>' /etc/zsh/shellcompletions
+    - title: fpath line points at the cloned src tree
+      cmd: grep -qF '/usr/local/share/zsh-completions/src' /etc/zsh/shellcompletions
+
+custom_rcfile:
+  description: A custom rcfile receives the fpath block instead of the default hook file.
+  checks:
+    - title: fpath block written to the custom rcfile
+      cmd: grep -qF '# >>> install-zsh-completion-fpath >>>' /etc/zsh/my-completions
+    - title: default hook file not created
+      cmd: bash -c '! test -f /etc/zsh/shellcompletions'
+
+version_pinned:
+  description: version=0.36.0 checks the clone out at that tag.
+  checks:
+    - title: clone is at the pinned tag
+      cmd: |-
+        bash -c 'git -C /usr/local/share/zsh-completions describe --tags --exact-match | grep -qx 0.36.0'
+
+uninstall_after_install:
+  description: Uninstall removes the clone, the fpath block, and the emptied hook file.
+  checks:
+    - title: clone directory removed
+      cmd: bash -c '! test -d /usr/local/share/zsh-completions'
+    - title: hook file deleted once empty
+      cmd: bash -c '! test -f /etc/zsh/shellcompletions'

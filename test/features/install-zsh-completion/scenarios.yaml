@@ -1,0 +1,29 @@
+default:
+  envs: [debian-stable]
+  modes: [devcontainer, standalone]
+  tests: [default]
+
+custom_rcfile:
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    rcfile: /etc/zsh/my-completions
+  tests: [custom_rcfile]
+
+version_pinned:
+  # A git tag pins the clone; the checkout must be at that tag.
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    version: 0.36.0
+  tests: [version_pinned]
+
+uninstall_after_install:
+  # Install in setup, then run with if_exists=uninstall: the clone and the
+  # fpath block are removed, and the emptied hook file is deleted.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: sh /repo/src/install-zsh-completion/install.sh
+  options:
+    if_exists: uninstall
+  tests: [uninstall_after_install]

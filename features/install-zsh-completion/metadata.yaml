@@ -1,34 +1,51 @@
-name: Zsh Completions Installation
 version: 0.1.0
+name: Zsh Completions Installation
 description: Install [zsh-completions](https://github.com/zsh-users/zsh-completions) and wire up the completion `fpath`.
 keywords:
 - zsh
 - completion
 - shell
-_long_description: >-
-  Installs [zsh-completions](https://github.com/zsh-users/zsh-completions), which
-  provides extra completion definitions not yet in the Zsh core. On Homebrew, uses
-  the `zsh-completions` formula; otherwise shallow-clones the repository into
-  `/usr/local/share/zsh-completions`. The completion sources directory is prepended
-  to `fpath` in the system-wide Zsh config so completions are available to all users.
+_long_description: |-
+  Installs [zsh-completions](https://github.com/zsh-users/zsh-completions) — extra
+  completion definitions not yet merged into the Zsh core — by shallow-cloning the
+  repository (the project's canonical install method) into a privilege-appropriate
+  prefix, and prepends its `src/` directory to the completion `fpath` via a managed
+  block in a hook file sourced before `compinit`. The hook file defaults to
+  setup-shell's `sys_shellcompletions` path, so the two features connect with zero
+  configuration; use `rcfile` to target other file(s). Pin a release with `version`
+  (a git tag such as `0.36.0`); the default `master` follows upstream's recommended
+  install. Zsh picks up the new completions on the next `compinit` run (setup-shell's
+  system zshrc calls `compinit` on every interactive shell start).
 options:
-  install_zsh_completions:
-    type: boolean
-    default: true
+  rcfile:
+    type: array
+    default: ''
     description: |-
-      Install [zsh-completions](https://github.com/zsh-users/zsh-completions).
-      Adds extra completion definitions not yet in the zsh core.
-      With Homebrew this uses the `zsh-completions` formula. Otherwise the
-      repository is shallow-cloned to `/usr/local/share/zsh-completions` and
-      `fpath` includes its `src/` tree (matching upstream manual install).
-      Debian and Ubuntu packages are published via the project's
-      [Open Build Service repository](https://software.opensuse.org/download.html?project=shells%3Azsh-users%3Azsh-completions&package=zsh-completions),
-      which is not the same as default `apt` archives; this feature does not add that repo.
+      Space/newline-separated hook file path(s) that receive the managed `fpath`
+      block (each must be sourced before `compinit`). Leave empty to use
+      setup-shell's default `sys_shellcompletions` path
+      (`$(shell__detect_zshdir)/shellcompletions`, resolved at run time). If you
+      customize setup-shell's `sys_shellcompletions`, set a matching value here —
+      the two are not propagated automatically. For unprivileged installs, point
+      this at a user-writable file (e.g. sourced from your `~/.zshrc`).
 _options:
   gh_repo: zsh-users/zsh-completions
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-zsh
-#   - ghcr.io/quantized8/devfeats/setup-shell
+  version:
+    resolution: git_ref
+    default: master
+  method:
+    git-clone:
+      uri: "https://github.com/zsh-users/zsh-completions"
+  prefix:
+    root: /usr/local/share/zsh-completions
+    nonroot: "${HOME}/.local/share/zsh-completions"
+    symlink:
+      skip: true
+    exports:
+      skip: true
+installsAfter:
+  - ghcr.io/quantized8/devfeats/install-zsh
+  - ghcr.io/quantized8/devfeats/setup-shell
 _dependencies:
   run:
     base:
