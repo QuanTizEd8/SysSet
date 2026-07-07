@@ -33,12 +33,18 @@ _VERSION_FORMAT_PATTERN = r"(^|[^0-9.])v?[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"
 # dpkg/rpm/pacman variants need the resolved binary *path* (file-ownership
 # queries); apk/brew need the OS *package name*, which can differ from the
 # binary name (e.g. `github-cli` package -> `gh` binary).
+#
+# The path probes also retry with a leading `/usr` stripped (`${p#/usr}`:
+# /usr/bin/zsh -> /bin/zsh). On a usrmerged system the package DB can record the
+# legacy /bin path for a shell/core package (Debian's `zsh` -> /bin/zsh) while
+# PATH resolves /usr/bin first, so a bare `dpkg -S "$(command -v zsh)"` misses.
+_USRMERGE = '\'p="$(command -v {bin})"; {q} "$p" >/dev/null 2>&1 || {q} "${{p#/usr}}" >/dev/null 2>&1\''  # noqa: E501
 _PM_CHECK_CMD: dict[str, str] = {
-    "apt": "bash -c 'dpkg -S \"$(command -v {bin})\" >/dev/null 2>&1'",
-    "dnf": "bash -c 'rpm -qf \"$(command -v {bin})\" >/dev/null 2>&1'",
-    "zypper": "bash -c 'rpm -qf \"$(command -v {bin})\" >/dev/null 2>&1'",
+    "apt": "bash -c " + _USRMERGE.replace("{q}", "dpkg -S"),
+    "dnf": "bash -c " + _USRMERGE.replace("{q}", "rpm -qf"),
+    "zypper": "bash -c " + _USRMERGE.replace("{q}", "rpm -qf"),
     "apk": "bash -c 'apk info -e {pkg_name} >/dev/null 2>&1'",
-    "pacman": "bash -c 'pacman -Qo \"$(command -v {bin})\" >/dev/null 2>&1'",
+    "pacman": "bash -c " + _USRMERGE.replace("{q}", "pacman -Qo"),
     "brew": "bash -c 'brew list {pkg_name} >/dev/null 2>&1'",
 }
 
