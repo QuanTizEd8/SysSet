@@ -30,7 +30,7 @@ _options:
   version:
     resolution: sidecar
     test_pins:
-      pinned: ["5.9"]
+      pinned: ["5.9.1"]
     uri: "https://www.zsh.org/pub/SHA256SUM"
     pattern: "zsh-[version].tar.xz"
   method:
