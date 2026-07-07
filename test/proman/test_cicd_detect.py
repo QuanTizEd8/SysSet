@@ -5,6 +5,7 @@ from pathlib import Path
 import proman.cicd.detect as cd
 import proman.config as cfg
 import pytest
+from proman.test.effective import EffectiveTests
 
 _CICD_MAIN = """\
 name: TestProject
@@ -340,6 +341,45 @@ def test_compute_feature_matrix_macos_env_only_in_macos_scenarios(
             ],
         },
     ]
+
+
+def test_compute_feature_matrix_includes_fully_generated_feature(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A fully generated feature (no scenarios.yaml on disk) stays in the matrix.
+
+    Regression: the matrix used to skip any feature without a scenarios.yaml on
+    disk, dropping fully generated features (e.g. install-oras) so their tests
+    never ran under change-detection.
+    """
+    _use_tmp_repo(monkeypatch, tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu-latest\n",
+    )
+
+    # Deliberately no test/features/install-gen/scenarios.yaml on disk.
+    def _fake(fid: str) -> EffectiveTests:
+        scenarios = (
+            {
+                "default": {
+                    "envs": ["ubuntu-latest"],
+                    "modes": ["standalone"],
+                    "tests": ["default"],
+                },
+            }
+            if fid == "install-gen"
+            else {}
+        )
+        return EffectiveTests(
+            feature_id=fid, defaults={}, scenarios=scenarios, checks={}
+        )
+
+    monkeypatch.setattr(cd, "load_effective", _fake)
+    result = cd.compute_feature_matrix(["install-gen"], [])
+    assert [e["feature"] for e in result] == ["install-gen"]
+    assert result[0]["linux_scenarios"] == ["default.ubuntu-latest"]
 
 
 def test_compute_feature_matrix_feature_in_both_linux_and_macos(

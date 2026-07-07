@@ -236,10 +236,12 @@ def compute_feature_matrix(
     all_ids = sorted(linux_set | macos_set)
     result = []
     for fid in all_ids:
-        feat = cfg.absolute_path("path.test_features") / fid
-        scenarios_file = feat / str(cfg["filename.feature_scenarios"])
-        if not scenarios_file.exists():
-            continue
+        # Do NOT gate on an on-disk scenarios.yaml existing: a fully generated
+        # feature (e.g. install-oras) has no hand-written scenarios file at all,
+        # yet load_effective() still produces its generated scenarios. Features
+        # that genuinely have nothing (no hand-written file and not in the
+        # generation rollout) yield an empty effective set and are dropped by
+        # the "no scenarios on any platform" check below.
         effective = load_effective(fid)
         devcontainer_scenarios: list[str] = []
         linux_scenarios: list[str] = []
