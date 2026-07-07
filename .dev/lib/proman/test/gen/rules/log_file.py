@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from proman.test.gen import envselect
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
 from proman.test.gen.types import CheckGroup, CheckItem, GeneratedScenario
@@ -38,13 +39,15 @@ class LogFileRule:
         self,
         facts: FeatureFacts,
         cfg: GenerationConfig,
-        envs: dict,  # noqa: ARG002
+        envs: dict,
     ) -> list[GeneratedScenario]:
         """Generate the single `log_file` scenario."""
         name = "log_file"
         path = f"/tmp/devfeats-test-{facts.feature_id}.log"  # noqa: S108
+        # method=auto: run where the feature actually auto-installs (some can't
+        # on the primary env — see envselect.auto_install_env).
         scenario = base_scenario(
-            [cfg.primary_env],
+            [envselect.auto_install_env(facts, cfg, envs)],
             cfg,
             _FAMILY,
             options={"log_file": path},

@@ -14,12 +14,37 @@ from typing import TYPE_CHECKING, Literal
 from proman import when_util
 from proman.test.environments import resolve_attributes
 from proman.test.gen import context
-from proman.test.gen.method_resolver import feasible_methods
+from proman.test.gen.method_resolver import feasible_methods, resolve_auto_method
 
 if TYPE_CHECKING:
+    from proman.test.gen.config import GenerationConfig
     from proman.test.gen.facts import FeatureFacts
 
 SelectPolicy = Literal["primary", "one_per_pm", "all"]
+
+
+def auto_install_env(facts: FeatureFacts, cfg: GenerationConfig, envs: dict) -> str:
+    """Return the env a `method=auto` scenario should install on.
+
+    The primary env when the feature actually auto-installs there, else the
+    first env-pool member where `METHOD=auto` resolves to a feasible method.
+    Some features can't auto-install on the primary env at all — e.g.
+    install-tokei on ubuntu-stable: its prebuilt `binary` is version-gated to
+    <=12.1.2 (stable is newer), apt has no tokei on a stable release, and cargo
+    isn't provisioned — so `default`/`log_file` must run somewhere a method is
+    feasible (fedora/arch via `package`), matching the prior hand-written
+    default's fedora/arch envs. Falls back to the primary env when nothing
+    resolves, so the scenario surfaces the real "no feasible method" failure
+    rather than silently vanishing.
+    """
+    seen: set[str] = set()
+    for env in [cfg.primary_env, *cfg.env_pool]:
+        if env in seen:
+            continue
+        seen.add(env)
+        if resolve_auto_method(facts, context.for_env(env, envs)) is not None:
+            return env
+    return cfg.primary_env
 
 
 def feasible_envs(

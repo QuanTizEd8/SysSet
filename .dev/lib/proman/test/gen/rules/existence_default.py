@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proman.test.gen import context, default_checks
+from proman.test.gen import context, default_checks, envselect
 from proman.test.gen import outcome as outcome_mod
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
@@ -43,12 +43,16 @@ class ExistenceDefaultRule:
         envs: dict,
     ) -> list[GeneratedScenario]:
         """Generate the single `default` scenario."""
-        scenario = base_scenario([cfg.primary_env], cfg, _FAMILY)
+        # `method=auto` must run where the feature can actually auto-install —
+        # the primary env when feasible, else the first env-pool member where a
+        # method resolves (e.g. install-tokei can't install on ubuntu-stable:
+        # version-gated binary, no apt package, no cargo).
+        env = envselect.auto_install_env(facts, cfg, envs)
+        scenario = base_scenario([env], cfg, _FAMILY)
         scenario["tests"] = ["default"]
-        # The default scenario is `method=auto`: compute what the resolver would
-        # pick on the primary env so the checks assert the recorded method +
-        # install location, not just "a binary exists".
-        ctx = context.for_env(cfg.primary_env, envs)
+        # Compute what the resolver would pick on that env so the checks assert
+        # the recorded method + install location, not just "a binary exists".
+        ctx = context.for_env(env, envs)
         outcome = outcome_mod.compute(facts, ctx)
         group = CheckGroup(
             description="Verifies the default install puts a functional tool on PATH.",
