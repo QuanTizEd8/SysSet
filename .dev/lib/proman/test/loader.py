@@ -64,26 +64,22 @@ class FeatureTestLoader:
     def load(self, feature_id: str) -> FeatureTests:
         """Load, validate, and return checks + scenarios for one feature."""
         feat_dir = self._test_features / feature_id
-        if not feat_dir.is_dir():
-            msg = f"Feature test directory not found: {feat_dir}"
-            raise FileNotFoundError(msg)
-
         checks_path = feat_dir / self._checks_name
         scenarios_path = feat_dir / self._scenarios_name
 
-        if not checks_path.is_file():
-            msg = (
-                f"Missing {self._checks_name} for feature '{feature_id}': {checks_path}"
-            )
-            raise FileNotFoundError(msg)
-        if not scenarios_path.is_file():
-            msg = (
-                f"Missing {self._scenarios_name} for feature '{feature_id}':"
-                f" {scenarios_path}"
-            )
-            raise FileNotFoundError(msg)
-
+        # A fully generated feature (in the generation rollout) has no
+        # hand-written test dir or files at all; load_effective() still yields
+        # its generated scenarios/checks. Error only when there is genuinely
+        # nothing — neither hand-written nor generated. checks_path/
+        # scenarios_path stay the labels for schema-validation errors even when
+        # the files themselves do not exist on disk.
         effective = load_effective(feature_id)
+        if not effective.scenarios and not effective.checks:
+            msg = (
+                f"No tests for feature '{feature_id}': no hand-written tests under "
+                f"{feat_dir} and nothing generated (not in the generation rollout?)."
+            )
+            raise FileNotFoundError(msg)
 
         self._validate_checks_schema(effective.checks, checks_path)
         scenarios_doc = dict(effective.scenarios)

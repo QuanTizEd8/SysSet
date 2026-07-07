@@ -5,9 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import proman.config as cfg
+import proman.test.loader as loader_mod
 import pytest
 import yaml
 from proman.schema_bundle import clear_validator_cache
+from proman.test.effective import EffectiveTests
 from proman.test.loader import FeatureTestError, FeatureTestLoader
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -114,6 +116,36 @@ def _loader() -> FeatureTestLoader:
 def test_load_accepts_minimal_layout() -> None:
     """Valid checks.yaml and scenarios.yaml pass schema and cross-file checks."""
     _loader().load("demo-feat")
+
+
+def test_load_accepts_fully_generated_feature_without_test_dir(
+    repo_root: Path,  # noqa: ARG001
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A fully generated feature (no test dir on disk) loads via load_effective.
+
+    Regression: the loader required an on-disk test dir + checks/scenarios
+    files, so a dir-less generated feature (e.g. install-oras) raised
+    "Feature test directory not found" even though load_effective yields its
+    generated tests.
+    """
+    effective = EffectiveTests(
+        feature_id="gen-feat",
+        defaults={},
+        scenarios={
+            "default": {
+                "envs": ["ubuntu-24.04"],
+                "modes": ["standalone"],
+                "tests": ["default"],
+            },
+        },
+        checks={"default": {"checks": [{"title": "ok", "cmd": "true"}]}},
+        provenance={"default": "generated"},
+    )
+    monkeypatch.setattr(loader_mod, "load_effective", lambda _fid: effective)
+    # No test/features/gen-feat/ directory exists on disk.
+    ft = _loader().load("gen-feat")
+    assert set(ft.scenarios) == {"default"}
 
 
 def test_load_rejects_missing_pattern(repo_root: Path) -> None:
