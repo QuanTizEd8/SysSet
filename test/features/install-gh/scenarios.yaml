@@ -1,89 +1,8 @@
-default:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  tests:
-  - default
-binary_pinned_version:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    version: 2.67.0
-    method: binary
-  tests:
-  - binary_pinned_version
-upstream_package_default:
-  envs:
-  - ubuntu-stable
-  - debian-stable
-  - fedora-current
-  - opensuse-leap-current+bash
-  modes:
-  - devcontainer
-  options:
-    method: upstream-package
-  tests:
-  - upstream_package_default
-package_default:
-  envs:
-  - alpine-current
-  - archlinux-current
-  modes:
-  - devcontainer
-  options:
-    method: package
-  tests:
-  - package_default
-binary_custom_prefix:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: binary
-    prefix: /opt/gh
-    prefix_discovery: symlink
-  tests:
-  - binary_custom_prefix
-custom_prefix_no_symlink:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: binary
-    prefix: /opt/gh
-    prefix_discovery: none
-  tests:
-  - custom_prefix_no_symlink
-binary_no_completions:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: binary
-    shell_completions: ''
-  tests:
-  - binary_no_completions
-upstream_package_no_completions:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: upstream-package
-    shell_completions: ''
-  tests:
-  - upstream_package_no_completions
 git_protocol_https:
   envs:
-  - ubuntu-stable+git+sudo+vscode
+    - ubuntu-stable+git+sudo+vscode
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: upstream-package
     add_remote_user: true
@@ -93,12 +12,12 @@ git_protocol_https:
   devcontainer:
     remoteUser: vscode
   tests:
-  - git_protocol_https
+    - git_protocol_https
 setup_git:
   envs:
-  - ubuntu-stable+git+sudo+vscode
+    - ubuntu-stable+git+sudo+vscode
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: upstream-package
     add_remote_user: true
@@ -108,12 +27,12 @@ setup_git:
   devcontainer:
     remoteUser: vscode
   tests:
-  - setup_git
+    - setup_git
 sign_commits_ssh:
   envs:
-  - ubuntu-stable+git+sudo+vscode
+    - ubuntu-stable+git+sudo+vscode
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: upstream-package
     add_remote_user: true
@@ -123,12 +42,12 @@ sign_commits_ssh:
   devcontainer:
     remoteUser: vscode
   tests:
-  - sign_commits_ssh
+    - sign_commits_ssh
 sign_commits_gpg:
   envs:
-  - ubuntu-stable+git+sudo+vscode
+    - ubuntu-stable+git+sudo+vscode
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: upstream-package
     add_remote_user: true
@@ -138,82 +57,50 @@ sign_commits_gpg:
   devcontainer:
     remoteUser: vscode
   tests:
-  - sign_commits_gpg
-if_exists_skip:
-  envs:
-  - ubuntu-stable+gh-2.67.0
-  modes:
-  - devcontainer
-  options:
-    if_exists: skip
-  tests:
-  - if_exists_skip
+    - sign_commits_gpg
 if_exists_skip_no_mutation:
   envs:
-  - ubuntu-stable+gh-2.67.0
+    - ubuntu-stable+gh-2.67.0
   modes:
-  - devcontainer
+    - devcontainer
   setup: 'apt-get purge -y curl
 
     apt-get autoremove -y
 
     rm -rf /var/lib/apt/lists/*
 
-    '
+'
   options:
     if_exists: skip
   tests:
-  - if_exists_skip_no_mutation
+    - if_exists_skip_no_mutation
 version_match_idempotency:
   expect_install_failure: true
   envs:
-  - ubuntu-stable+gh-2.67.0
+    - ubuntu-stable+gh-2.67.0
   modes:
-  - standalone
+    - standalone
   options:
     method: binary
     version: 2.67.0
     if_exists: fail
   tests:
-  - version_match_idempotency
+    - version_match_idempotency
 installer_dir:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: binary
     installer_dir: /tmp/gh-trace
   tests:
-  - installer_dir
-log_file:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: upstream-package
-    log_file: /tmp/gh-install.log
-  tests:
-  - log_file
-binary_custom_prefix_nonroot:
-  envs:
-  - ubuntu-stable+vscode
-  modes:
-  - devcontainer
-  options:
-    method: binary
-    prefix: /opt/gh
-    prefix_discovery: symlink
-  devcontainer:
-    remoteUser: vscode
-  tests:
-  - binary_custom_prefix_nonroot
+    - installer_dir
 ghes_hostname:
   envs:
-  - ubuntu-stable+git+sudo+vscode
+    - ubuntu-stable+git+sudo+vscode
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: upstream-package
     add_remote_user: true
@@ -224,17 +111,17 @@ ghes_hostname:
   devcontainer:
     remoteUser: vscode
   tests:
-  - ghes_hostname
+    - ghes_hostname
 add_users:
   envs:
-  - ubuntu-stable+git+sudo+vscode
+    - ubuntu-stable+git+sudo+vscode
   modes:
-  - devcontainer
+    - devcontainer
   setup: 'useradd -m -s /bin/bash -u 1001 testuser
 
     echo "testuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/testuser
 
-    '
+'
   options:
     method: upstream-package
     add_users: testuser
@@ -243,12 +130,12 @@ add_users:
     add_container_user: false
     setup_git: true
   tests:
-  - add_users
+    - add_users
 extensions:
   envs:
-  - ubuntu-stable+git+sudo+vscode
+    - ubuntu-stable+git+sudo+vscode
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: upstream-package
     add_remote_user: true
@@ -259,108 +146,65 @@ extensions:
   devcontainer:
     remoteUser: vscode
   tests:
-  - extensions
+    - extensions
 binary_symlink_user_home_prefix:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: binary
     prefix: /root/gh
     prefix_discovery: symlink
   tests:
-  - binary_symlink_user_home_prefix
-if_exists_fail_preinstalled:
-  expect_install_failure: true
-  envs:
-  - ubuntu-stable
-  modes:
-  - standalone
-  setup: 'mkdir -p /usr/local/bin
-
-    printf ''#!/bin/sh\necho "gh version 2.67.0 (2025-01-01)"\n'' > /usr/local/bin/gh
-
-    chmod +x /usr/local/bin/gh
-
-    '
-  options:
-    if_exists: fail
-  standalone:
-    skip_install: false
-  tests:
-  - if_exists_fail_preinstalled
+    - binary_symlink_user_home_prefix
 if_exists_fail_preinstalled_network_isolated:
   expect_install_failure: true
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - standalone
+    - standalone
   setup: 'mkdir -p /usr/local/bin
 
     printf ''#!/bin/sh\necho "gh version 2.67.0 (2025-01-01)"\n'' > /usr/local/bin/gh
 
     chmod +x /usr/local/bin/gh
 
-    '
+'
   options:
     if_exists: fail
   standalone:
     network: none
     skip_install: false
   tests:
-  - if_exists_fail_preinstalled_network_isolated
+    - if_exists_fail_preinstalled_network_isolated
 network_isolated_version_resolution:
   expect_install_failure: true
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - standalone
+    - standalone
   standalone:
     network: none
     skip_install: false
   options:
     method: binary
   tests:
-  - network_isolated_version_resolution
-invalid_if_exists:
-  expect_install_failure: true
-  envs:
-  - ubuntu-stable
-  modes:
-  - standalone
-  standalone:
-    skip_install: false
-  tests:
-  - invalid_if_exists
-  options:
-    if_exists: invalid
-invalid_method:
-  expect_install_failure: true
-  envs:
-  - ubuntu-stable
-  modes:
-  - standalone
-  standalone:
-    skip_install: false
-  tests:
-  - invalid_method
-  options:
-    method: invalid
+    - network_isolated_version_resolution
 invalid_sign_commits:
   expect_install_failure: true
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - standalone
+    - standalone
   standalone:
     skip_install: false
   tests:
-  - invalid_sign_commits
+    - invalid_sign_commits
   options:
     sign_commits: invalid
 macos_binary_default:
   envs:
-  - macos-current+brew
+    - macos-current+brew
   tests:
-  - macos_binary_default
+    - macos_binary_default

@@ -43,6 +43,7 @@ rollout:
     - install-zsh
     - install-oras
     - install-bash
+    - install-gh
   denylist:
     - install
     - install-os-pkg

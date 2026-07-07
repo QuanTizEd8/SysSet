@@ -3,7 +3,6 @@ add_users:
     add_users="testuser" + setup_git=true + all other add_*_user=false.
     Verifies that the feature targets exactly the user named in add_users,
     writing the gh credential helper to /home/testuser/.gitconfig.
-
   checks:
     - title: gh is on PATH
       cmd: command -v gh
@@ -20,105 +19,12 @@ add_users:
       cmd: bash -c 'git config --file /home/testuser/.gitconfig --get-all credential."https://github.com".helper 2>/dev/null | grep -q "gh auth git-credential"'
     - title: .gitconfig owned by testuser
       cmd: bash -c '[ "$(stat -c %U /home/testuser/.gitconfig 2>/dev/null)" = "testuser" ]'
-
-binary_custom_prefix:
-  description: |
-    method=binary, prefix=/opt/gh, symlink=true:
-    Binary at /opt/gh/bin/gh, symlink at /usr/local/bin/gh pointing to it.
-
-  pre: |
-    echo "=== /opt/gh/bin/gh ==="
-    ls -la /opt/gh/bin/gh 2>/dev/null || echo "(missing)"
-
-  checks:
-    - title: gh binary at /opt/gh/bin/gh
-      cmd: test -f /opt/gh/bin/gh
-    - title: gh binary at custom path is executable
-      cmd: test -x /opt/gh/bin/gh
-    - title: gh --version via custom path
-      cmd: /opt/gh/bin/gh --version
-    - title: symlink exists at /usr/local/bin/gh
-      cmd: test -L /usr/local/bin/gh
-      debug: |
-        echo "=== /usr/local/bin/gh symlink ==="
-        ls -la /usr/local/bin/gh 2>/dev/null || echo "(missing)"
-    - title: symlink resolves to /opt/gh/bin/gh
-      cmd: bash -c '[ "$(readlink -f /usr/local/bin/gh)" = "/opt/gh/bin/gh" ]'
-    - title: gh callable via PATH
-      cmd: command -v gh
-    - title: gh --version succeeds via symlink
-      cmd: gh --version
-
-binary_custom_prefix_nonroot:
-  description: |
-    method=binary, prefix=/opt/gh, symlink=true, running as non-root (vscode).
-    The installer runs as root (devcontainer build), so the system-wide symlink
-    /usr/local/bin/gh is created. No user-scoped symlink is expected.
-
-  checks:
-    - title: gh binary at /opt/gh/bin/gh
-      cmd: test -f /opt/gh/bin/gh
-    - title: gh binary is executable
-      cmd: test -x /opt/gh/bin/gh
-    - title: gh --version via custom path
-      cmd: /opt/gh/bin/gh --version
-    - title: /usr/local/bin/gh symlink exists
-      cmd: test -L /usr/local/bin/gh
-    - title: symlink target is /opt/gh/bin/gh
-      cmd: bash -c '[ "$(readlink /usr/local/bin/gh)" = "/opt/gh/bin/gh" ]'
-    - title: no \$HOME/.local/bin/gh symlink
-      cmd: bash -c '! test -e /home/vscode/.local/bin/gh'
-
-binary_no_completions:
-  description: |
-    method=binary, shell_completions="" (no completions):
-    gh is installed but bash and zsh completion files must NOT be written.
-
-  checks:
-    - title: gh binary installed
-      cmd: test -f /usr/local/bin/gh
-    - title: gh --version succeeds
-      cmd: gh --version
-    - title: no bash completion file
-      cmd: bash -c '! test -f /etc/bash_completion.d/gh'
-      debug: |
-        echo "=== /etc/bash_completion.d/gh (should be absent) ==="
-        ls -la /etc/bash_completion.d/gh 2>/dev/null || echo "(correctly absent)"
-    - title: no zsh completion file
-      cmd: bash -c '! find /usr/local/share/zsh /usr/share/zsh /usr/local/share /usr/share -name "_gh" 2>/dev/null | grep -q .'
-      debug: |
-        echo "=== zsh _gh search (should find nothing) ==="
-        find /usr/local/share/zsh /usr/share/zsh /usr/local/share /usr/share -name "_gh" 2>/dev/null || echo "(correctly absent)"
-
-custom_prefix_no_symlink:
-  description: |
-    method=binary, prefix=/opt/gh, symlink=false:
-    Binary at /opt/gh/bin/gh; NO symlink should exist at /usr/local/bin/gh.
-
-  pre: |
-    echo "=== /opt/gh/bin/gh ==="
-    ls -la /opt/gh/bin/gh 2>/dev/null || echo "(missing)"
-
-  checks:
-    - title: gh binary at /opt/gh/bin/gh
-      cmd: test -f /opt/gh/bin/gh
-    - title: gh binary at custom path is executable
-      cmd: test -x /opt/gh/bin/gh
-    - title: gh --version via custom path
-      cmd: /opt/gh/bin/gh --version
-    - title: no symlink at /usr/local/bin/gh
-      cmd: bash -c '! test -e /usr/local/bin/gh'
-      debug: |
-        echo "=== /usr/local/bin/gh (should be absent) ==="
-        ls -la /usr/local/bin/gh 2>/dev/null || echo "(correctly absent)"
-
 binary_symlink_user_home_prefix:
   description: |
     method=binary, prefix=/root/gh, symlink=true.
     $prefix is under root's home directory (/root per /etc/passwd), so a
     user-scoped symlink is created at $HOME/.local/bin/gh -> $prefix/bin/gh.
     No system-wide /usr/local/bin/gh symlink is created.
-
   checks:
     - title: gh binary at /root/gh/bin/gh
       cmd: test -f /root/gh/bin/gh
@@ -132,42 +38,12 @@ binary_symlink_user_home_prefix:
       cmd: /root/.local/bin/gh --version
     - title: no /usr/local/bin/gh symlink
       cmd: bash -c '! test -e /usr/local/bin/gh'
-
-default:
-  description: |
-    Default installation on Ubuntu: no explicit options (method=auto).
-    Verifies gh is installed, callable, and bash and zsh completions are present.
-
-  checks:
-    - title: gh binary installed
-      cmd: command -v gh
-    - title: gh binary is executable
-      cmd: bash -c 'gh --version > /dev/null 2>&1'
-    - title: gh --version succeeds
-      cmd: gh --version
-      debug: |
-        echo "=== gh --version ==="
-        gh --version 2>&1 || echo "(failed)"
-    - title: bash completion file exists
-      cmd: test -f /etc/bash_completion.d/gh
-      debug: |
-        echo "=== /etc/bash_completion.d/gh ==="
-        head -n 5 /etc/bash_completion.d/gh 2>/dev/null || echo "(missing)"
-    - title: bash completion file is non-empty
-      cmd: test -s /etc/bash_completion.d/gh
-    - title: zsh completion file exists
-      cmd: bash -c 'test -f /etc/zsh/completions/_gh || find /etc/zsh /usr/local/share/zsh /usr/share/zsh /usr/local/share /usr/share -name "_gh" 2>/dev/null | grep -q .'
-      debug: |
-        echo "=== zsh completions search ==="
-        find /etc/zsh /usr/local/share/zsh /usr/share/zsh /usr/local/share /usr/share -name "_gh" 2>/dev/null || echo "(none found)"
-
 extensions:
   description: |
     extensions="github/gh-copilot" with add_remote_user=true (vscode user).
     Verifies that the extensions option is parsed and that _gh__install_extensions
     is invoked, confirmed by the "Installing gh extension" line in the install log.
     (The actual extension install is non-fatal; we assert the attempt was made.)
-
   checks:
     - title: gh is on PATH
       cmd: command -v gh
@@ -180,12 +56,10 @@ extensions:
         tail -n 20 /tmp/gh-ext-install.log 2>/dev/null || echo "(log_file missing)"
     - title: extension install was attempted for vscode
       cmd: bash -c "grep -q \"Installing gh extension 'github/gh-copilot' for user 'vscode'\" /tmp/gh-ext-install.log 2>/dev/null"
-
 ghes_hostname:
   description: |
     setup_git=true + git_hostname=git.corp.example.com + add_remote_user=true (vscode user).
     Verifies gh auth setup-git wrote the credential helper for the custom GHES hostname.
-
   checks:
     - title: gh is on PATH
       cmd: command -v gh
@@ -202,12 +76,10 @@ ghes_hostname:
       cmd: bash -c 'git config --file /home/vscode/.gitconfig --get-all credential."https://git.corp.example.com".helper 2>/dev/null | grep -q "gh auth git-credential"'
     - title: .gitconfig owned by vscode
       cmd: bash -c '[ "$(stat -c %U /home/vscode/.gitconfig 2>/dev/null)" = "vscode" ]'
-
 git_protocol_https:
   description: |
     git_protocol=https + add_remote_user=true (vscode user).
     Verifies gh config file under /home/vscode contains git_protocol: https.
-
   checks:
     - title: gh is on PATH
       cmd: command -v gh
@@ -223,60 +95,22 @@ git_protocol_https:
         bash -c 'grep -q "git_protocol: https" /home/vscode/.config/gh/config.yml 2>/dev/null'
     - title: config.yml owned by vscode
       cmd: bash -c '[ "$(stat -c %U /home/vscode/.config/gh/config.yml 2>/dev/null)" = "vscode" ]'
-
-if_exists_fail_preinstalled:
-  description: |
-    Verify that if_exists=fail exits non-zero when gh is already installed.
-    SETUP_CMD (in if_exists_fail_preinstalled.conf) places a stub gh binary.
-    Confirm the stub is pre-installed by SETUP_CMD.
-
-  checks:
-    - title: gh stub pre-installed by setup
-      cmd: command -v gh
-    - title: gh stub reports a version
-      cmd: bash -c 'gh --version | grep -qE "gh version [0-9]"'
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-
 if_exists_fail_preinstalled_network_isolated:
   description: |
     Verify that if_exists=fail with a pre-installed gh stub exits non-zero even
     when the network is blocked — the existence check happens before any network call.
     The base image (built by run-linux.sh) provides the required apt packages.
-
   checks:
     - title: gh stub pre-installed by setup
       cmd: command -v gh
     - kind: install_failure
       title: if_exists=fail exits with already-installed error when network is blocked
       pattern: failing (if_exists=fail)
-
-if_exists_skip:
-  description: |
-    if_exists=skip: gh 2.67.0 is pre-installed in the image (see if_exists_skip/Dockerfile).
-    The feature detects the existing binary and skips reinstalling.
-    The original installation must be intact and functional.
-
-  checks:
-    - title: gh binary still present at /usr/local/bin/gh
-      cmd: test -f /usr/local/bin/gh
-    - title: gh binary is still executable
-      cmd: test -x /usr/local/bin/gh
-    - title: gh --version succeeds
-      cmd: gh --version
-      debug: |
-        echo "=== gh --version ==="
-        gh --version 2>&1 || echo "(failed)"
-    - title: gh version is still 2.67.0
-      cmd: bash -c '[ "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")" = "2.67.0" ]'
-
 if_exists_skip_no_mutation:
   description: |
     if_exists=skip should exit before any installer-side mutation.
     This image has gh preinstalled but curl intentionally removed. If the feature
     truly makes no changes when skipping, curl must stay absent.
-
   checks:
     - title: gh binary still present at /usr/local/bin/gh
       cmd: test -f /usr/local/bin/gh
@@ -286,12 +120,10 @@ if_exists_skip_no_mutation:
       cmd: bash -c '[ "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")" = "2.67.0" ]'
     - title: curl remains absent when install is skipped
       cmd: bash -c '! command -v curl >/dev/null 2>&1'
-
 installer_dir:
   description: |
     installer_dir=/tmp/gh-trace: the downloaded archive and checksums file must
     remain in installer_dir after installation completes.
-
   checks:
     - title: gh binary installed
       cmd: test -f /usr/local/bin/gh
@@ -306,58 +138,19 @@ installer_dir:
       cmd: bash -c 'ls /tmp/gh-trace/archive/gh_*.tar.gz 2>/dev/null | grep -q .'
     - title: checksums file preserved in installer_dir
       cmd: bash -c 'ls /tmp/gh-trace/sidecar/gh_*_checksums.txt 2>/dev/null | grep -q .'
-
-invalid_if_exists:
-  description: |
-    Verify that passing an unknown if_exists value causes the installer to exit non-zero.
-
-  checks:
-    - kind: install_failure
-      title: invalid if_exists rejected by installer
-      pattern: "Invalid value for 'if_exists'"
-
-invalid_method:
-  description: |
-    Verify that passing an unknown method value causes the installer to exit non-zero.
-
-  checks:
-    - kind: install_failure
-      title: invalid method rejected by installer
-      pattern: "Invalid value for 'method'"
-
 invalid_sign_commits:
   description: |
     Verify that passing an invalid sign_commits value causes the installer to exit non-zero.
-
   checks:
     - kind: install_failure
       title: invalid sign_commits rejected by installer
       pattern: "Invalid value for 'sign_commits'"
-
-log_file:
-  description: |
-    log_file=/tmp/gh-install.log: all install output is captured to the specified file.
-
-  checks:
-    - title: gh binary installed
-      cmd: command -v gh
-    - title: gh --version succeeds
-      cmd: gh --version
-    - title: log_file was created
-      cmd: test -f /tmp/gh-install.log
-      debug: |
-        echo "===== /tmp/gh-install.log (last 20 lines) ====="
-        tail -n 20 /tmp/gh-install.log 2>/dev/null || echo "(log_file missing)"
-    - title: log_file is non-empty
-      cmd: test -s /tmp/gh-install.log
-
 macos_binary_default:
   description: |
     macOS: default install (if_exists=skip).
     macOS GHA runners have gh pre-installed (GitHub CLI 2.x). Our feature detects
     the existing installation and exits 0 without making any changes, thanks to
     the if_exists=skip early-exit path. Validates the early-exit path on macOS.
-
   checks:
     - title: gh pre-installed on runner
       cmd: command -v gh
@@ -370,23 +163,19 @@ macos_binary_default:
           --log_level trace
     - title: gh still returns version string
       cmd: bash -c 'gh --version | grep -qE "^gh version [0-9]"'
-
 network_isolated_version_resolution:
   description: |
     Verify that gh installation fails when the network is blocked (version
     resolution requires the GitHub Releases API).
     The base image (built by run-linux.sh) pre-installs feature dependencies.
-
   checks:
     - kind: install_failure
       title: network-isolated install fails during GitHub version resolution
       pattern: failed to resolve latest tag
-
 setup_git:
   description: |
     setup_git=true + add_remote_user=true (vscode user, default git_hostname=github.com).
     Verifies gh auth setup-git wrote the credential helper lines to ~/.gitconfig.
-
   checks:
     - title: gh is on PATH
       cmd: command -v gh
@@ -403,13 +192,11 @@ setup_git:
       cmd: bash -c 'git config --file /home/vscode/.gitconfig --get-all credential."https://github.com".helper 2>/dev/null | grep -q "gh auth git-credential"'
     - title: .gitconfig owned by vscode
       cmd: bash -c '[ "$(stat -c %U /home/vscode/.gitconfig 2>/dev/null)" = "vscode" ]'
-
 sign_commits_gpg:
   description: |
     sign_commits=gpg + add_remote_user=true (vscode user).
     Verifies ~/.gitconfig has commit.gpgsign=true and does NOT have gpg.format set
     to ssh (GPG is the git default; unsetting gpg.format is correct to avoid SSH override).
-
   checks:
     - title: gh is on PATH
       cmd: command -v gh
@@ -426,12 +213,10 @@ sign_commits_gpg:
       cmd: bash -c '[ "$(git config --file /home/vscode/.gitconfig gpg.format 2>/dev/null)" != "ssh" ]'
     - title: .gitconfig owned by vscode
       cmd: bash -c '[ "$(stat -c %U /home/vscode/.gitconfig 2>/dev/null)" = "vscode" ]'
-
 sign_commits_ssh:
   description: |
     sign_commits=ssh + add_remote_user=true (vscode user).
     Verifies ~/.gitconfig has gpg.format=ssh and commit.gpgsign=true.
-
   checks:
     - title: gh is on PATH
       cmd: command -v gh
@@ -448,95 +233,6 @@ sign_commits_ssh:
       cmd: bash -c '[ "$(git config --file /home/vscode/.gitconfig commit.gpgsign 2>/dev/null)" = "true" ]'
     - title: .gitconfig owned by vscode
       cmd: bash -c '[ "$(stat -c %U /home/vscode/.gitconfig 2>/dev/null)" = "vscode" ]'
-
-binary_pinned_version:
-  description: |
-    version=2.67.0 + method=binary: install a specific pinned version via binary download.
-    Verifies the binary reports exactly 2.67.0.
-
-  checks:
-    - title: gh binary is at /usr/local/bin/gh
-      cmd: test -f /usr/local/bin/gh
-    - title: gh binary is executable
-      cmd: test -x /usr/local/bin/gh
-    - title: gh --version succeeds
-      cmd: gh --version
-      debug: |
-        echo "=== gh --version ==="
-        gh --version 2>&1 || echo "(failed)"
-    - title: gh version is exactly 2.67.0
-      cmd: bash -c '[ "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")" = "2.67.0" ]'
-
-upstream_package_default:
-  description: |
-    method=upstream-package across the upstream-repo-backed distros (Ubuntu,
-    Debian, Fedora, openSUSE). Verifies gh is installed and callable on each
-    platform via the official GitHub package repository.
-
-  pre: |
-    echo "=== which gh ==="
-    which gh 2>&1 || echo "(not on PATH)"
-    echo "=== gh --version ==="
-    gh --version 2>&1 || echo "(failed)"
-
-  checks:
-    - title: gh is on PATH
-      cmd: command -v gh
-    - title: gh --version succeeds
-      cmd: gh --version
-    - title: gh is package-manager-managed
-      kind: multiple
-      min: 1
-      cmd:
-        - bash -c 'dpkg -S "$(command -v gh)" >/dev/null 2>&1'
-        - bash -c 'rpm -q github-cli >/dev/null 2>&1 || rpm -q gh >/dev/null 2>&1'
-
-package_default:
-  shell: sh
-  description: |
-    method=package on the distros that already ship gh in their standard package
-    sources (Alpine, Arch). Verifies gh is installed, callable, and managed by
-    the native distro package manager.
-
-  pre: |
-    echo "=== which gh ==="
-    which gh 2>&1 || echo "(not on PATH)"
-    echo "=== gh --version ==="
-    gh --version 2>&1 || echo "(failed)"
-
-  checks:
-    - title: gh is on PATH
-      cmd: command -v gh
-    - title: gh --version succeeds
-      cmd: gh --version
-    - title: gh is package-manager-managed
-      kind: multiple
-      min: 1
-      cmd:
-        - sh -c 'apk info -e github-cli >/dev/null 2>&1'
-        - sh -c 'pacman -Q github-cli >/dev/null 2>&1'
-
-upstream_package_no_completions:
-  description: |
-    method=upstream-package (default), shell_completions="" (no completions) on Ubuntu:
-    gh is installed via the official apt repo but completion files must NOT be written.
-
-  checks:
-    - title: gh binary installed
-      cmd: command -v gh
-    - title: gh --version succeeds
-      cmd: gh --version
-    - title: no bash completion file
-      cmd: bash -c '! test -f /etc/bash_completion.d/gh'
-      debug: |
-        echo "=== /etc/bash_completion.d/gh (should be absent) ==="
-        ls -la /etc/bash_completion.d/gh 2>/dev/null || echo "(correctly absent)"
-    - title: no feature-written zsh completion
-      cmd: bash -c '! test -f /etc/zsh/completions/_gh'
-      debug: |
-        echo "=== feature zsh completion path (should be absent) ==="
-        ls -la /etc/zsh/completions/_gh 2>/dev/null || echo "(correctly absent)"
-
 version_match_idempotency:
   description: |
     version=2.67.0 + if_exists=fail + gh 2.67.0 pre-installed (see version_match_idempotency/Dockerfile).

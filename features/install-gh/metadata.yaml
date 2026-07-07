@@ -109,9 +109,14 @@ _options:
   verify:
     args: "--version"
     description: Verify the GitHub CLI is installed and working.
+    functional:
+      description: gh resolves configuration and reports the default git protocol
+      cmd: 'test "$({bin} config get git_protocol)" = https'
   gh_repo: cli/cli
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["2.67.0"]
   completions:
     subcmd: "completion -s"
     shells: [bash, zsh]
