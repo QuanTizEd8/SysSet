@@ -45,9 +45,19 @@ rollout:
     - install-bash
     - install-gh
   denylist:
+    # Orchestration / manifest features: no _options.method, .version, .prefix,
+    # or .verify — they configure the environment (packages, files, users,
+    # shims, fonts) rather than installing a versioned tool onto PATH, so none
+    # of the install-tool generator families apply. Their scenarios are all
+    # genuinely unique to each feature and stay hand-written.
     - install
     - install-os-pkg
+    - install-os-pkg-bundle
+    - install-fonts
     - setup-shell
+    - setup-files
+    - setup-shim
+    - setup-user
     # No primary binary/command (no _options.verify.cmd or _options.prefix.bins):
     # every generator family builds binary-presence scenarios and fails without one.
     - install-bash-completion
