@@ -26,8 +26,14 @@ _options:
   verify:
     args: "--version"
     description: Verify bash is installed and working.
+    functional:
+      description: bash executes a command and returns its output
+      cmd: 'test "$({bin} -c "printf ok")" = ok'
   version:
     resolution: sidecar
+    test_pins:
+      pinned: ["5.2.37"]
+      legacy: ["5.1.16"]
     uri: "https://ftp.gnu.org/gnu/bash/"
     pattern: "bash-[version].tar.gz"
   method:

@@ -42,6 +42,7 @@ rollout:
     - install-tokei
     - install-zsh
     - install-oras
+    - install-bash
   denylist:
     - install
     - install-os-pkg

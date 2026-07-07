@@ -1,91 +1,19 @@
-default:
-  envs: [debian-stable]
-  modes: [devcontainer, standalone]
-  tests: [default]
-
-package_default:
-  envs: [alpine-current]
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [package_default]
-
-source_default:
-  envs: [alpine-current+build-base+ncurses]
-  modes: [standalone]
-  options:
-    method: source
-    version: "5.3"
-  tests: [source_default]
-
-source_pinned_version:
-  envs: [alpine-current+build-base+ncurses]
-  modes: [standalone]
-  options:
-    method: source
-    version: "5.2"
-  tests: [source_pinned_version]
-
-source_custom_prefix:
-  envs: [alpine-current+build-base+ncurses]
-  modes: [devcontainer, standalone]
-  options:
-    method: source
-    version: "5.3"
-    prefix: /opt/bash
-    prefix_discovery: symlink
-  tests: [source_custom_prefix]
-
-source_nonroot:
-  envs: [alpine-current+build-base+ncurses+vscode]
-  modes: [standalone]
-  options:
-    method: source
-    version: "5.3"
-  standalone:
-    user: vscode
-  tests: [source_nonroot]
-
 bootstrap_pm_collision:
+  # Bash-unique: on a system with no pre-installed bash (Alpine), install.sh
+  # bootstraps bash via the OS package manager to run the feature, setting
+  # _BASH_INSTALLED_BY_PM. The feature's __install_finish_post hook must clear
+  # that tracking so the cleanup phase does not uninstall the bash it just
+  # installed. No generic rule models a feature that bootstraps its own tool.
   envs: [alpine-current]
   modes: [standalone]
   options:
     method: package
   tests: [bootstrap_pm_collision]
 
-if_exists_fail:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  options:
-    method: auto
-    if_exists: fail
-  tests: [if_exists_fail]
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/bin/sh\nif [ "${1-}" = "--version" ]; then printf "GNU bash, version 9.9.9 (fake)\\n"; exit 0; fi\nexit 0' > /usr/local/bin/bash
-    chmod +x /usr/local/bin/bash
-  options:
-    method: auto
-    if_exists: skip
-  tests: [if_exists_skip]
-
-invalid_method:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  options:
-    method: binary
-  tests: [invalid_method]
-
 set_login_shell:
-  # set_login_shell (default true) sets the resolved user's login shell to the
-  # installed bash — here via the if_exists=skip path (Debian ships bash), which
-  # must still configure users. Migrated from setup-shell's former
-  # set_user_shells option.
+  # set_login_shell (bash-specific option) sets the resolved user's login shell
+  # to the installed bash via the if_exists=skip path (Debian ships bash), which
+  # must still configure users. No generic rule models login-shell assignment.
   envs: [debian-stable]
   modes: [standalone]
   setup: useradd -m -s /bin/sh shelluser
@@ -96,3 +24,15 @@ set_login_shell:
     add_remote_user: false
     add_container_user: false
   tests: [set_login_shell]
+
+generation:
+  augment_tests:
+    # A source system-wide install registers the installed bash in /etc/shells;
+    # a non-root user install does not. The generator has no /etc/shells concept,
+    # so attach the assertions to the generated source scenarios.
+    source_default: [bash_shells_registered]
+    version_pinned: [bash_shells_registered]
+    version_legacy: [bash_shells_registered]
+    custom_prefix_symlink: [bash_shells_registered]
+    custom_prefix_no_symlink: [bash_shells_registered]
+    custom_prefix_symlink_nonroot: [bash_shells_not_registered]

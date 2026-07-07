@@ -1,120 +1,22 @@
-default:
-  description: Verifies default install puts a functional bash on PATH.
-  checks:
-    - title: bash is on PATH
-      cmd: command -v bash
-    - title: bash reports a version
-      cmd: bash -c 'bash --version | grep -Eq "^GNU bash"'
-
-package_default:
-  description: Verifies method=package installs bash from the OS package manager.
-  checks:
-    - title: bash is on PATH
-      cmd: command -v bash
-    - title: bash is executable
-      cmd: test -x "$(command -v bash)"
-    - title: bash reports a version
-      cmd: bash --version
-
-source_default:
-  description: Verifies method=source builds bash 5.3 from an official GNU FTP tarball.
-  checks:
-    - title: bash binary present at /usr/local/bin/bash
-      cmd: test -f /usr/local/bin/bash
-    - title: bash binary is executable
-      cmd: test -x /usr/local/bin/bash
-    - title: bash --version succeeds
-      cmd: /usr/local/bin/bash --version
-    - title: bash version is 5.3
-      cmd: bash -c '/usr/local/bin/bash --version 2>/dev/null | grep -q "version 5\.3"'
-    - title: bash listed in /etc/shells
-      cmd: grep -qx /usr/local/bin/bash /etc/shells
-
-source_pinned_version:
-  description: Verifies a pinned source build installs the requested major version.
-  checks:
-    - title: bash binary present at /usr/local/bin/bash
-      cmd: test -f /usr/local/bin/bash
-    - title: bash version is in the 5.2 series
-      cmd: bash -c '/usr/local/bin/bash --version 2>/dev/null | grep -q "version 5\.2"'
-
-source_custom_prefix:
-  description: |
-    method=source with prefix=/opt/bash verifies the binary lands under the custom prefix
-    and a symlink is created at /usr/local/bin/bash.
-  checks:
-    - title: bash binary is at /opt/bash/bin/bash
-      cmd: test -f /opt/bash/bin/bash
-    - title: bash binary at custom prefix is executable
-      cmd: test -x /opt/bash/bin/bash
-    - title: /opt/bash/bin/bash --version succeeds
-      cmd: /opt/bash/bin/bash --version
-    - title: bash version at custom prefix is 5.3
-      cmd: bash -c '/opt/bash/bin/bash --version 2>/dev/null | grep -q "version 5\.3"'
-    - title: symlink exists at /usr/local/bin/bash
-      cmd: test -L /usr/local/bin/bash
-    - title: symlink resolves to /opt/bash/bin/bash
-      cmd: bash -c '[ "$(readlink -f /usr/local/bin/bash)" = "/opt/bash/bin/bash" ]'
-    - title: bash listed in /etc/shells
-      cmd: grep -qx /opt/bash/bin/bash /etc/shells
-
-source_nonroot:
-  description: Non-root user builds bash 5.3 from source to the default user prefix.
-  pre: |
-    _BASH="${HOME}/.local/bin/bash"
-    export _BASH
-  checks:
-    - title: bash binary is at user prefix
-      cmd: test -f "${_BASH}"
-    - title: bash binary is executable
-      cmd: test -x "${_BASH}"
-    - title: bash --version succeeds
-      cmd: '"${_BASH}" --version'
-    - title: bash version is 5.3
-      cmd: bash -c '"${_BASH}" --version 2>/dev/null | grep -q "version 5\.3"'
-    - title: bash NOT listed in /etc/shells (user install)
-      cmd: bash -c '! grep -qx "${_BASH}" /etc/shells 2>/dev/null'
-
 bootstrap_pm_collision:
   description: |
-    Verifies bash is not removed after install on a system where install.sh bootstrapped
-    it via the OS package manager. On Alpine (no pre-installed bash), install.sh installs
-    bash via apk and sets _BASH_INSTALLED_BY_PM; the feature's __install_finish_post hook
-    clears that tracking variable so the cleanup phase does not uninstall the feature-owned bash.
+    Verifies bash is not removed after install on a system where install.sh
+    bootstrapped it via the OS package manager. On Alpine (no pre-installed
+    bash), install.sh installs bash via apk and sets _BASH_INSTALLED_BY_PM; the
+    feature's __install_finish_post hook clears that tracking variable so the
+    cleanup phase does not uninstall the feature-owned bash.
   checks:
     - title: bash is on PATH after cleanup phase
       cmd: command -v bash
     - title: bash is executable
       cmd: test -x "$(command -v bash)"
     - title: bash reports a version
-      cmd: bash --version
-
-if_exists_fail:
-  description: Ensures if_exists=fail exits non-zero when bash already exists.
-  checks:
-    - title: preinstalled bash remains available
-      cmd: command -v bash
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-
-if_exists_skip:
-  description: Ensures if_exists=skip succeeds when bash already exists and leaves it untouched.
-  checks:
-    - title: bash remains available after skip
-      cmd: command -v bash
-    - title: existing bash version unchanged (skip did not reinstall)
-      cmd: sh -c 'bash --version 2>&1 | grep -q "9.9.9"'
-
-invalid_method:
-  description: Ensures an unsupported method value fails fast.
-  checks:
-    - kind: install_failure
-      title: invalid method rejected
-      pattern: "Invalid value for 'method'"
+      cmd: bash -c 'bash --version | grep -Eq "^GNU bash"'
 
 set_login_shell:
-  description: set_login_shell changes the resolved user's default login shell to bash and registers it in /etc/shells, even when bash pre-exists (skip path).
+  description: |
+    set_login_shell changes the resolved user's default login shell to bash and
+    registers it in /etc/shells, even when bash pre-exists (skip path).
   checks:
     - title: bash is on PATH
       cmd: command -v bash
@@ -123,3 +25,21 @@ set_login_shell:
     - title: shelluser default shell is bash
       cmd: |-
         bash -c '[ "$(getent passwd shelluser | cut -d: -f7)" = "$(command -v bash)" ]'
+
+bash_shells_registered:
+  description: |
+    A source system-wide install registers the installed bash in /etc/shells so
+    it is eligible as a login shell. The registered path is the real resolved
+    binary (${_RESOLVED_PREFIX}/bin/bash), so resolve symlinks before matching to
+    stay correct for both default-prefix and custom-prefix (symlink) installs.
+  checks:
+    - title: installed bash is registered in /etc/shells
+      cmd: grep -qx "$(readlink -f "$(command -v bash)")" /etc/shells
+
+bash_shells_not_registered:
+  description: |
+    A non-root user install cannot write /etc/shells, so the user-installed bash
+    must not appear there (only the pre-existing system bash may).
+  checks:
+    - title: user-installed bash is not registered in /etc/shells
+      cmd: bash -c '! grep -qx "$(readlink -f "$(command -v bash)")" /etc/shells 2>/dev/null'
