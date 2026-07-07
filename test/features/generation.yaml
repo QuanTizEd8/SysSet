@@ -44,6 +44,7 @@ rollout:
     - install-oras
     - install-bash
     - install-gh
+    - install-starship
   denylist:
     # Orchestration / manifest features: no _options.method, .version, .prefix,
     # or .verify — they configure the environment (packages, files, users,

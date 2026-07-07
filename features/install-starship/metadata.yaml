@@ -19,9 +19,14 @@ _options:
   verify:
     args: "--version"
     description: Verify Starship is installed and working.
+    functional:
+      description: starship generates its shell init script
+      cmd: '{bin} init bash | grep -q starship'
   gh_repo: starship/starship
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["1.25.1"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/starship-{plat.machine==armv7l?arm-unknown-linux-musleabihf:{plat.rust_triple}}.tar.gz"
