@@ -29,7 +29,12 @@ _options:
     resolution: github_release
     test_pins:
       pinned: ["1.2.3"]
-      legacy: ["1.2.0"]
+      # 1.2.2 (not 1.2.0): oras signs release tarballs with a detached GPG
+      # signature, and 1.2.0 was signed with a key (46D3369B…404F) no longer
+      # present in the project's current KEYS file, so it is genuinely
+      # unverifiable and the feature (correctly) refuses to install it. 1.2.2
+      # is signed with the same key as 1.2.3 (73C7F42E…0185, in KEYS).
+      legacy: ["1.2.2"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/oras_{feat.version}_{plat.kernel:lower}_{plat.machine_release}.tar.gz"
@@ -40,7 +45,10 @@ _options:
     package:
       when:
         - {plat.pm: [dnf, yum], os.id: fedora}
-        - {plat.pm: apt, os.id: debian}
+        # Debian ships oras only from trixie (13) onward — it is absent from
+        # bookworm (12) apt, where `apt install oras` fails. Constrain like the
+        # ubuntu entry below rather than claiming every Debian release.
+        - {plat.pm: apt, os.id: debian, os.version_id: ["13", "14"]}
         - {plat.pm: apt, os.id: ubuntu, os.version_id: ["25.04", "25.10", "26.04"]}
         - {plat.pm: apk}
         - {plat.pm: zypper, os.id: [opensuse-tumbleweed, opensuse-slowroll]}
