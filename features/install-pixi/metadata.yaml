@@ -18,6 +18,10 @@ _tool_name: Pixi
 _options:
   verify:
     args: "info --extended"
+    functional:
+      description: pixi resolves platform and configuration
+      cmd: '{bin} info --json > /dev/null 2>&1'
+
     description: |-
       Verify pixi is installed and working by running
       [`pixi info --extended`](https://pixi.prefix.dev/latest/reference/cli/pixi/info/).
@@ -28,6 +32,8 @@ _options:
   user_file_fetch: true
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["0.41.0"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/pixi-{plat.rust_triple}.tar.gz"

@@ -45,6 +45,7 @@ rollout:
     - install-bash
     - install-gh
     - install-starship
+    - install-pixi
   denylist:
     # Orchestration / manifest features: no _options.method, .version, .prefix,
     # or .verify — they configure the environment (packages, files, users,

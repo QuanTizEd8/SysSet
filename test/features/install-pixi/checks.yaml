@@ -4,7 +4,6 @@ custom_bin_dir:
     Verifies pixi is installed to $prefix/bin/pixi, a PATH export block
     is written to profile.d (because prefix != /usr/local), and no symlink
     is created at /usr/local/bin/pixi.
-
   checks:
     - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
@@ -26,13 +25,11 @@ custom_bin_dir:
       cmd: grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
     - title: no symlink at /usr/local/bin/pixi
       cmd: bash -c '! test -L /usr/local/bin/pixi'
-
 custom_bin_dir_symlink:
   description: |
     prefix=/opt/pixi, symlink=true (as root):
     Verifies pixi installed to $prefix/bin/pixi AND a symlink is created at
     /usr/local/bin/pixi pointing to the custom-dir binary.
-
   checks:
     - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
@@ -48,55 +45,10 @@ custom_bin_dir_symlink:
       cmd: test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
     - title: profile.d script exports /opt/pixi/bin
       cmd: grep -Fq '/opt/pixi/bin' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
-
-custom_bin_dir_symlink_nonroot:
-  description: |
-    prefix=/opt/pixi, symlink=true, running as non-root (vscode).
-    The installer runs as root (devcontainer build), so the system-wide symlink
-    /usr/local/bin/pixi is created. No user-scoped symlink is expected.
-
-  checks:
-    - title: pixi binary at /opt/pixi/bin/pixi
-      cmd: test -f /opt/pixi/bin/pixi
-    - title: pixi binary is executable
-      cmd: test -x /opt/pixi/bin/pixi
-    - title: /usr/local/bin/pixi symlink exists
-      cmd: test -L /usr/local/bin/pixi
-    - title: symlink target is /opt/pixi/bin/pixi
-      cmd: bash -c '[ "$(readlink /usr/local/bin/pixi)" = "/opt/pixi/bin/pixi" ]'
-    - title: pixi callable via symlink
-      cmd: /usr/local/bin/pixi --version
-    - title: no \$HOME/.pixi/bin/pixi symlink
-      cmd: bash -c '! test -e /home/vscode/.pixi/bin/pixi'
-
-default:
-  description: |
-    Default installation on Ubuntu and Debian: all defaults (root → /usr/local/bin, export_path=auto no-op).
-    Verifies pixi is installed, callable, and that no unnecessary PATH or PIXI_HOME
-    blocks are written (prefix=/usr/local; /usr/local/bin is already on PATH).
-
-  checks:
-    - title: pixi binary is at /usr/local/bin/pixi
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi binary is executable
-      cmd: test -x /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-      debug: |
-        echo "=== pixi --version ==="
-        /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
-    - title: no profile.d export file written
-      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
-    - title: no profile.d PIXI_HOME block written
-      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
-    - title: installer dir cleaned up
-      cmd: bash -c '! test -f /tmp/pixi-installer/pixi-*.tar.gz 2>/dev/null'
-
 export_path_disabled:
   description: |
     prefix=/opt/pixi, export_path="" (disabled), symlink=false:
     Verifies pixi is installed but no PATH export block is written anywhere.
-
   checks:
     - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
@@ -110,23 +62,19 @@ export_path_disabled:
       cmd: bash -c '! grep -Fq "pixi PATH (install-pixi)" /etc/bash.bashrc 2>/dev/null'
     - title: no pixi PATH marker in zshenv
       cmd: bash -c '! grep -Fq "pixi PATH (install-pixi)" /etc/zsh/zshenv 2>/dev/null'
-
 github_api_unreachable_network_isolated:
   description: |
     Verify that pixi installation fails when the network is blocked (version
     resolution requires the GitHub Releases API).
-
   checks:
     - kind: install_failure
       title: network-isolated install fails during GitHub version resolution
       pattern: failed to resolve latest tag
-
 home_dir:
   description: |
     home_dir=/var/pixi: PIXI_HOME is set during install and export_pixi_home=auto
     writes an export block to system-wide profile.d so the variable is available
     at runtime in every shell session.
-
   checks:
     - title: pixi binary installed
       cmd: test -f /usr/local/bin/pixi
@@ -160,77 +108,11 @@ home_dir:
       cmd: grep -Fq 'prefix activation (install-pixi)' /etc/zsh/zshenv
     - title: no pixi PATH block in export file
       cmd: bash -c '! grep -Fq "pixi PATH (install-pixi)" "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null'
-
-if_exists_fail_preinstalled:
-  description: |
-    Verify that if_exists=fail exits non-zero when pixi is already installed.
-    SETUP_CMD (in if_exists_fail_preinstalled.conf) places a stub pixi binary.
-
-  checks:
-    - title: pixi stub pre-installed by setup
-      cmd: command -v pixi
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-
-if_exists_reinstall:
-  description: |
-    if_exists=reinstall: pixi is pre-installed (see Dockerfile). The feature
-    removes the existing binary and installs a fresh copy.
-
-  checks:
-    - title: pixi binary present at /usr/local/bin/pixi
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi binary is executable
-      cmd: test -x /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-      debug: |
-        echo "=== pixi --version ==="
-        /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
-    - title: installer dir cleaned up
-      cmd: bash -c '! test -f /tmp/pixi-installer/pixi-*.tar.gz 2>/dev/null'
-
-if_exists_skip:
-  description: |
-    if_exists=skip: pixi is pre-installed in the image (see Dockerfile).
-    The feature detects the existing binary and skips reinstalling,
-    continuing to post-install steps (PATH export, symlink, etc.).
-
-  checks:
-    - title: pixi binary still present at /usr/local/bin/pixi
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi binary is still executable
-      cmd: test -x /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-      debug: |
-        echo "=== pixi --version ==="
-        /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
-
-if_exists_update:
-  description: |
-    if_exists=update on a fresh image (no pre-existing pixi):
-    The feature should install pixi normally (no existing binary to update),
-    then a self-update yields the latest version.
-
-  checks:
-    - title: pixi binary is at /usr/local/bin/pixi
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi binary is executable
-      cmd: test -x /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-      debug: |
-        echo "=== pixi --version ==="
-        /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
-
 if_exists_update_existing:
   description: |
     if_exists=update with pixi 0.41.0 already installed (see Dockerfile):
     verifies the feature exercises pixi self-update instead of the fresh-install
     path and lands on the requested pinned version.
-
   checks:
     - title: pixi binary present at /usr/local/bin/pixi
       cmd: test -f /usr/local/bin/pixi
@@ -243,12 +125,10 @@ if_exists_update_existing:
         /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
     - title: pixi was updated beyond 0.41.0
       cmd: bash -c '[ "$(/usr/local/bin/pixi --version 2>/dev/null | awk "{print \$NF}")" != "0.41.0" ]'
-
 installer_dir:
   description: |
     installer_dir=/tmp/pixi-trace: the downloaded .tar.gz archive and its
     .tar.gz.sha256 sidecar must remain in installer_dir after installation completes.
-
   checks:
     - title: pixi binary installed
       cmd: test -f /usr/local/bin/pixi
@@ -263,45 +143,21 @@ installer_dir:
       cmd: bash -c 'ls /tmp/pixi-trace/archive/pixi-*.tar.gz 2>/dev/null | grep -q .'
     - title: pixi sidecar preserved
       cmd: bash -c 'ls /tmp/pixi-trace/sidecar/pixi-*.tar.gz.sha256 2>/dev/null | grep -q .'
-
 invalid_version_string:
   description: |
     Verify that a clearly invalid version string (not a numeric spec) fails resolution.
-
   checks:
     - kind: install_failure
       title: non-numeric version string rejected during resolution
       pattern: contains no numeric version content
-
 invalid_version_suffix:
   description: |
     Verify that a version string with an invalid suffix (e.g. "1.2beta") is rejected
     by github__resolve_version.
-
   checks:
     - kind: install_failure
       title: invalid version suffix rejected during resolution
       pattern: no release matching
-
-log_file:
-  description: |
-    log_file=/tmp/pixi.log: all install output is captured to the specified file.
-
-  checks:
-    - title: pixi binary installed
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-    - title: log_file was created
-      cmd: test -f /tmp/pixi.log
-      debug: |
-        echo "===== /tmp/pixi.log (last 20 lines) ====="
-        tail -n 20 /tmp/pixi.log 2>/dev/null || echo "(log_file missing)"
-    - title: log_file is non-empty
-      cmd: test -s /tmp/pixi.log
-    - title: log_file contains install marker
-      cmd: grep -q "Pixi" /tmp/pixi.log
-
 netrc_uri_file:
   description: "netrc=file:///tmp/test.netrc — pixi installs with a file:// .netrc (no real secrets)."
   checks:
@@ -309,73 +165,12 @@ netrc_uri_file:
       cmd: test -x /usr/local/bin/pixi
     - title: pixi --version succeeds
       cmd: /usr/local/bin/pixi --version
-
-completions_bash:
-  description: |
-    shell_completions=bash (root):
-    Verifies pixi shell completion script is written to the system-wide bash
-    completion directory (/etc/bash_completion.d/pixi).
-
-  checks:
-    - title: pixi binary installed
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-    - title: bash completion script exists
-      cmd: test -f /etc/bash_completion.d/pixi
-      debug: |
-        echo "=== /etc/bash_completion.d/pixi ==="
-        cat /etc/bash_completion.d/pixi 2>/dev/null | head -5 || echo "(missing)"
-    - title: bash completion script is non-empty
-      cmd: test -s /etc/bash_completion.d/pixi
-
-completions_zsh:
-  description: |
-    shell_completions=zsh (root):
-    Verifies pixi shell completion script is written to the system-wide zsh
-    completion directory (/etc/zsh/completions/_pixi on Debian/Ubuntu,
-    /etc/completions/_pixi on RHEL/SUSE/macOS).
-
-  checks:
-    - title: pixi binary installed
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-    - title: zsh completion script exists
-      cmd: bash -c 'test -f /etc/zsh/completions/_pixi 2>/dev/null || test -f /etc/completions/_pixi 2>/dev/null'
-      debug: |
-        echo "=== /etc/zsh/completions/_pixi ==="
-        cat /etc/zsh/completions/_pixi 2>/dev/null | head -5 || echo "(missing)"
-        echo "=== /etc/completions/_pixi ==="
-        cat /etc/completions/_pixi 2>/dev/null | head -5 || echo "(missing)"
-    - title: zsh completion script is non-empty
-      cmd: bash -c 'test -s /etc/zsh/completions/_pixi 2>/dev/null || test -s /etc/completions/_pixi 2>/dev/null'
-
-binary_pinned_version:
-  description: |
-    version=0.41.0: install a specific pinned version.
-    Verifies pixi reports exactly 0.41.0.
-
-  checks:
-    - title: pixi binary installed
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi binary is executable
-      cmd: test -x /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-    - title: pixi version is 0.41.0
-      cmd: bash -c '[ "$(/usr/local/bin/pixi --version 2>/dev/null | awk "{print \$NF}")" = "0.41.0" ]'
-      debug: |
-        echo "=== pixi --version ==="
-        /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
-
 symlink_user_home_prefix:
   description: |
     prefix=/root/pixi, symlink=true.
     $prefix is under root's home directory (/root per /etc/passwd), so a
     user-scoped symlink is created at $HOME/.local/bin/pixi -> $prefix/bin/pixi.
     No system-wide /usr/local/bin/pixi symlink is created.
-
   checks:
     - title: pixi binary at /root/pixi/bin/pixi
       cmd: test -f /root/pixi/bin/pixi
@@ -389,13 +184,11 @@ symlink_user_home_prefix:
       cmd: /root/.local/bin/pixi --version
     - title: no /usr/local/bin/pixi symlink
       cmd: bash -c '! test -e /usr/local/bin/pixi'
-
 version_match_idempotency:
   description: |
     version=0.41.0 + if_exists=reinstall, with pixi 0.41.0 pre-installed (see Dockerfile).
     The version-match check fires before if_exists dispatch, so reinstall is never
     triggered. pixi is unchanged and post-install steps still run.
-
   checks:
     - title: pixi binary still present
       cmd: test -f /usr/local/bin/pixi
@@ -408,14 +201,12 @@ version_match_idempotency:
         /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
     - title: pixi version is still 0.41.0
       cmd: bash -c '[ "$(/usr/local/bin/pixi --version 2>/dev/null | awk "{print \$NF}")" = "0.41.0" ]'
-
 version_match_path_only_symlink:
   description: |
     version=0.41.0 + prefix=/opt/pixi + symlink=true, with pixi 0.41.0 only
     on PATH (see Dockerfile).
     The version-match shortcut must not skip installing the requested prefix
     artifact or leave /usr/local/bin/pixi pointing at a missing target.
-
   checks:
     - title: pixi binary is at /opt/pixi/bin/pixi
       cmd: test -f /opt/pixi/bin/pixi
@@ -432,13 +223,11 @@ version_match_path_only_symlink:
       cmd: bash -c '[ "$(readlink /usr/local/bin/pixi)" = "/opt/pixi/bin/pixi" ]'
     - title: symlinked pixi is callable
       cmd: /usr/local/bin/pixi --version
-
 global_manifest_inline:
   description: |
     global_manifest (inline TOML): inline content is written to
     $PIXI_HOME/manifests/pixi-global.toml and pixi global sync installs
     the declared environments. Running as root → PIXI_HOME=/root/.pixi.
-
   checks:
     - title: manifest file exists
       cmd: test -f /root/.pixi/manifests/pixi-global.toml
@@ -456,13 +245,11 @@ global_manifest_inline:
         ls /root/.pixi/bin/ 2>/dev/null || echo "(empty or missing)"
     - title: jq is callable
       cmd: /root/.pixi/bin/jq --version
-
 global_manifest_file:
   description: |
     global_manifest (file path): the manifest file is resolved from the given
     path and written to $PIXI_HOME/manifests/pixi-global.toml, then pixi global
     sync installs the declared environments. Running as root → PIXI_HOME=/root/.pixi.
-
   checks:
     - title: manifest file exists
       cmd: test -f /root/.pixi/manifests/pixi-global.toml
@@ -480,12 +267,10 @@ global_manifest_file:
         ls /root/.pixi/bin/ 2>/dev/null || echo "(empty or missing)"
     - title: jq is callable
       cmd: /root/.pixi/bin/jq --version
-
 global_installs:
   description: |
     global_installs: each array entry is passed as arguments to 'pixi global install';
     the installed binary is available in $PIXI_HOME/bin. Running as root → PIXI_HOME=/root/.pixi.
-
   checks:
     - title: jq binary installed by pixi global install
       cmd: test -x /root/.pixi/bin/jq
@@ -494,13 +279,11 @@ global_installs:
         ls /root/.pixi/bin/ 2>/dev/null || echo "(empty or missing)"
     - title: jq is callable
       cmd: /root/.pixi/bin/jq --version
-
 install_all:
   description: |
     install='--manifest-path /tmp/pixi-test/pixi.toml --all':
     Verifies that the onCreateCommand lifecycle hook runs pixi install --all
     using the manifest at the given path, installing the declared environments.
-
   checks:
     - title: pixi binary installed
       cmd: test -f /usr/local/bin/pixi
@@ -523,3 +306,14 @@ install_all:
         ls /tmp/pixi-test/.pixi/envs 2>/dev/null || echo "(missing)"
     - title: jq binary available from installed env
       cmd: /tmp/pixi-test/.pixi/envs/default/bin/jq --version
+pixi_default_no_exports:
+  description: |
+    A default install (prefix /usr/local, already on PATH) needs no PATH export
+    and writes no PIXI_HOME activation file to profile.d, and it cleans up its
+    default installer directory. Attached to the generated `default` scenario
+    via generation.augment_tests (the generator does not model prefix exports).
+  checks:
+    - title: no profile.d export file written
+      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
+    - title: installer dir cleaned up
+      cmd: bash -c '! test -f /tmp/pixi-installer/pixi-*.tar.gz 2>/dev/null'
