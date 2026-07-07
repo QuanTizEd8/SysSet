@@ -18,6 +18,9 @@ _options:
   verify:
     args: "--version"
     description: Verify pnpm is installed and working.
+    functional:
+      description: pnpm resolves its registry configuration
+      cmd: '{bin} config get registry | grep -q "registry.npmjs.org"'
   version:
     resolution: npm
   method:

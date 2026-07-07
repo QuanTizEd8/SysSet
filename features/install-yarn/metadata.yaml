@@ -33,6 +33,9 @@ _options:
   verify:
     args: "--version"
     description: Verify Yarn is installed and working.
+    functional:
+      description: yarn resolves its registry configuration
+      cmd: '{bin} config get npmRegistryServer 2>/dev/null | grep -q registry || {bin} config get registry 2>/dev/null | grep -q registry'
   method:
     npm:
       package: yarn
