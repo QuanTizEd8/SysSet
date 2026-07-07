@@ -98,10 +98,17 @@ class IfExistsRule:
         # directory like /usr/local — a feature whose own prefix root is a
         # dedicated, not-yet-created directory (e.g. /usr/local/cargo) would
         # otherwise fail here on a fresh container with no prior install.
+        # Match "$*" (all args, space-joined) rather than "$1": a feature's
+        # version flag can be multi-word (e.g. pixi's verify.args "info
+        # --extended"), which the shell splits into $1="info" $2="--extended",
+        # so a "$1" == "info --extended" test would never match and the stub
+        # would report no version — breaking if_exists detection and the
+        # "version unchanged/mutated" rechecks. "$*" == "info --extended"
+        # matches, and still matches a single-word "--version".
         script = (
             f"mkdir -p {path.rsplit('/', 1)[0]}\n"
             f"printf '#!/usr/bin/env bash\\n"
-            f'if [ "${{1-}}" = "{flag}" ]; then echo "{fake_output}"; exit 0; fi\\n'
+            f'if [ "$*" = "{flag}" ]; then echo "{fake_output}"; exit 0; fi\\n'
             f"exit 0' > {path}\n"
             f"chmod +x {path}"
         )
