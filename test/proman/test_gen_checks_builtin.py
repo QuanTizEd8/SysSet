@@ -15,12 +15,42 @@ import re
 
 from proman.test.codegen import _dquote
 from proman.test.gen import checks_builtin
+from proman.test.gen.facts import FeatureFacts
 
 _ALL_PMS = ["apt", "dnf", "zypper", "apk", "pacman", "brew"]
 
 
+def test_package_name_resolves_per_pm() -> None:
+    """A package whose name differs per PM resolves correctly for each (oras)."""
+    facts = FeatureFacts(
+        feature_id="install-fixture",
+        verify={"cmd": "oras"},
+        methods={"package": {}},
+        dependencies={
+            "run": {
+                "method-package": {
+                    "packages": [
+                        {"name": "golang-oras", "when": {"plat.pm": ["dnf", "yum"]}},
+                        {
+                            "name": "oras",
+                            "apk": "oras-cli",
+                            "when": {"plat.pm": ["apk", "apt", "brew"]},
+                        },
+                    ],
+                },
+            },
+        },
+    )
+    assert facts.package_name("package", "dnf") == "golang-oras"
+    assert facts.package_name("package", "apk") == "oras-cli"  # per-PM override
+    assert facts.package_name("package", "apt") == "oras"  # name, no override
+    assert facts.package_name("package") == "golang-oras"  # first, no pm
+
+
 def _probe_cmds() -> list[str]:
-    item = checks_builtin.pm_managed_check("zsh", "zsh", _ALL_PMS)
+    item = checks_builtin.pm_managed_check(
+        "zsh", dict.fromkeys(_ALL_PMS, "zsh"), _ALL_PMS
+    )
     cmd = item["cmd"]
     return cmd if isinstance(cmd, list) else [cmd]
 

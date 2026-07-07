@@ -133,7 +133,9 @@ def symlink_absent_check(link_path: str) -> CheckItem:
     return CheckItem(title=f"no symlink at {link_path}", cmd=cmd)
 
 
-def pm_managed_check(bin_name: str, pkg_name: str, pms: list[str]) -> CheckItem:
+def pm_managed_check(
+    bin_name: str, pkg_names: dict[str, str], pms: list[str]
+) -> CheckItem:
     """Build a "binary is package-manager-managed" check.
 
     Uses only the probe commands for `pms` (the package managers actually
@@ -141,10 +143,15 @@ def pm_managed_check(bin_name: str, pkg_name: str, pms: list[str]) -> CheckItem:
     feasible, else `kind: multiple, min: 1` (passes regardless of which of
     several PMs actually installed it). Duplicate commands (e.g. dnf and
     zypper both probe via `rpm -qf`) are deduplicated, preserving order.
+
+    `pkg_names` maps each PM to that PM's package name (they legitimately
+    differ — oras is `golang-oras` on dnf, `oras-cli` on apk), used by the
+    name-based apk/brew probes; the file-ownership probes ignore it. Falls
+    back to `bin_name` for a PM with no declared name.
     """
     cmds = list(
         dict.fromkeys(
-            _PM_CHECK_CMD[pm].format(bin=bin_name, pkg_name=pkg_name)
+            _PM_CHECK_CMD[pm].format(bin=bin_name, pkg_name=pkg_names.get(pm, bin_name))
             for pm in pms
             if pm in _PM_CHECK_CMD
         ),

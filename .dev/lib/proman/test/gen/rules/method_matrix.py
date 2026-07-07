@@ -139,8 +139,8 @@ class MethodMatrixRule:
         name = method_scenario_name(method)
         scenario = base_scenario(selected, cfg, _FAMILY, options={"method": method})
         scenario["tests"] = [name]
-        pkg_name = facts.package_name(method)
         pms = sorted({resolve_attributes(e, envs).get("plat.pm") for e in selected})
+        pkg_names = {pm: facts.package_name(method, pm) for pm in pms}
         verb = (
             "the OS package manager's standard configured sources"
             if method == "package"
@@ -156,7 +156,7 @@ class MethodMatrixRule:
             f"method={method}: installs via {verb}.",
         )
         group["checks"].append(
-            checks_builtin.pm_managed_check(facts.primary_bin, pkg_name, pms),
+            checks_builtin.pm_managed_check(facts.primary_bin, pkg_names, pms),
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
 

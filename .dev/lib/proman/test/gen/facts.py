@@ -12,6 +12,24 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
+def _when_applies_to_pm(when: dict | list | None, pm: str) -> bool:
+    """Whether a package entry's `when` applies to package manager `pm`.
+
+    A `None`/absent `when` applies to every PM. Otherwise each clause's
+    `plat.pm` (string or list) is checked; a clause with no `plat.pm`
+    constraint applies to all PMs. Only `plat.pm` is considered — resolving a
+    package *name* for a probe needs the PM discriminator, not the full
+    os.id/version gating.
+    """
+    if when is None:
+        return True
+    for clause in when if isinstance(when, list) else [when]:
+        pms = clause.get("plat.pm")
+        if pms is None or pm == pms or (isinstance(pms, list) and pm in pms):
+            return True
+    return False
+
+
 @dataclass(frozen=True)
 class FeatureFacts:
     """Test-generation-relevant facts read from one feature's augmented metadata.yaml.
@@ -201,18 +219,26 @@ class FeatureFacts:
             return None
         return [entry["value"] for entry in option["enum"]]
 
-    def package_name(self, method: str) -> str:
+    def package_name(self, method: str, pm: str | None = None) -> str:
         """Return the declared OS package name for a package-based method.
 
-        `method` is "package" or "upstream-package"; the name comes from
-        `_dependencies.run.method-<method>`. Falls back to `primary_bin` when
-        undeclared or the first package entry is a bare string (no explicit
-        name override).
+        `method` is "package" or "upstream-package"; names come from
+        `_dependencies.run.method-<method>`. With `pm`, resolves the package
+        entry whose `when` applies to that package manager and returns its
+        per-PM name override (e.g. `apk: oras-cli`) else its `name` — package
+        names legitimately differ across PMs (oras is `golang-oras` on dnf,
+        `oras-cli` on apk, `oras` on apt). Without `pm`, returns the first
+        declared name. Falls back to `primary_bin` when nothing is declared.
         """
         run_deps = self.dependencies.get("run", {})
         packages = run_deps.get(f"method-{method}", {}).get("packages", [])
-        if packages and isinstance(packages[0], dict) and packages[0].get("name"):
-            return packages[0]["name"]
+        if pm is not None:
+            for pkg in packages:
+                if isinstance(pkg, dict) and _when_applies_to_pm(pkg.get("when"), pm):
+                    return pkg.get(pm) or pkg.get("name") or self.primary_bin
+        for pkg in packages:
+            if isinstance(pkg, dict) and pkg.get("name"):
+                return pkg["name"]
         return self.primary_bin
 
     def build_packages(self, method: str, pm: str) -> list[str]:
