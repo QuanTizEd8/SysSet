@@ -41,6 +41,7 @@ rollout:
     - install-rust
     - install-tokei
     - install-zsh
+    - install-oras
   denylist:
     - install
     - install-os-pkg

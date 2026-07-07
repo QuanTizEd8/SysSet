@@ -21,9 +21,15 @@ _options:
   verify:
     args: "version"
     description: Verify ORAS is installed and working.
+    functional:
+      description: oras pushes and pulls an artifact through a local OCI layout
+      cmd: 'd=$(mktemp -d) && cd "$d" && echo hello > b.txt && {bin} push --oci-layout l:v1 b.txt >/dev/null 2>&1 && rm b.txt && {bin} pull --oci-layout l:v1 >/dev/null 2>&1 && grep -q hello b.txt; rc=$?; cd /; rm -rf "$d"; exit $rc'
   gh_repo: oras-project/oras
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["1.2.3"]
+      legacy: ["1.2.0"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/oras_{feat.version}_{plat.kernel:lower}_{plat.machine_release}.tar.gz"
