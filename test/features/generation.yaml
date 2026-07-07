@@ -60,8 +60,11 @@ rollout:
     - setup-user
     # No primary binary/command (no _options.verify.cmd or _options.prefix.bins):
     # every generator family builds binary-presence scenarios and fails without one.
+    # install-nvm is a sourced shell function (no PATH binary); its tests are
+    # activation-based and irreducibly bespoke.
     - install-bash-completion
     - install-zsh-completion
+    - install-nvm
 
 environments:
   primary: ubuntu-stable
