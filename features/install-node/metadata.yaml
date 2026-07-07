@@ -45,6 +45,9 @@ _options:
   verify:
     args: "--version"
     description: Verify Node.js is installed and working.
+    functional:
+      description: node evaluates a JavaScript expression
+      cmd: 'test "$({bin} -p "1+1")" = 2'
   version:
     resolution: none
     default: lts/*
