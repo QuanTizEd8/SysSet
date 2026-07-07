@@ -34,17 +34,20 @@ _VERSION_FORMAT_PATTERN = r"(^|[^0-9.])v?[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"
 # queries); apk/brew need the OS *package name*, which can differ from the
 # binary name (e.g. `github-cli` package -> `gh` binary).
 #
-# The path probes also retry with a leading `/usr` stripped (`${p#/usr}`:
-# /usr/bin/zsh -> /bin/zsh). On a usrmerged system the package DB can record the
-# legacy /bin path for a shell/core package (Debian's `zsh` -> /bin/zsh) while
-# PATH resolves /usr/bin first, so a bare `dpkg -S "$(command -v zsh)"` misses.
-_USRMERGE = '\'p="$(command -v {bin})"; {q} "$p" >/dev/null 2>&1 || {q} "${{p#/usr}}" >/dev/null 2>&1\''  # noqa: E501
+# apt also retries the legacy /bin path: on a usrmerged Debian/Ubuntu the dpkg
+# DB records a shell/core package at /bin (zsh -> /bin/zsh) while PATH resolves
+# /usr/bin first, so a bare `dpkg -S "$(command -v zsh)"` misses. The fallback
+# is a *literal* /bin/{bin} — not `${...}` on the resolved path — because these
+# `multiple` cmds are emitted inside double quotes by codegen, so any shell
+# variable would be expanded (to empty) by the outer shell before it reaches
+# `bash -c`; only `$(command -v ...)` survives (rpm/pacman record /usr paths
+# natively, so they need no fallback).
 _PM_CHECK_CMD: dict[str, str] = {
-    "apt": "bash -c " + _USRMERGE.replace("{q}", "dpkg -S"),
-    "dnf": "bash -c " + _USRMERGE.replace("{q}", "rpm -qf"),
-    "zypper": "bash -c " + _USRMERGE.replace("{q}", "rpm -qf"),
+    "apt": 'bash -c \'dpkg -S "$(command -v {bin})" >/dev/null 2>&1 || dpkg -S "/bin/{bin}" >/dev/null 2>&1\'',  # noqa: E501
+    "dnf": "bash -c 'rpm -qf \"$(command -v {bin})\" >/dev/null 2>&1'",
+    "zypper": "bash -c 'rpm -qf \"$(command -v {bin})\" >/dev/null 2>&1'",
     "apk": "bash -c 'apk info -e {pkg_name} >/dev/null 2>&1'",
-    "pacman": "bash -c " + _USRMERGE.replace("{q}", "pacman -Qo"),
+    "pacman": "bash -c 'pacman -Qo \"$(command -v {bin})\" >/dev/null 2>&1'",
     "brew": "bash -c 'brew list {pkg_name} >/dev/null 2>&1'",
 }
 
