@@ -8,8 +8,10 @@ __install_run_npm__() {
     # corepack's default shim location is node's own bin dir, which ignores the
     # feature's prefix. Point --install-directory at the resolved prefix bin so
     # yarn lands where the prefix machinery (and everything downstream) expects.
-    if [[ -n "${_FEAT_CONTRACT_PREFIX_VAR:-}" && -n "${!_FEAT_CONTRACT_PREFIX_VAR:-}" ]]; then
-      local _yarn_bindir="${!_FEAT_CONTRACT_PREFIX_VAR}/${PREFIX_BIN_DIR:-bin}"
+    # _RESOLVED_PREFIX is the prefix the framework resolved (same variable the
+    # generic __install_run_npm__ passes to `npm --prefix`).
+    if [[ -v _RESOLVED_PREFIX ]]; then
+      local _yarn_bindir="${_RESOLVED_PREFIX}/${PREFIX_BIN_DIR:-bin}"
       file__mkdir "${_yarn_bindir}"
       _corepack_args+=(--install-directory "${_yarn_bindir}")
     fi
@@ -26,8 +28,7 @@ __install_run_npm__() {
   [ "${YARN_VERSION}" != "latest" ] && _pkg+="@${YARN_VERSION}"
 
   local -a _install_args=(install -g)
-  [[ -n "${_FEAT_CONTRACT_PREFIX_VAR:-}" && -n "${!_FEAT_CONTRACT_PREFIX_VAR:-}" ]] &&
-    _install_args+=(--prefix "${!_FEAT_CONTRACT_PREFIX_VAR}")
+  [[ -v _RESOLVED_PREFIX ]] && _install_args+=(--prefix "${_RESOLVED_PREFIX}")
   _install_args+=("${_pkg}")
 
   npm "${_install_args[@]}" || {
