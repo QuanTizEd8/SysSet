@@ -148,8 +148,11 @@ class PrefixSymlinkRule:
             # the same reason: a .tar.xz binary release (install-node) needs xz,
             # and bootstrap__xz has no privilege-free path, so a non-root install
             # would otherwise fail to extract.
-            pm = resolve_attributes(env, envs).get("plat.pm", "apt")
-            build_pkgs = facts.build_packages(method_option["method"], pm)
+            env_attrs = resolve_attributes(env, envs)
+            pm = env_attrs.get("plat.pm", "apt")
+            build_pkgs = facts.build_packages(
+                method_option["method"], pm, attrs=env_attrs
+            )
             pkgs = " ".join(
                 ["curl", "ca-certificates", "xz-utils", "bzip2", "unzip", *build_pkgs]
             )

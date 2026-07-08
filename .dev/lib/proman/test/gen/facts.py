@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from proman import when_util
+
 
 def _when_applies_to_pm(when: dict | list | None, pm: str) -> bool:
     """Whether a package entry's `when` applies to package manager `pm`.
@@ -258,15 +260,26 @@ class FeatureFacts:
                 return pkg["name"]
         return self.primary_bin
 
-    def build_packages(self, method: str, pm: str) -> list[str]:
+    def build_packages(
+        self, method: str, pm: str, attrs: dict | None = None
+    ) -> list[str]:
         """OS build-dep package names for `method` on package manager `pm`.
 
         Reads `_dependencies.build.{base,method-<method>}` in either declared
         shape: PM-keyed (`build.<group>.<pm>.packages`) or a run-deps-style
         package list (`build.<group>.packages` of bare names or `{name, <pm>:
-        ...}` per-PM overrides). These are the packages the framework installs
-        as root before a source/compile build; a non-root install can't install
-        them itself, so a custom-prefix nonroot scenario must pre-install them.
+        ..., when: ...}` per-PM/conditional entries). These are the packages the
+        framework installs as root before a source/compile build; a non-root
+        install can't install them itself, so a custom-prefix nonroot scenario
+        must pre-install them.
+
+        When `attrs` (an env's flattened attributes) is given, conditional
+        (`when:`) package entries are filtered to those satisfied by that env —
+        e.g. install-git's libpcre2-posix3/2/0 are gated on os.version_codename,
+        so pre-installing all three would fail (only one exists per release).
+        A `when:` that references only `feat.*` (e.g. the version-gated cargo/
+        rust dep) can't be evaluated against an env, so it is kept: an extra
+        pre-installed build dep is harmless, an omitted one breaks the build.
         """
         build = self.dependencies.get("build", {})
         names: list[str] = []
@@ -275,13 +288,34 @@ class FeatureFacts:
             if not isinstance(section, dict):
                 continue
             if "packages" in section:  # run-deps-style list
-                names.extend(
-                    spec if isinstance(spec, str) else spec.get(pm, spec.get("name"))
-                    for spec in section["packages"]
-                )
+                pkgs = section["packages"]
             elif isinstance(section.get(pm), dict):  # PM-keyed
-                names.extend(section[pm].get("packages", []))
+                pkgs = section[pm].get("packages", [])
+            else:
+                continue
+            for spec in pkgs:
+                if isinstance(spec, str):
+                    names.append(spec)
+                elif attrs is None or self._build_pkg_applies(spec.get("when"), attrs):
+                    names.append(spec.get(pm, spec.get("name")))
         return [n for n in names if n]
+
+    @staticmethod
+    def _build_pkg_applies(when: dict | list | None, attrs: dict) -> bool:
+        """Whether a conditional build-dep entry applies to `attrs`.
+
+        Only env-attribute conditions are evaluated; `feat.*` conditions (the
+        install version, unknown at env-selection time) are dropped so a
+        version-gated dep is always kept.
+        """
+        if not when:
+            return True
+        groups = when if isinstance(when, list) else [when]
+        for group in groups:
+            env_conds = {k: v for k, v in group.items() if not k.startswith("feat.")}
+            if when_util.match(env_conds or None, attrs):
+                return True
+        return False
 
 
 def extract(metadata: dict) -> FeatureFacts:

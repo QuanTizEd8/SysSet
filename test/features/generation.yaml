@@ -42,6 +42,7 @@ rollout:
     - install-tokei
     - install-zsh
     - install-oras
+    - install-git
     - install-bash
     - install-gh
     - install-starship

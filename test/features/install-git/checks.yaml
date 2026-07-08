@@ -2,7 +2,6 @@ gitconfig_system:
   description: |
     Gitconfig with a custom default branch, multiple safe.directory entries,
     and a multi-line freeform block via the gitconfig option.
-
   checks:
     - title: git is on PATH
       cmd: command -v git
@@ -27,11 +26,9 @@ gitconfig_system:
       cmd: bash -c '[ "$(git config --file /etc/gitconfig push.default 2>/dev/null)" = "simple" ]'
     - title: fetch.prune is true (from gitconfig freeform block)
       cmd: bash -c '[ "$(git config --file /etc/gitconfig fetch.prune 2>/dev/null)" = "true" ]'
-
 gitconfig_identity:
   description: |
     user_name and user_email written to /etc/gitconfig (as root).
-
   checks:
     - title: git is on PATH
       cmd: command -v git
@@ -46,41 +43,21 @@ gitconfig_identity:
       cmd: bash -c '[ "$(git config --file /etc/gitconfig user.name 2>/dev/null)" = "Dev User" ]'
     - title: user.email is dev@example.com
       cmd: bash -c '[ "$(git config --file /etc/gitconfig user.email 2>/dev/null)" = "dev@example.com" ]'
-
-if_exists_fail:
-  description: |
-    if_exists=fail with no pre-existing git should behave like a normal install.
-    The actual failure path is covered in fail_scenarios.sh with a preinstall
-    setup command.
-
-  checks:
-    - title: git is on PATH
-      cmd: command -v git
-    - title: git --version succeeds
-      cmd: git --version
-    - title: /etc/gitconfig created
-      cmd: test -f /etc/gitconfig
-    - title: init.defaultBranch is main
-      cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-
 if_exists_fail_preinstalled:
   description: |
     Verify that if_exists=fail exits non-zero when git is already installed.
     SETUP_CMD (in if_exists_fail_preinstalled.conf) pre-installs git via apt-get.
     Confirm git is pre-installed by SETUP_CMD.
-
   checks:
     - title: git pre-installed by setup
       cmd: command -v git
     - kind: install_failure
       title: if_exists=fail exits with already-installed error
       pattern: failing (if_exists=fail)
-
 if_exists_reinstall_source:
   description: |
     if_exists=reinstall with preinstalled package git, switching to source.
     Verifies the package install is replaced by a source build under /opt/git.
-
   checks:
     - title: source-installed git exists
       cmd: test -x /opt/git/bin/git
@@ -94,39 +71,11 @@ if_exists_reinstall_source:
       cmd: test -f /etc/gitconfig
     - title: init.defaultBranch is trunk
       cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "trunk" ]'
-
-if_exists_skip:
-  description: |
-    if_exists=skip: git is pre-installed in the image (see Dockerfile).
-    The installer exits before any post-install side effects, so the original
-    package-managed git stays in place and no gitconfig or PATH markers are
-    written.
-
-  checks:
-    - title: git is on PATH
-      cmd: command -v git
-    - title: git binary is executable
-      cmd: test -x "$(command -v git)"
-    - title: git is still package managed
-      cmd: bash -c 'dpkg -S "$(command -v git)" >/dev/null 2>&1'
-    - title: git --version succeeds
-      cmd: git --version
-      debug: |
-        echo "=== git --version ==="
-        git --version 2>&1 || echo "(failed)"
-    - title: git is still functional
-      cmd: bash -c 'git --version | grep -qE "^git version [0-9]"'
-    - title: skip did not write /etc/gitconfig
-      cmd: bash -c '! test -e /etc/gitconfig'
-    - title: skip did not write profile.d export file
-      cmd: bash -c '! test -e "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
-
 if_exists_update_package:
   description: |
     if_exists=update with preinstalled package git.
     Verifies the installer does not short-circuit to skip and still applies
     post-install gitconfig writes.
-
   checks:
     - title: git is on PATH
       cmd: command -v git
@@ -138,48 +87,6 @@ if_exists_update_package:
       cmd: test -f /etc/gitconfig
     - title: init.defaultBranch is trunk
       cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "trunk" ]'
-
-invalid_if_exists:
-  description: |
-    Verify that passing an unknown if_exists value causes the installer to exit non-zero.
-
-  checks:
-    - kind: install_failure
-      title: invalid if_exists rejected by installer
-      pattern: "Invalid value for 'if_exists'"
-
-invalid_method:
-  description: |
-    Verify that passing an unknown method value causes the installer to exit non-zero.
-
-  checks:
-    - kind: install_failure
-      title: invalid method rejected by installer
-      pattern: "Invalid value for 'method'"
-
-log_file:
-  description: |
-    log_file option: install log is appended to /tmp/git.log.
-    Verifies the log contains recognizable installer lifecycle markers.
-
-  checks:
-    - title: git is on PATH
-      cmd: command -v git
-    - title: git --version succeeds
-      cmd: git --version
-    - title: log_file exists
-      cmd: test -f /tmp/git.log
-      debug: |
-        echo "=== /tmp/git.log (first 10 lines) ==="
-        head -10 /tmp/git.log 2>/dev/null || echo "(missing)"
-    - title: log_file is non-empty
-      cmd: test -s /tmp/git.log
-    - title: log_file contains script entry
-      cmd: |-
-        grep -q 'Script entry: Git Installation' /tmp/git.log
-    - title: log_file contains script exit
-      cmd: grep -q 'Git Installation script finished successfully' /tmp/git.log
-
 macos_package_default:
   description: |
     macOS: package + if_exists=skip (options from scenarios.yaml).
@@ -190,7 +97,6 @@ macos_package_default:
     leave ~/.config/git/config untouched.
 
     Validates post-install state only — no installation in this script.
-
   checks:
     - title: git is on PATH
       cmd: command -v git
@@ -200,13 +106,11 @@ macos_package_default:
       cmd: bash -c 'git --version | grep -qE "^git version [0-9]"'
     - title: skip did not write user system config
       cmd: bash -c '! test -e "${HOME}/.config/git/config"'
-
 package_no_ppa:
   description: |
     method=package, version=stable on Debian.
     Verifies the Debian package path is used and Ubuntu-only PPA artifacts are
     not written.
-
   checks:
     - title: git is on PATH
       cmd: command -v git
@@ -227,103 +131,11 @@ package_no_ppa:
       cmd: test -f /etc/gitconfig
     - title: init.defaultBranch is main
       cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-
-package_default:
-  shell: sh
-  description: |
-    method=package (explicit) across multiple distros (Ubuntu, Alpine, Fedora).
-    Forces the standard OS package manager on all three platforms — no PPA on Ubuntu.
-    Uses shell: sh because on Alpine the bootstrap bash is removed after the feature
-    completes, leaving only sh available for the test checks.
-
-  pre: |
-    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
-
-  checks:
-    - title: git is on PATH
-      cmd: command -v git
-    - title: git binary is executable
-      cmd: test -x "$(command -v git)"
-    - title: binary is package-manager-managed
-      kind: multiple
-      min: 1
-      cmd:
-        - dpkg -S "$(command -v git)" >/dev/null 2>&1
-        - rpm -qf "$(command -v git)" >/dev/null 2>&1
-        - apk info -e git >/dev/null 2>&1
-    - title: git --version succeeds
-      cmd: git --version
-      debug: |
-        echo "=== git --version ==="
-        git --version 2>&1 || echo "(failed)"
-    - title: git version is at least 2
-      cmd: sh -c '[ "$(git --version | awk "{print \$3}" | cut -d. -f1)" -ge 2 ]'
-    - title: /etc/gitconfig created
-      cmd: test -f /etc/gitconfig
-      debug: |
-        echo "=== /etc/gitconfig ==="
-        cat /etc/gitconfig 2>/dev/null || echo "(missing)"
-    - title: init.defaultBranch is main
-      cmd: test "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = main
-    - title: installed-method state file exists
-      cmd: test -f "${_installed_method}"
-    - title: installed-method state is package
-      cmd: test "$(cat "${_installed_method}")" = package
-
-upstream_package:
-  description: |
-    method=upstream-package on Ubuntu: installs git from the git-core PPA.
-    Verifies that the resolved method is upstream-package (not the plain package
-    method), git is dpkg-managed, and the PPA infrastructure (keyring, sources)
-    is cleaned up after installation per the default keep_repos=false behavior.
-
-  pre: |
-    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
-
-  checks:
-    - title: git is on PATH
-      cmd: command -v git
-    - title: git binary is executable
-      cmd: test -x "$(command -v git)"
-    - title: git is managed by dpkg
-      cmd: bash -c 'dpkg -S "$(command -v git)" >/dev/null 2>&1'
-    - title: git --version succeeds
-      cmd: git --version
-      debug: |
-        echo "=== git --version ==="
-        git --version 2>&1 || echo "(failed)"
-    - title: git version is at least 2
-      cmd: bash -c '[ "$(git --version | awk "{print \$3}" | cut -d. -f1)" -ge 2 ]'
-    - title: installed-method state file exists
-      cmd: test -f "${_installed_method}"
-    - title: installed-method state is upstream-package
-      cmd: test "$(cat "${_installed_method}")" = upstream-package
-    - title: PPA keyring cleaned up after install
-      kind: fail
-      cmd: test -f /usr/share/keyrings/git-core-ppa.gpg
-      debug: |
-        echo "=== /usr/share/keyrings/ ==="
-        ls /usr/share/keyrings/ 2>/dev/null | grep -i git || echo "(no git keys)"
-    - title: syspkg installer sources list cleaned up
-      kind: fail
-      cmd: test -f /etc/apt/sources.list.d/syspkg-installer.list
-      debug: |
-        echo "=== /etc/apt/sources.list.d/ ==="
-        ls /etc/apt/sources.list.d/ 2>/dev/null || echo "(empty)"
-    - title: /etc/gitconfig created
-      cmd: test -f /etc/gitconfig
-      debug: |
-        echo "=== /etc/gitconfig ==="
-        cat /etc/gitconfig 2>/dev/null || echo "(missing)"
-    - title: init.defaultBranch is main
-      cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-
 package_stable:
   description: |
     method=package, version=stable on Ubuntu.
     Verifies version=stable skips the PPA and that source-only options are
     ignored instead of creating source-build artifacts.
-
   checks:
     - title: git is on PATH
       cmd: command -v git
@@ -348,98 +160,25 @@ package_stable:
       cmd: test -f /etc/gitconfig
     - title: init.defaultBranch is main
       cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-
 source_build_network_isolated:
   description: |
     Verify that a source build fails when the network is blocked (version resolution
     requires network access to query the GitHub Releases API).
-
   checks:
     - kind: install_failure
       title: network-isolated source build fails during version resolution
       pattern: "no tag matching 'latest'"
-
 source_build_nonexistent_version:
   description: |
     Verify that requesting a nonexistent version (0.0.0) fails the source build.
-
   checks:
     - kind: install_failure
       title: nonexistent git version rejected by source build
       pattern: "github__resolve_version: no tag matching"
-
-source_custom_prefix:
-  description: |
-    method=source, version=stable, prefix=/opt/git: custom install prefix.
-    Verifies git is installed at /opt/git/bin/git and a symlink
-    /usr/local/bin/git -> /opt/git/bin/git is created (symlink=true default).
-
-  checks:
-    - title: git at /opt/git/bin/git
-      cmd: test -f /opt/git/bin/git
-    - title: git binary is executable
-      cmd: test -x /opt/git/bin/git
-    - title: git exec-path lives under /opt/git
-      cmd: bash -c '/opt/git/bin/git --exec-path | grep -Fq "/opt/git"'
-    - title: git --version succeeds
-      cmd: /opt/git/bin/git --version
-      debug: |
-        echo "=== /opt/git/bin/git --version ==="
-        /opt/git/bin/git --version 2>&1 || echo "(failed)"
-    - title: /usr/local/bin/git exists
-      cmd: test -e /usr/local/bin/git
-    - title: /usr/local/bin/git is a symlink
-      cmd: test -L /usr/local/bin/git
-    - title: symlink target is /opt/git/bin/git
-      cmd: bash -c '[ "$(readlink /usr/local/bin/git)" = "/opt/git/bin/git" ]'
-    - title: git canonically resolves to /opt/git/bin/git
-      cmd: bash -c '[ "$(readlink -f "$(command -v git)")" = "/opt/git/bin/git" ]'
-    - title: profile.d script written
-      cmd: test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
-      debug: |
-        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
-        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing)"
-    - title: profile.d prepends /opt/git/bin to PATH
-      cmd: grep -Fq '_shell__df_prepend_path "/opt/git/bin"' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
-    - title: profile.d exports /opt/git/share/man
-      cmd: grep -Fq 'export MANPATH="/opt/git/share/man:${MANPATH}"' "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"
-
-source_custom_prefix_nonroot:
-  description: |
-    Verify the non-root install path: when install.bash is run as a non-root user
-    with a custom prefix, it creates a ~/.local/bin/git symlink instead of writing
-    to /usr/local/bin (which requires root).
-
-    SETUP_CMD (in source_custom_prefix_nonroot.conf) pre-installs all build deps
-    as root and creates the vscode user with a writable /opt/git directory.
-    The scenario then runs as vscode via RUN_AS=vscode.
-
-  pre: |
-    bash "${REPO_ROOT}/src/install-git/install.bash" \
-      --method source \
-      --prefix /opt/git \
-      --version stable \
-      --no_flags rust
-
-  checks:
-    - title: running as non-root user
-      cmd: bash -c '[ "$(id -u)" != "0" ]'
-    - title: git binary at /opt/git/bin/git
-      cmd: test -x /opt/git/bin/git
-    - title: git --version succeeds
-      cmd: /opt/git/bin/git --version
-    - title: \$HOME/.local/bin/git symlink created
-      cmd: test -L "${HOME}/.local/bin/git"
-    - title: \$HOME/.local/bin/git resolves to /opt/git/bin/git
-      cmd: bash -c '[ "$(readlink -f "${HOME}/.local/bin/git")" = "$(readlink -f /opt/git/bin/git)" ]'
-    - title: no /usr/local/bin/git symlink created
-      cmd: bash -c '! test -e /usr/local/bin/git'
-
 source_export_path_disabled:
   description: |
     method=source with a custom prefix, export_path="", and symlink=false.
     Verifies git installs successfully without being exposed on PATH.
-
   checks:
     - title: git binary is at custom prefix
       cmd: test -x /opt/git/bin/git
@@ -455,12 +194,10 @@ source_export_path_disabled:
       cmd: bash -c '! grep -Fq "git PATH (install-git)" /etc/bash.bashrc 2>/dev/null'
     - title: zshenv has no install-git PATH marker
       cmd: bash -c '! grep -Fq "git PATH (install-git)" /etc/zsh/zshenv 2>/dev/null'
-
 source_installer_dir:
   description: |
     method=source, version=stable, installer_dir=/tmp/git-build-trace: build directory preserved.
     Verifies git is installed and the installer_dir is NOT removed after a successful build.
-
   checks:
     - title: git at /usr/local/bin/git
       cmd: test -f /usr/local/bin/git
@@ -477,12 +214,10 @@ source_installer_dir:
       cmd: test -f /tmp/git-build-trace/sidecar/sha256sums.asc
     - title: source tree preserved in dir
       cmd: bash -c 'find /tmp/git-build-trace/asset -maxdepth 1 -type d -name "git-*" | grep -q .'
-
 source_no_flags_perl:
   description: |
     method=source with no_flags=perl.
     Verifies Perl-dependent helpers are omitted from the installed exec-path.
-
   checks:
     - title: git is on PATH
       cmd: command -v git
@@ -492,68 +227,3 @@ source_no_flags_perl:
       cmd: bash -c '! git svn --version 2>/dev/null'
     - title: git-send-email is not functional (perl disabled)
       cmd: bash -c '! git send-email --version 2>/dev/null'
-
-source_pinned:
-  description: |
-    method=source, version=2.47.2: pinned build from kernel.org tarball.
-    Verifies exactly version 2.47.2 is installed.
-    Update the version string and scenarios.json when 2.47.2 is retired.
-
-  checks:
-    - title: git at /usr/local/bin/git
-      cmd: test -f /usr/local/bin/git
-    - title: git binary is executable
-      cmd: test -x /usr/local/bin/git
-    - title: git --version succeeds
-      cmd: /usr/local/bin/git --version
-      debug: |
-        echo "=== git --version ==="
-        /usr/local/bin/git --version 2>&1 || echo "(failed)"
-    - title: git version is 2.47.2
-      cmd: bash -c '[ "$(/usr/local/bin/git --version | sed "s/git version //")" = "2.47.2" ]'
-    - title: default installer_dir was cleaned
-      cmd: bash -c '! test -e /tmp/git-build'
-    - title: /etc/gitconfig created
-      cmd: test -f /etc/gitconfig
-    - title: init.defaultBranch is main
-      cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-
-source_stable:
-  description: |
-    method=source, version=stable: full source build from kernel.org tarball.
-    Verifies source-specific artifacts that package installs do not create.
-
-  checks:
-    - title: git at /usr/local/bin/git
-      cmd: test -f /usr/local/bin/git
-    - title: git binary is executable
-      cmd: test -x /usr/local/bin/git
-    - title: command -v resolves to /usr/local/bin/git
-      cmd: bash -c '[ "$(command -v git)" = "/usr/local/bin/git" ]'
-    - title: git --version succeeds
-      cmd: /usr/local/bin/git --version
-      debug: |
-        echo "=== git --version ==="
-        /usr/local/bin/git --version 2>&1 || echo "(failed)"
-    - title: git version is at least 2
-      cmd: bash -c '[ "$(/usr/local/bin/git --version | awk "{print \$3}" | cut -d. -f1)" -ge 2 ]'
-    - title: no upstream repo sources entry
-      cmd: bash -c '! test -f /etc/apt/sources.list.d/git-core-ppa.list'
-    - title: /etc/gitconfig created
-      cmd: test -f /etc/gitconfig
-    - title: init.defaultBranch is main
-      cmd: bash -c '[ "$(git config --file /etc/gitconfig init.defaultBranch 2>/dev/null)" = "main" ]'
-    - title: profile.d script NOT written (default prefix already on PATH)
-      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
-      debug: |
-        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
-        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing — expected)"
-    - title: bashrc PATH block NOT written
-      cmd: bash -c '! grep -Fq "git PATH (install-git)" /etc/bash.bashrc 2>/dev/null'
-    - title: zshenv PATH block NOT written
-      cmd: bash -c '! grep -Fq "git PATH (install-git)" /etc/zsh/zshenv 2>/dev/null'
-    - title: bash completion installed
-      cmd: test -f /etc/bash_completion.d/git
-    - title: zsh completion installed in detected zshdir
-      cmd: test -f /etc/zsh/completions/_git
-

@@ -1,38 +1,17 @@
-package_default:
-  envs:
-  - ubuntu-stable
-  - alpine-current
-  - fedora-current
-  modes:
-  - devcontainer
-  options:
-    method: package
-  tests:
-  - package_default
-
-upstream_package:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: upstream-package
-  tests:
-  - upstream_package
 package_no_ppa:
   envs:
-  - debian-stable
+    - debian-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     version: stable
   tests:
-  - package_no_ppa
+    - package_no_ppa
 package_stable:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     version: stable
     prefix: /opt/git
@@ -40,12 +19,12 @@ package_stable:
     prefix_discovery: none
     shell_completions: ''
   tests:
-  - package_stable
+    - package_stable
 gitconfig_system:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     default_branch: trunk
     safe_directory: '*
@@ -55,74 +34,33 @@ gitconfig_system:
       /tmp/repo'
     gitconfig: "[push]\n  default = simple\n[fetch]\n  prune = true"
   tests:
-  - gitconfig_system
+    - gitconfig_system
 gitconfig_identity:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     user_name: Dev User
     user_email: dev@example.com
   tests:
-  - gitconfig_identity
-log_file:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    log_file: /tmp/git.log
-  tests:
-  - log_file
-source_stable:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: source
-    version: stable
-  tests:
-  - source_stable
-source_pinned:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: source
-    version: 2.47.2
-  tests:
-  - source_pinned
+    - gitconfig_identity
 source_installer_dir:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: source
     version: stable
     installer_dir: /tmp/git-build-trace
   tests:
-  - source_installer_dir
-source_custom_prefix:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    method: source
-    version: stable
-    prefix: /opt/git
-    prefix_discovery: all
-  tests:
-  - source_custom_prefix
+    - source_installer_dir
 source_export_path_disabled:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: source
     version: stable
@@ -130,32 +68,23 @@ source_export_path_disabled:
     export_path: ''
     prefix_discovery: none
   tests:
-  - source_export_path_disabled
+    - source_export_path_disabled
 source_no_flags_perl:
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: source
     version: stable
     no_flags: perl
   tests:
-  - source_no_flags_perl
-if_exists_skip:
-  envs:
-  - ubuntu-stable+git
-  modes:
-  - devcontainer
-  options:
-    if_exists: skip
-  tests:
-  - if_exists_skip
+    - source_no_flags_perl
 if_exists_reinstall_source:
   envs:
-  - ubuntu-stable+git
+    - ubuntu-stable+git
   modes:
-  - devcontainer
+    - devcontainer
   options:
     method: source
     version: stable
@@ -163,107 +92,60 @@ if_exists_reinstall_source:
     if_exists: reinstall
     default_branch: trunk
   tests:
-  - if_exists_reinstall_source
+    - if_exists_reinstall_source
 if_exists_update_package:
   envs:
-  - ubuntu-stable+git
+    - ubuntu-stable+git
   modes:
-  - devcontainer
+    - devcontainer
   options:
     if_exists: update
     version: stable
     default_branch: trunk
   tests:
-  - if_exists_update_package
-if_exists_fail:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  options:
-    if_exists: fail
-  tests:
-  - if_exists_fail
+    - if_exists_update_package
 if_exists_fail_preinstalled:
   expect_install_failure: true
   envs:
-  - ubuntu-stable+git
+    - ubuntu-stable+git
   modes:
-  - standalone
+    - standalone
   options:
     if_exists: fail
   standalone:
     skip_install: false
   tests:
-  - if_exists_fail_preinstalled
+    - if_exists_fail_preinstalled
 source_build_network_isolated:
   expect_install_failure: true
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - standalone
+    - standalone
   standalone:
     network: none
     skip_install: false
   tests:
-  - source_build_network_isolated
+    - source_build_network_isolated
   options:
     method: source
     version: latest
-source_custom_prefix_nonroot:
-  envs:
-  - ubuntu-stable+build-essential+git-dev-libs+vscode
-  modes:
-  - standalone
-  setup: |
-    mkdir -p /opt/git
-    chown vscode:vscode /opt/git
-  standalone:
-    user: vscode
-    # Install must run as vscode (see checks pre); runner install is always root.
-    skip_install: true
-  tests:
-  - source_custom_prefix_nonroot
-invalid_if_exists:
-  expect_install_failure: true
-  envs:
-  - ubuntu-stable
-  modes:
-  - standalone
-  standalone:
-    skip_install: false
-  tests:
-  - invalid_if_exists
-  options:
-    if_exists: invalid
-invalid_method:
-  expect_install_failure: true
-  envs:
-  - ubuntu-stable
-  modes:
-  - standalone
-  standalone:
-    skip_install: false
-  tests:
-  - invalid_method
-  options:
-    method: invalid
 source_build_nonexistent_version:
   expect_install_failure: true
   envs:
-  - ubuntu-stable
+    - ubuntu-stable
   modes:
-  - standalone
+    - standalone
   standalone:
     skip_install: false
   tests:
-  - source_build_nonexistent_version
+    - source_build_nonexistent_version
   options:
     method: source
     version: 0.0.0
 macos_package_default:
   envs:
-  - macos-current+brew
+    - macos-current+brew
   # Orchestrator runs install.sh with no CLI args; options are delivered as env
   # vars (see docs user-guide/options.md). if_exists must be skip so the install
   # exits before default_branch/safe_directory gitconfig writes.
@@ -276,4 +158,4 @@ macos_package_default:
     rm -f "${HOME}/.config/git/config"
     rmdir "${HOME}/.config/git" 2>/dev/null || true
   tests:
-  - macos_package_default
+    - macos_package_default

@@ -91,9 +91,14 @@ _options:
   verify:
     args: "--version"
     description: Verify git is installed and working.
+    functional:
+      description: git initializes and reads a repository
+      cmd: 'd=$(mktemp -d) && {bin} -C "$d" init -q && {bin} -C "$d" rev-parse --git-dir > /dev/null 2>&1; r=$?; rm -rf "$d"; exit $r'
   gh_repo: git/git
   version:
     resolution: github_tag
+    test_pins:
+      pinned: ["2.47.2"]
   completions:
     shells: [bash, zsh]
     source_files:

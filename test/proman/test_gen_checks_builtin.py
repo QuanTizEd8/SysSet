@@ -70,3 +70,44 @@ def test_apt_probe_has_usrmerge_fallback() -> None:
     assert "/bin/zsh" in apt
     # Round-trips through codegen's double-quoting without introducing a var.
     assert "${" not in _dquote(apt)
+
+
+def test_build_packages_filters_conditional_deps() -> None:
+    """Conditional build deps: codename-gated filtered, feat.* kept, names extracted."""
+    codename = "os.version_codename"
+    facts = FeatureFacts(
+        feature_id="install-fixture",
+        verify={"cmd": "git"},
+        methods={"source": {}},
+        dependencies={
+            "build": {
+                "method-source": {
+                    "apt": {
+                        "packages": [
+                            "build-essential",
+                            {
+                                "name": "libpcre2-posix3",
+                                "when": {codename: ["noble", "jammy"]},
+                            },
+                            {
+                                "name": "libpcre2-posix0",
+                                "when": {codename: ["bionic", "buster"]},
+                            },
+                            {
+                                "name": "cargo",
+                                "when": {"feat.version": {"gte": "2.55"}},
+                            },
+                        ],
+                    },
+                },
+            },
+        },
+    )
+    noble = {"os.version_codename": "noble", "plat.pm": "apt"}
+    pkgs = facts.build_packages("source", "apt", attrs=noble)
+    assert "build-essential" in pkgs  # bare string
+    assert "libpcre2-posix3" in pkgs  # codename matches noble
+    assert "libpcre2-posix0" not in pkgs  # codename does not match
+    assert "cargo" in pkgs  # feat.* condition can't be evaluated -> kept
+    # No dict leaked into the list (would break " ".join in the setup).
+    assert all(isinstance(p, str) for p in pkgs)
