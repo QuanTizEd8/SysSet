@@ -43,6 +43,7 @@ rollout:
   - install-miniforge
   - install-texlive
   - install-pandoc
+  - install-cursor
   denylist:
   - install
   - install-os-pkg

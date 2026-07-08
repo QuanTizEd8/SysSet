@@ -22,6 +22,13 @@ _options:
     cmd: agent
     args: "--version"
     description: Verify the Cursor CLI agent is installed and working.
+    functional:
+      description: cursor-agent lists its MCP servers
+      # `agent mcp list` reads and reports the MCP server configuration
+      # (.cursor/mcp.json) — exercises real config loading with no authentication
+      # or network. Verified against the installed CLI with the network fully
+      # disabled (unshare -rn): exits 0, prints the configured-servers summary.
+      cmd: '{bin} mcp list > /dev/null 2>&1'
   installer_dir: false
   method:
     script:
