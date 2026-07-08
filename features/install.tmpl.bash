@@ -925,7 +925,11 @@ __install_run_binary__() {
       for _comp_name in "${BINARY_COMPANION_BINS[@]+"${BINARY_COMPANION_BINS[@]}"}"; do
         [[ -n "${_comp_name}" ]] || continue
         logging__install "Creating companion symlink '${_RESOLVED_PREFIX}/bin/${_comp_name}' → '${_primary_name}'."
-        file__ln "${_primary_name}" "${_RESOLVED_PREFIX}/bin/${_comp_name}"
+        # -sf: a *symlink* (not a hard link) whose relative target resolves in
+        # the same bin dir, forced so a reinstall over an existing companion is
+        # idempotent. Without -s this was `ln <relative-name> <link>`, a hard
+        # link to a non-existent relative path that always failed.
+        file__ln -sf "${_primary_name}" "${_RESOLVED_PREFIX}/bin/${_comp_name}"
       done
     fi
   else
