@@ -38,6 +38,7 @@ rollout:
   - install-yarn
   - install-ohmybash
   - install-ohmyzsh
+  - install-ripgrep-all
   denylist:
   - install
   - install-os-pkg

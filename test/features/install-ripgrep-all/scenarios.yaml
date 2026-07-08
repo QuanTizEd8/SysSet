@@ -1,14 +1,21 @@
-default:
+# Residue: only scenarios unique to install-ripgrep-all.
+# default, package_default, if_exists_{skip,fail}, prefix, version, invalid, and
+# log_file are generated. The generated functional smoke test
+# (`rga --rga-list-adapters`) is deliberately rg-independent; the two scenarios
+# below cover what the generic checks can't:
+#   - functional_search: the real rga -> rg search pipeline (needs ripgrep at
+#     runtime), on an rg-provisioned env.
+#   - install_adapters: the feature's `install_adapters` option.
+# The generated package_default is augmented with `package_rg_dep` to assert the
+# package method pulls ripgrep in as a runtime dependency.
+generation:
+  augment_tests:
+    package_default: [package_rg_dep]
+
+functional_search:
   envs: [ubuntu-stable+ripgrep]
   modes: [devcontainer, standalone]
-  tests: [default]
-
-package_default:
-  envs: [archlinux-current]
-  modes: [devcontainer, standalone]
-  options:
-    method: package
-  tests: [package_default]
+  tests: [functional_search]
 
 install_adapters:
   envs: [ubuntu-stable+ripgrep]
@@ -16,26 +23,3 @@ install_adapters:
   options:
     install_adapters: true
   tests: [install_adapters]
-
-if_exists_fail:
-  expect_install_failure: true
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep-all 99.99.99\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/rga
-    chmod +x /usr/local/bin/rga
-  options:
-    if_exists: fail
-  tests: [if_exists_fail]
-
-if_exists_skip:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then printf "ripgrep-all 99.99.99\n"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/rga
-    chmod +x /usr/local/bin/rga
-  options:
-    if_exists: skip
-  tests: [if_exists_skip]

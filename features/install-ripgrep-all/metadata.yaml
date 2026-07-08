@@ -41,9 +41,21 @@ _options:
   verify:
     args: "--version"
     description: Verify ripgrep-all is installed and working.
+    functional:
+      description: ripgrep-all loads its preprocessor adapters
+      # `--rga-list-adapters` exercises rga's own adapter-registry loading and
+      # exits without ever invoking ripgrep — verified against the release
+      # binary with `rg` absent from PATH (a real `rga <pat> <file>` search, by
+      # contrast, errors "Could not find executable rg"). This keeps the
+      # generated functional smoke test independent of the rg runtime dep, which
+      # the binary/cargo methods don't install; the real end-to-end search
+      # (needs rg) stays a hand-written residue scenario on an rg-provisioned env.
+      cmd: '{bin} --rga-list-adapters > /dev/null 2>&1'
   gh_repo: phiresky/ripgrep-all
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["0.10.10"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/ripgrep_all-{feat.tag}-{plat.kernel==Linux?{plat.machine_release==arm64?aarch64-unknown-linux-gnu:{plat.machine_release==armv7?arm-unknown-linux-gnueabihf:x86_64-unknown-linux-musl}}:{plat.rust_triple}}.tar.gz"

@@ -1,52 +1,36 @@
-default:
+functional_search:
   description: |
-    Default install on Ubuntu (binary method, x86_64-musl) with ripgrep pre-installed.
-    Verifies both required binaries are present and co-located, version is reported,
-    and rga can perform a plain-text search via the installed rg.
-  checks:
-    - title: rga is on PATH
-      cmd: command -v rga
-    - title: rga binary is executable
-      cmd: bash -c 'test -x "$(command -v rga)"'
-    - title: rga --version succeeds
-      cmd: rga --version
-      debug: |
-        echo "=== rga --version ==="
-        rga --version 2>&1 || echo "(failed)"
-    - title: rga reports a semver version
-      cmd: bash -c 'rga --version | grep -Eq "^ripgrep-all [0-9]+\.[0-9]+\.[0-9]+"'
-    - title: rga-preproc is co-located with rga
-      cmd: bash -c 'test -x "$(dirname "$(command -v rga)")/rga-preproc"'
-    - title: rga adapter list succeeds
-      cmd: rga --rga-list-adapters
-    - title: rga searches plain text file
-      cmd: bash -c 'echo "hello ripgrep-all" > /tmp/rga-test.txt && rga "hello" /tmp/rga-test.txt'
+    The real end-to-end rga -> ripgrep search pipeline. rga shells out to `rg`
+    at runtime (provided here by the ubuntu-stable+ripgrep env), so this is the
+    coverage the generated, rg-independent `--rga-list-adapters` functional
+    smoke test cannot provide.
 
-package_default:
-  description: |
-    method=package on Arch Linux (pacman): the ripgrep-all package hard-depends on ripgrep,
-    so rg is pulled in automatically. Verifies both rga and rga-preproc are installed and
-    functional.
   checks:
-    - title: rga is on PATH
-      cmd: command -v rga
-    - title: rga binary is executable
-      cmd: bash -c 'test -x "$(command -v rga)"'
-    - title: rga --version succeeds
-      cmd: rga --version
-    - title: rga reports a semver version
-      cmd: bash -c 'rga --version | grep -Eq "^ripgrep-all [0-9]+"'
-    - title: rga-preproc is co-located with rga
-      cmd: bash -c 'test -x "$(dirname "$(command -v rga)")/rga-preproc"'
-    - title: rg is available (pulled in by ripgrep-all package dependency)
+    - title: rg is available at runtime
       cmd: command -v rg
-    - title: rga searches plain text file
-      cmd: bash -c 'echo "hello ripgrep-all" > /tmp/rga-test.txt && rga "hello" /tmp/rga-test.txt'
+    - title: rga searches a plain-text file end to end
+      cmd: bash -c 'echo "hello ripgrep-all" > /tmp/rga-search-test.txt && rga "hello" /tmp/rga-search-test.txt'
+    - title: rga reports no match with a non-zero exit for an absent pattern
+      cmd: bash -c 'echo "hello" > /tmp/rga-search-test2.txt; ! rga "definitely-not-present" /tmp/rga-search-test2.txt'
+
+package_rg_dep:
+  description: |
+    Augments the generated package_default: the OS ripgrep-all package must pull
+    ripgrep (rg) in as a runtime dependency, so the real search works with no
+    separately-installed rg.
+
+  checks:
+    - title: rg pulled in as a package dependency
+      cmd: command -v rg
+    - title: rga search works using the dependency-provided rg
+      cmd: bash -c 'echo "hello ripgrep-all" > /tmp/rga-pkg-test.txt && rga "hello" /tmp/rga-pkg-test.txt'
 
 install_adapters:
   description: |
-    install_adapters=true: verifies that pandoc, pdftotext (from poppler-utils),
-    and ffmpeg are installed alongside rga.
+    Verifies the install_adapters option pulls the adapter tool dependencies
+    (pandoc, poppler-utils/pdftotext, ffmpeg) and that rga reports the PDF
+    adapter as enabled.
+
   checks:
     - title: rga is on PATH
       cmd: command -v rga
@@ -58,26 +42,3 @@ install_adapters:
       cmd: command -v ffmpeg
     - title: rga adapter list shows pdf adapter enabled
       cmd: bash -c 'rga --rga-list-adapters | grep -qi "poppler\|pdf"'
-
-if_exists_fail:
-  description: |
-    if_exists=fail aborts when rga is already present on PATH, leaving the
-    pre-installed stub untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-    - title: pre-installed rga stub still present
-      cmd: command -v rga
-    - title: stub version is unchanged
-      cmd: bash -c 'rga --version 2>/dev/null | grep -q "99\.99\.99"'
-
-if_exists_skip:
-  description: |
-    if_exists=skip exits 0 when rga is already present on PATH, leaving the
-    pre-installed stub and its version untouched.
-  checks:
-    - title: rga remains available after skip
-      cmd: command -v rga
-    - title: stub version is unchanged (skip did not reinstall)
-      cmd: bash -c 'rga --version 2>/dev/null | grep -q "99\.99\.99"'
