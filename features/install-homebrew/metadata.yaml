@@ -44,11 +44,12 @@ _options:
     args: "--version"
     description: Verify Homebrew is installed and working.
     functional:
-      description: brew reports its configured environment
-      # `brew config` prints Homebrew's resolved environment (version, prefix,
-      # ORIGIN/HEAD, CPU, Ruby/Git paths) — a read-only command that exercises
-      # real config/repo resolution offline, with no network or formula access.
-      cmd: '{bin} config > /dev/null 2>&1'
+      description: brew resolves its installation prefix
+      # `brew --prefix` exercises Homebrew's environment/prefix resolution
+      # offline (no network, no formula access) and — unlike `brew config` —
+      # runs no git commands, so it is not confounded by git's dubious-ownership
+      # guard when a linuxbrew-owned install is invoked as root in CI.
+      cmd: '{bin} --prefix > /dev/null 2>&1'
   gh_repo: Homebrew/install
   method:
     script:
@@ -65,8 +66,15 @@ _options:
       - when: {plat.kernel: Darwin}
         default: /usr/local
     discovery_snippet:
-      bash: "eval \\$('{feat.prefix}/bin/brew' shellenv)"
-      zsh: "eval \\$('{feat.prefix}/bin/brew' shellenv)"
+      # The snippet is written verbatim into the shell startup files (only
+      # `{feat.prefix}` is expanded), so it must already be valid shell. The
+      # previous `eval \$(...)` produced a literal backslash-dollar in profile.d
+      # — a syntax error that silently broke brew's PATH discovery in every
+      # login shell. `eval "$(... shellenv)"` is the correct, documented form;
+      # the surrounding single-quoted serialization prevents any premature
+      # command substitution at build/assignment time.
+      bash: 'eval "$(''{feat.prefix}/bin/brew'' shellenv)"'
+      zsh: 'eval "$(''{feat.prefix}/bin/brew'' shellenv)"'
       fish: "eval ('{feat.prefix}/bin/brew' shellenv)"
     write_group:
       default: brew
