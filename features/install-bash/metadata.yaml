@@ -29,6 +29,14 @@ _options:
     functional:
       description: bash executes a command and returns its output
       cmd: 'test "$({bin} -c "printf ok")" = ok'
+    # bash is Essential on every pool distro, so an install scenario on a
+    # standard env just detects the system bash and skips (and its reinstall
+    # would try to remove Essential bash). Run install-expecting scenarios on a
+    # bash-less Alpine env (with build deps for the source method) where the
+    # feature installs bash for real; install.sh's bootstrap provides a bash for
+    # the harness to run checks with.
+    install_env: alpine-current+build-base+ncurses
+    install_env_nonroot: alpine-current+build-base+ncurses+vscode
   version:
     resolution: sidecar
     test_pins:

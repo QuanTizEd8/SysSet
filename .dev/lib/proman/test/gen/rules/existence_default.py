@@ -47,12 +47,14 @@ class ExistenceDefaultRule:
         # the primary env when feasible, else the first env-pool member where a
         # method resolves (e.g. install-tokei can't install on ubuntu-stable:
         # version-gated binary, no apt package, no cargo).
-        env = envselect.auto_install_env(facts, cfg, envs)
+        env = facts.install_env or envselect.auto_install_env(facts, cfg, envs)
         scenario = base_scenario([env], cfg, _FAMILY)
         scenario["tests"] = ["default"]
         # Compute what the resolver would pick on that env so the checks assert
         # the recorded method + install location, not just "a binary exists".
-        ctx = context.for_env(env, envs)
+        # Pass provisioning so npm/cargo resolve when env is a pre-provisioned
+        # toolchain env (e.g. install-pnpm's default runs on cfg.npm_env).
+        ctx = context.for_env(env, envs, **envselect.provisioning_for(env, cfg))
         outcome = outcome_mod.compute(facts, ctx)
         group = CheckGroup(
             description="Verifies the default install puts a functional tool on PATH.",

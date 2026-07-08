@@ -655,6 +655,14 @@
                   "type": "string"
                 }
               }
+            },
+            "install_env": {
+              "description": "Test-generation only: environment ID (a key in test/environments.yaml) on which install-expecting generated scenarios (default, method-matrix, version-pinning, prefix-symlink, if_exists reinstall/update, log_file) run. For a feature whose primary binary is pre-installed on the standard pool distros (e.g. bash, Essential everywhere), a standard env would just detect the system binary and skip; this names a clean env where the tool is absent so the feature installs it for real.",
+              "type": "string"
+            },
+            "install_env_nonroot": {
+              "description": "Test-generation only: the non-root counterpart of `install_env`, used for the non-root custom-prefix scenario (a clean env that also has a pre-created non-root user).",
+              "type": "string"
             }
           }
         },

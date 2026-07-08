@@ -45,9 +45,11 @@ class LogFileRule:
         name = "log_file"
         path = f"/tmp/devfeats-test-{facts.feature_id}.log"  # noqa: S108
         # method=auto: run where the feature actually auto-installs (some can't
-        # on the primary env — see envselect.auto_install_env).
+        # on the primary env — see envselect.auto_install_env; install_env
+        # overrides for pre-installed tools like bash).
+        env = facts.install_env or envselect.auto_install_env(facts, cfg, envs)
         scenario = base_scenario(
-            [envselect.auto_install_env(facts, cfg, envs)],
+            [env],
             cfg,
             _FAMILY,
             options={"log_file": path},

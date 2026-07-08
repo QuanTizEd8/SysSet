@@ -23,20 +23,16 @@ if TYPE_CHECKING:
 _FAMILY = "version_pinning"
 
 
-def _pin_method(facts: FeatureFacts, cfg: GenerationConfig, envs: dict, value: str):  # noqa: ANN202
-    """Pick the method + expected outcome for a pinned exact version, primary env.
+def _pin_method(facts: FeatureFacts, envs: dict, env: str, value: str):  # noqa: ANN202
+    """Pick the method + expected outcome for a pinned exact version, on `env`.
 
     `first_feasible_method(version=value)` picks the canonical-first method that
     is *feasible for this specific version* — so an exact-semver pin is never
     assigned to `package`/`upstream-package`, which cannot resolve an arbitrary
     upstream version host-side (the zsh/rust class of bug).
     """
-    method = envselect.first_feasible_method(
-        facts, envs, cfg.primary_env, version=value
-    )
-    ctx = context.for_env(
-        cfg.primary_env, envs, version_input=value, resolved_version=value
-    )
+    method = envselect.first_feasible_method(facts, envs, env, version=value)
+    ctx = context.for_env(env, envs, version_input=value, resolved_version=value)
     outcome = (
         outcome_mod.compute(facts, ctx, method=method, version=value)
         if method is not None
@@ -65,7 +61,7 @@ class VersionPinningRule:
     ) -> list[GeneratedScenario]:
         """One scenario per declared pinned/legacy version value."""
         pinned, legacy = facts.test_pins
-        env = cfg.primary_env
+        env = facts.install_env or cfg.primary_env
         results: list[GeneratedScenario] = []
         for index, value in enumerate(pinned):
             name = pinned_scenario_name(index, len(pinned))
@@ -84,7 +80,7 @@ class VersionPinningRule:
         cfg: GenerationConfig,
         envs: dict,
     ) -> GeneratedScenario:
-        method, outcome = _pin_method(facts, cfg, envs, value)
+        method, outcome = _pin_method(facts, envs, env, value)
         options = {"version": value}
         if method is not None:
             options["method"] = method

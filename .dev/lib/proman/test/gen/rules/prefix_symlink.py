@@ -51,17 +51,21 @@ class PrefixSymlinkRule:
         envs: dict,
     ) -> list[GeneratedScenario]:
         """Generate the root symlink, no-symlink, and non-root symlink scenarios."""
+        # install_env overrides for a tool pre-installed on the standard envs
+        # (bash): install/symlink scenarios must run where the tool is absent.
+        root_env = facts.install_env or cfg.primary_env
+        nonroot_env = facts.install_env_nonroot or cfg.nonroot_env
         results = [
             self._symlink(
-                facts, cfg, envs, "custom_prefix_symlink", cfg.primary_env, root=True
+                facts, cfg, envs, "custom_prefix_symlink", root_env, root=True
             ),
-            self._no_symlink(facts, cfg, envs),
+            self._no_symlink(facts, cfg, envs, root_env),
             self._symlink(
                 facts,
                 cfg,
                 envs,
                 "custom_prefix_symlink_nonroot",
-                cfg.nonroot_env,
+                nonroot_env,
                 root=False,
             ),
         ]
@@ -193,6 +197,7 @@ class PrefixSymlinkRule:
         facts: FeatureFacts,
         cfg: GenerationConfig,
         envs: dict,
+        env: str,
     ) -> GeneratedScenario | None:
         name = "custom_prefix_no_symlink"
         bin_ = facts.primary_bin
@@ -200,11 +205,11 @@ class PrefixSymlinkRule:
         resolved_path = facts.resolved_bin_path(custom_prefix, bin_)
         link_path = f"{facts.symlink_root}/{bin_}"
 
-        method_option = self._method_option(facts, envs, cfg.primary_env)
+        method_option = self._method_option(facts, envs, env)
         if method_option is None:
             return None
         scenario = base_scenario(
-            [cfg.primary_env],
+            [env],
             cfg,
             _FAMILY,
             options={

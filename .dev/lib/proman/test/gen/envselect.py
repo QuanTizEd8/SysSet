@@ -44,7 +44,34 @@ def auto_install_env(facts: FeatureFacts, cfg: GenerationConfig, envs: dict) -> 
         seen.add(env)
         if resolve_auto_method(facts, context.for_env(env, envs)) is not None:
             return env
+    # Nothing resolves on a bare env. "npm/cargo is installed" is a
+    # Dockerfile-layer fact, not a WhenSpec attribute, so an npm-only or
+    # cargo-only feature (install-pnpm/install-yarn via npm) is infeasible on
+    # every bare pool env above — but installs on the pre-provisioned toolchain
+    # env. Fall through to those, matching method_matrix's npm_default/
+    # cargo_default, which target cfg.npm_env/cfg.cargo_env for the same reason.
+    for prov_env in (cfg.npm_env, cfg.cargo_env):
+        if not prov_env or prov_env in seen:
+            continue
+        seen.add(prov_env)
+        ctx = context.for_env(prov_env, envs, **provisioning_for(prov_env, cfg))
+        if resolve_auto_method(facts, ctx) is not None:
+            return prov_env
     return cfg.primary_env
+
+
+def provisioning_for(env: str, cfg: GenerationConfig) -> dict[str, bool]:
+    """Provisioning flags (`has_npm`/`has_cargo`) for the given env.
+
+    The pre-provisioned toolchain envs ship a toolchain their Dockerfile
+    installs (npm on `cfg.npm_env`, cargo on `cfg.cargo_env`); a caller building
+    a ResolveContext for one of them must pass these so npm/cargo methods
+    register as feasible. Bare envs get all-False.
+    """
+    return {
+        "has_npm": bool(cfg.npm_env) and env == cfg.npm_env,
+        "has_cargo": bool(cfg.cargo_env) and env == cfg.cargo_env,
+    }
 
 
 def feasible_envs(

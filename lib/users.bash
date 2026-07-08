@@ -966,7 +966,13 @@ users__resolve_home() {
   fi
   # getent handles both username and UID, and queries NSS (LDAP, NIS).
   if bootstrap__getent && command -v getent > /dev/null 2>&1; then
-    _entry="$(getent passwd "$_user" 2> /dev/null)"
+    # `|| true`: getent exits 2 when the user/UID is absent from NSS (a legit
+    # case — e.g. a path owned by a UID with no passwd entry). The `[ -n ]`
+    # check below already handles the empty result by falling through to the
+    # /etc/passwd scan and devcontainer env fallbacks; without `|| true` the
+    # non-zero exit trips errexit and aborts the whole install (observed:
+    # install-node's prefix discovery via users__home_of_path_owner).
+    _entry="$(getent passwd "$_user" 2> /dev/null || true)"
     if [ -n "$_entry" ]; then
       IFS=: read -r _ _ _ _ _ _home _ <<< "$_entry"
       printf '%s\n' "$_home"

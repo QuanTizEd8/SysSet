@@ -98,6 +98,23 @@ class FeatureFacts:
         return list(pins.get("pinned", ())), list(pins.get("legacy", ()))
 
     @property
+    def install_env(self) -> str | None:
+        """`_options.verify.install_env`: env override for install-expecting scenarios.
+
+        For a feature whose primary binary is pre-installed on the standard test
+        envs (e.g. bash — Essential on every pool distro), install scenarios
+        (default/method/version/prefix) skip there and never exercise a real
+        install. Such features name a clean env where the tool is absent so the
+        generator installs it for real (bash: a bash-less Alpine build env).
+        """
+        return self.verify.get("install_env")
+
+    @property
+    def install_env_nonroot(self) -> str | None:
+        """`_options.verify.install_env_nonroot`: non-root variant of install_env."""
+        return self.verify.get("install_env_nonroot")
+
+    @property
     def default_prefix_root(self) -> str:
         """`_options.prefix.root`, default `/usr/local`."""
         return self.prefix.get("root", "/usr/local")

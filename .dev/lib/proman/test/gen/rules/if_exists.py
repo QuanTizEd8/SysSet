@@ -20,7 +20,14 @@ if TYPE_CHECKING:
     from proman.test.gen.facts import FeatureFacts
 
 _FAMILY = "if_exists"
-_FAKE_VERSION = "9.9.9"
+# A deliberately *low* sentinel version. if_exists=update must upgrade the fake
+# stub to the real target; a high sentinel (e.g. 9.9.9) is newer than every real
+# release, so a feature whose update path refuses to downgrade (verified: pixi
+# `info --extended` update declines when installed > target) leaves the stub in
+# place and the "no longer the fake stub" check fails. 0.0.1 is older than any
+# real release, so update always upgrades, while skip (unchanged) / fail
+# (aborts) / reinstall (unconditional) are indifferent to the value.
+_FAKE_VERSION = "0.0.1"
 
 # Methods whose `if_exists=update` path operates on real installed state (e.g.
 # `npm install --update` requires the actual package tree at PREFIX) and so
@@ -73,19 +80,33 @@ class IfExistsRule:
             # Pass the pinned version (when any) so the pick is channel-aware:
             # reinstall/update pin `test_pins.pinned[0]`, an exact version that
             # must not land on a PM method that cannot resolve it.
+            # Reinstall/update actually install the tool, so run them where the
+            # tool installs (auto_install_env → cfg.npm_env for an npm-only
+            # feature like install-pnpm/yarn, whose method is infeasible on the
+            # bare primary env) and resolve the method against that env's
+            # provisioning.
+            install_env = facts.install_env or envselect.auto_install_env(
+                facts, cfg, envs
+            )
+            prov = envselect.provisioning_for(install_env, cfg)
             pinned, _legacy = facts.test_pins
             method = envselect.first_feasible_method(
                 facts,
                 envs,
-                cfg.primary_env,
+                install_env,
                 allowed=facts.prefix_capable_methods,
                 version=pinned[0] if pinned else None,
+                **prov,
             )
             results.append(
-                self._mutating("if_exists_reinstall", "reinstall", method, facts, cfg),
+                self._mutating(
+                    "if_exists_reinstall", "reinstall", method, install_env, facts, cfg
+                ),
             )
             results.append(
-                self._mutating("if_exists_update", "update", method, facts, cfg),
+                self._mutating(
+                    "if_exists_update", "update", method, install_env, facts, cfg
+                ),
             )
         return results
 
@@ -191,6 +212,7 @@ class IfExistsRule:
         name: str,
         if_exists: str,
         method: str | None,
+        env: str,
         facts: FeatureFacts,
         cfg: GenerationConfig,
     ) -> GeneratedScenario:
@@ -200,7 +222,7 @@ class IfExistsRule:
         pinned, _legacy = facts.test_pins
         if pinned:
             options["version"] = pinned[0]
-        scenario = base_scenario([cfg.primary_env], cfg, _FAMILY, options=options)
+        scenario = base_scenario([env], cfg, _FAMILY, options=options)
         scenario["tests"] = [name]
 
         bin_ = facts.primary_bin

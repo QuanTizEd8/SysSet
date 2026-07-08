@@ -127,13 +127,21 @@ class MethodMatrixRule:
         just differing package availability for `package`) that a single-env
         test would leave unexercised for every PM but one.
         """
-        selected = envselect.select_envs(
-            when,
-            envs,
-            candidates=list(cfg.env_pool),
-            policy="one_per_pm",
-            primary_env=cfg.primary_env,
-        )
+        # install_env (a tool pre-installed on the pool, e.g. bash): its package
+        # install runs fresh only where the tool is absent, so pin that env
+        # (filtered by the method's when) instead of fanning across the pool.
+        if facts.install_env:
+            selected = envselect.feasible_envs(
+                when, envs, candidates=[facts.install_env]
+            )
+        else:
+            selected = envselect.select_envs(
+                when,
+                envs,
+                candidates=list(cfg.env_pool),
+                policy="one_per_pm",
+                primary_env=cfg.primary_env,
+            )
         if not selected:
             return None
         name = method_scenario_name(method)
@@ -229,13 +237,18 @@ class MethodMatrixRule:
         but the group asserts *this* method's recorded installed-method and
         install location — not the auto-resolved one.
         """
-        selected = envselect.select_envs(
-            when,
-            envs,
-            candidates=list(cfg.env_pool),
-            policy="primary",
-            primary_env=cfg.primary_env,
-        )
+        if facts.install_env:
+            selected = envselect.feasible_envs(
+                when, envs, candidates=[facts.install_env]
+            )
+        else:
+            selected = envselect.select_envs(
+                when,
+                envs,
+                candidates=list(cfg.env_pool),
+                policy="primary",
+                primary_env=cfg.primary_env,
+            )
         if not selected:
             return None
         scenario = base_scenario(selected, cfg, _FAMILY, options={"method": method})
