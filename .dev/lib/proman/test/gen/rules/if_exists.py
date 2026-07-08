@@ -383,7 +383,14 @@ class IfExistsRule:
 
         bin_ = facts.primary_bin
         resolved_path = facts.resolved_bin_path(facts.default_prefix_root, bin_)
-        real_seed = if_exists == "update"
+        # `update` always seeds a genuine prior install; so does `reinstall` for
+        # an off-PATH feature. Off-PATH installs (install-homebrew) run their
+        # installer as a dedicated non-root user into a user-owned prefix, and a
+        # root-seeded fake stub leaves that prefix root-owned — the reinstall
+        # then aborts with "Insufficient permissions" (verified in CI). A real
+        # prior install (via the feature's own install.sh) establishes the
+        # correct ownership so uninstall+reinstall works.
+        real_seed = if_exists == "update" or off_path
         scenario["setup"] = (
             self._real_seed_setup(facts, method) if real_seed else self._setup(facts)
         )
