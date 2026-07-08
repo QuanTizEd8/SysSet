@@ -66,12 +66,17 @@ __install_run_binary_post() {
   logging__success "Go ${VERSION} extracted to '${_RESOLVED_PREFIX}'."
 }
 
-# Remove any pre-existing GOROOT tree so a reinstall/update installs cleanly.
+# Clear a pre-existing GOROOT tree so a reinstall/update installs cleanly.
+# Removes the directory's *contents*, not the directory itself: a non-root
+# custom-prefix install relies on the framework having pre-created and chowned
+# the prefix dir, so removing the dir would leave the unprivileged user unable to
+# recreate it under a system path. Clearing only the contents preserves that
+# directory (and its ownership) while dropping stale files from a prior version.
 # shellcheck disable=SC2329,SC2317
 __go_reset_goroot() {
-  [[ -e "${_RESOLVED_PREFIX}" ]] || return 0
-  logging__info "Removing existing Go tree at '${_RESOLVED_PREFIX}' for a clean install."
-  file__rm -rf "${_RESOLVED_PREFIX}"
+  [[ -d "${_RESOLVED_PREFIX}" ]] || return 0
+  logging__info "Clearing existing Go tree contents in '${_RESOLVED_PREFIX}' for a clean install."
+  find "${_RESOLVED_PREFIX}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 }
 
 # shellcheck disable=SC2329,SC2317
