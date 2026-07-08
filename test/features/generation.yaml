@@ -43,6 +43,7 @@ rollout:
     - install-zsh
     - install-oras
     - install-git
+    - install-git-lfs
     - install-bash
     - install-gh
     - install-starship

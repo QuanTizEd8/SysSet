@@ -39,9 +39,14 @@ _options:
   verify:
     args: "version"
     description: Verify Git LFS is installed and working.
+    functional:
+      description: git-lfs reports its environment
+      cmd: '{bin} env | grep -q git-lfs'
   gh_repo: git-lfs/git-lfs
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["3.5.1"]
   completions:
     subcmd: "completion"
     shells: [bash, zsh, fish]

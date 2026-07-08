@@ -1,29 +1,5 @@
 defaults:
   modes: [devcontainer]
-
-default:
-  envs: [ubuntu-stable]
-  tests: [default]
-
-upstream_package:
-  envs: [ubuntu-stable, rockylinux-current+bash]
-  options:
-    method: upstream-package
-  tests: [upstream_package]
-
-linux_zypper:
-  envs: [opensuse-leap-current+bash]
-  options:
-    method: package
-  tests: [linux_zypper]
-
-source_prefix:
-  envs: [ubuntu-stable]
-  options:
-    method: source
-    prefix: /opt/git-lfs
-  tests: [source_prefix]
-
 global_remote_user:
   envs: [ubuntu-stable+vscode]
   devcontainer:
@@ -35,7 +11,6 @@ global_remote_user:
     add_remote_user: true
     add_container_user: false
   tests: [global_remote_user]
-
 file_scope_skip_smudge_repo_hook:
   envs: [ubuntu-stable]
   setup: |
@@ -50,7 +25,6 @@ file_scope_skip_smudge_repo_hook:
     skip_repo: false
     skip_smudge: true
   tests: [file_scope_skip_smudge_repo_hook]
-
 worktree_manual_hooks:
   envs: [ubuntu-stable]
   setup: |
@@ -64,7 +38,6 @@ worktree_manual_hooks:
     skip_repo: false
     manual_hooks: true
   tests: [worktree_manual_hooks]
-
 auto_pull_true:
   envs: [ubuntu-stable]
   options:
@@ -72,7 +45,6 @@ auto_pull_true:
     config_scope: none
     auto_pull: true
   tests: [auto_pull_true]
-
 auto_pull_false:
   envs: [ubuntu-stable]
   options:
@@ -80,7 +52,6 @@ auto_pull_false:
     config_scope: none
     auto_pull: false
   tests: [auto_pull_false]
-
 macos_default:
   envs: [macos-current+brew]
   modes: [macos]
