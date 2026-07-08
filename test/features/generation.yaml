@@ -1,135 +1,113 @@
-# Global, cross-feature configuration for the test-generation pipeline.
-# Feature-specific test-generation facts (functional smoke-test command, version
-# pins) do NOT live here — they live in each feature's own metadata.yaml under
-# _options.verify.functional / _options.version.test_pins, since they describe
-# that one feature, not generator behavior. This file only tunes settings that
-# apply the same way across every feature.
 enabled: true
-
-# Migration scaffolding: while `allowlist` is empty, generation contributes
-# nothing for any feature, regardless of the family settings below. Features
-# are added here one at a time as their generated output is reviewed via
-# `proman-test-gen-preview <feature> --diff` and confirmed to pass
-# `just test-feats <feature>` end-to-end. Once every feature has been
-# reviewed, `mode` flips to `all` (with a small permanent `denylist` for the
-# manifest-DSL/orchestration features that have no metadata shape to generate
-# from) and this scaffolding is retired.
 rollout:
   mode: allowlist
   allowlist:
-    - install-jq
-    - install-act
-    - install-copilot
-    - install-codex
-    - install-opencode
-    - install-claude
-    - install-ripgrep
-    - install-shfmt
-    - install-just
-    - install-shellcheck
-    - install-typst
-    - install-uv
-    - install-yq
-    - install-lefthook
-    - install-taskfile
-    - install-jsonschema
-    - install-fzf
-    - install-ruff
-    - install-direnv
-    - install-devcontainer-cli
-    - install-go
-    - install-rust
-    - install-tokei
-    - install-zsh
-    - install-oras
-    - install-git
-    - install-git-lfs
-    - install-bash
-    - install-gh
-    - install-starship
-    - install-pixi
-    - install-node
-    - install-pnpm
-    - install-yarn
+  - install-jq
+  - install-act
+  - install-copilot
+  - install-codex
+  - install-opencode
+  - install-claude
+  - install-ripgrep
+  - install-shfmt
+  - install-just
+  - install-shellcheck
+  - install-typst
+  - install-uv
+  - install-yq
+  - install-lefthook
+  - install-taskfile
+  - install-jsonschema
+  - install-fzf
+  - install-ruff
+  - install-direnv
+  - install-devcontainer-cli
+  - install-go
+  - install-rust
+  - install-tokei
+  - install-zsh
+  - install-oras
+  - install-git
+  - install-git-lfs
+  - install-bash
+  - install-gh
+  - install-starship
+  - install-pixi
+  - install-node
+  - install-pnpm
+  - install-yarn
+  - install-ohmybash
+  - install-ohmyzsh
   denylist:
-    # Orchestration / manifest features: no _options.method, .version, .prefix,
-    # or .verify — they configure the environment (packages, files, users,
-    # shims, fonts) rather than installing a versioned tool onto PATH, so none
-    # of the install-tool generator families apply. Their scenarios are all
-    # genuinely unique to each feature and stay hand-written.
-    - install
-    - install-os-pkg
-    - install-os-pkg-bundle
-    - install-fonts
-    - setup-shell
-    - setup-files
-    - setup-shim
-    - setup-user
-    # No primary binary/command (no _options.verify.cmd or _options.prefix.bins):
-    # every generator family builds binary-presence scenarios and fails without one.
-    # install-nvm is a sourced shell function (no PATH binary); its tests are
-    # activation-based and irreducibly bespoke.
-    - install-bash-completion
-    - install-zsh-completion
-    - install-nvm
-
+  - install
+  - install-os-pkg
+  - install-os-pkg-bundle
+  - install-fonts
+  - setup-shell
+  - setup-files
+  - setup-shim
+  - setup-user
+  - install-bash-completion
+  - install-zsh-completion
+  - install-nvm
+  - install-conda-env
 environments:
   primary: ubuntu-stable
   nonroot_env: ubuntu-stable+vscode
-  # method_matrix's npm_default: "npm is already installed" isn't a WhenSpec
-  # attribute (it's a Dockerfile-layer fact), so this points at one specific
-  # pre-provisioned env rather than going through the normal when:-driven pool.
   npm_env: ubuntu-stable+node
-  # method_matrix's cargo_default: "a Rust toolchain is already installed"
-  # isn't a WhenSpec attribute either (same reasoning as npm_env above) — a
-  # plain env has no cargo/rustc, so method=cargo would fail outright on any
-  # bare pool env regardless of when: feasibility (confirmed via a real
-  # Docker run of install-just's cargo_default on bare ubuntu-stable).
   cargo_env: ubuntu-current+rust
-  # One representative per plat.pm, used for e.g. method_matrix's package_default
-  # (one scenario per feasible package manager). alpine/rocky/opensuse-leap need
-  # their +bash variant since generated checks use `bash -c '...'`; ubuntu/debian/
-  # fedora/arch ship bash by default.
   pool:
-    - ubuntu-stable
-    - debian-stable+bash
-    - alpine-current+bash
-    - fedora-current+bash
-    - rockylinux-current+bash
-    - opensuse-leap-current+bash
-    - archlinux-current
-
+  - ubuntu-stable
+  - debian-stable+bash
+  - alpine-current+bash
+  - fedora-current+bash
+  - rockylinux-current+bash
+  - opensuse-leap-current+bash
+  - archlinux-current
 families:
   existence_default:
     enabled: true
-    modes: [devcontainer, standalone]
+    modes:
+    - devcontainer
+    - standalone
   version_pinning:
     enabled: true
-    modes: [devcontainer, standalone]
+    modes:
+    - devcontainer
+    - standalone
   method_matrix:
     enabled: true
-    modes: [standalone]
+    modes:
+    - standalone
     select: one_per_pm
   if_exists:
     enabled: true
-    modes: [standalone]
+    modes:
+    - standalone
   prefix_symlink:
     enabled: true
-    modes: [devcontainer, standalone]
+    modes:
+    - devcontainer
+    - standalone
   invalid_enum:
     enabled: true
-    modes: [standalone]
-    options: [method, if_exists]
+    modes:
+    - standalone
+    options:
+    - method
+    - if_exists
   completions:
     enabled: true
-    modes: [standalone]
+    modes:
+    - standalone
   configure_users:
     enabled: false
-    reason: "Scenario scaffolding only generates a scaffold that requires a hand-authored checks.yaml group; opt in per feature once that group exists."
+    reason: Scenario scaffolding only generates a scaffold that requires a hand-authored
+      checks.yaml group; opt in per feature once that group exists.
   log_file:
     enabled: true
-    modes: [standalone]
-
+    modes:
+    - standalone
 assertions:
   require_anchored_regex: true
   version_cross_validate: true

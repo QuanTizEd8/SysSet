@@ -1,7 +1,11 @@
-default:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  tests: [default]
+# Residue: only scenarios unique to install-ohmybash's own configuration surface.
+# `default` and `if_exists_{skip,fail}` are generated (git-clone-aware). The
+# generated `default` verifies the clone + git config; it is augmented here with
+# `default_omb_scaffold`, the oh-my-bash-specific scaffold/config assertions the
+# generic git-clone checks can't know about.
+generation:
+  augment_tests:
+    default: [default_omb_scaffold]
 
 user_config:
   envs: [debian-stable]
@@ -14,13 +18,6 @@ binary_custom_prefix:
   options:
     prefix: /opt/oh-my-bash
   tests: [binary_custom_prefix]
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    if_exists: skip
-  tests: [if_exists_skip]
 
 if_exists_update:
   envs: [debian-stable]

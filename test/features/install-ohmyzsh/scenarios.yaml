@@ -1,7 +1,11 @@
-default:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  tests: [default]
+# Residue: only scenarios unique to install-ohmyzsh's own configuration surface.
+# `default` and `if_exists_{skip,fail}` are generated (git-clone-aware). The
+# generated `default` verifies the clone + git config; it is augmented here with
+# `default_omz_scaffold`, the oh-my-zsh-specific scaffold/config assertions the
+# generic git-clone checks can't know about.
+generation:
+  augment_tests:
+    default: [default_omz_scaffold]
 
 plugins:
   envs: [debian-stable]
@@ -37,13 +41,6 @@ custom_dir_per_user:
   options:
     custom_dir: "~/.zsh-custom"
   tests: [custom_dir_per_user]
-
-if_exists_skip:
-  envs: [debian-stable]
-  modes: [devcontainer]
-  options:
-    if_exists: skip
-  tests: [if_exists_skip]
 
 if_exists_update:
   envs: [debian-stable]

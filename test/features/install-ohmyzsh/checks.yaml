@@ -1,10 +1,10 @@
-default:
+default_omz_scaffold:
   description: |
-    Verifies the default Oh My Zsh installation: cloned to the default path,
-    git metadata set, ZSH_CUSTOM structure scaffolded, default plugins cloned,
-    per-user config injected into /root/zshtheme (including verbatim cache/compdump
-    shell expressions), and a source line injected into /root/.zshrc that loads the
-    theme file.
+    oh-my-zsh-specific artifacts of the default install, augmenting the
+    generated git-clone `default` checks (clone dir + .git + remote/branch
+    config): the main script, ZSH_CUSTOM scaffolding, the default plugin clone,
+    and the per-user zshtheme/.zshrc integration for root (including the verbatim
+    cache/compdump shell expressions).
 
   pre: |
     _OMZ=/usr/local/share/oh-my-zsh
@@ -13,14 +13,8 @@ default:
     _ZSHTHEME="${_HOME}/zshtheme"
 
   checks:
-    - title: oh-my-zsh install dir exists
-      cmd: test -d "$_OMZ"
     - title: oh-my-zsh main script exists
       cmd: test -f "${_OMZ}/oh-my-zsh.sh"
-    - title: oh-my-zsh.remote git config set
-      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.remote)" = "origin"'
-    - title: oh-my-zsh.branch git config set
-      cmd: bash -c 'test "$(git -C '"$_OMZ"' config oh-my-zsh.branch)" = "master"'
     - title: ZSH_CUSTOM themes dir scaffolded
       cmd: test -d "${_SYS_CUSTOM}/themes"
     - title: ZSH_CUSTOM plugins dir scaffolded
@@ -168,29 +162,6 @@ custom_dir_per_user:
       cmd: bash -c '! test -d "${_USER_CUSTOM}/plugins/zsh-syntax-highlighting/.git"'
     - title: zshtheme sets ZSH_CUSTOM to per-user path
       cmd: grep -qF "ZSH_CUSTOM=\"$_USER_CUSTOM\"" "$_ZSHTHEME"
-    - title: .zshrc sources zshtheme
-      cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
-
-if_exists_skip:
-  description: |
-    Verifies that if_exists=skip on a fresh container (nothing pre-existing) performs
-    a normal install, since there is nothing to skip.
-
-  pre: |
-    _OMZ=/usr/local/share/oh-my-zsh
-    _SYS_CUSTOM="${_OMZ}/custom"
-    _HOME=/root
-    _ZSHTHEME="${_HOME}/zshtheme"
-
-  checks:
-    - title: oh-my-zsh install dir exists
-      cmd: test -d "$_OMZ"
-    - title: oh-my-zsh main script exists
-      cmd: test -f "${_OMZ}/oh-my-zsh.sh"
-    - title: ZSH_CUSTOM structure scaffolded
-      cmd: test -d "${_SYS_CUSTOM}/plugins"
-    - title: zshtheme sources oh-my-zsh.sh
-      cmd: grep -qF "oh-my-zsh.sh" "$_ZSHTHEME"
     - title: .zshrc sources zshtheme
       cmd: grep -qF "zshtheme" "${_HOME}/.zshrc"
 
