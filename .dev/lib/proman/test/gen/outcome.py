@@ -240,16 +240,31 @@ def compute(
         return _git_clone_outcome(facts, ctx, prefix)
     if resolved in PREFIX_METHODS:
         return _prefix_outcome(facts, ctx, resolved, version, prefix, prefix_discovery)
+    # Self-managed PATH: a script install that skips BOTH the framework symlink
+    # and the PATH export and declares NO discovery snippet / activation block
+    # manages its own PATH from inside its installer (install-texlive's
+    # `instopt_adjustpath`), landing the binary at a location the metadata can't
+    # predict (texlive's year+platform `{prefix}/YYYY/bin/<platform>/tlmgr`). Such
+    # a tool is on the default PATH, so it falls through to the plain-on-PATH
+    # outcome below (command -v + version + functional, no absolute-path
+    # assertion) — distinct from a discovery/activation feature (homebrew), which
+    # keeps skip-symlink but IS login-shell-only.
+    self_managed = (
+        facts.symlink_skipped
+        and facts.exports_skipped
+        and not facts.has_discovery_snippet
+        and not facts.activation_shells
+    )
     # A `script` (or other) method that installs into a declared prefix still
     # lands its binary at `{prefix}/{bin_dir}/{bin}` and goes through the same
     # symlink/export/discovery machinery — route it through the prefix outcome so
-    # a skip-symlink+skip-export install (homebrew, texlive) correctly predicts
-    # on_path=False + the absolute install path (the tool is then reachable only
-    # in a login shell), instead of naively assuming a bare `command -v` works.
-    if facts.bins:
+    # a skip-symlink install with a discovery snippet (homebrew) correctly
+    # predicts on_path=False + the absolute install path (login-shell-only),
+    # instead of assuming `command -v` works.
+    if facts.bins and not self_managed:
         return _prefix_outcome(facts, ctx, resolved, version, prefix, prefix_discovery)
-    # A method with no prefix bins (e.g. a script install with no `prefix.bins`):
-    # a plain binary on PATH, location not separately predictable.
+    # A self-managed install, or a method with no prefix bins: a plain binary on
+    # PATH, location not separately predictable.
     return ExpectedOutcome(
         method=resolved,
         version=version,

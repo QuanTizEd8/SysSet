@@ -55,12 +55,36 @@ def test_binary_default_prefix_auto_no_symlink() -> None:
     assert out.on_path is True
 
 
-def test_script_with_prefix_skip_symlink_export_is_off_path() -> None:
-    """A script install to a skip-symlink+skip-export prefix lands off PATH.
+def test_script_skip_symlink_with_discovery_is_off_path() -> None:
+    """Assert the homebrew shape is off-PATH.
 
-    (texlive shape: the tool is reachable only via a login shell afterward.)
-    The script method must route through the prefix outcome so the absolute
-    install path is predicted and on_path is False.
+    A script install to a skip-symlink prefix WITH a discovery snippet is
+    off-PATH: reachable only via a login shell, at a predictable absolute
+    install path.
+    """
+    facts = _facts(
+        {"script": {}},
+        bins=["brew"],
+        prefix={
+            "root": "/home/linuxbrew/.linuxbrew",
+            "symlink": {"skip": True},
+            "discovery_snippet": {"bash": 'eval "$(brew shellenv)"'},
+        },
+    )
+    out = outcome.compute(facts, ResolveContext(attrs=UBUNTU))
+    assert out is not None
+    assert out.method == "script"
+    assert out.install_path == "/home/linuxbrew/.linuxbrew/bin/brew"
+    assert out.symlink is None
+    assert out.on_path is False
+
+
+def test_script_self_managed_path_is_on_path_no_location() -> None:
+    """Assert a self-managed install is on-PATH with no location assertion.
+
+    A script install that skips symlink+export with NO discovery/activation
+    self-manages its PATH (texlive `instopt_adjustpath`): on_path=True and no
+    (unpredictable) absolute install path is asserted.
     """
     facts = _facts(
         {"script": {}},
@@ -74,9 +98,8 @@ def test_script_with_prefix_skip_symlink_export_is_off_path() -> None:
     out = outcome.compute(facts, ResolveContext(attrs=UBUNTU))
     assert out is not None
     assert out.method == "script"
-    assert out.install_path == "/usr/local/texlive/bin/tlmgr"
-    assert out.symlink is None
-    assert out.on_path is False
+    assert out.on_path is True
+    assert out.install_path is None
 
 
 def test_script_with_prefix_and_symlink_stays_on_path() -> None:

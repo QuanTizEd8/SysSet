@@ -18,7 +18,11 @@ UBUNTU = {"os.id": "ubuntu", "plat.pm": "apt", "plat.kernel": "linux"}
 
 
 def _off_path_facts() -> FeatureFacts:
-    """homebrew-like: script method, skip-symlink, off-PATH prefix, a functional."""
+    """Build a homebrew-like fixture: off-PATH via a discovery snippet.
+
+    Script method, skip-symlink + a discovery snippet (so it is off-PATH /
+    login-shell-reachable, not self-managed), plus a functional.
+    """
     return FeatureFacts(
         feature_id="install-fixture",
         verify={
@@ -30,7 +34,7 @@ def _off_path_facts() -> FeatureFacts:
             "root": "/home/linuxbrew/.linuxbrew",
             "bins": ["brew"],
             "symlink": {"skip": True},
-            "exports": {"skip": True},
+            "discovery_snippet": {"bash": 'eval "$(brew shellenv)"'},
         },
     )
 
