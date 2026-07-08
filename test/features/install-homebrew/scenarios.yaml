@@ -1,11 +1,17 @@
 # Residue: install-homebrew's discovery-snippet mechanism (per-distro shellenv
 # writes), macOS coverage, and custom options. The generated `default`,
 # if_exists, invalid, and log_file scenarios cover the universal install
-# contract; `default` is augmented with `default_discovery` (the homebrew-
-# specific shellenv-block assertions the generic off-PATH checks can't derive).
-generation:
-  augment_tests:
-    default: [default_discovery]
+# contract (off-PATH existence + login-shell reachability). `linux_discovery`
+# below adds the homebrew-specific shellenv-block assertions across bash *and*
+# zsh startup files — it installs zsh in setup so the zsh discovery path is
+# exercised (the generated `default` env has no zsh), which is why this is a
+# standalone scenario rather than a `default` augment.
+linux_discovery:
+  envs: [ubuntu-stable, debian-stable]
+  modes: [devcontainer]
+  setup: |
+    retry apt-get update -qq && retry apt-get install -y --no-install-recommends zsh
+  tests: [linux_discovery]
 
 discovery_disabled:
   envs: [ubuntu-stable]

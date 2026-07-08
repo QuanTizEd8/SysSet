@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proman.test.gen import checks_builtin, envselect
+from proman.test.gen import checks_builtin, context, envselect
+from proman.test.gen import outcome as outcome_mod
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
 from proman.test.gen.types import CheckGroup, CheckItem, GeneratedScenario
@@ -74,7 +75,15 @@ class IfExistsRule:
                 self._git_clone_skip(facts, cfg),
                 self._git_clone_fail(facts, cfg),
             ]
-        results = [self._skip(facts, cfg), self._fail(facts, cfg)]
+        # Off-PATH features (skip-symlink+skip-export, e.g. install-homebrew):
+        # the seeded stub lives at the prefix bin path but is NOT on the default
+        # PATH, so skip/fail existence + version checks must probe the absolute
+        # path, not a bare `command -v` (which runs in the non-login test shell).
+        off_path = self._is_off_path(facts, cfg, envs, cfg.primary_env)
+        results = [
+            self._skip(facts, cfg, off_path=off_path),
+            self._fail(facts, cfg, off_path=off_path),
+        ]
         # Reinstall/update require a PREFIX-attributable existing install to
         # detect correctly; without prefix.bins (e.g. git-clone-only
         # features), __detect_existing_method__ can't classify the fake stub
@@ -112,17 +121,49 @@ class IfExistsRule:
                 version=pinned[0] if pinned else None,
                 **prov,
             )
+            mut_off_path = self._is_off_path(
+                facts, cfg, envs, install_env, method=method
+            )
             results.append(
                 self._mutating(
-                    "if_exists_reinstall", "reinstall", method, install_env, facts, cfg
+                    "if_exists_reinstall",
+                    "reinstall",
+                    method,
+                    install_env,
+                    facts,
+                    cfg,
+                    off_path=mut_off_path,
                 ),
             )
             results.append(
                 self._mutating(
-                    "if_exists_update", "update", method, install_env, facts, cfg
+                    "if_exists_update",
+                    "update",
+                    method,
+                    install_env,
+                    facts,
+                    cfg,
+                    off_path=mut_off_path,
                 ),
             )
         return results
+
+    def _is_off_path(
+        self,
+        facts: FeatureFacts,
+        cfg: GenerationConfig,
+        envs: dict,
+        env: str,
+        method: str | None = None,
+    ) -> bool:
+        """Whether the resolved install lands its binary off the default PATH.
+
+        Reuses the outcome model (skip-symlink+skip-export with a non-standard
+        bin dir), so if_exists asserts existence the same way `default` does.
+        """
+        ctx = context.for_env(env, envs, **envselect.provisioning_for(env, cfg))
+        oc = outcome_mod.compute(facts, ctx, method=method)
+        return oc is not None and not oc.on_path and oc.install_path is not None
 
     # ── git-clone-only variant ───────────────────────────────────────────────
     _GIT_CLONE_SENTINEL = ".devfeats-preexisting-sentinel"
@@ -239,7 +280,22 @@ class IfExistsRule:
             script += f"\nmkdir -p {facts.symlink_root}\nln -sf {path} {link_path}"
         return script
 
-    def _skip(self, facts: FeatureFacts, cfg: GenerationConfig) -> GeneratedScenario:
+    def _avail_cmd(self, facts: FeatureFacts, *, off_path: bool) -> str:
+        """Existence probe for the seeded stub: absolute path off-PATH, else PATH."""
+        if off_path:
+            path = facts.resolved_bin_path(facts.default_prefix_root, facts.primary_bin)
+            return f"test -x {path}"
+        return f"command -v {facts.primary_bin}"
+
+    def _stub_invocation(self, facts: FeatureFacts, *, off_path: bool) -> str:
+        """How to invoke the stub for a version probe (absolute path off-PATH)."""
+        if off_path:
+            return facts.resolved_bin_path(facts.default_prefix_root, facts.primary_bin)
+        return facts.primary_bin
+
+    def _skip(
+        self, facts: FeatureFacts, cfg: GenerationConfig, *, off_path: bool = False
+    ) -> GeneratedScenario:
         name = "if_exists_skip"
         scenario = base_scenario(
             [cfg.primary_env],
@@ -250,15 +306,16 @@ class IfExistsRule:
         scenario["setup"] = self._setup(facts)
         scenario["tests"] = [name]
         bin_ = facts.primary_bin
+        invoke = self._stub_invocation(facts, off_path=off_path)
         checks = [
             CheckItem(
                 title=f"{bin_} remains available after skip",
-                cmd=f"command -v {bin_}",
+                cmd=self._avail_cmd(facts, off_path=off_path),
             ),
             CheckItem(
                 title=f"existing {bin_} version unchanged (skip did not reinstall)",
                 cmd=(
-                    f"bash -c '{bin_} {facts.version_flag} 2>&1 | "
+                    f"bash -c '{invoke} {facts.version_flag} 2>&1 | "
                     f'grep -q "{_FAKE_VERSION}"\''
                 ),
             ),
@@ -269,7 +326,9 @@ class IfExistsRule:
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
 
-    def _fail(self, facts: FeatureFacts, cfg: GenerationConfig) -> GeneratedScenario:
+    def _fail(
+        self, facts: FeatureFacts, cfg: GenerationConfig, *, off_path: bool = False
+    ) -> GeneratedScenario:
         name = "if_exists_fail"
         # Pin the target version to the fake stub's own reported version: proves
         # if_exists=fail is unconditional (checked before any version comparison),
@@ -292,7 +351,7 @@ class IfExistsRule:
             ),
             CheckItem(
                 title=f"preinstalled {bin_} remains available",
-                cmd=f"command -v {bin_}",
+                cmd=self._avail_cmd(facts, off_path=off_path),
             ),
         ]
         group = CheckGroup(
@@ -310,6 +369,8 @@ class IfExistsRule:
         env: str,
         facts: FeatureFacts,
         cfg: GenerationConfig,
+        *,
+        off_path: bool = False,
     ) -> GeneratedScenario:
         options: dict = {"if_exists": if_exists}
         if method is not None:
@@ -327,6 +388,10 @@ class IfExistsRule:
             self._real_seed_setup(facts, method) if real_seed else self._setup(facts)
         )
 
+        # existence_triad already probes the absolute path; the version checks
+        # must invoke that absolute path too when the binary is off the default
+        # PATH (a bare `command`/`bin` would not resolve in the test shell).
+        invoke = resolved_path if off_path else bin_
         checks = [*checks_builtin.existence_triad(bin_, path=resolved_path)]
         if not real_seed:
             # Only meaningful when a fake stub was seeded: prove the mutate
@@ -335,12 +400,12 @@ class IfExistsRule:
                 CheckItem(
                     title=f"{bin_} version is no longer the fake stub",
                     cmd=(
-                        f"bash -c '! ({bin_} {facts.version_flag} 2>&1 | "
+                        f"bash -c '! ({invoke} {facts.version_flag} 2>&1 | "
                         f'grep -q "{_FAKE_VERSION}")\''
                     ),
                 ),
             )
-        checks.append(checks_builtin.version_format_check(bin_, facts.version_flag))
+        checks.append(checks_builtin.version_format_check(invoke, facts.version_flag))
         functional = facts.functional
         if functional is not None:
             cmd_template, description = functional

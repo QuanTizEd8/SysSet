@@ -50,6 +50,43 @@ def test_stub_matches_single_word_flag() -> None:
     assert '"$*" = "--version"' in setup
 
 
+def _off_path_facts() -> FeatureFacts:
+    """homebrew-like: script method installing to a skip-symlink off-PATH prefix."""
+    return FeatureFacts(
+        feature_id="install-fixture",
+        verify={
+            "args": "--version",
+            "functional": {"description": "runs", "cmd": "{bin} --prefix"},
+        },
+        methods={"script": {}},
+        prefix={
+            "root": "/home/linuxbrew/.linuxbrew",
+            "bins": ["brew"],
+            "symlink": {"skip": True},
+            "exports": {"skip": True},
+        },
+    )
+
+
+def test_off_path_if_exists_uses_absolute_path() -> None:
+    """Off-PATH skip/fail existence checks probe the absolute stub path.
+
+    A bare `command -v` would fail for a binary the feature deliberately keeps
+    off the default PATH (reachable only via a login-shell discovery snippet).
+    """
+    cfg = gen_config.load()
+    rule = IfExistsRule()
+    facts = _off_path_facts()
+    skip = rule._skip(facts, cfg, off_path=True)
+    cmds = [c["cmd"] for c in skip.checks["if_exists_skip"]["checks"]]
+    assert "test -x /home/linuxbrew/.linuxbrew/bin/brew" in cmds
+    assert "command -v brew" not in cmds
+    # On-PATH features keep the bare command -v probe (no regression).
+    on = rule._skip(_facts("--version"), cfg, off_path=False)
+    on_cmds = [c["cmd"] for c in on.checks["if_exists_skip"]["checks"]]
+    assert "command -v tool" in on_cmds
+
+
 def test_git_clone_generates_only_skip_and_fail() -> None:
     """A git-clone-only feature gets skip+fail, never reinstall/update.
 

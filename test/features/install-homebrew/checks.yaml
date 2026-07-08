@@ -1,10 +1,10 @@
-default_discovery:
+linux_discovery:
   description: |
-    Augments the generated off-PATH `default` checks with install-homebrew's
-    discovery-snippet mechanism (Case A: root + Linux, ubuntu-stable): the
+    install-homebrew's discovery-snippet mechanism (Case A: root + Linux): the
     linuxbrew tree, the `brew --version` name assertion, and the system-wide
     shellenv blocks written to profile.d + bash.bashrc + zshenv that make brew
-    reachable in a login shell.
+    reachable in a login shell. zsh is installed in setup so the zsh startup
+    file is actually written (the generated `default` env has no zsh).
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
   checks:
