@@ -536,10 +536,14 @@ def detect_release(
         root = git_repo_root()
         features_dir = root / "features"
         lib_metadata_path = root / "lib" / "metadata.yaml"
+        # Authenticate the Releases API queries: unauthenticated requests are
+        # capped at 60/hour per IP, which the per-feature loop exhausts (→ 403).
+        token = os.environ.get("GITHUB_TOKEN")
         try:
             all_releasable = detect_releasable(
                 env.repository,
                 features_dir,
+                token=token,
                 lib_metadata_path=lib_metadata_path,
             )
         except RuntimeError as exc:
