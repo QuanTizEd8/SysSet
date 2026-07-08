@@ -14,13 +14,18 @@ _long_description: |-
   Requires Node.js to be installed first (via install-node or install-nvm).
 _tool_name: Yarn
 options:
-  version:
+  # NB: not named `version` — that key is reserved by the build pipeline (it is
+  # the feature's own version / the standard `_options.version` handling) and a
+  # custom option named `version` is silently dropped from the compiled feature,
+  # leaving YARN's install with an unbound VERSION. `yarn_version` maps to the
+  # YARN_VERSION arg used by install.bash.
+  yarn_version:
     type: string
     default: latest
     description: |-
       Version of Yarn to install.
       Set to `latest` to use `corepack enable` (when available) or `npm install -g yarn`.
-      An explicit version string (e.g. `1.22.22`) always uses `npm install -g yarn@VERSION`.
+      An explicit version string (e.g. `1.22.22`) always uses `npm install -g yarn@<version>`.
     proposals:
       - value: latest
         description: Use `corepack enable` (preferred) or `npm install -g yarn`.

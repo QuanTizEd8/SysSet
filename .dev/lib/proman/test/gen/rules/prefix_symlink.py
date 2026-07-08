@@ -144,9 +144,15 @@ class PrefixSymlinkRule:
             # build deps (e.g. install-zsh's build-essential/libncurses-dev for
             # method=source) are pre-installed for the same reason: a source
             # build needs a toolchain the non-root user can't apt-install.
+            # Archive extractors (xz-utils/bzip2/unzip) are pre-installed for
+            # the same reason: a .tar.xz binary release (install-node) needs xz,
+            # and bootstrap__xz has no privilege-free path, so a non-root install
+            # would otherwise fail to extract.
             pm = resolve_attributes(env, envs).get("plat.pm", "apt")
             build_pkgs = facts.build_packages(method_option["method"], pm)
-            pkgs = " ".join(["curl", "ca-certificates", *build_pkgs])
+            pkgs = " ".join(
+                ["curl", "ca-certificates", "xz-utils", "bzip2", "unzip", *build_pkgs]
+            )
             scenario["modes"] = ["standalone"]
             scenario["setup"] = (
                 "retry apt-get update -qq\n"

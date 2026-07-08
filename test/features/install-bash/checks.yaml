@@ -33,3 +33,11 @@ bash_shells_registered:
   checks:
     - title: installed bash is registered in /etc/shells
       cmd: grep -qx "$(readlink -f "$(command -v bash)")" /etc/shells
+if_exists_fail:
+  description: Ensures if_exists=fail exits non-zero when a real bash already exists.
+  checks:
+    - title: preinstalled bash remains available
+      cmd: command -v bash
+    - kind: install_failure
+      title: if_exists=fail exits with already-installed error
+      pattern: failing (if_exists=fail)

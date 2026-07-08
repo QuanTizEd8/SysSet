@@ -2,7 +2,7 @@
 
 __install_run_npm__() {
   logging__install "Installing Yarn globally via npm."
-  if [ "${VERSION}" = "latest" ] && command -v corepack > /dev/null 2>&1; then
+  if [ "${YARN_VERSION}" = "latest" ] && command -v corepack > /dev/null 2>&1; then
     logging__install "Enabling Yarn via corepack."
     corepack enable || {
       logging__error "Failed to enable Yarn via corepack."
@@ -13,7 +13,7 @@ __install_run_npm__() {
   fi
 
   local _pkg="yarn"
-  [ "${VERSION}" != "latest" ] && _pkg+="@${VERSION}"
+  [ "${YARN_VERSION}" != "latest" ] && _pkg+="@${YARN_VERSION}"
 
   local -a _install_args=(install -g)
   [[ -n "${_FEAT_CONTRACT_PREFIX_VAR:-}" && -n "${!_FEAT_CONTRACT_PREFIX_VAR:-}" ]] &&

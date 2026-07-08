@@ -25,6 +25,22 @@ set_login_shell:
     add_container_user: false
   tests: [set_login_shell]
 
+if_exists_fail:
+  # Bash-specific: the generated if_exists_fail seeds a fake stub bash, but a
+  # fake #!/bin/sh stub can't satisfy install.sh's BASH_VERSINFO check, so
+  # install.sh bootstraps a real bash and __init_args_post deliberately
+  # overrides if_exists=fail -> reinstall (the feature always installs the
+  # requested bash over a bootstrap artifact) — the install then succeeds
+  # instead of failing. Test the real behavior against Debian's genuine
+  # pre-installed bash (no stub): if_exists=fail then aborts as expected.
+  expect_install_failure: true
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    method: auto
+    if_exists: fail
+  tests: [if_exists_fail]
+
 generation:
   suppress:
     scenarios:
@@ -40,6 +56,12 @@ generation:
       # testable for bash until the check runner is made POSIX-sh.
       - custom_prefix_no_symlink
       - custom_prefix_symlink_nonroot
+      # See the hand-written if_exists_fail above: the fake-stub approach can't
+      # exercise bash's real if_exists=fail (bootstrap override kicks in).
+      - if_exists_fail
+    checks:
+      # if_exists_fail is replaced by the hand-written group above.
+      - if_exists_fail
   augment_tests:
     # A source system-wide install registers the installed bash in /etc/shells.
     # The generator has no /etc/shells concept, so attach the assertion to the
