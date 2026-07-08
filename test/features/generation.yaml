@@ -42,6 +42,7 @@ rollout:
   - install-homebrew
   - install-miniforge
   - install-texlive
+  - install-pandoc
   denylist:
   - install
   - install-os-pkg

@@ -21,6 +21,12 @@ _options:
   verify:
     args: "--version"
     description: Verify pandoc is installed and working.
+    functional:
+      description: pandoc converts Markdown to HTML
+      # Exercises pandoc's real reader->writer pipeline offline (Markdown in,
+      # HTML out) — no network or external filters. Uses only double quotes so it
+      # survives the `bash -c '...'` wrapper.
+      cmd: 'echo "# Hello" | {bin} -f markdown -t html | grep -q "h1"'
   gh_repo: jgm/pandoc
   version:
     resolution: github_release
