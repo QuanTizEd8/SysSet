@@ -57,6 +57,7 @@ rollout:
   - install-zsh-completion
   - install-nvm
   - install-conda-env
+  - install-podman
 environments:
   primary: ubuntu-stable
   nonroot_env: ubuntu-stable+vscode
