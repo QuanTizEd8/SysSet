@@ -522,6 +522,16 @@ _apply_current_non_global_config() {
   #     unavailable during devcontainer image build.
   #   - Package-installed system defaults are preserved when they already match.
   local _scope="$1" _method="$2"
+  # Git LFS configuration registers LFS filters in git's config, so it needs
+  # git. Normally the base run dependencies install it, but a non-root install
+  # (no privilege to install packages) or an if_exists=skip over a prior binary
+  # may run with git absent. Skip configuration with a warning rather than
+  # failing the whole install — the git-lfs binary is still usable once git is
+  # present.
+  if ! command -v git > /dev/null 2>&1; then
+    logging__warn "git is not on PATH; skipping Git LFS '${_scope}' configuration (install git, then re-run to configure LFS)."
+    return 0
+  fi
   if _repo_config_is_deferred "${_scope}"; then
     logging__info "Deferring repo-scoped Git LFS configuration to postCreateCommand because repo_dir is empty during the devcontainer build."
     return 0
@@ -636,6 +646,13 @@ __configure_user() {
   # Notes:
   #   Only `config_scope=global` is handled here; all other scopes are managed elsewhere.
   local _user="$1"
+  # See _apply_current_non_global_config: Git LFS config needs git; skip
+  # gracefully when it is absent (e.g. a non-root install with no privilege to
+  # install the git run dependency) rather than failing the install.
+  if ! command -v git > /dev/null 2>&1; then
+    logging__warn "git is not on PATH; skipping Git LFS configuration for user '${_user}'."
+    return 0
+  fi
   local _scope _method _repo_dir _config_file
   _scope="$(_resolved_scope)" || {
     declare -g _GIT_LFS_CONFIGURE_USER_FAILED=1
