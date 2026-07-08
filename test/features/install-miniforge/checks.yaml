@@ -607,8 +607,10 @@ default_conda_scaffold:
   description: |
     Miniforge-specific artifacts of the default install, augmenting the generated
     on-PATH default checks: the /opt/conda tree, the real conda/mamba binaries in
-    bin/, python+pip in the base env, the activation scripts, login PATH, and
-    conda's own base/env introspection.
+    bin/, python+pip in the base env, the activation scripts, and conda's own
+    base/env introspection. (The login-PATH assertion lives only in the
+    devcontainer-mode export_path_default scenario — in standalone mode conda is
+    reached via the /usr/local/bin symlink, not /opt/conda/bin on PATH.)
   checks:
     - title: conda directory exists
       cmd: test -d /opt/conda
@@ -630,8 +632,6 @@ default_conda_scaffold:
       cmd: test -f /opt/conda/etc/profile.d/conda.sh
     - title: mamba activation script exists
       cmd: test -f /opt/conda/etc/profile.d/mamba.sh
-    - title: login PATH includes /opt/conda/bin
-      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
     - title: conda info --base returns /opt/conda
       cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
     - title: conda env list shows base

@@ -30,12 +30,21 @@ __resolve_input_version_post() {
 __install_run_script_run() {
   local _installer="$1"
   logging__install "Installing Miniforge to ${_RESOLVED_PREFIX}"
+  # The framework may pre-create (and chown) the prefix directory before the
+  # installer runs — a non-root install to a system path needs the target
+  # created with the correct ownership ahead of the unprivileged install. The
+  # Miniforge installer aborts on a pre-existing `-p` target ("File or directory
+  # already exists") unless `-f` ("no error if install prefix already exists") is
+  # passed, so add it when the directory is already present; it then installs
+  # fresh into the empty pre-created directory.
+  local -a _force=()
+  [[ -d "${_RESOLVED_PREFIX}" ]] && _force=(-f)
   if [[ "${INTERACTIVE:-}" == true ]]; then
     logging__launch "Running Miniforge installer interactively."
-    /bin/bash "${_installer}" -p "${_RESOLVED_PREFIX}"
+    /bin/bash "${_installer}" "${_force[@]+"${_force[@]}"}" -p "${_RESOLVED_PREFIX}"
   else
     logging__launch "Running Miniforge installer in batch mode."
-    /bin/bash "${_installer}" -b -p "${_RESOLVED_PREFIX}"
+    /bin/bash "${_installer}" -b "${_force[@]+"${_force[@]}"}" -p "${_RESOLVED_PREFIX}"
   fi
   logging__info "Conda info:"
   "${_RESOLVED_PREFIX}/bin/conda" info
