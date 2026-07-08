@@ -29,13 +29,14 @@ _FAMILY = "if_exists"
 # (aborts) / reinstall (unconditional) are indifferent to the value.
 _FAKE_VERSION = "0.0.1"
 
-# Methods whose `if_exists=update` path operates on real installed state (e.g.
-# `npm install --update` requires the actual package tree at PREFIX) and so
-# cannot be satisfied by the cheap fake-stub seed — for these, if_exists_update
-# seeds a genuine prior install instead. Overwrite-style methods
-# (binary/source/package/cargo) update by reinstalling over the stub and need
-# no real prior state.
-_STATEFUL_UPDATE_METHODS = frozenset({"npm-bundled", "npm"})
+# if_exists=update always seeds a genuine prior install (via the feature's own
+# install.sh) rather than the cheap fake stub. The stub has no real installed
+# *method* state and its version is opaque to the feature's own detection —
+# verified: pixi reads the stub as version 'unknown', so update reinstalls but
+# cannot reason about the result, and npm/npm-bundled update literally needs the
+# package tree at PREFIX. A real prior install gives update something coherent to
+# operate on for every method. (skip/fail/reinstall keep the fast fake stub —
+# they never compare versions.)
 
 
 @register
@@ -126,9 +127,15 @@ class IfExistsRule:
         # would report no version — breaking if_exists detection and the
         # "version unchanged/mutated" rechecks. "$*" == "info --extended"
         # matches, and still matches a single-word "--version".
+        # Shebang is `#!/bin/sh`, never `#!/usr/bin/env bash`: for the bash
+        # feature the stub IS the bash on PATH (it's seeded at the resolved bin
+        # path, ahead of the system bash), so a bash shebang re-invokes the stub
+        # itself — infinite recursion / fork bomb that hangs the job. /bin/sh is
+        # always present and never the tool under test, and the stub body is
+        # plain POSIX. (bash's own hand-written if_exists tests used /bin/sh.)
         script = (
             f"mkdir -p {path.rsplit('/', 1)[0]}\n"
-            f"printf '#!/usr/bin/env bash\\n"
+            f"printf '#!/bin/sh\\n"
             f'if [ "$*" = "{flag}" ]; then echo "{fake_output}"; exit 0; fi\\n'
             f"exit 0' > {path}\n"
             f"chmod +x {path}"
@@ -227,7 +234,7 @@ class IfExistsRule:
 
         bin_ = facts.primary_bin
         resolved_path = facts.resolved_bin_path(facts.default_prefix_root, bin_)
-        real_seed = if_exists == "update" and method in _STATEFUL_UPDATE_METHODS
+        real_seed = if_exists == "update"
         scenario["setup"] = (
             self._real_seed_setup(facts, method) if real_seed else self._setup(facts)
         )

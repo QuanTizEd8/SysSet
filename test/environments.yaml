@@ -119,9 +119,16 @@ ubuntu-stable+zsh:
 ubuntu-stable+node:
   from: ubuntu-stable
   build:
+    # Node 22 (current LTS) via NodeSource, not Ubuntu's apt nodejs (v18):
+    # the latest pnpm requires Node >= 22.13, and corepack/Yarn Berry also
+    # expect a modern Node. This is the pre-provisioned npm toolchain the
+    # generator targets for npm-method features (install-pnpm/install-yarn) and
+    # method_matrix's npm_default.
     dockerfile: |
       retry apt-get update
-      retry apt-get install -y --no-install-recommends nodejs npm
+      retry apt-get install -y --no-install-recommends ca-certificates curl gnupg
+      curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+      retry apt-get install -y --no-install-recommends nodejs
       rm -rf /var/lib/apt/lists/*
 
 ubuntu-stable+curl:

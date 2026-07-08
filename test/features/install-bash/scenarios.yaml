@@ -26,13 +26,25 @@ set_login_shell:
   tests: [set_login_shell]
 
 generation:
+  suppress:
+    scenarios:
+      # bash is unique: the feature's binary IS the check runner's interpreter.
+      # Its install scenarios run on a bash-less Alpine env (bash is Essential
+      # everywhere else, so an install there just skips). These two variants put
+      # bash off the runner's PATH — prefix_discovery=none installs only under
+      # the custom prefix with no symlink/export, and the non-root symlink lands
+      # in the user's ~/.local/bin, not the runner's PATH — so the bash-based
+      # check runner can't even start ("env: can't execute bash"). The
+      # custom_prefix_symlink variant (symlink into /usr/local/bin, on PATH) is
+      # generated and covers the custom-prefix install; these two are not
+      # testable for bash until the check runner is made POSIX-sh.
+      - custom_prefix_no_symlink
+      - custom_prefix_symlink_nonroot
   augment_tests:
-    # A source system-wide install registers the installed bash in /etc/shells;
-    # a non-root user install does not. The generator has no /etc/shells concept,
-    # so attach the assertions to the generated source scenarios.
+    # A source system-wide install registers the installed bash in /etc/shells.
+    # The generator has no /etc/shells concept, so attach the assertion to the
+    # generated source scenarios.
     source_default: [bash_shells_registered]
     version_pinned: [bash_shells_registered]
     version_legacy: [bash_shells_registered]
     custom_prefix_symlink: [bash_shells_registered]
-    custom_prefix_no_symlink: [bash_shells_registered]
-    custom_prefix_symlink_nonroot: [bash_shells_not_registered]

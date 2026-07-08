@@ -12,7 +12,6 @@ bootstrap_pm_collision:
       cmd: test -x "$(command -v bash)"
     - title: bash reports a version
       cmd: bash -c 'bash --version | grep -Eq "^GNU bash"'
-
 set_login_shell:
   description: |
     set_login_shell changes the resolved user's default login shell to bash and
@@ -25,7 +24,6 @@ set_login_shell:
     - title: shelluser default shell is bash
       cmd: |-
         bash -c '[ "$(getent passwd shelluser | cut -d: -f7)" = "$(command -v bash)" ]'
-
 bash_shells_registered:
   description: |
     A source system-wide install registers the installed bash in /etc/shells so
@@ -35,11 +33,3 @@ bash_shells_registered:
   checks:
     - title: installed bash is registered in /etc/shells
       cmd: grep -qx "$(readlink -f "$(command -v bash)")" /etc/shells
-
-bash_shells_not_registered:
-  description: |
-    A non-root user install cannot write /etc/shells, so the user-installed bash
-    must not appear there (only the pre-existing system bash may).
-  checks:
-    - title: user-installed bash is not registered in /etc/shells
-      cmd: bash -c '! grep -qx "$(readlink -f "$(command -v bash)")" /etc/shells 2>/dev/null'

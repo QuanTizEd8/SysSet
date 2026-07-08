@@ -569,7 +569,7 @@ file__extract_archive() {
         logging__error "xz is required to extract '${_name}'."
         return "$_rc"
       }
-      tar -xJf "$_arc" -C "$_dest" "${_strip_arg[@]}"
+      tar --no-same-owner -xJf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.tar.gz | *.tgz)
       _file__ensure_extract_tool tar
@@ -584,7 +584,7 @@ file__extract_archive() {
         logging__error "gzip is required to extract '${_name}'."
         return "$_rc"
       }
-      tar -xzf "$_arc" -C "$_dest" "${_strip_arg[@]}"
+      tar --no-same-owner -xzf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.tar.bz2)
       _file__ensure_extract_tool tar
@@ -599,7 +599,7 @@ file__extract_archive() {
         logging__error "bzip2 is required to extract '${_name}'."
         return "$_rc"
       }
-      tar -xjf "$_arc" -C "$_dest" "${_strip_arg[@]}"
+      tar --no-same-owner -xjf "$_arc" -C "$_dest" "${_strip_arg[@]}"
       ;;
     *.zip)
       _file__ensure_extract_tool zip
