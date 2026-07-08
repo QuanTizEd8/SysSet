@@ -35,6 +35,12 @@ _options:
   verify:
     args: "version"
     description: Verify the TeX Live installation via tlmgr.
+    functional:
+      description: tlmgr reads its TeX Live configuration
+      # `tlmgr conf` dumps the resolved texmf trees and tlmgr configuration from
+      # the local TeX Live database — a read-only command exercising real config
+      # resolution offline, with no package-repository access.
+      cmd: '{bin} conf > /dev/null 2>&1'
   user_file_fetch: true
   method:
     script:
