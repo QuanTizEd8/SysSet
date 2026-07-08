@@ -27,6 +27,9 @@ __detect_existing_path_post() {
   _FEAT_EXISTING_PATH="$(command -v agent 2> /dev/null || true)"
   [[ -n "${_FEAT_EXISTING_PATH}" ]] &&
     logging__detect "Found Cursor CLI agent on PATH at '${_FEAT_EXISTING_PATH}'."
+  # Detection is best-effort: finding no existing agent (a fresh install) is the
+  # normal case and must not fail the hook under errexit.
+  return 0
 }
 
 # Override the script runner to execute the Cursor installer as the install
