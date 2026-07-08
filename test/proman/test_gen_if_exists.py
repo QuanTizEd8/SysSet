@@ -9,6 +9,7 @@ mutated rechecks work. The stub matches "$*" (all args, space-joined), not
 
 from __future__ import annotations
 
+from proman.test.gen import config as gen_config
 from proman.test.gen.facts import FeatureFacts
 from proman.test.gen.rules.if_exists import IfExistsRule
 
@@ -20,6 +21,16 @@ def _facts(verify_args: str) -> FeatureFacts:
         methods={"binary": {}},
         version={"test_pins": {"pinned": ["1.2.3"]}},
         prefix={"bins": ["tool"]},
+    )
+
+
+def _git_clone_facts() -> FeatureFacts:
+    """Build a git-clone-only feature: no bins, a git-clone method, a prefix root."""
+    return FeatureFacts(
+        feature_id="install-fixture",
+        methods={"git-clone": {"uri": "https://example.com/repo"}},
+        version={"resolution": "git_ref", "default": "master"},
+        prefix={"root": "/usr/local/share/repo", "nonroot": "${HOME}/.repo"},
     )
 
 
@@ -37,3 +48,39 @@ def test_stub_matches_single_word_flag() -> None:
     """The common single-word "--version" case still matches (no regression)."""
     setup = IfExistsRule()._setup(_facts("--version"))
     assert '"$*" = "--version"' in setup
+
+
+def test_git_clone_generates_only_skip_and_fail() -> None:
+    """A git-clone-only feature gets skip+fail, never reinstall/update.
+
+    reinstall/update re-clone / `git pull`, which a seeded bare `.git` cannot
+    stand in for, so they are deliberately excluded for git-clone-only features.
+    """
+    cfg = gen_config.load()
+    scenarios = IfExistsRule().generate(_git_clone_facts(), cfg, envs={})
+    names = [s.name for s in scenarios]
+    assert names == ["if_exists_skip", "if_exists_fail"]
+
+
+def test_git_clone_seeds_dotgit_and_sentinel() -> None:
+    """Seed `{prefix}/.git` plus a survivable sentinel for skip/fail.
+
+    `{prefix}/.git` is how the framework detects an existing git-clone install;
+    the sentinel lets skip/fail assert the existing clone was left untouched.
+    """
+    cfg = gen_config.load()
+    by_name = {s.name: s for s in IfExistsRule().generate(_git_clone_facts(), cfg, {})}
+
+    skip = by_name["if_exists_skip"]
+    assert "mkdir -p /usr/local/share/repo/.git" in skip.scenario["setup"]
+    assert IfExistsRule._GIT_CLONE_SENTINEL in skip.scenario["setup"]
+    # No fake-stub binary machinery leaks in (a git-clone feature has no bin).
+    assert "chmod +x" not in skip.scenario["setup"]
+    skip_cmds = [c["cmd"] for c in skip.checks["if_exists_skip"]["checks"]]
+    assert "test -d /usr/local/share/repo/.git" in skip_cmds
+    assert any(IfExistsRule._GIT_CLONE_SENTINEL in c for c in skip_cmds)
+
+    fail = by_name["if_exists_fail"]
+    assert fail.scenario["expect_install_failure"] is True
+    fail_checks = fail.checks["if_exists_fail"]["checks"]
+    assert any(c.get("kind") == "install_failure" for c in fail_checks)

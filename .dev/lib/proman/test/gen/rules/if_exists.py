@@ -61,6 +61,19 @@ class IfExistsRule:
         envs: dict,
     ) -> list[GeneratedScenario]:
         """Generate skip/fail always; reinstall/update only when bins are declared."""
+        # Git-clone-only features (install-ohmybash/install-ohmyzsh) have no
+        # primary binary to stub, so the fake-stub setup below can't apply. The
+        # framework detects an existing git-clone install purely by the presence
+        # of `${_RESOLVED_PREFIX}/.git` (install.tmpl.bash __detect_existing_
+        # {path,method}__), so seed that instead. reinstall/update are excluded:
+        # they re-clone / `git pull`, which needs a genuine clone with the real
+        # remote — not something a seeded `.git` dir can stand in for (a residual
+        # gap best covered by a hand-written scenario if a feature wants it).
+        if facts.is_git_clone_only:
+            return [
+                self._git_clone_skip(facts, cfg),
+                self._git_clone_fail(facts, cfg),
+            ]
         results = [self._skip(facts, cfg), self._fail(facts, cfg)]
         # Reinstall/update require a PREFIX-attributable existing install to
         # detect correctly; without prefix.bins (e.g. git-clone-only
@@ -110,6 +123,81 @@ class IfExistsRule:
                 ),
             )
         return results
+
+    # ── git-clone-only variant ───────────────────────────────────────────────
+    _GIT_CLONE_SENTINEL = ".devfeats-preexisting-sentinel"
+
+    def _git_clone_setup(self, facts: FeatureFacts) -> str:
+        """Seed a pre-existing git-clone install at the default prefix.
+
+        The framework classifies an install as an existing git-clone purely by
+        `${_RESOLVED_PREFIX}/.git` being a directory (install.tmpl.bash
+        __detect_existing_path__/__detect_existing_method__), so a bare `.git`
+        dir is a faithful stand-in. A sentinel file lets skip/fail assert the
+        existing clone was left in place rather than wiped and re-cloned.
+        """
+        prefix = facts.default_prefix_root
+        return f"mkdir -p {prefix}/.git\ntouch {prefix}/{self._GIT_CLONE_SENTINEL}"
+
+    def _git_clone_skip(
+        self, facts: FeatureFacts, cfg: GenerationConfig
+    ) -> GeneratedScenario:
+        name = "if_exists_skip"
+        scenario = base_scenario(
+            [cfg.primary_env],
+            cfg,
+            _FAMILY,
+            options={"method": "auto", "if_exists": "skip"},
+        )
+        scenario["setup"] = self._git_clone_setup(facts)
+        scenario["tests"] = [name]
+        prefix = facts.default_prefix_root
+        checks = [
+            CheckItem(
+                title="git-clone directory remains after skip",
+                cmd=f"test -d {prefix}/.git",
+            ),
+            CheckItem(
+                title="skip left the existing clone untouched (not re-cloned)",
+                cmd=f"test -f {prefix}/{self._GIT_CLONE_SENTINEL}",
+            ),
+        ]
+        group = CheckGroup(
+            description="if_exists=skip leaves an already-cloned repository untouched.",
+            checks=checks,
+        )
+        return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
+
+    def _git_clone_fail(
+        self, facts: FeatureFacts, cfg: GenerationConfig
+    ) -> GeneratedScenario:
+        name = "if_exists_fail"
+        scenario = base_scenario(
+            [cfg.primary_env],
+            cfg,
+            _FAMILY,
+            options={"if_exists": "fail"},
+        )
+        scenario["setup"] = self._git_clone_setup(facts)
+        scenario["expect_install_failure"] = True
+        scenario["tests"] = [name]
+        prefix = facts.default_prefix_root
+        checks = [
+            CheckItem(
+                title="if_exists=fail exits with already-installed error",
+                kind="install_failure",
+                pattern="failing (if_exists=fail)",
+            ),
+            CheckItem(
+                title="preexisting clone remains after fail",
+                cmd=f"test -d {prefix}/.git",
+            ),
+        ]
+        group = CheckGroup(
+            description="if_exists=fail aborts when the repository is already cloned.",
+            checks=checks,
+        )
+        return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
 
     def _setup(self, facts: FeatureFacts) -> str:
         """Seed a fake stub script reporting `_FAKE_VERSION` at the default path."""
