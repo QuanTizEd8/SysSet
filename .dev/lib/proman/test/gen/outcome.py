@@ -240,8 +240,16 @@ def compute(
         return _git_clone_outcome(facts, ctx, prefix)
     if resolved in PREFIX_METHODS:
         return _prefix_outcome(facts, ctx, resolved, version, prefix, prefix_discovery)
-    # script or any other method with no prefix/PM machinery: a plain binary on
-    # PATH, location not separately predictable.
+    # A `script` (or other) method that installs into a declared prefix still
+    # lands its binary at `{prefix}/{bin_dir}/{bin}` and goes through the same
+    # symlink/export/discovery machinery — route it through the prefix outcome so
+    # a skip-symlink+skip-export install (homebrew, texlive) correctly predicts
+    # on_path=False + the absolute install path (the tool is then reachable only
+    # in a login shell), instead of naively assuming a bare `command -v` works.
+    if facts.bins:
+        return _prefix_outcome(facts, ctx, resolved, version, prefix, prefix_discovery)
+    # A method with no prefix bins (e.g. a script install with no `prefix.bins`):
+    # a plain binary on PATH, location not separately predictable.
     return ExpectedOutcome(
         method=resolved,
         version=version,

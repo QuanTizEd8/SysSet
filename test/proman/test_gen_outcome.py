@@ -53,6 +53,50 @@ def test_binary_default_prefix_auto_no_symlink() -> None:
     assert out.symlink is None
     assert out.path_export is False
     assert out.on_path is True
+
+
+def test_script_with_prefix_skip_symlink_export_is_off_path() -> None:
+    """A script install to a skip-symlink+skip-export prefix lands off PATH.
+
+    (texlive shape: the tool is reachable only via a login shell afterward.)
+    The script method must route through the prefix outcome so the absolute
+    install path is predicted and on_path is False.
+    """
+    facts = _facts(
+        {"script": {}},
+        bins=["tlmgr"],
+        prefix={
+            "root": "/usr/local/texlive",
+            "symlink": {"skip": True},
+            "exports": {"skip": True},
+        },
+    )
+    out = outcome.compute(facts, ResolveContext(attrs=UBUNTU))
+    assert out is not None
+    assert out.method == "script"
+    assert out.install_path == "/usr/local/texlive/bin/tlmgr"
+    assert out.symlink is None
+    assert out.on_path is False
+
+
+def test_script_with_prefix_and_symlink_stays_on_path() -> None:
+    """A script install that still symlinks into /usr/local/bin stays on PATH.
+
+    (install-rust shape: symlink not skipped, so a symlink into a standard PATH
+    dir is created — on_path stays True; only an absolute install-path
+    assertion is added, no login-shell treatment.)
+    """
+    facts = _facts(
+        {"script": {}},
+        bins=["rustc"],
+        prefix={"root": "/usr/local/cargo"},
+    )
+    out = outcome.compute(facts, ResolveContext(attrs=UBUNTU))
+    assert out is not None
+    assert out.method == "script"
+    assert out.install_path == "/usr/local/cargo/bin/rustc"
+    assert out.symlink is not None
+    assert out.on_path is True
     assert out.share_dir_var == "_FEAT_SHARE_DIR_ROOT"
 
 

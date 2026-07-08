@@ -42,20 +42,62 @@ def build(
     if facts.is_git_clone_only:
         return _git_clone_checks(facts)
 
-    bins = facts.bins or [facts.primary_bin]
-    items: list[CheckItem] = [
-        CheckItem(title=f"{b} is on PATH", cmd=f"command -v {b}") for b in bins
-    ]
     primary = facts.primary_bin
+    # Off-PATH install: the outcome predicts the binary lands at a known absolute
+    # path but is NOT on the default PATH (symlink + export skipped — homebrew,
+    # texlive). A bare `command -v` runs in the non-login test shell where the
+    # feature's discovery snippet / activation block hasn't been sourced, so it
+    # would wrongly fail. Assert by absolute path plus a login-shell probe.
+    if outcome is not None and not outcome.on_path and outcome.install_path:
+        items = _off_path_items(facts, cfg, outcome)
+    else:
+        bins = facts.bins or [primary]
+        items = [
+            CheckItem(title=f"{b} is on PATH", cmd=f"command -v {b}") for b in bins
+        ]
+        items.append(
+            CheckItem(
+                title=f"{primary} binary is executable",
+                cmd=f"bash -c 'test -x \"$(command -v {primary})\"'",
+            ),
+        )
+        items.append(checks_builtin.version_format_check(primary, facts.version_flag))
+        items.extend(_functional_items(facts, cfg, primary))
+    items.extend(_outcome_items(facts, outcome, method_pinned=method_pinned))
+    return items
+
+
+def _off_path_items(
+    facts: FeatureFacts,
+    cfg: GenerationConfig,
+    outcome: ExpectedOutcome,
+) -> list[CheckItem]:
+    """Check an off-default-PATH install by absolute path plus a login probe.
+
+    For a binary installed to a skip-symlink+skip-export prefix, existence,
+    version, and functional checks all run against the absolute install path.
+    Adds a login-shell reachability probe (`bash -lc 'command -v ...'`): the tool
+    is put on PATH only in a login/interactive shell, by whichever mechanism the
+    feature uses (homebrew's discovery snippet, a feature's activation block), so
+    this one probe covers both without modeling the mechanism.
+    """
+    primary = facts.primary_bin
+    install_dir = outcome.install_path.rsplit("/", 1)[0]
+    items: list[CheckItem] = []
+    for b in facts.bins or [primary]:
+        path = f"{install_dir}/{b}"
+        items.append(
+            CheckItem(title=f"{b} is installed at {path}", cmd=f"test -x {path}"),
+        )
+    primary_path = f"{install_dir}/{primary}"
+    items.append(checks_builtin.version_format_check(primary_path, facts.version_flag))
+    items.extend(_functional_items(facts, cfg, primary_path))
     items.append(
         CheckItem(
-            title=f"{primary} binary is executable",
-            cmd=f"bash -c 'test -x \"$(command -v {primary})\"'",
+            title=f"{primary} is reachable in a login shell",
+            cmd=f"bash -lc 'command -v {primary}'",
         ),
     )
-    items.append(checks_builtin.version_format_check(primary, facts.version_flag))
-    items.extend(_functional_items(facts, cfg, primary))
-    items.extend(_outcome_items(facts, outcome, method_pinned=method_pinned))
     return items
 
 
