@@ -1,15 +1,20 @@
 npm_system:
   description: |
     method=npm with system Node.js (pre-installed via setup): installs codex
-    via system npm.  Verifies the binary is on PATH, reports a semver, and is
-    registered with npm globally.
+    via system npm.  Verifies the binary is on PATH, reports a semver, and the
+    @openai/codex package is registered in npm's global tree at the feature
+    prefix (the template runs `npm install -g --prefix ${_RESOLVED_PREFIX}`, so
+    the package lives under /usr/local/lib/node_modules, not npm's default
+    /usr/lib prefix).
   pre: |
     echo "=== which codex ==="
     which codex 2>&1 || echo "(not on PATH)"
     echo "=== codex --version ==="
     codex --version 2>&1 || echo "(failed)"
-    echo "=== npm list -g @openai/codex ==="
-    npm list -g @openai/codex 2>&1 || echo "(not listed)"
+    echo "=== npm list -g @openai/codex --prefix /usr/local ==="
+    npm list -g @openai/codex --prefix /usr/local 2>&1 || echo "(not listed)"
+    echo "=== /usr/local/lib/node_modules/@openai ==="
+    ls -la /usr/local/lib/node_modules/@openai 2>&1 || echo "(missing)"
   checks:
     - title: codex is on PATH
       cmd: command -v codex
@@ -20,10 +25,11 @@ npm_system:
       on_fail: |
         echo "=== actual codex --version output ==="
         codex --version 2>&1 || echo "(failed)"
-    - title: "@openai/codex registered with npm globally"
-      cmd: bash -c 'npm list -g @openai/codex 2>/dev/null | grep -q "@openai/codex"'
+    - title: "@openai/codex registered in npm global at the feature prefix"
+      cmd: bash -c 'npm list -g @openai/codex --prefix /usr/local 2>/dev/null | grep -q "@openai/codex" || test -d /usr/local/lib/node_modules/@openai/codex'
       on_fail: |
-        npm list -g 2>/dev/null | grep -i codex || echo "(codex not in npm global list)"
+        npm list -g --prefix /usr/local 2>/dev/null | grep -i codex || echo "(codex not in npm global at /usr/local)"
+        ls -la /usr/local/lib/node_modules/@openai 2>&1 || echo "(no @openai scope dir)"
 
 auto_binary_npm_present:
   description: |

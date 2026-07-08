@@ -54,9 +54,24 @@ __install_run_binary_post() {
   # under a literal top-level "go/" — not a single binary — so binary_src is
   # only used to satisfy the template's primary-bin placement; this hook copies
   # the full tree over it.
+  #
+  # Clean-replace the GOROOT tree first: copying a new version *over* an existing
+  # one (an if_exists=reinstall/update, especially a downgrade) would leave files
+  # from the previous version behind — a mixed tree whose `go` binary and stdlib
+  # disagree on version, so `go run` fails. Removing it guarantees exactly the
+  # installed version's files.
+  __go_reset_goroot
   file__mkdir "${_RESOLVED_PREFIX}"
   file__cp -a "${INSTALLER_DIR}/asset/go/." "${_RESOLVED_PREFIX}/"
   logging__success "Go ${VERSION} extracted to '${_RESOLVED_PREFIX}'."
+}
+
+# Remove any pre-existing GOROOT tree so a reinstall/update installs cleanly.
+# shellcheck disable=SC2329,SC2317
+__go_reset_goroot() {
+  [[ -e "${_RESOLVED_PREFIX}" ]] || return 0
+  logging__info "Removing existing Go tree at '${_RESOLVED_PREFIX}' for a clean install."
+  file__rm -rf "${_RESOLVED_PREFIX}"
 }
 
 # shellcheck disable=SC2329,SC2317
@@ -106,6 +121,7 @@ __install_run_source_build() {
     logging__error "Go source build failed (make.bash exited ${_rc})."
     return "$_rc"
   }
+  __go_reset_goroot
   file__mkdir "${_RESOLVED_PREFIX}"
   file__cp -a "${_src_dir}/." "${_RESOLVED_PREFIX}/"
   logging__success "Go ${VERSION} built from source and installed to '${_RESOLVED_PREFIX}'."
