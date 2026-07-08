@@ -4,10 +4,17 @@ _state_dir() {
   # @brief _state_dir — Return the feature-owned persistent state directory.
   #
   # Args: none.
-  # Stdout: Absolute path `${_FEAT_SHARE_DIR_ROOT}/state`.
+  # Stdout: Absolute path `<share dir>/state`, where the share dir is the
+  #   non-root one for an unprivileged install (so a non-root user can write it)
+  #   and the root one otherwise — matching the framework's own installed-method
+  #   state placement (install.tmpl.bash). Without this, a non-root custom-prefix
+  #   install fails trying to mkdir under /usr/local/share.
   # Returns: 0.
   # Notes: Shared by the install script and the post-create lifecycle script.
-  printf '%s/state\n' "${_FEAT_SHARE_DIR_ROOT}"
+  local _base="${_FEAT_SHARE_DIR_ROOT}"
+  users__is_user_path "${_RESOLVED_PREFIX:-${_FEAT_SHARE_DIR_ROOT}}" &&
+    _base="${_FEAT_SHARE_DIR_NONROOT}"
+  printf '%s/state\n' "${_base}"
 }
 
 _state_env_file() {
