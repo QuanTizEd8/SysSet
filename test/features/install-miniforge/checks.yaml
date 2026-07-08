@@ -84,59 +84,6 @@ custom_active_env:
     - title: conda activate base NOT in /etc/bash.bashrc
       cmd: bash -c '! grep -Fq "conda activate base" /etc/bash.bashrc'
 
-custom_bin_dir:
-  description: |
-    prefix=/opt/myforge (custom prefix, default prefix_discovery=auto):
-    Miniforge is installed to a custom directory. In auto mode with a custom
-    prefix, symlinks are created in /usr/local/bin so conda/mamba are reachable.
-    No PATH export blocks are written (exports always disabled for miniforge).
-
-  checks:
-    - title: conda is at /opt/myforge
-      cmd: test -d /opt/myforge
-    - title: conda binary at custom dir
-      cmd: test -f /opt/myforge/bin/conda
-    - title: conda binary is executable
-      cmd: test -x /opt/myforge/bin/conda
-    - title: mamba binary at custom dir
-      cmd: test -f /opt/myforge/bin/mamba
-    - title: mamba binary is executable
-      cmd: test -x /opt/myforge/bin/mamba
-    - title: conda wrapper in condabin
-      cmd: test -f /opt/myforge/condabin/conda
-    - title: mamba wrapper in condabin
-      cmd: test -f /opt/myforge/condabin/mamba
-    - title: python installed in custom base env
-      cmd: test -f /opt/myforge/bin/python
-    - title: conda activation script at custom dir
-      cmd: test -f /opt/myforge/etc/profile.d/conda.sh
-    - title: mamba activation script at custom dir
-      cmd: test -f /opt/myforge/etc/profile.d/mamba.sh
-    - title: default /opt/conda NOT created
-      cmd: bash -c '! test -e /opt/conda'
-    - title: /usr/local/bin/conda symlink exists
-      cmd: test -L /usr/local/bin/conda
-      debug: |
-        echo "=== ls -la /usr/local/bin/conda /usr/local/bin/mamba ==="
-        ls -la /usr/local/bin/conda /usr/local/bin/mamba 2>&1 || echo "(missing)"
-    - title: /usr/local/bin/mamba symlink exists
-      cmd: test -L /usr/local/bin/mamba
-    - title: conda symlink points into /opt/myforge
-      cmd: bash -c '[ "$(readlink /usr/local/bin/conda)" = "/opt/myforge/condabin/conda" ]'
-    - title: mamba symlink points into /opt/myforge
-      cmd: bash -c '[ "$(readlink /usr/local/bin/mamba)" = "/opt/myforge/condabin/mamba" ]'
-    - title: profile.d export script NOT written
-      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
-      debug: |
-        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} (should be missing) ==="
-        cat "/etc/profile.d/${_FEAT_PROFILE_D_FILE}" 2>/dev/null || echo "(missing — expected)"
-    - title: conda --version via symlink
-      cmd: /usr/local/bin/conda --version
-    - title: mamba --version via symlink
-      cmd: /usr/local/bin/mamba --version
-    - title: conda info --base returns /opt/myforge
-      cmd: bash -c '[ "$(/opt/myforge/bin/conda info --base 2>/dev/null)" = "/opt/myforge" ]'
-
 debian:
   description: |
     debian:latest: verifies the full installation
@@ -174,56 +121,6 @@ debian:
       cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
     - title: base environment accessible
       cmd: /opt/conda/bin/conda env list
-
-download_and_install:
-  description: |
-    All defaults: full Miniforge installation.
-    Verifies conda and mamba are installed under /opt/conda, the base environment
-    is functional, and activation scripts are in place.  In devcontainer mode,
-    containerEnv puts /opt/conda/bin on $PATH before install.sh runs, so
-    prefix_discovery=auto skips creating symlinks when prefix is already on PATH.
-
-  checks:
-    - title: conda directory exists
-      cmd: test -d /opt/conda
-    - title: conda/bin directory exists
-      cmd: test -d /opt/conda/bin
-    - title: conda/envs directory exists
-      cmd: test -d /opt/conda/envs
-    - title: conda/pkgs directory exists
-      cmd: test -d /opt/conda/pkgs
-    - title: conda binary installed
-      cmd: test -f /opt/conda/bin/conda
-    - title: conda binary is executable
-      cmd: test -x /opt/conda/bin/conda
-    - title: mamba binary installed
-      cmd: test -f /opt/conda/bin/mamba
-    - title: mamba binary is executable
-      cmd: test -x /opt/conda/bin/mamba
-    - title: python installed in base env
-      cmd: test -f /opt/conda/bin/python
-    - title: pip installed in base env
-      cmd: test -f /opt/conda/bin/pip
-    - title: conda activation script exists
-      cmd: test -f /opt/conda/etc/profile.d/conda.sh
-    - title: mamba activation script exists
-      cmd: test -f /opt/conda/etc/profile.d/mamba.sh
-    - title: login PATH includes /opt/conda/bin
-      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
-    - title: conda --version succeeds
-      cmd: /opt/conda/bin/conda --version
-    - title: mamba --version succeeds
-      cmd: /opt/conda/bin/mamba --version
-    - title: conda info exits zero
-      cmd: /opt/conda/bin/conda info
-    - title: conda env list shows base
-      cmd: /opt/conda/bin/conda env list
-    - title: conda info --base returns /opt/conda
-      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
-    - title: conda list for base env succeeds
-      cmd: /opt/conda/bin/conda list -n base
-    - title: old hardcoded installer path not created
-      cmd: bash -c '! test -d /tmp/miniforge-installer 2>/dev/null'
 
 export_path_default:
   description: |
@@ -442,31 +339,6 @@ invalid_version:
       title: nonexistent Miniforge version rejected during resolution
       pattern: "github__resolve_version: no release matching"
 
-log_file:
-  description: |
-    log_file=/tmp/miniforge.log: all output is
-    captured to the specified log file in addition to stdout/stderr.
-
-  checks:
-    - title: conda binary installed
-      cmd: test -f /opt/conda/bin/conda
-    - title: conda --version succeeds
-      cmd: /opt/conda/bin/conda --version
-    - title: log_file was created
-      cmd: test -f /tmp/miniforge.log
-    - title: log_file is non-empty
-      cmd: test -s /tmp/miniforge.log
-    - title: log_file contains install marker
-      cmd: grep -q "Miniforge" /tmp/miniforge.log
-      debug: |
-        echo "===== /tmp/miniforge.log contents =====" && cat /tmp/miniforge.log && echo "===== end of log =====" || echo "(log_file missing)"
-    - title: log_file contains success marker
-      cmd: grep -q "Miniforge Installation script finished successfully" /tmp/miniforge.log
-    - title: log_file contains bin_dir path
-      cmd: grep -q "/opt/conda" /tmp/miniforge.log
-    - title: log_file records conda info output
-      cmd: grep -q "platform :" /tmp/miniforge.log
-
 multi_user_permissions:
   description: |
     write_group="conda", write_users="testuser1\ntestuser2":
@@ -499,70 +371,6 @@ multi_user_permissions:
       cmd: bash -c '[ "$(stat -c "%A" /opt/conda | cut -c6)" = "w" ]'
     - title: /opt/conda has setgid bit
       cmd: bash -c 'stat -c "%A" /opt/conda | grep -qE "^d.....(s|S)"'
-
-prefix_discovery_symlink:
-  description: |
-    prefix=/opt/myforge, prefix_discovery=symlink:
-    Binary symlinks must be created in /usr/local/bin pointing into condabin.
-    No directory symlinks (behavior removed). No PATH export blocks.
-
-  checks:
-    - title: conda is at /opt/myforge
-      cmd: test -d /opt/myforge
-    - title: conda binary at custom dir
-      cmd: test -f /opt/myforge/bin/conda
-    - title: mamba binary at custom dir
-      cmd: test -f /opt/myforge/bin/mamba
-    - title: conda wrapper in condabin
-      cmd: test -f /opt/myforge/condabin/conda
-    - title: mamba wrapper in condabin
-      cmd: test -f /opt/myforge/condabin/mamba
-    - title: /usr/local/bin/conda symlink exists
-      cmd: test -L /usr/local/bin/conda
-      debug: |
-        echo "=== ls -la /usr/local/bin/conda /usr/local/bin/mamba ==="
-        ls -la /usr/local/bin/conda /usr/local/bin/mamba 2>&1 || echo "(missing)"
-    - title: /usr/local/bin/mamba symlink exists
-      cmd: test -L /usr/local/bin/mamba
-    - title: conda symlink points into /opt/myforge/condabin
-      cmd: bash -c '[ "$(readlink /usr/local/bin/conda)" = "/opt/myforge/condabin/conda" ]'
-    - title: mamba symlink points into /opt/myforge/condabin
-      cmd: bash -c '[ "$(readlink /usr/local/bin/mamba)" = "/opt/myforge/condabin/mamba" ]'
-    - title: conda reachable via symlink
-      cmd: /usr/local/bin/conda --version
-    - title: no /opt/conda directory symlink
-      cmd: bash -c '! test -e /opt/conda'
-    - title: profile.d export script NOT written
-      cmd: bash -c '! test -f "/etc/profile.d/${_FEAT_PROFILE_D_FILE}"'
-
-prefix_discovery_symlink_nonroot:
-  description: |
-    prefix=/opt/myforge, prefix_discovery=symlink, remoteUser=vscode:
-    When the install runs as root but remoteUser=vscode, binary symlinks are
-    created in /usr/local/bin (root target). vscode's home is not touched.
-
-  checks:
-    - title: conda binary at /opt/myforge/bin/conda
-      cmd: test -f /opt/myforge/bin/conda
-    - title: conda binary is executable
-      cmd: test -x /opt/myforge/bin/conda
-    - title: conda wrapper in condabin
-      cmd: test -f /opt/myforge/condabin/conda
-    - title: mamba wrapper in condabin
-      cmd: test -f /opt/myforge/condabin/mamba
-    - title: /usr/local/bin/conda symlink exists
-      cmd: test -L /usr/local/bin/conda
-      debug: |
-        echo "=== ls -la /usr/local/bin/conda /usr/local/bin/mamba ==="
-        ls -la /usr/local/bin/conda /usr/local/bin/mamba 2>&1 || echo "(missing)"
-    - title: /usr/local/bin/mamba symlink exists
-      cmd: test -L /usr/local/bin/mamba
-    - title: conda reachable via symlink
-      cmd: /usr/local/bin/conda --version
-    - title: no /opt/conda directory symlink
-      cmd: bash -c '! test -e /opt/conda'
-    - title: no \$HOME/miniforge3 symlink for vscode
-      cmd: bash -c '! test -e /home/vscode/miniforge3'
 
 preserve_config_false:
   description: |
@@ -703,41 +511,6 @@ set_permission:
     - title: /opt/conda has setgid bit
       cmd: bash -c 'stat -c "%A" /opt/conda | grep -qE "^d.....(s|S)"'
 
-specific_version:
-  description: |
-    version=24.7.1: Miniforge is installed from a pinned release resolved
-    via the GitHub API (conda 24.7.1 -> tag 24.7.1-2).
-    Verifies the versioned download and install path works end-to-end and that
-    the installed conda version matches the requested version string exactly.
-    Update version in scenarios.json when the pinned release is retired.
-
-  checks:
-    - title: conda directory exists
-      cmd: test -d /opt/conda
-    - title: conda binary installed
-      cmd: test -f /opt/conda/bin/conda
-    - title: conda binary is executable
-      cmd: test -x /opt/conda/bin/conda
-    - title: mamba binary installed
-      cmd: test -f /opt/conda/bin/mamba
-    - title: mamba binary is executable
-      cmd: test -x /opt/conda/bin/mamba
-    - title: conda --version succeeds
-      cmd: /opt/conda/bin/conda --version
-      debug: |
-        echo "=== conda --version ==="
-        /opt/conda/bin/conda --version 2>&1 || echo "(failed)"
-    - title: conda version is 24.7.1
-      cmd: bash -c '[ "$(/opt/conda/bin/conda --version 2>/dev/null | awk "{print \$NF}")" = "24.7.1" ]'
-    - title: mamba --version succeeds
-      cmd: /opt/conda/bin/mamba --version
-    - title: conda info --base returns /opt/conda
-      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
-    - title: base environment is accessible
-      cmd: /opt/conda/bin/conda env list
-    - title: login PATH includes /opt/conda/bin
-      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
-
 stable_version:
   description: |
     version=stable (default): the script calls the GitHub API to resolve
@@ -829,3 +602,77 @@ version_match_idempotency:
       cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
     - title: login PATH includes /opt/conda/bin
       cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+
+default_conda_scaffold:
+  description: |
+    Miniforge-specific artifacts of the default install, augmenting the generated
+    on-PATH default checks: the /opt/conda tree, the real conda/mamba binaries in
+    bin/, python+pip in the base env, the activation scripts, login PATH, and
+    conda's own base/env introspection.
+  checks:
+    - title: conda directory exists
+      cmd: test -d /opt/conda
+    - title: conda/bin directory exists
+      cmd: test -d /opt/conda/bin
+    - title: conda/envs directory exists
+      cmd: test -d /opt/conda/envs
+    - title: conda/pkgs directory exists
+      cmd: test -d /opt/conda/pkgs
+    - title: conda binary in bin
+      cmd: test -x /opt/conda/bin/conda
+    - title: mamba binary in bin
+      cmd: test -x /opt/conda/bin/mamba
+    - title: python installed in base env
+      cmd: test -f /opt/conda/bin/python
+    - title: pip installed in base env
+      cmd: test -f /opt/conda/bin/pip
+    - title: conda activation script exists
+      cmd: test -f /opt/conda/etc/profile.d/conda.sh
+    - title: mamba activation script exists
+      cmd: test -f /opt/conda/etc/profile.d/mamba.sh
+    - title: login PATH includes /opt/conda/bin
+      cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
+    - title: conda info --base returns /opt/conda
+      cmd: bash -c '[ "$(/opt/conda/bin/conda info --base 2>/dev/null)" = "/opt/conda" ]'
+    - title: conda env list shows base
+      cmd: /opt/conda/bin/conda env list
+    - title: conda list for base env succeeds
+      cmd: /opt/conda/bin/conda list -n base
+    - title: old hardcoded installer path not created
+      cmd: bash -c '! test -d /tmp/miniforge-installer 2>/dev/null'
+
+log_file_conda:
+  description: |
+    Miniforge-specific log_file content, augmenting the generic log-mechanism
+    checks: the resolved prefix path and conda's own info output are captured.
+  checks:
+    - title: log_file contains the conda prefix path
+      cmd: grep -q "/opt/conda" /tmp/devfeats-test-install-miniforge.log
+    - title: log_file records conda info output
+      cmd: grep -q "platform :" /tmp/devfeats-test-install-miniforge.log
+
+custom_prefix_conda:
+  description: |
+    Miniforge-specific artifacts of the custom-prefix (symlink) install,
+    augmenting the generic custom-prefix checks: the condabin wrappers the
+    /usr/local/bin symlinks point at, mamba/python, the activation scripts, and
+    conda's --base resolution under the custom prefix, with no default /opt/conda.
+  checks:
+    - title: mamba binary at custom prefix
+      cmd: test -x /opt/conda-test/bin/mamba
+    - title: python at custom prefix base env
+      cmd: test -f /opt/conda-test/bin/python
+    - title: conda wrapper in condabin
+      cmd: test -f /opt/conda-test/condabin/conda
+    - title: mamba wrapper in condabin
+      cmd: test -f /opt/conda-test/condabin/mamba
+    - title: conda activation script at custom prefix
+      cmd: test -f /opt/conda-test/etc/profile.d/conda.sh
+    - title: mamba activation script at custom prefix
+      cmd: test -f /opt/conda-test/etc/profile.d/mamba.sh
+    - title: mamba symlink resolves into custom condabin
+      cmd: bash -c '[ "$(readlink /usr/local/bin/mamba)" = "/opt/conda-test/condabin/mamba" ]'
+    - title: conda info --base returns the custom prefix
+      cmd: bash -c '[ "$(/opt/conda-test/bin/conda info --base 2>/dev/null)" = "/opt/conda-test" ]'
+    - title: default /opt/conda NOT created
+      cmd: bash -c '! test -e /opt/conda'

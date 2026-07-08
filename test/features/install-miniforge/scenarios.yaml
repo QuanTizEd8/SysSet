@@ -1,21 +1,21 @@
-download_and_install:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  tests: [download_and_install]
-
-custom_bin_dir:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  options:
-    prefix: /opt/myforge
-  tests: [custom_bin_dir]
-
-specific_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  options:
-    version: "24.7.1"
-  tests: [specific_version]
+# Residue: scenarios unique to install-miniforge, plus generation directives.
+# Generated (mechanical): default (+ default_conda_scaffold augment), version_pinned
+# (24.7.1), invalid_if_exists, log_file (+ log_file_conda augment), custom_prefix_*
+# (+ custom_prefix_conda augment on the symlink one), script_default.
+#
+# if_exists is SUPPRESSED: miniforge uses bin_dir=condabin (the framework detects
+# an existing install at {prefix}/bin/conda and its uninstall runs `conda init
+# --reverse` on a real conda), so the generic fake-stub if_exists cannot detect or
+# tear down a stub. The hand-written if_exists_* below exercise the real behaviour
+# against a genuinely pre-installed conda (ubuntu-stable+miniforge image).
+generation:
+  suppress:
+    scenarios: [if_exists_skip, if_exists_fail, if_exists_reinstall, if_exists_update]
+    checks: [if_exists_skip, if_exists_fail, if_exists_reinstall, if_exists_update]
+  augment_tests:
+    default: [default_conda_scaffold]
+    log_file: [log_file_conda]
+    custom_prefix_symlink: [custom_prefix_conda]
 
 set_permission:
   envs: [ubuntu-stable]
@@ -45,13 +45,6 @@ custom_active_env:
     shell_activations: bash
     activate_env: myenv
   tests: [custom_active_env]
-
-log_file:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  options:
-    log_file: /tmp/miniforge.log
-  tests: [log_file]
 
 installer_dir:
   envs: [ubuntu-stable]
@@ -114,24 +107,6 @@ export_path_default:
   envs: [ubuntu-stable]
   modes: [devcontainer]
   tests: [export_path_default]
-
-prefix_discovery_symlink:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  options:
-    prefix: /opt/myforge
-    prefix_discovery: symlink
-  tests: [prefix_discovery_symlink]
-
-prefix_discovery_symlink_nonroot:
-  envs: [ubuntu-stable+vscode]
-  modes: [devcontainer]
-  options:
-    prefix: /opt/myforge
-    prefix_discovery: symlink
-  devcontainer:
-    remoteUser: vscode
-  tests: [prefix_discovery_symlink_nonroot]
 
 stable_version:
   envs: [ubuntu-stable]

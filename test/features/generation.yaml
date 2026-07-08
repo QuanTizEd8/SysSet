@@ -40,6 +40,7 @@ rollout:
   - install-ohmyzsh
   - install-ripgrep-all
   - install-homebrew
+  - install-miniforge
   denylist:
   - install
   - install-os-pkg
