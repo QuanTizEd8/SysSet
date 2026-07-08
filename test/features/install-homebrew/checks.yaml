@@ -1,9 +1,10 @@
-linux_default:
+default_discovery:
   description: |
-    All defaults on Ubuntu and Debian.
-    Verifies that Homebrew is installed under /home/linuxbrew/.linuxbrew,
-    brew is executable and reports its version, and shellenv blocks are
-    written to all three system-wide startup files (Case A: root + Linux).
+    Augments the generated off-PATH `default` checks with install-homebrew's
+    discovery-snippet mechanism (Case A: root + Linux, ubuntu-stable): the
+    linuxbrew tree, the `brew --version` name assertion, and the system-wide
+    shellenv blocks written to profile.d + bash.bashrc + zshenv that make brew
+    reachable in a login shell.
   pre: |
     _BREW=/home/linuxbrew/.linuxbrew/bin/brew
   checks:
@@ -11,15 +12,6 @@ linux_default:
       cmd: test -d /home/linuxbrew/.linuxbrew
     - title: linuxbrew bin directory exists
       cmd: test -d /home/linuxbrew/.linuxbrew/bin
-    - title: brew binary installed
-      cmd: test -f "$_BREW"
-    - title: brew binary is executable
-      cmd: test -x "$_BREW"
-    - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
-      debug: |
-        echo "=== brew --version ==="
-        "$_BREW" --version 2>&1 || echo "(failed)"
     - title: brew --version reports Homebrew
       cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
     - title: discovery profile.d file written
@@ -241,89 +233,6 @@ linux_rpm:
       debug: |
         echo "=== login PATH ==="
         bash -lc 'echo "$PATH"' 2>&1 || echo "(failed)"
-
-if_exists_reinstall:
-  description: |
-    if_exists_reinstall: Homebrew is pre-installed in the image (see Dockerfile).
-    The feature is configured with if_exists=reinstall, which uninstalls and then
-    reinstalls Homebrew fresh, then runs post-install steps (shellenv export).
-  pre: |
-    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
-  checks:
-    - title: linuxbrew prefix directory exists
-      cmd: test -d /home/linuxbrew/.linuxbrew
-    - title: brew binary present
-      cmd: test -f "$_BREW"
-    - title: brew binary is executable
-      cmd: test -x "$_BREW"
-    - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
-      debug: |
-        echo "=== brew --version ==="
-        "$_BREW" --version 2>&1 || echo "(failed)"
-    - title: brew --version reports Homebrew
-      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-    - title: discovery profile.d file written
-      cmd: test -f /etc/profile.d/${_FEAT_PROFILE_D_FILE}
-      debug: |
-        echo "=== /etc/profile.d/${_FEAT_PROFILE_D_FILE} ==="
-        cat /etc/profile.d/${_FEAT_PROFILE_D_FILE} 2>/dev/null || echo "(missing)"
-        echo "=== /etc/bash.bashrc (tail) ==="
-        tail -10 /etc/bash.bashrc 2>/dev/null || echo "(missing)"
-    - title: discovery profile.d file has begin marker
-      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/profile.d/${_FEAT_PROFILE_D_FILE}
-    - title: bash.bashrc has begin marker
-      cmd: grep -qF '# >>> brew PATH (install-homebrew) >>>' /etc/bash.bashrc
-
-if_exists_skip:
-  description: |
-    if_exists_skip: Homebrew is pre-installed in the image (see Dockerfile).
-    The feature detects the existing installation and exits successfully without
-    running the installer or any post-install steps.
-  pre: |
-    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
-  checks:
-    - title: linuxbrew prefix directory exists
-      cmd: test -d /home/linuxbrew/.linuxbrew
-    - title: brew binary present
-      cmd: test -f "$_BREW"
-    - title: brew binary is executable
-      cmd: test -x "$_BREW"
-    - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
-      debug: |
-        echo "=== brew --version ==="
-        "$_BREW" --version 2>&1 || echo "(failed)"
-    - title: brew --version reports Homebrew
-      cmd: bash -c '"$1" --version | grep -q Homebrew' -- "$_BREW"
-
-log_file:
-  description: |
-    log_file=/tmp/brew.log: all installer output is mirrored to the specified
-    log file in addition to stdout/stderr.
-  pre: |
-    _BREW=/home/linuxbrew/.linuxbrew/bin/brew
-  checks:
-    - title: brew binary installed
-      cmd: test -f "$_BREW"
-    - title: brew --version succeeds
-      cmd: '"$_BREW" --version'
-      debug: |
-        echo "=== brew --version ==="
-        "$_BREW" --version 2>&1 || echo "(failed)"
-    - title: log_file was created
-      cmd: test -f /tmp/brew.log
-      debug: |
-        echo "===== /tmp/brew.log (last 20 lines) ====="
-        tail -20 /tmp/brew.log 2>/dev/null || echo "(log_file missing)"
-    - title: log_file is non-empty
-      cmd: test -s /tmp/brew.log
-    - title: log_file contains install-homebrew header
-      cmd: grep -q 'install-homebrew' /tmp/brew.log
-    - title: log_file contains success marker
-      cmd: grep -q 'Homebrew Installation script finished successfully' /tmp/brew.log
-    - title: log_file contains brew prefix path
-      cmd: grep -q '/home/linuxbrew/.linuxbrew' /tmp/brew.log
 
 macos_brew_git_remote:
   description: |

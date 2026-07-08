@@ -43,6 +43,12 @@ _options:
   verify:
     args: "--version"
     description: Verify Homebrew is installed and working.
+    functional:
+      description: brew reports its configured environment
+      # `brew config` prints Homebrew's resolved environment (version, prefix,
+      # ORIGIN/HEAD, CPU, Ruby/Git paths) — a read-only command that exercises
+      # real config/repo resolution offline, with no network or formula access.
+      cmd: '{bin} config > /dev/null 2>&1'
   gh_repo: Homebrew/install
   method:
     script:

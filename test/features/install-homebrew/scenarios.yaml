@@ -1,9 +1,11 @@
-linux_default:
-  envs: [ubuntu-stable, debian-stable]
-  modes: [devcontainer]
-  setup: |
-    retry apt-get update -qq && retry apt-get install -y --no-install-recommends zsh
-  tests: [linux_default]
+# Residue: install-homebrew's discovery-snippet mechanism (per-distro shellenv
+# writes), macOS coverage, and custom options. The generated `default`,
+# if_exists, invalid, and log_file scenarios cover the universal install
+# contract; `default` is augmented with `default_discovery` (the homebrew-
+# specific shellenv-block assertions the generic off-PATH checks can't derive).
+generation:
+  augment_tests:
+    default: [default_discovery]
 
 discovery_disabled:
   envs: [ubuntu-stable]
@@ -28,11 +30,6 @@ export_path_idempotent:
     printf '# >>> brew PATH (install-homebrew) >>>\neval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"\n# <<< brew PATH (install-homebrew) <<<\n' \
         >> /etc/zsh/zshenv
   tests: [export_path_idempotent]
-
-if_exists_skip:
-  envs: [ubuntu-stable+homebrew]
-  modes: [devcontainer]
-  tests: [if_exists_skip]
 
 linux_pacman:
   envs: [archlinux-current]
@@ -62,26 +59,12 @@ linux_zypper:
     retry _zypper_install_zsh
   tests: [linux_zypper]
 
-if_exists_reinstall:
-  envs: [ubuntu-stable+homebrew]
-  modes: [devcontainer]
-  options:
-    if_exists: reinstall
-  tests: [if_exists_reinstall]
-
 update_false:
   envs: [ubuntu-stable]
   modes: [devcontainer]
   options:
     update: false
   tests: [update_false]
-
-log_file:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  options:
-    log_file: /tmp/brew.log
-  tests: [log_file]
 
 shellenv_remote_user:
   envs: [ubuntu-stable+vscode]

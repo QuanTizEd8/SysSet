@@ -39,6 +39,7 @@ rollout:
   - install-ohmybash
   - install-ohmyzsh
   - install-ripgrep-all
+  - install-homebrew
   denylist:
   - install
   - install-os-pkg
