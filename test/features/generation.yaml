@@ -41,6 +41,7 @@ rollout:
   - install-ripgrep-all
   - install-homebrew
   - install-miniforge
+  - install-texlive
   denylist:
   - install
   - install-os-pkg
