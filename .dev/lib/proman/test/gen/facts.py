@@ -147,6 +147,40 @@ class FeatureFacts:
         return bool(self.prefix.get("symlink", {}).get("skip", False))
 
     @property
+    def exports_skipped(self) -> bool:
+        """Whether `_options.prefix.exports.skip` suppresses the PATH-export block.
+
+        With both symlink and export skipped, a prefix install lands its binary
+        somewhere off the default PATH; the tool becomes reachable only via a
+        login/interactive shell (the feature's discovery snippet or activation
+        block written to profile.d / rc files). Generated checks must then assert
+        the binary by absolute path plus a login-shell reachability probe rather
+        than a bare `command -v` (which runs in the non-login test shell).
+        """
+        return bool(self.prefix.get("exports", {}).get("skip", False))
+
+    @property
+    def has_discovery_snippet(self) -> bool:
+        """Whether `_options.prefix.discovery_snippet` provides per-shell PATH init.
+
+        A feature (e.g. install-homebrew) can supply its own shell snippet
+        (`eval "$(brew shellenv)"`) that the framework writes into profile.d and
+        the shell rc files instead of a plain PATH export — making the tool
+        available in login shells even when symlink+export are skipped.
+        """
+        return bool(self.prefix.get("discovery_snippet"))
+
+    @property
+    def activation_shells(self) -> list[str]:
+        """`_options.prefix.activation.shells`, or `[]` when no activation block.
+
+        An activation block (e.g. install-miniforge's `conda init <shell>`) is
+        written to the named shells' rc files, putting the tool on PATH in
+        interactive/login shells without a symlink or a plain PATH export.
+        """
+        return list(self.prefix.get("activation", {}).get("shells", ()))
+
+    @property
     def prefix_compatible_methods(self) -> list[str] | None:
         """Method names allowed by `_options.prefix.applies_when`, or None.
 
