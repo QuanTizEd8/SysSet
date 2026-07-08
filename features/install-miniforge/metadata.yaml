@@ -58,9 +58,17 @@ _options:
   verify:
     args: "info"
     description: Verify conda is installed and working by running `conda info`.
+    functional:
+      description: conda resolves and reports its configuration
+      # `conda config --show` parses and dumps conda's effective configuration
+      # (channels, solver, dirs) — a read-only command exercising real config
+      # resolution offline, with no network or package solve.
+      cmd: '{bin} config --show > /dev/null 2>&1'
   gh_repo: conda-forge/miniforge
   version:
     resolution: github_release
+    test_pins:
+      pinned: ["24.7.1"]
   method:
     script:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/Miniforge3-{feat.tag}-{plat.kernel}-{plat.machine}.sh"
