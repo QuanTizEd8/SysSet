@@ -215,23 +215,3 @@ sign_commits_ssh:
       cmd: bash -c '[ "$(git config --file /home/vscode/.gitconfig commit.gpgsign 2>/dev/null)" = "true" ]'
     - title: .gitconfig owned by vscode
       cmd: bash -c '[ "$(stat -c %U /home/vscode/.gitconfig 2>/dev/null)" = "vscode" ]'
-version_match_idempotency:
-  description: |
-    version=2.67.0 + if_exists=fail + gh 2.67.0 pre-installed (see version_match_idempotency/Dockerfile).
-    if_exists=fail always aborts when gh is already installed, regardless of version match.
-    The pre-installed binary must remain untouched at 2.67.0.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-    - title: gh binary still present at /usr/local/bin/gh
-      cmd: test -f /usr/local/bin/gh
-    - title: gh binary is still executable
-      cmd: test -x /usr/local/bin/gh
-    - title: gh --version succeeds
-      cmd: gh --version
-      debug: |
-        echo "=== gh --version ==="
-        gh --version 2>&1 || echo "(failed)"
-    - title: gh version is still 2.67.0
-      cmd: bash -c '[ "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")" = "2.67.0" ]'

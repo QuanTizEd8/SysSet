@@ -1,23 +1,2 @@
 # Every check group except version_match_idempotency is now auto-generated —
 # see scenarios.yaml.
-version_match_idempotency:
-  description: |
-    version=4.44.2 + if_exists=fail + yq 4.44.2 pre-installed (see
-    ubuntu-stable+yq-4.44.2 in test/environments.yaml): if_exists=fail always
-    aborts when yq is already installed, regardless of version match. The
-    pre-installed binary must remain untouched at 4.44.2.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-    - title: yq binary still present at /usr/local/bin/yq
-      cmd: test -f /usr/local/bin/yq
-    - title: yq binary is still executable
-      cmd: test -x /usr/local/bin/yq
-    - title: yq --version succeeds
-      cmd: yq --version
-      debug: |
-        echo "=== yq --version ==="
-        yq --version 2>&1 || echo "(failed)"
-    - title: yq version is still 4.44.2
-      cmd: bash -c '[ "$(yq --version 2>/dev/null | awk "{print \$NF}" | sed "s/^v//")" = "4.44.2" ]'

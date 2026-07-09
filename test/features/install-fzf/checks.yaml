@@ -54,16 +54,3 @@ fish_hook:
     - title: fzf --fish produces output
       cmd: bash -c '/usr/local/bin/fzf --fish | grep -q .'
 
-version_match_idempotency:
-  description: |
-    version=0.72.0 + if_exists=fail with a stub already claiming version 0.72.0:
-    if_exists=fail aborts whenever fzf is found, regardless of version match.
-    The stub must remain untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-    - title: fzf stub still present
-      cmd: command -v fzf
-    - title: stub version is still 0.72.0
-      cmd: bash -c 'fzf --version 2>/dev/null | grep -q "^0\.72\.0"'

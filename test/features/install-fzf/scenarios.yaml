@@ -35,17 +35,3 @@ fish_hook:
   modes: [devcontainer, standalone]
   tests: [fish_hook]
 
-version_match_idempotency:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "0.72.0 (fake)"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/fzf
-    chmod +x /usr/local/bin/fzf
-  options:
-    version: "0.72.0"
-    if_exists: fail
-  tests: [version_match_idempotency]
-  standalone:
-    skip_install: false

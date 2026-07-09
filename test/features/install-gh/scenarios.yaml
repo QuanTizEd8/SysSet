@@ -71,18 +71,6 @@ if_exists_skip_no_mutation:
     if_exists: skip
   tests:
     - if_exists_skip_no_mutation
-version_match_idempotency:
-  expect_install_failure: true
-  envs:
-    - ubuntu-stable+gh-2.67.0
-  modes:
-    - standalone
-  options:
-    method: binary
-    version: 2.67.0
-    if_exists: fail
-  tests:
-    - version_match_idempotency
 ghes_hostname:
   envs:
     - ubuntu-stable+git+sudo+vscode

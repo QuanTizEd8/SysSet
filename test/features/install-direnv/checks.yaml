@@ -133,16 +133,3 @@ reinstall:
         || grep -qF "direnv hook bash" /etc/bashrc 2>/dev/null
         || grep -qF "direnv hook bash" /etc/bash/bashrc 2>/dev/null'
 
-version_match_idempotency:
-  description: |
-    version=2.37.1 + if_exists=fail with a stub already claiming version 2.37.1:
-    if_exists=fail aborts whenever direnv is found, regardless of version match.
-    The stub must remain untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: failing (if_exists=fail)
-    - title: direnv stub still present
-      cmd: command -v direnv
-    - title: stub version is still 2.37.1
-      cmd: bash -c '[ "$(direnv --version 2>/dev/null)" = "2.37.1" ]'

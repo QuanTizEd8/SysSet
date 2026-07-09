@@ -15,18 +15,6 @@
 # not the generic if_exists_fail rule's fake stub (which always uses an
 # obviously-different fake version and so never exercises this exact-match
 # edge case).
-version_match_idempotency:
-  expect_install_failure: true
-  envs:
-  - ubuntu-stable+yq-4.44.2
-  modes:
-  - standalone
-  options:
-    version: 4.44.2
-    if_exists: fail
-  tests:
-  - version_match_idempotency
-
 # Dropped as now-generated/superseded: binary_custom_prefix declared
 # if_exists: reinstall with no setup: seeding a pre-existing install, so
 # if_exists was inert — substantively identical to the generated

@@ -22,20 +22,6 @@ completions_all:
   options:
     shells: "bash\nzsh\nfish"
   tests: [completions_all]
-version_match_idempotency:
-  expect_install_failure: true
-  envs: [debian-stable]
-  modes: [standalone]
-  setup: |
-    printf '#!/usr/bin/env bash\nif [ "${1-}" = "--version" ]; then echo "1.25.1"; exit 0; fi\nexit 0' \
-      > /usr/local/bin/starship
-    chmod +x /usr/local/bin/starship
-  options:
-    version: "1.25.1"
-    if_exists: fail
-  tests: [version_match_idempotency]
-  standalone:
-    skip_install: false
 custom_zsh_rcfile:
   envs: [debian-stable]
   modes: [devcontainer]

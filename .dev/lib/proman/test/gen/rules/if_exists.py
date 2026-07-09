@@ -343,6 +343,7 @@ class IfExistsRule:
         scenario["expect_install_failure"] = True
         scenario["tests"] = [name]
         bin_ = facts.primary_bin
+        invoke = self._stub_invocation(facts, off_path=off_path)
         checks = [
             CheckItem(
                 title="if_exists=fail exits with already-installed error",
@@ -353,10 +354,21 @@ class IfExistsRule:
                 title=f"preinstalled {bin_} remains available",
                 cmd=self._avail_cmd(facts, off_path=off_path),
             ),
+            # Version-match idempotency: the requested version equals the
+            # pre-existing one, yet fail still aborted AND left it untouched — no
+            # "already at the desired version, silently proceed" fast-path. This
+            # subsumes the hand-written version_match_idempotency (fail variant).
+            CheckItem(
+                title=f"preinstalled {bin_} version unchanged (fail did not reinstall)",
+                cmd=(
+                    f"bash -c '{invoke} {facts.version_flag} 2>&1 | "
+                    f'grep -q "{_FAKE_VERSION}"\''
+                ),
+            ),
         ]
         group = CheckGroup(
             description="if_exists=fail aborts installation when the tool already "
-            "exists.",
+            "exists, even when the requested version matches — leaving it untouched.",
             checks=checks,
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})

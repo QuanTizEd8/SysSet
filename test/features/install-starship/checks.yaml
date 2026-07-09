@@ -77,19 +77,6 @@ completions_all:
       cmd: grep -qF "starship init zsh" "$_ZSHTHEME"
     - title: bashtheme also has starship init bash block
       cmd: grep -qF "starship init bash" "$_BASHTHEME"
-version_match_idempotency:
-  description: |
-    version=1.25.1 + if_exists=fail with a stub already claiming version 1.25.1:
-    if_exists=fail aborts whenever starship is found, regardless of version match.
-    The stub must remain untouched.
-  checks:
-    - kind: install_failure
-      title: if_exists=fail exits with already-installed error
-      pattern: "failing (if_exists=fail)"
-    - title: starship stub still present
-      cmd: command -v starship
-    - title: stub version is still 1.25.1
-      cmd: bash -c 'starship --version 2>/dev/null | grep -q "1\.25\.1"'
 custom_zsh_rcfile:
   description: |
     zsh_rcfile=/root/.zshrc: verifies that the Starship Zsh activation block is
