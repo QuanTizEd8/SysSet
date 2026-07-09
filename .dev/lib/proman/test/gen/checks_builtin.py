@@ -163,12 +163,22 @@ def functional_check(cmd_template: str, description: str, bin_value: str) -> Che
 
 
 def symlink_present_checks(target_path: str, link_path: str) -> list[CheckItem]:
-    """Positive pair: a symlink exists at `link_path` and resolves to `target_path`."""
+    """Positive pair: a symlink exists at `link_path` and resolves to `target_path`.
+
+    `readlink -f` is applied to *both* sides: the install target itself can be a
+    symlink (npm installs `{prefix}/bin/<tool>` as a link to the package's
+    `cli.js`), so fully resolving only the link path would compare a `cli.js`
+    final target against the literal intermediate `{prefix}/bin/<tool>` and
+    wrongly fail. Resolving both makes them meet at the same final target.
+    """
     return [
         CheckItem(title=f"symlink exists at {link_path}", cmd=f"test -L {link_path}"),
         CheckItem(
             title=f"symlink resolves to {target_path}",
-            cmd=f'bash -c \'[ "$(readlink -f {link_path})" = "{target_path}" ]\'',
+            cmd=(
+                f'bash -c \'[ "$(readlink -f {link_path})" '
+                f'= "$(readlink -f {target_path})" ]\''
+            ),
         ),
     ]
 
