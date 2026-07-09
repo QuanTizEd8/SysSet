@@ -3,11 +3,17 @@ defaults:
     verify_downloads: false  # skip GPG for speed in tests
 
 # Only invalid_method / invalid_if_exists are generated: they fail fast at
-# argument parsing with no TeX Live install. Everything else is SUPPRESSED and
-# kept hand-written because it is genuinely texlive-specific:
+# argument parsing with no TeX Live install. Every install-carrying generated
+# scenario is SUPPRESSED and kept hand-written because it is genuinely
+# texlive-specific:
 #   - the install-carrying scenarios pin a minimal `scheme` (infraonly/basic) —
 #     TeX Live's real default (scheme=small) is a multi-hundred-MB CTAN download,
-#     impractical to repeat across the generated matrix;
+#     impractical to repeat across the generated matrix. `installer_dir` in
+#     particular uses feature defaults, so the generated one triggered a full
+#     424-package scheme=small install;
+#   - tlmgr reports a *year* ("version 2024"), not a semver, so the generic
+#     version-format check (X.Y) can never match — the hand-written scenarios
+#     deliberately assert no version;
 #   - if_exists uses a real package/pre-install (texlive detects an existing
 #     install via `command -v tlmgr` + symlink.skip, so the generic fake stub is
 #     never on PATH / never detected);
@@ -18,6 +24,7 @@ generation:
     scenarios:
       - default
       - script_default
+      - installer_dir
       - if_exists_skip
       - if_exists_fail
       - if_exists_reinstall
@@ -27,6 +34,7 @@ generation:
     checks:
       - default
       - script_default
+      - installer_dir
       - if_exists_skip
       - if_exists_fail
       - if_exists_reinstall
