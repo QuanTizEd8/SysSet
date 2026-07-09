@@ -33,8 +33,34 @@ class MacosRule:
     check_generation = "full"
 
     def applies(self, facts: FeatureFacts, cfg: GenerationConfig) -> bool:
-        """Whether a macOS env is configured and the feature has a brew package."""
-        return bool(cfg.macos_brew_env) and "package" in facts.methods
+        """Whether the feature *explicitly* declares brew support for `package`.
+
+        Only when `package.when` names `plat.pm: brew` (or `plat.kernel: Darwin`)
+        — an unconstrained `when` (all PMs) is not enough: many such tools (jq,
+        git) are pre-installed on the macOS runner, so the feature detects the
+        existing copy and skips the brew install, and the scenario can't verify a
+        clean brew-managed install. Explicit brew intent is the reliable signal
+        that a macos_package_default is meaningful and testable.
+        """
+        return (
+            bool(cfg.macos_brew_env)
+            and "package" in facts.methods
+            and self._package_explicitly_brew(facts)
+        )
+
+    @staticmethod
+    def _package_explicitly_brew(facts: FeatureFacts) -> bool:
+        """Whether the package method's `when` names brew/Darwin explicitly."""
+        when = facts.methods.get("package", {}).get("when")
+        if when is None:
+            return False
+        for clause in when if isinstance(when, list) else [when]:
+            pm = clause.get("plat.pm")
+            if pm == "brew" or (isinstance(pm, list) and "brew" in pm):
+                return True
+            if clause.get("plat.kernel") == "Darwin":
+                return True
+        return False
 
     def generate(
         self,
@@ -55,7 +81,9 @@ class MacosRule:
         envs: dict,
     ) -> GeneratedScenario | None:
         env = cfg.macos_brew_env
-        ctx = context.for_env(env, envs)
+        # macOS CI runners run as a non-root user (Homebrew refuses root), so the
+        # installed-method state lands under _FEAT_SHARE_DIR_NONROOT, not _ROOT.
+        ctx = context.for_env(env, envs, privileged=False)
         outcome = outcome_mod.compute(facts, ctx, method="package")
         if outcome is None:  # package not feasible on the brew env
             return None

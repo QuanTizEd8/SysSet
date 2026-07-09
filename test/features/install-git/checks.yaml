@@ -208,3 +208,24 @@ source_no_flags_perl:
       cmd: bash -c '! git svn --version 2>/dev/null'
     - title: git-send-email is not functional (perl disabled)
       cmd: bash -c '! git send-email --version 2>/dev/null'
+
+macos_package_default:
+  description: |
+    macOS: package + if_exists=skip (options from scenarios.yaml).
+
+    The test orchestrator runs install.sh once with scenario options exported as
+    environment variables (no CLI flags). Hosted runners already have git
+    (Homebrew / CLT); the feature should hit the if_exists=skip early exit and
+    leave ~/.config/git/config untouched.
+
+    Validates post-install state only — no installation in this script.
+  checks:
+    - title: git is on PATH
+      cmd: command -v git
+    - title: git --version succeeds
+      cmd: git --version
+    - title: git version line looks valid
+      cmd: bash -c 'git --version | grep -qE "^git version [0-9]"'
+    - title: skip did not write user system config
+      cmd: bash -c '! test -e "${HOME}/.config/git/config"'
+

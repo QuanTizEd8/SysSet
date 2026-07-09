@@ -94,8 +94,13 @@ def install_location_checks(bin_name: str, install_path: str) -> list[CheckItem]
         ),
         CheckItem(
             title=f"{bin_name} on PATH resolves to {install_path}",
+            # `type -P` forces a PATH file lookup, ignoring any shell
+            # function/alias that shadows the name (e.g. conda's `conda init`
+            # defines a `conda()` function, so `command -v conda` would return
+            # the function, not the binary path). Falls back to the same result
+            # as `command -v` for an unshadowed binary.
             cmd=(
-                f'bash -c \'[ "$(readlink -f "$(command -v {bin_name})")" '
+                f'bash -c \'[ "$(readlink -f "$(type -P {bin_name})")" '
                 f'= "$(readlink -f {install_path})" ]\''
             ),
         ),

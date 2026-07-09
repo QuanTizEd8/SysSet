@@ -37,6 +37,20 @@ class InstallerDirRule:
         """Whether the feature has a download method that populates installer_dir."""
         return bool(facts.download_methods)
 
+    @staticmethod
+    def _release_is_archive(facts: FeatureFacts, method: str) -> bool:
+        """Whether `method`'s asset is a tarball/zip (retained in archive/).
+
+        A single-binary or bare-script asset_uri has no archive extension; its
+        download is moved out of archive/ during install, so archive/ ends up
+        empty and only the sidecar (if any) remains.
+        """
+        # Bare format tokens (not `.tar`): asset_uris often embed the extension
+        # in a platform conditional like `{...?zip:tar.gz}`, where `.tar` never
+        # appears as a substring but `tar`/`zip` do.
+        uri = str(facts.methods.get(method, {}).get("asset_uri", ""))
+        return any(tok in uri for tok in ("tar", "tgz", "zip", "txz", "tbz"))
+
     def generate(
         self,
         facts: FeatureFacts,
@@ -64,13 +78,26 @@ class InstallerDirRule:
         checks.append(
             CheckItem(title="installer_dir exists", cmd=f"test -d {idir}"),
         )
-        checks.append(
-            CheckItem(
-                title="release archive preserved in installer_dir",
-                cmd=f"bash -c 'test -n \"$(ls -A {idir}/archive 2>/dev/null)\"'",
-                debug=f"ls -la {idir}/ {idir}/archive/ 2>&1 || true",
-            ),
-        )
+        # `archive/` retains the download only for real archives (tarball/zip):
+        # a single-binary or bare-script release is *moved* to its install
+        # location, leaving archive/ empty (verified: lefthook's Linux_x86_64
+        # binary). For those, assert the trace dir preserved *something* instead.
+        if self._release_is_archive(facts, method):
+            checks.append(
+                CheckItem(
+                    title="release archive preserved in installer_dir",
+                    cmd=f"bash -c 'test -n \"$(ls -A {idir}/archive 2>/dev/null)\"'",
+                    debug=f"ls -laR {idir}/ 2>&1 || true",
+                ),
+            )
+        else:
+            checks.append(
+                CheckItem(
+                    title="installer_dir preserves the download trace",
+                    cmd=f"bash -c 'test -n \"$(ls -A {idir} 2>/dev/null)\"'",
+                    debug=f"ls -laR {idir}/ 2>&1 || true",
+                ),
+            )
         if facts.has_sidecar:
             checks.append(
                 CheckItem(

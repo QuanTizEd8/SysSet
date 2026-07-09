@@ -94,6 +94,7 @@ def test_on_path_asserts_exact_install_location() -> None:
     # Exact location, executable, and PATH-resolves-there — not a bare command -v.
     assert "test -f /usr/local/bin/tool" in cmds
     assert "test -x /usr/local/bin/tool" in cmds
-    assert any("command -v tool" in c and "readlink -f" in c for c in cmds)
+    # `type -P` (not `command -v`) so a shadowing shell function can't fool it.
+    assert any("type -P tool" in c and "readlink -f" in c for c in cmds)
     # On-PATH install: no login-shell probe.
     assert not any("bash -lc" in c for c in cmds)
