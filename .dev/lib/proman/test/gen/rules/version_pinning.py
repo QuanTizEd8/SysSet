@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proman.test.gen import checks_builtin, context, envselect
+from proman.test.gen import context, default_checks, envselect
 from proman.test.gen import outcome as outcome_mod
 from proman.test.gen.naming import legacy_scenario_name, pinned_scenario_name
 from proman.test.gen.registry import register
@@ -87,28 +87,13 @@ class VersionPinningRule:
         scenario = base_scenario([env], cfg, _FAMILY, options=options)
         scenario["tests"] = [name]
 
-        primary = facts.primary_bin
-        resolved_path = facts.resolved_bin_path(facts.default_prefix_root, primary)
-        checks = [
-            *checks_builtin.existence_triad(primary, path=resolved_path),
-            checks_builtin.version_exact_check(primary, facts.version_flag, value),
-        ]
-        # Outcome verification: an explicit method pin records that exact method
-        # in the installed-method state file — assert it (mirrors method_matrix).
-        if outcome is not None and outcome.method is not None:
-            checks.append(
-                checks_builtin.installed_method_check(
-                    outcome.method, outcome.share_dir_var
-                ),
-            )
-        functional = facts.functional
-        if functional is not None:
-            cmd_template, description = functional
-            checks.append(
-                checks_builtin.functional_check(
-                    cmd_template, description, resolved_path
-                ),
-            )
+        # The comprehensive outcome bundle: exact install location(s), the
+        # cross-validated pinned version (outcome.version=value drives the exact
+        # version check), functional, recorded method, and symlink/export
+        # present-or-absent — the full state, not just "the pinned version runs".
+        checks = default_checks.build(
+            facts, cfg, outcome, method_pinned=method is not None
+        )
         group = CheckGroup(
             description=f"version={value}: installs and verifies this exact version.",
             checks=checks,

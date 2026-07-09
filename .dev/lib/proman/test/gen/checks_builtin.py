@@ -73,6 +73,35 @@ def existence_triad(bin_name: str, *, path: str | None = None) -> list[CheckItem
     ]
 
 
+def install_location_checks(bin_name: str, install_path: str) -> list[CheckItem]:
+    """Assert the binary exists at *exactly* `install_path` and PATH resolves there.
+
+    Three assertions: the file is present at the exact computed path, it is
+    executable, and `command -v {bin}` resolves (through any symlink, via
+    `readlink -f`) to that same path — so a scenario proves not just "a binary
+    exists somewhere" but that it landed at the precise metadata-derived
+    location and is the one PATH will actually run. `readlink -f` on both sides
+    normalizes the symlink case (install at a prefix, symlinked onto PATH) and
+    the direct case (install lands straight on PATH) identically.
+    """
+    return [
+        CheckItem(
+            title=f"{bin_name} binary is at {install_path}",
+            cmd=f"test -f {install_path}",
+        ),
+        CheckItem(
+            title=f"{bin_name} binary is executable", cmd=f"test -x {install_path}"
+        ),
+        CheckItem(
+            title=f"{bin_name} on PATH resolves to {install_path}",
+            cmd=(
+                f'bash -c \'[ "$(readlink -f "$(command -v {bin_name})")" '
+                f'= "$(readlink -f {install_path})" ]\''
+            ),
+        ),
+    ]
+
+
 def version_format_check(bin_name: str, flag: str) -> CheckItem:
     r"""Build a generic "reports a semver-shaped version" check.
 
@@ -160,6 +189,71 @@ def pm_managed_check(
     if len(cmds) == 1:
         return CheckItem(title=title, cmd=cmds[0])
     return CheckItem(title=title, kind="multiple", min=1, cmd=cmds)
+
+
+# Pure-bash extractor of a `# >>> M >>>`…`# <<< M <<<` block (markers inclusive),
+# joining its lines with a literal `@NL@` sentinel so the whole comparison stays
+# a single newline-free line (codegen renders single-line cmds verbatim; a real
+# newline would trip its multi-line branch). No single quotes inside, so the
+# whole script survives `shlex.quote`; positional args ($1 file, $2 begin,
+# $3 end, $4 expected) keep the block's own `$`/quotes/backticks literal instead
+# of letting the check-script shell expand them. Verified end-to-end against a
+# real profile.d block (generic PATH-prepend function and a single-quote-bearing
+# shellenv snippet) — passes on an exact match, fails on any drift.
+_BLOCK_EXTRACT_SCRIPT = (
+    'i=;b=;while IFS= read -r l||[ -n "$l" ];do '
+    'if [ "$l" = "$2" ];then i=1;b="$l";'
+    'elif [ -n "$i" ];then b="$b@NL@$l";fi;'
+    '[ "$l" = "$3" ]&&i=;done <"$1";[ "$b" = "$4" ]'
+)
+
+
+def _markers(marker: str) -> tuple[str, str]:
+    return f"# >>> {marker} >>>", f"# <<< {marker} <<<"
+
+
+def block_equals_check(
+    file_expr: str, marker: str, content_lines: list[str], *, title: str
+) -> CheckItem:
+    """Assert the `marker` block in `file_expr` equals `content_lines` exactly.
+
+    Byte-exact over the whole block **including** the begin/end markers — the
+    strictest possible content assertion, catching any drift in what the
+    framework writes (this is exactly the class of bug that a bare "file exists"
+    check misses, e.g. a malformed discovery snippet). `file_expr` is a **bare**
+    path expression (no surrounding quotes) that may embed a shell var, e.g.
+    `/etc/profile.d/${_FEAT_PROFILE_D_FILE}`; the builder double-quotes it once
+    so the check-script shell expands the var, while the expected block is
+    passed as a single-quoted positional arg so its own metacharacters stay
+    literal.
+    """
+    begin, end = _markers(marker)
+    expected = "@NL@".join([begin, *content_lines, end])
+    return CheckItem(
+        title=title,
+        cmd=(
+            f"bash -c {shlex.quote(_BLOCK_EXTRACT_SCRIPT)} bash "
+            f'"{file_expr}" {shlex.quote(begin)} {shlex.quote(end)} '
+            f"{shlex.quote(expected)}"
+        ),
+    )
+
+
+def block_absent_check(file_expr: str, marker: str, *, title: str) -> CheckItem:
+    """Assert `file_expr` has no `marker` block (passes if the file is absent too)."""
+    begin, _ = _markers(marker)
+    return CheckItem(
+        title=title,
+        cmd=(
+            f'bash -c \'! test -e "$1" || ! grep -qF "$2" "$1"\' bash '
+            f'"{file_expr}" {shlex.quote(begin)}'
+        ),
+    )
+
+
+def file_absent_check(path_expr: str, *, title: str) -> CheckItem:
+    """Assert nothing exists at `path_expr` (a file/dir that must not be written)."""
+    return CheckItem(title=title, cmd=f'bash -c \'! test -e "$1"\' bash "{path_expr}"')
 
 
 def installed_method_check(method: str, share_var: str) -> CheckItem:

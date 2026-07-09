@@ -70,8 +70,13 @@ def test_off_path_adds_login_shell_probe() -> None:
     assert "bash -lc 'command -v brew'" in cmds
 
 
-def test_on_path_still_uses_command_v() -> None:
-    """A normal on-PATH install keeps the bare `command -v` existence check."""
+def test_on_path_asserts_exact_install_location() -> None:
+    """A normal on-PATH install asserts the EXACT install path and PATH resolution.
+
+    The comprehensive bundle no longer settles for a bare `command -v tool`: it
+    asserts the binary is at the precise metadata-derived path, is executable,
+    and that `command -v` resolves (through any symlink) to exactly that path.
+    """
     facts = FeatureFacts(
         feature_id="install-fixture",
         verify={
@@ -86,5 +91,9 @@ def test_on_path_still_uses_command_v() -> None:
         facts, ResolveContext(attrs={**UBUNTU, "plat.machine_release": ["amd64"]})
     )
     cmds = _cmds(default_checks.build(facts, cfg, out, method_pinned=False))
-    assert "command -v tool" in cmds
+    # Exact location, executable, and PATH-resolves-there — not a bare command -v.
+    assert "test -f /usr/local/bin/tool" in cmds
+    assert "test -x /usr/local/bin/tool" in cmds
+    assert any("command -v tool" in c and "readlink -f" in c for c in cmds)
+    # On-PATH install: no login-shell probe.
     assert not any("bash -lc" in c for c in cmds)

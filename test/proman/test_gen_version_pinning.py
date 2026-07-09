@@ -38,7 +38,12 @@ _AMD_ARM = {"plat.machine_release": ["amd64", "arm64"]}
 def _facts(methods: dict, pins: list[str]) -> FeatureFacts:
     return FeatureFacts(
         feature_id="install-fixture",
-        verify={"args": "--version"},
+        # A functional smoke command is required by the comprehensive bundle
+        # (assertions.functional_smoke_required) whenever methods/version exist.
+        verify={
+            "args": "--version",
+            "functional": {"description": "tool runs", "cmd": "{bin} --help"},
+        },
         methods=methods,
         version={"test_pins": {"pinned": pins}},
         prefix={"bins": ["tool"]},

@@ -53,7 +53,10 @@ _METHOD_CONFIGS = {
 def _facts(methods: dict) -> FeatureFacts:
     return FeatureFacts(
         feature_id="install-fixture",
-        verify={"args": "--version"},
+        verify={
+            "args": "--version",
+            "functional": {"description": "tool runs", "cmd": "{bin} --help"},
+        },
         methods=methods,
         version={"test_pins": {"pinned": ["1.2.3"], "legacy": ["1.0"]}},
         prefix={"bins": ["tool"]},

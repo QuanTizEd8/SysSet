@@ -18,7 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from proman.test.gen import method_resolver
+from proman.test.gen import blocks, method_resolver
 
 if TYPE_CHECKING:
     from proman.test.gen.facts import FeatureFacts
@@ -45,6 +45,21 @@ class Symlink:
 
     link_path: str
     target: str
+
+
+@dataclass(frozen=True)
+class Block:
+    """A marker-delimited shell block written to a file, with exact content.
+
+    `file_expr` is a bare path expression (may embed `${_FEAT_PROFILE_D_FILE}`);
+    `content_lines` are the exact lines between the `# >>> marker >>>` /
+    `# <<< marker <<<` markers, so a generated check can assert byte-exact
+    equality of the whole block.
+    """
+
+    file_expr: str
+    marker: str
+    content_lines: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -80,6 +95,15 @@ class ExpectedOutcome:
 
     path_export: bool = False
     """Whether a `/etc/profile.d/${_FEAT_PROFILE_D_FILE}` export block is written."""
+
+    export_block: Block | None = None
+    """The exact PATH-export / discovery block written to the /etc/profile.d
+    drop-in (root scope only — non-root writes to user rc files instead), or
+    `None` when none is written. Carries the byte-exact expected content."""
+
+    assert_no_export_block: bool = False
+    """Whether to assert the /etc/profile.d drop-in has NO export block (the
+    negative: a root prefix install whose discovery mode writes no PATH export)."""
 
     installed_method_state: bool = True
     """Whether `${_FEAT_SHARE_DIR_ROOT|NONROOT}/state/installed-method` is
@@ -167,6 +191,30 @@ def _prefix_outcome(
         # but only when the link path differs from the install path itself.
         no_symlink_at = link_path
 
+    # Whether the framework writes a PATH-export / discovery block, mirroring
+    # shell__run_prefix_discovery: shell/all always; auto only as the fallback
+    # when no symlink was viable and the dir isn't already on PATH (homebrew's
+    # skip-symlink discovery-snippet case). Never when exports are skipped.
+    writes_export = not facts.exports_skipped and (
+        _wants_export(discovery)
+        or (discovery == "auto" and symlink is None and not on_path_dir)
+    )
+    export_block: Block | None = None
+    assert_no_export_block = False
+    if _is_privileged(ctx):
+        # The /etc/profile.d drop-in is the root-scope system block; non-root
+        # writes to per-user rc files (asserted structurally via the login probe
+        # instead), so exact-content assertions are root-scope only.
+        if writes_export:
+            content = blocks.posix_export_content(
+                facts, install_bin_dir, resolved_prefix, ctx.attrs
+            )
+            export_block = Block(
+                blocks.PROFILE_D_EXPR, blocks.export_marker(facts), tuple(content)
+            )
+        else:
+            assert_no_export_block = True
+
     return ExpectedOutcome(
         method=method,
         version=version,
@@ -176,6 +224,8 @@ def _prefix_outcome(
         symlink=symlink,
         no_symlink_at=no_symlink_at,
         path_export=_wants_export(discovery),
+        export_block=export_block,
+        assert_no_export_block=assert_no_export_block,
         share_dir_var=_share_var(ctx),
     )
 
