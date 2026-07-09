@@ -11,7 +11,6 @@ install state, not just "a binary exists".
 
 from __future__ import annotations
 
-import shlex
 from typing import TYPE_CHECKING
 
 from proman.test.gen import blocks, checks_builtin
@@ -202,21 +201,15 @@ def _activation_items(
     A feature with `_options.prefix.activation.shells` writes a `# >>> prefix
     activation (<id>) >>>` block (content from its `__prefix_activation_snippet`
     hook — feature-code-generated, e.g. `eval "$(direnv hook bash)"` — so not
-    byte-predictable from metadata) into the system `/etc/profile.d` drop-in.
-    `prefix_activations` defaults to every declared shell, so a default install
-    writes it. Root-scope only: a non-root install writes to per-user rc files.
+    byte-predictable from metadata). `prefix_activations` defaults to every
+    declared shell, so a default install writes it. Root-scope only: a non-root
+    install writes to per-user rc files, probed structurally via the login shell.
     """
     if not facts.activation_shells or outcome is None:
         return []
     if outcome.share_dir_var != "_FEAT_SHARE_DIR_ROOT":
         return []
-    marker = f"# >>> prefix activation ({facts.feature_id}) >>>"
-    return [
-        CheckItem(
-            title="shell-activation block written to profile.d",
-            cmd=f"grep -rqF {shlex.quote(marker)} /etc/profile.d/",
-        ),
-    ]
+    return [checks_builtin.activation_block_present_check(facts.feature_id)]
 
 
 def _functional_items(

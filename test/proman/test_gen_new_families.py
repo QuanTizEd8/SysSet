@@ -89,6 +89,35 @@ def test_installer_dir_conditional_extension_is_detected() -> None:
     assert "release archive preserved in installer_dir" in titles
 
 
+def test_installer_dir_sidecar_gated_on_selected_method() -> None:
+    """Sidecar check fires only when the *selected* method declares a sidecar.
+
+    Mirrors install-rust: `source` declares a `sidecar_uri`, but installer_dir
+    resolves to `script` (canonical-first download method), which has none — so
+    NO sidecar check despite `has_sidecar` being true feature-wide. A
+    method-agnostic gate wrongly demanded a `sidecar/` dir the script install
+    never writes.
+    """
+    facts = FeatureFacts(
+        feature_id="install-tool",
+        verify={"args": "--version", "functional": _FUNC},
+        methods={
+            "script": {"asset_uri": "https://x/rustup-init"},
+            "source": {
+                "asset_uri": "https://x/tool-{feat.version}.tar.xz",
+                "sidecar_uri": "https://x/tool.tar.xz.sha256",
+            },
+        },
+        prefix={"bins": ["tool"]},
+    )
+    assert facts.has_sidecar is True
+    assert facts.method_has_sidecar("script") is False
+    assert facts.method_has_sidecar("source") is True
+    scenario = InstallerDirRule().generate(facts, _CFG, _ENVS)[0]
+    assert scenario.scenario["options"]["method"] == "script"
+    assert "checksum sidecar preserved in installer_dir" not in _titles(scenario)
+
+
 def test_installer_dir_skips_package_only_feature() -> None:
     """A feature with no download method generates no installer_dir scenario."""
     facts = FeatureFacts(

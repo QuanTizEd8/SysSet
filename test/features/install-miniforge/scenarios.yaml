@@ -12,15 +12,43 @@ generation:
   suppress:
     scenarios: [if_exists_skip, if_exists_fail, if_exists_reinstall, if_exists_update]
     checks: [if_exists_skip, if_exists_fail, if_exists_reinstall, if_exists_update]
+    # conda ships two entrypoints — bin/conda (full) and condabin/conda (the
+    # framework-symlinked primary bin). conda's base auto-activation prepends
+    # /opt/conda/bin, so in an activated (devcontainer) shell `type -P conda`
+    # resolves to bin/conda, not condabin/conda — a valid conda, just a
+    # different entrypoint, which the generic exact "on PATH resolves to
+    # <condabin>" assertion can't model. The symlink checks already prove the
+    # framework's /usr/local/bin/conda -> condabin/conda exposure. (mamba has no
+    # such dual entrypoint, so its resolve check stays.)
+    check_items: ["conda on PATH resolves to"]
   augment_tests:
-    # export_path_default (prefix-not-a-symlink + login-PATH reachability) and
-    # stable_version (conda info --base, base env accessible) need no options or
-    # setup of their own, so they augment the generated `default` install rather
-    # than each re-installing conda. Their checks are absolute-path / `bash -lc`,
-    # so they run correctly in both the devcontainer and standalone default runs.
-    default: [default_conda_scaffold, export_path_default, stable_version]
+    # default_conda_scaffold's checks are all absolute-path (dirs/binaries/
+    # `conda info --base`/env list), mode-independent, so they augment the
+    # generated `default` install rather than re-installing conda. NOTE:
+    # export_path_default/stable_version are NOT folded here — their `login PATH
+    # includes /opt/conda/bin` check (`bash -lc`) depends on the login shell
+    # sourcing conda's *interactive* activation (`/etc/bash.bashrc`), which only
+    # happens in a devcontainer base image; `default` also runs standalone, where
+    # a login/non-interactive shell legitimately lacks it. They stay their own
+    # devcontainer-only scenarios (below) — a different setup+options+**mode**
+    # combination than `default`, so not a true duplicate.
+    default: [default_conda_scaffold]
     log_file: [log_file_conda]
     custom_prefix_symlink: [custom_prefix_conda]
+
+# Devcontainer-only: the `login PATH includes /opt/conda/bin` check needs a base
+# image whose login shell sources conda's interactive activation. Same options as
+# `default`, but devcontainer-only — a distinct setup+options+mode combination, so
+# kept separate rather than folded into the both-modes `default`.
+export_path_default:
+  envs: [ubuntu-stable]
+  modes: [devcontainer]
+  tests: [export_path_default]
+
+stable_version:
+  envs: [ubuntu-stable]
+  modes: [devcontainer]
+  tests: [stable_version]
 
 set_permission:
   envs: [ubuntu-stable]

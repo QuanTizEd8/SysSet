@@ -83,6 +83,27 @@ def _read_handwritten(
     return defaults, generation, scenarios, checks
 
 
+def _drop_check_items(group: dict, title_prefixes: tuple[str, ...]) -> dict:
+    """Drop generated check items whose title starts with a suppressed prefix.
+
+    Finer-grained than group-level `suppress.checks`: removes individual checks
+    from a generated group while keeping the rest. Prefix-matched (not exact) so
+    a single entry covers a check whose title embeds a per-scenario path — e.g.
+    `conda on PATH resolves to <prefix>/condabin/conda`, whose target differs by
+    scenario. Used where one check is genuinely inapplicable to a feature but the
+    surrounding group is wanted (conda's dual bin/condabin entrypoints defeat the
+    exact on-PATH-resolves assertion, while the symlink checks still cover it).
+    """
+    if not title_prefixes:
+        return group
+    kept = [
+        item
+        for item in group.get("checks", [])
+        if not any(item.get("title", "").startswith(p) for p in title_prefixes)
+    ]
+    return {**group, "checks": kept}
+
+
 def _generated_content(feature_id: str, config: Config) -> tuple[dict, dict]:
     """Run the generation pipeline for one feature.
 
@@ -121,6 +142,7 @@ def load_effective(feature_id: str) -> EffectiveTests:
     suppress = generation.get("suppress", {})
     suppressed_scenarios = set(suppress.get("scenarios", ()))
     suppressed_checks = set(suppress.get("checks", ()))
+    suppressed_check_items = tuple(suppress.get("check_items", ()))
     augment_tests = generation.get("augment_tests", {})
 
     scenarios = dict(handwritten_scenarios)
@@ -163,7 +185,7 @@ def load_effective(feature_id: str) -> EffectiveTests:
                 "to intentionally keep only the hand-written one."
             )
             raise FeatureTestError(msg)
-        checks[group_id] = group
+        checks[group_id] = _drop_check_items(group, suppressed_check_items)
 
     return EffectiveTests(
         feature_id=feature_id,

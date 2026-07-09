@@ -283,6 +283,44 @@ def file_absent_check(path_expr: str, *, title: str) -> CheckItem:
     return CheckItem(title=title, cmd=f'bash -c \'! test -e "$1"\' bash "{path_expr}"')
 
 
+# Every root-scope location `shell__sync_config` can write an activation block to:
+# the interactive shell RC files (an interactive-only snippet lands *only* here)
+# plus the `/etc/profile.d` drop-in (an everywhere-safe snippet lands there too).
+# `$HOME` is expanded by the outer check-script shell (root scope → `/root`) for
+# the elvish/nushell RC dirs. Listed literally so `grep -rs` skips the absent
+# ones per distro.
+_ACTIVATION_LOCATIONS = (
+    "/etc/profile.d /etc/bash.bashrc /etc/bashrc /etc/bash/bashrc "
+    "/etc/zsh /etc/zshrc /etc/fish /etc/csh.cshrc "
+    '"$HOME/.config/elvish" "$HOME/.config/nushell"'
+)
+
+
+def activation_block_present_check(feature_id: str) -> CheckItem:
+    """Assert the prefix-activation block was written to a system shell config.
+
+    A feature with `prefix.activation.shells` writes a `# >>> prefix activation
+    (<id>) >>>` block into whichever system shell files its
+    `__prefix_activation_snippet` hook targets. An *interactive-only* snippet
+    (direnv/fzf/conda's prompt hooks, whose hook returns non-zero) lands only in
+    the interactive RC files (`/etc/bash.bashrc`, `<zshdir>/zshrc`,
+    `/etc/fish/conf.d/*`, `/etc/csh.cshrc`, root's elvish/nushell RC) — NOT the
+    `/etc/profile.d` drop-in, which only an everywhere-safe snippet also gets.
+    So assert the marker is present in at least one of the union of those
+    locations (the per-shell body is feature-code-generated — only structural
+    presence is predictable). `-s` skips paths absent on a given distro; `-q`
+    exits 0 on the first match regardless of later unreadable paths.
+    """
+    begin, _ = _markers(f"prefix activation ({feature_id})")
+    return CheckItem(
+        title="shell-activation block written",
+        cmd=(
+            f'bash -c \'grep -rqsF "$1" "${{@:2}}"\' bash '
+            f"{shlex.quote(begin)} {_ACTIVATION_LOCATIONS}"
+        ),
+    )
+
+
 def installed_method_check(method: str, share_var: str) -> CheckItem:
     """Assert the framework recorded `method` as the installed method.
 

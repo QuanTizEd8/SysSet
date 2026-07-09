@@ -63,6 +63,11 @@
               "description": "Generated check-group names to drop entirely for this feature.",
               "type": "array",
               "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+            },
+            "check_items": {
+              "description": "Title prefixes of individual generated check items to drop from whichever generated group contains them, keeping the rest of the group. Finer-grained than `checks`; prefix-matched so one entry covers a title that embeds a per-scenario path (e.g. a multi-entrypoint tool's on-PATH-resolves assertion).",
+              "type": "array",
+              "items": {"type": "string", "minLength": 1}
             }
           }
         },

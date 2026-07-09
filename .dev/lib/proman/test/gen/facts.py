@@ -286,6 +286,18 @@ class FeatureFacts:
             for cfg in self.methods.values()
         )
 
+    def method_has_sidecar(self, method: str) -> bool:
+        """Whether a *specific* method declares a checksum `sidecar_uri`.
+
+        Unlike `has_sidecar` (true if *any* method does), this gates the
+        `installer_dir/sidecar/` assertion on the method the scenario actually
+        installs with: install-rust declares a `sidecar_uri` only on `source`,
+        but its `installer_dir` scenario resolves to `script` (rustup-init, no
+        sidecar), so a method-agnostic check would wrongly demand one.
+        """
+        cfg = self.methods.get(method)
+        return isinstance(cfg, dict) and bool(cfg.get("sidecar_uri"))
+
     def enum_values(self, option_name: str) -> list[str] | None:
         """Return declared enum values for one public option, e.g. "method".
 

@@ -98,7 +98,11 @@ class InstallerDirRule:
                     debug=f"ls -laR {idir}/ 2>&1 || true",
                 ),
             )
-        if facts.has_sidecar:
+        # Gate the sidecar assertion on the *selected* method declaring one — not
+        # `facts.has_sidecar` (any method), which wrongly fires for install-rust
+        # whose sidecar is on `source` while installer_dir resolves to `script`.
+        method_has_sidecar = facts.method_has_sidecar(method)
+        if method_has_sidecar:
             checks.append(
                 CheckItem(
                     title="checksum sidecar preserved in installer_dir",
@@ -108,7 +112,7 @@ class InstallerDirRule:
             )
         group = CheckGroup(
             description=f"installer_dir={idir}: the downloaded release archive"
-            f"{' and its checksum sidecar' if facts.has_sidecar else ''} are "
+            f"{' and its checksum sidecar' if method_has_sidecar else ''} are "
             f"preserved in the trace directory after a method={method} install.",
             checks=checks,
         )
