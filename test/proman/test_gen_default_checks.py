@@ -70,6 +70,56 @@ def test_off_path_adds_login_shell_probe() -> None:
     assert "bash -lc 'command -v brew'" in cmds
 
 
+def _activation_facts(applies_when: object) -> FeatureFacts:
+    """Build a feature declaring shell activation, with a prefix.applies_when."""
+    prefix = {
+        "bins": ["tool"],
+        "activation": {"shells": ["bash", "zsh"]},
+    }
+    if applies_when is not None:
+        prefix["applies_when"] = applies_when
+    return FeatureFacts(
+        feature_id="install-fixture",
+        verify={
+            "args": "--version",
+            "functional": {"description": "tool runs", "cmd": "{bin} check"},
+        },
+        methods={"binary": {"when": _AMD}, "package": {}},
+        prefix=prefix,
+    )
+
+
+_AMD = {"plat.machine_release": ["amd64"]}
+_ACTIVATION_TITLE = "shell-activation block written"
+
+
+def _activation_titles(facts: FeatureFacts, attrs: dict, method: str) -> list[str]:
+    cfg = gen_config.load()
+    out = outcome_mod.compute(facts, ResolveContext(attrs=attrs), method=method)
+    return [c["title"] for c in default_checks.build(facts, cfg, out)]
+
+
+def test_activation_check_skipped_for_prefix_incompatible_method() -> None:
+    """No activation assertion when the method is excluded by prefix.applies_when.
+
+    fzf restricts prefix to `binary`; its `package` install is PM-managed with no
+    prefix machinery, so no activation block is written — asserting one is a false
+    failure. But a prefix-compatible method (binary) keeps the assertion.
+    """
+    facts = _activation_facts(applies_when=[{"method": ["binary"]}])
+    # package: excluded → no activation check.
+    assert _ACTIVATION_TITLE not in _activation_titles(facts, UBUNTU, "package")
+    # binary: compatible → activation check present.
+    amd = {**UBUNTU, "plat.machine_release": ["amd64"]}
+    assert _ACTIVATION_TITLE in _activation_titles(facts, amd, "binary")
+
+
+def test_activation_check_present_for_unrestricted_applies_when() -> None:
+    """applies_when unset (direnv): every method runs prefix machinery incl. pkg."""
+    facts = _activation_facts(applies_when=None)
+    assert _ACTIVATION_TITLE in _activation_titles(facts, UBUNTU, "package")
+
+
 def test_on_path_asserts_exact_install_location() -> None:
     """A normal on-PATH install asserts the EXACT install path and PATH resolution.
 

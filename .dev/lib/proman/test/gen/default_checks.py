@@ -204,10 +204,24 @@ def _activation_items(
     byte-predictable from metadata). `prefix_activations` defaults to every
     declared shell, so a default install writes it. Root-scope only: a non-root
     install writes to per-user rc files, probed structurally via the login shell.
+
+    The activation block is written by the prefix-finish block, which only runs
+    when the selected method is prefix-compatible. A method excluded by
+    `prefix.applies_when` (fzf restricts prefix to `binary`; its `package` install
+    is PM-managed with no prefix machinery — "prefix guard does not apply") writes
+    NO activation block, so don't assert one. When `applies_when` is unset
+    (direnv), every method runs the prefix machinery, so package writes it too.
     """
     if not facts.activation_shells or outcome is None:
         return []
     if outcome.share_dir_var != "_FEAT_SHARE_DIR_ROOT":
+        return []
+    compatible = facts.prefix_compatible_methods
+    if (
+        compatible is not None
+        and outcome.method is not None
+        and outcome.method not in compatible
+    ):
         return []
     return [checks_builtin.activation_block_present_check(facts.feature_id)]
 
