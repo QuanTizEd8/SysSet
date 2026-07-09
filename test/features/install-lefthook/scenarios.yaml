@@ -25,14 +25,3 @@
 # fedora/el repo-path templating typo, and a missing ca-certificates base
 # dependency for the SSL-verified custom repos), both fixed alongside this
 # migration.
-macos_package_default:
-  envs:
-  - macos-current+brew
-  modes:
-  - macos
-  setup: |
-    brew list --formula lefthook >/dev/null 2>&1 && brew uninstall --formula lefthook || true
-  options:
-    method: package
-  tests:
-  - macos_package_default

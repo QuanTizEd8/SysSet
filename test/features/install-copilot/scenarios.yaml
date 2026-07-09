@@ -16,16 +16,6 @@
 # that's unverified and out of scope here; plugins specifically needs
 # devcontainer mode since lifecycle-hook deployment is skipped in standalone.
 
-macos_package_default:
-  envs: [macos-current+brew]
-  modes: [macos]
-  setup: |
-    brew list --cask copilot-cli >/dev/null 2>&1 && brew uninstall --cask copilot-cli || true
-    brew list --cask copilot-cli@prerelease >/dev/null 2>&1 && brew uninstall --cask copilot-cli@prerelease || true
-  options:
-    method: package
-  tests: [macos_package_default]
-
 copilot_home:
   envs: [ubuntu-stable]
   modes: [devcontainer]

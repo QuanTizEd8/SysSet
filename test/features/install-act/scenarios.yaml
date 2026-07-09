@@ -12,14 +12,3 @@
 # archlinux-current, and brew has no matching env in the Linux-only
 # generation pool — mirrors install-taskfile/install-lefthook precedent).
 
-macos_package_default:
-  envs:
-  - macos-current+brew
-  modes:
-  - macos
-  setup: |
-    brew list --formula act >/dev/null 2>&1 && brew uninstall --formula act || true
-  options:
-    method: package
-  tests:
-  - macos_package_default

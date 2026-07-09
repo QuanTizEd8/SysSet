@@ -143,19 +143,3 @@ source_build_nonexistent_version:
   options:
     method: source
     version: 0.0.0
-macos_package_default:
-  envs:
-    - macos-current+brew
-  # Orchestrator runs install.sh with no CLI args; options are delivered as env
-  # vars (see docs user-guide/options.md). if_exists must be skip so the install
-  # exits before default_branch/safe_directory gitconfig writes.
-  options:
-    method: package
-    version: stable
-    if_exists: skip
-  setup: |
-    # Hosted runners may ship XDG git config; skip semantics do not touch it — isolate the assertion.
-    rm -f "${HOME}/.config/git/config"
-    rmdir "${HOME}/.config/git" 2>/dev/null || true
-  tests:
-    - macos_package_default

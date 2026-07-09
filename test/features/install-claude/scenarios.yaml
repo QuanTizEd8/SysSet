@@ -28,16 +28,6 @@ binary_musl:
     method: binary
   tests: [binary_musl]
 
-macos_package_default:
-  envs: [macos-current+brew]
-  modes: [macos]
-  setup: |
-    brew list --cask claude-code >/dev/null 2>&1 && brew uninstall --cask claude-code || true
-    brew list --cask claude-code@latest >/dev/null 2>&1 && brew uninstall --cask claude-code@latest || true
-  options:
-    method: package
-  tests: [macos_package_default]
-
 upstream_package_apt_latest:
   envs: [ubuntu-stable]
   options:

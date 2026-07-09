@@ -16,6 +16,7 @@ from proman.test.gen.rules import (  # noqa: F401
     installer_dir,
     invalid_enum,
     log_file,
+    macos,
     method_matrix,
     prefix_symlink,
     version_pinning,

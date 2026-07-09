@@ -1,20 +1,2 @@
 # Every check group except installer_dir and macos_package_default is now
 # auto-generated — see scenarios.yaml.
-macos_package_default:
-  description: |
-    method=package on macOS installs Task from the standard Homebrew formula.
-    Verifies task is on PATH, functional, listed by brew, and records
-    installed-method=package.
-  pre: |
-    _installed_method="${_FEAT_SHARE_DIR_ROOT}/state/installed-method"
-  checks:
-    - title: brew is on PATH
-      cmd: command -v brew
-    - title: task is on PATH
-      cmd: command -v task
-    - title: task reports a version
-      cmd: bash -c 'task --version | grep -Eq "^[0-9]+\.[0-9]+\.[0-9]+$"'
-    - title: brew lists the go-task formula
-      cmd: brew list --formula go-task
-    - title: installed-method state is package
-      cmd: grep -Fqx "package" "${_installed_method}"

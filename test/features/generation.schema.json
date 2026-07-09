@@ -56,6 +56,14 @@
           "description": "Environment with a Rust toolchain pre-installed, used by method_matrix's cargo_default. 'a Rust toolchain is already installed' isn't a WhenSpec-expressible attribute either, so this is a direct pointer rather than a when:-driven pool selection.",
           "type": "string"
         },
+        "macos_env": {
+          "description": "Native macOS environment (no Homebrew), used by the macos family's macos_default for darwin-feasible non-brew methods (e.g. binary with a darwin asset).",
+          "type": "string"
+        },
+        "macos_brew_env": {
+          "description": "Native macOS environment with Homebrew pre-installed, used by the macos family's macos_package_default (method=package via brew).",
+          "type": "string"
+        },
         "pool": {
           "description": "Candidate environments for multi-environment selection (e.g. method_matrix's package_default, one per plat.pm). Deliberately a curated list, not every test/environments.yaml key — the file also contains many special-purpose `+tool[-version]`/`+toolchain` layers (pre-installed tool states, build toolchains) that are never appropriate as a generic 'which OS represents this package manager' pick, and some base images (alpine/rocky/opensuse-leap) need their `+bash` variant here since generated checks use `bash -c '...'`.",
           "type": "array",

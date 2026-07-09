@@ -63,6 +63,8 @@ environments:
   nonroot_env: ubuntu-stable+vscode
   npm_env: ubuntu-stable+node
   cargo_env: ubuntu-current+rust
+  macos_env: macos-current
+  macos_brew_env: macos-current+brew
   pool:
   - ubuntu-stable
   - debian-stable+bash
@@ -116,6 +118,10 @@ families:
     modes:
     - devcontainer
     - standalone
+  macos:
+    enabled: true
+    modes:
+    - macos
   log_file:
     enabled: true
     modes:

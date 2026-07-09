@@ -25,14 +25,3 @@
 # alpine-current+bash and additionally covers fedora/opensuse — real
 # coverage that would have caught the ca-certificates/sslcacert bugs fixed
 # in commits 4aa2578e/43284146 immediately, had it existed sooner.
-macos_package_default:
-  envs:
-  - macos-current+brew
-  modes:
-  - macos
-  setup: |
-    brew list --formula go-task >/dev/null 2>&1 && brew uninstall --formula go-task || true
-  options:
-    method: package
-  tests:
-  - macos_package_default
