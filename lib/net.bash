@@ -95,7 +95,8 @@ net__fetch_with_retry() {
 _net__fetch() {
   # @brief _net__fetch <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Internal: download URL via curl or wget.
   #
-  # <dest> is the output file path, or empty string for stdout output.
+  # <dest> is the output file path (its parent directory is created if missing),
+  # or empty string for stdout output.
   # curl uses --retry (transient errors, including DNS failures, but not
   # permanent failures like 404); wget falls back to net__fetch_with_retry.
   local _url="$1" _dest="$2"
@@ -133,6 +134,19 @@ _net__fetch() {
     logging__error "failed to set up HTTP fetch tool."
     return "$_rc"
   }
+  # Create the destination's parent directory before writing. `curl -o` / `wget
+  # -O` do NOT create missing parents — they abort with "Failure writing output
+  # to destination" (curl exit 23). uri__fetch_asset mkdir -p's its managed work
+  # dirs before fetching, but this transport is also called directly with an
+  # arbitrary dest (e.g. install-texlive's installer_dir download), so create the
+  # parent here so every direct caller is hardened the same way. No-op for the
+  # stdout path (empty dest).
+  if [ -n "$_dest" ]; then
+    file__mkdir "$(dirname "$_dest")" || {
+      logging__error "failed to create parent directory for '${_dest}'."
+      return 1
+    }
+  fi
   local _h
   if [ "$_NET__FETCH_TOOL" = "curl" ]; then
     # Force HTTP/1.1: under heavy CI network load GitHub (and other endpoints)
@@ -223,7 +237,7 @@ net__fetch_url_file() {
   #
   # Args:
   #   <url>                URL to download.
-  #   <dest>               Destination file path.
+  #   <dest>               Destination file path; its parent directory is created if missing.
   #   --retries N          Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
   #   --delay N            Seconds between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
   #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.

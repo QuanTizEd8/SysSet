@@ -267,6 +267,34 @@ teardown() {
   assert_output --partial "User-Agent: devfeats"
 }
 
+@test "net__fetch_url_file creates the destination's missing parent directory" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  # Emulate real `curl -o <dest>`: fail (exit 23) if the parent dir is missing,
+  # else write the file. So this passes only if net__fetch_url_file mkdir -p's
+  # the parent first (the install-texlive installer_dir class of bug).
+  curl() {
+    local _o=""
+    while [ $# -gt 0 ]; do
+      [ "$1" = "-o" ] && {
+        _o="$2"
+        shift
+      }
+      shift
+    done
+    [ -n "$_o" ] || return 0
+    printf 'data' > "$_o" 2> /dev/null || return 23
+    return 0
+  }
+  export -f curl
+  local _dest="${BATS_TEST_TMPDIR}/new/nested/dir/out.bin"
+  run net__fetch_url_file "https://example.com" "${_dest}"
+  assert_success
+  assert [ -d "${BATS_TEST_TMPDIR}/new/nested/dir" ]
+  assert [ -f "${_dest}" ]
+}
+
 @test "net__fetch_url_stdout returns failure when curl fails" {
   reload_lib
   _NET__FETCH_TOOL=curl
