@@ -109,11 +109,9 @@ netrc_uri_file:
     - ubuntu-stable
   modes:
     - devcontainer
-  setup: 'printf ''%s\n'' ''machine github.com login token password placehold'' > /tmp/test.netrc
-
+  setup: |
+    printf '%s\n' 'machine github.com login token password placehold' > /tmp/test.netrc
     chmod 600 /tmp/test.netrc
-
-'
   options:
     netrc: file:///tmp/test.netrc
   tests:

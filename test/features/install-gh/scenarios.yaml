@@ -63,13 +63,10 @@ if_exists_skip_no_mutation:
     - ubuntu-stable+gh-2.67.0
   modes:
     - devcontainer
-  setup: 'apt-get purge -y curl
-
+  setup: |
+    apt-get purge -y curl
     apt-get autoremove -y
-
     rm -rf /var/lib/apt/lists/*
-
-'
   options:
     if_exists: skip
   tests:
@@ -117,11 +114,9 @@ add_users:
     - ubuntu-stable+git+sudo+vscode
   modes:
     - devcontainer
-  setup: 'useradd -m -s /bin/bash -u 1001 testuser
-
+  setup: |
+    useradd -m -s /bin/bash -u 1001 testuser
     echo "testuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/testuser
-
-'
   options:
     method: upstream-package
     add_users: testuser
@@ -164,13 +159,10 @@ if_exists_fail_preinstalled_network_isolated:
     - ubuntu-stable
   modes:
     - standalone
-  setup: 'mkdir -p /usr/local/bin
-
-    printf ''#!/bin/sh\necho "gh version 2.67.0 (2025-01-01)"\n'' > /usr/local/bin/gh
-
+  setup: |
+    mkdir -p /usr/local/bin
+    printf '#!/bin/sh\necho "gh version 2.67.0 (2025-01-01)"\n' > /usr/local/bin/gh
     chmod +x /usr/local/bin/gh
-
-'
   options:
     if_exists: fail
   standalone:
