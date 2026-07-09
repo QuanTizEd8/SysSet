@@ -45,10 +45,14 @@ _options:
     description: Verify Homebrew is installed and working.
     functional:
       description: brew resolves its installation prefix
-      # `brew --prefix` exercises Homebrew's environment/prefix resolution
-      # offline (no network, no formula access) and — unlike `brew config` —
-      # runs no git commands, so it is not confounded by git's dubious-ownership
-      # guard when a linuxbrew-owned install is invoked as root in CI.
+      # `brew --prefix` resolves Homebrew's install prefix offline (no network,
+      # no formula index) and, unlike most brew subcommands, runs cleanly as
+      # root. The test harness runs the functional check as root, but Homebrew
+      # refuses root for anything that downloads or mutates state — e.g.
+      # `brew config` aborts with "Need to download … but cannot as root!"
+      # (it fetches the formula index) — so a root-safe command is required
+      # here. Non-root users, including the container's remote user, run
+      # `brew config` and friends without issue (verified in a clean container).
       cmd: '{bin} --prefix > /dev/null 2>&1'
   gh_repo: Homebrew/install
   method:
@@ -68,10 +72,12 @@ _options:
     discovery_snippet:
       # The snippet is written verbatim into the shell startup files (only
       # `{feat.prefix}` is expanded), so it must already be valid shell. The
-      # previous `eval \$(...)` produced a literal backslash-dollar in profile.d
-      # — a syntax error that silently broke brew's PATH discovery in every
-      # login shell. `eval "$(... shellenv)"` is the correct, documented form;
-      # the surrounding single-quoted serialization prevents any premature
+      # previous `eval \$(...)` was mode-dependent: standalone preserved the
+      # backslash, so profile.d got `eval \$(...)` — a syntax error that broke
+      # brew's PATH discovery in login shells; devcontainer's ENV layer stripped
+      # it to a working (but fragile, unquoted) `eval $(...)`. `eval "$(…
+      # shellenv)"` is the correct, documented form and renders identically in
+      # both modes; the single-quoted serialization prevents any premature
       # command substitution at build/assignment time.
       bash: 'eval "$(''{feat.prefix}/bin/brew'' shellenv)"'
       zsh: 'eval "$(''{feat.prefix}/bin/brew'' shellenv)"'
