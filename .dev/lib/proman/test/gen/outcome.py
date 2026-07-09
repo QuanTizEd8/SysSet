@@ -241,6 +241,10 @@ def _pm_outcome(
         on_path=True,
         install_path=None,  # PM-managed; assert command -v + PM ownership
         pm_managed=True,
+        # A PM install lands the binary on the system PATH (/usr/bin) via the
+        # package manager — it never goes through the prefix/export machinery,
+        # so (root scope) assert no PATH-export block was written.
+        assert_no_export_block=_is_privileged(ctx),
         share_dir_var=_share_var(ctx),
     )
 
