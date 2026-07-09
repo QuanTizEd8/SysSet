@@ -65,14 +65,23 @@ def _completion_checks(shell: str, bin_name: str, os_id: str) -> list[CheckItem]
         ]
     if shell == "zsh":
         path = f"{_zshdir(os_id)}/completions/_{bin_name}"
-        return [CheckItem(title="zsh completion file exists", cmd=f"test -f {path}")]
+        return [
+            CheckItem(title="zsh completion file exists", cmd=f"test -f {path}"),
+            CheckItem(title="zsh completion file is non-empty", cmd=f"test -s {path}"),
+        ]
     if shell == "fish":
         path = f"/usr/share/fish/vendor_completions.d/{bin_name}.fish"
-        return [CheckItem(title="fish completion file exists", cmd=f"test -f {path}")]
+        return [
+            CheckItem(title="fish completion file exists", cmd=f"test -f {path}"),
+            CheckItem(title="fish completion file is non-empty", cmd=f"test -s {path}"),
+        ]
     if shell == "nushell":
         path = f'"${{HOME}}/.config/nushell/autoload/{bin_name}.nu"'
         return [
-            CheckItem(title="nushell completion file exists", cmd=f"test -f {path}")
+            CheckItem(title="nushell completion file exists", cmd=f"test -f {path}"),
+            CheckItem(
+                title="nushell completion file is non-empty", cmd=f"test -s {path}"
+            ),
         ]
     if shell == "elvish":
         path = '"${HOME}/.config/elvish/rc.elv"'

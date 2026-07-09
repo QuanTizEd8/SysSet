@@ -433,6 +433,14 @@ class IfExistsRule:
                     cmd_template, description, resolved_path
                 ),
             )
+        # reinstall/update re-run the full install, re-recording installed-method.
+        # A pinned-method root install records it under _FEAT_SHARE_DIR_ROOT
+        # (default prefix, root env). Skip for off-PATH installs (homebrew runs
+        # as a dedicated user, so the share dir is less certain).
+        if method is not None and not off_path:
+            checks.append(
+                checks_builtin.installed_method_check(method, "_FEAT_SHARE_DIR_ROOT"),
+            )
         seeded = "a real prior install" if real_seed else "an existing install"
         group = CheckGroup(
             description=f"if_exists={if_exists} replaces {seeded} with a "
