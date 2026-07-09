@@ -81,9 +81,11 @@ class MacosRule:
         envs: dict,
     ) -> GeneratedScenario | None:
         env = cfg.macos_brew_env
-        # macOS CI runners run as a non-root user (Homebrew refuses root), so the
-        # installed-method state lands under _FEAT_SHARE_DIR_NONROOT, not _ROOT.
-        ctx = context.for_env(env, envs, privileged=False)
+        # The macOS runner user has write access to /usr/local (Homebrew owns it),
+        # so the feature resolves to the *privileged* profile and records the
+        # installed-method state under _FEAT_SHARE_DIR_ROOT (/usr/local/share),
+        # verified in a real run — not the non-root ~/.local/share.
+        ctx = context.for_env(env, envs, privileged=True)
         outcome = outcome_mod.compute(facts, ctx, method="package")
         if outcome is None:  # package not feasible on the brew env
             return None
