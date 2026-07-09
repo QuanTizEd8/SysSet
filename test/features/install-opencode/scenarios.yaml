@@ -26,6 +26,10 @@ binary_musl:
     method: binary
   tests: [binary_musl]
 
+# persist_dirs shares the default install-key (options={}, devcontainer) but
+# verifies the devcontainer onCreateCommand symlinks (~/.config,~/.local/share)
+# — a devcontainer-only behavior absent in default's standalone run, so it
+# cannot augment the dual-mode `default` and stays a separate scenario.
 persist_dirs:
   envs: [ubuntu-stable]
   modes: [devcontainer]

@@ -5,14 +5,15 @@
 # generator config, and run `proman-test-gen-preview install-go` to inspect
 # the generated output.
 #
-# goroot_and_cross_compile and cgo_enabled exercise install-go-specific
-# behavior (GOROOT export, GOOS/GOARCH cross-compilation, the cgo_deps
-# option) that has no generic representation in the generator.
+# goroot_and_cross_compile exercises install-go-specific behavior (GOROOT
+# export, GOOS/GOARCH cross-compilation) with no options/setup of its own, so
+# it AUGMENTS the generated `default` install rather than re-installing — its
+# checks run in that one install. cgo_enabled sets cgo_deps (a distinct
+# install), so it stays a separate scenario.
 
-goroot_and_cross_compile:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  tests: [goroot_and_cross_compile]
+generation:
+  augment_tests:
+    default: [goroot_and_cross_compile]
 
 cgo_enabled:
   envs: [ubuntu-stable]

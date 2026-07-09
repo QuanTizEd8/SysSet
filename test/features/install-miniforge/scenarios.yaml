@@ -13,7 +13,12 @@ generation:
     scenarios: [if_exists_skip, if_exists_fail, if_exists_reinstall, if_exists_update]
     checks: [if_exists_skip, if_exists_fail, if_exists_reinstall, if_exists_update]
   augment_tests:
-    default: [default_conda_scaffold]
+    # export_path_default (prefix-not-a-symlink + login-PATH reachability) and
+    # stable_version (conda info --base, base env accessible) need no options or
+    # setup of their own, so they augment the generated `default` install rather
+    # than each re-installing conda. Their checks are absolute-path / `bash -lc`,
+    # so they run correctly in both the devcontainer and standalone default runs.
+    default: [default_conda_scaffold, export_path_default, stable_version]
     log_file: [log_file_conda]
     custom_prefix_symlink: [custom_prefix_conda]
 
@@ -95,16 +100,6 @@ multi_user_permissions:
     write_group: conda
     write_users: "testuser1\ntestuser2"
   tests: [multi_user_permissions]
-
-export_path_default:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  tests: [export_path_default]
-
-stable_version:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  tests: [stable_version]
 
 version_match_idempotency:
   envs: [ubuntu-stable+miniforge]
