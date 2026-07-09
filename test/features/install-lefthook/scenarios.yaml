@@ -25,18 +25,6 @@
 # fedora/el repo-path templating typo, and a missing ca-certificates base
 # dependency for the SSL-verified custom repos), both fixed alongside this
 # migration.
-installer_dir:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: binary
-    installer_dir: /tmp/lefthook-trace
-  tests:
-  - installer_dir
-
 macos_package_default:
   envs:
   - macos-current+brew

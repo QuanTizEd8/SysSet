@@ -1,20 +1,2 @@
 # Every check group except installer_dir is now auto-generated — see
 # scenarios.yaml.
-installer_dir:
-  description: |
-    installer_dir=/tmp/just-trace: the downloaded archive and SHA256SUMS file must
-    remain in installer_dir after installation completes.
-  checks:
-    - title: just binary installed
-      cmd: test -f /usr/local/bin/just
-    - title: just --version succeeds
-      cmd: just --version
-    - title: installer_dir exists
-      cmd: test -d /tmp/just-trace
-      debug: |
-        echo "=== /tmp/just-trace/ contents ==="
-        ls -la /tmp/just-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: just archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/just-trace/archive/just-*.tar.gz 2>/dev/null | grep -q .'
-    - title: SHA256SUMS preserved in installer_dir
-      cmd: bash -c 'ls /tmp/just-trace/sidecar/SHA256SUMS 2>/dev/null | grep -q .'

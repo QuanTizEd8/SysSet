@@ -125,24 +125,6 @@ if_exists_update_existing:
         /usr/local/bin/pixi --version 2>&1 || echo "(failed)"
     - title: pixi was updated beyond 0.41.0
       cmd: bash -c '[ "$(/usr/local/bin/pixi --version 2>/dev/null | awk "{print \$NF}")" != "0.41.0" ]'
-installer_dir:
-  description: |
-    installer_dir=/tmp/pixi-trace: the downloaded .tar.gz archive and its
-    .tar.gz.sha256 sidecar must remain in installer_dir after installation completes.
-  checks:
-    - title: pixi binary installed
-      cmd: test -f /usr/local/bin/pixi
-    - title: pixi --version succeeds
-      cmd: /usr/local/bin/pixi --version
-    - title: installer_dir exists
-      cmd: test -d /tmp/pixi-trace
-      debug: |
-        echo "=== /tmp/pixi-trace/ contents ==="
-        ls -la /tmp/pixi-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: pixi archive preserved
-      cmd: bash -c 'ls /tmp/pixi-trace/archive/pixi-*.tar.gz 2>/dev/null | grep -q .'
-    - title: pixi sidecar preserved
-      cmd: bash -c 'ls /tmp/pixi-trace/sidecar/pixi-*.tar.gz.sha256 2>/dev/null | grep -q .'
 invalid_version_string:
   description: |
     Verify that a clearly invalid version string (not a numeric spec) fails resolution.

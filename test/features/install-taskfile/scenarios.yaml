@@ -25,18 +25,6 @@
 # alpine-current+bash and additionally covers fedora/opensuse — real
 # coverage that would have caught the ca-certificates/sslcacert bugs fixed
 # in commits 4aa2578e/43284146 immediately, had it existed sooner.
-installer_dir:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: binary
-    installer_dir: /tmp/task-trace
-  tests:
-  - installer_dir
-
 macos_package_default:
   envs:
   - macos-current+brew

@@ -1,24 +1,5 @@
 # Every check group except installer_dir and macos_package_default is now
 # auto-generated — see scenarios.yaml.
-installer_dir:
-  description: |
-    installer_dir=/tmp/task-trace: the downloaded archive and checksums file must
-    remain in installer_dir after installation completes.
-  checks:
-    - title: task binary installed
-      cmd: test -f /usr/local/bin/task
-    - title: task --version succeeds
-      cmd: task --version
-    - title: installer_dir exists
-      cmd: test -d /tmp/task-trace
-      debug: |
-        echo "=== /tmp/task-trace/ contents ==="
-        ls -la /tmp/task-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: task archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/task-trace/archive/task_*.tar.gz 2>/dev/null | grep -q .'
-    - title: task checksums file preserved in installer_dir
-      cmd: bash -c 'ls /tmp/task-trace/sidecar/task_checksums.txt 2>/dev/null | grep -q .'
-
 macos_package_default:
   description: |
     method=package on macOS installs Task from the standard Homebrew formula.

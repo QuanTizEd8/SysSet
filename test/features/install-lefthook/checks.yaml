@@ -1,24 +1,5 @@
 # Every check group except installer_dir and macos_package_default is now
 # auto-generated — see scenarios.yaml.
-installer_dir:
-  description: |
-    installer_dir=/tmp/lefthook-trace: the downloaded binary and checksums file must
-    remain in installer_dir after installation completes.
-  checks:
-    - title: lefthook binary installed
-      cmd: test -f /usr/local/bin/lefthook
-    - title: lefthook version succeeds
-      cmd: lefthook version
-    - title: installer_dir exists
-      cmd: test -d /tmp/lefthook-trace
-      debug: |
-        echo "=== /tmp/lefthook-trace/ contents ==="
-        ls -la /tmp/lefthook-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: lefthook binary asset preserved in installer_dir
-      cmd: bash -c 'ls /tmp/lefthook-trace/asset/lefthook_* 2>/dev/null | grep -q .'
-    - title: lefthook checksums file preserved in installer_dir
-      cmd: bash -c 'ls /tmp/lefthook-trace/sidecar/lefthook_checksums.txt 2>/dev/null | grep -q .'
-
 macos_package_default:
   description: |
     method=package on macOS installs Lefthook from the standard Homebrew

@@ -17,14 +17,3 @@
 # version relied on a real pre-installed-via-package env instead of the
 # generated version's fake-stub setup, but both simulate the same
 # already-installed condition equally well.
-installer_dir:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: binary
-    installer_dir: /tmp/just-trace
-  tests:
-  - installer_dir

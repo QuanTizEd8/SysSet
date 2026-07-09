@@ -54,25 +54,6 @@ fish_hook:
     - title: fzf --fish produces output
       cmd: bash -c '/usr/local/bin/fzf --fish | grep -q .'
 
-installer_dir:
-  description: |
-    installer_dir=/tmp/fzf-trace: verifies that the downloaded release archive
-    and its checksums file are preserved in the specified directory after install.
-  checks:
-    - title: fzf binary installed
-      cmd: test -f /usr/local/bin/fzf
-    - title: fzf --version succeeds
-      cmd: fzf --version
-    - title: installer_dir exists
-      cmd: test -d /tmp/fzf-trace
-      debug: |
-        echo "=== /tmp/fzf-trace/ contents ==="
-        ls -la /tmp/fzf-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: fzf archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/fzf-trace/archive/fzf-*.tar.gz 2>/dev/null | grep -q .'
-    - title: fzf checksums file preserved in installer_dir
-      cmd: bash -c 'ls /tmp/fzf-trace/sidecar/fzf_*_checksums.txt 2>/dev/null | grep -q .'
-
 version_match_idempotency:
   description: |
     version=0.72.0 + if_exists=fail with a stub already claiming version 0.72.0:

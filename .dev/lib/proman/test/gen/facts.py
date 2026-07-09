@@ -259,6 +259,33 @@ class FeatureFacts:
         """Declared `_options.method` keys, in declaration order."""
         return list(self.methods.keys())
 
+    @property
+    def download_methods(self) -> list[str]:
+        """Declared methods that fetch assets into `installer_dir` (archive/asset/…).
+
+        `binary`/`source`/`script` all go through `uri__fetch_asset`, which
+        persists the downloaded archive (and its sidecar) under `--installer-dir`;
+        `package`/`upstream-package`/`npm`/`cargo`/`git-clone` do not. Used by the
+        `installer_dir` family to pick a method whose install actually populates
+        the trace directory.
+        """
+        fetchers = {"binary", "source", "script"}
+        return [m for m in self.method_names if m in fetchers]
+
+    @property
+    def has_sidecar(self) -> bool:
+        """Whether any download method declares a checksum sidecar (`sidecar_uri`).
+
+        Determines whether `installer_dir/sidecar/` is populated: features whose
+        upstream ships a checksums file declare `sidecar_uri` (gh, just, pixi);
+        those without (shellcheck) leave `sidecar/` empty, so asserting it would
+        be a false failure.
+        """
+        return any(
+            isinstance(cfg, dict) and cfg.get("sidecar_uri")
+            for cfg in self.methods.values()
+        )
+
     def enum_values(self, option_name: str) -> list[str] | None:
         """Return declared enum values for one public option, e.g. "method".
 

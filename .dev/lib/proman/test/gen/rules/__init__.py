@@ -13,6 +13,7 @@ from proman.test.gen.rules import (  # noqa: F401
     configure_users,
     existence_default,
     if_exists,
+    installer_dir,
     invalid_enum,
     log_file,
     method_matrix,

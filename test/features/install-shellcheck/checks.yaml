@@ -1,18 +1,2 @@
 # Every check group except installer_dir is now auto-generated — see
 # scenarios.yaml.
-installer_dir:
-  description: |
-    installer_dir=/tmp/shellcheck-trace: the downloaded archive must remain in
-    installer_dir after installation completes.
-  checks:
-    - title: shellcheck binary installed
-      cmd: test -f /usr/local/bin/shellcheck
-    - title: shellcheck --version succeeds
-      cmd: shellcheck --version
-    - title: installer_dir exists
-      cmd: test -d /tmp/shellcheck-trace
-      debug: |
-        echo "=== /tmp/shellcheck-trace/ contents ==="
-        ls -la /tmp/shellcheck-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: shellcheck archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/shellcheck-trace/archive/shellcheck-v*.tar.xz 2>/dev/null | grep -q .'

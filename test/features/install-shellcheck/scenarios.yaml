@@ -28,14 +28,3 @@ generation:
   suppress:
     scenarios: [custom_prefix_symlink_nonroot]
 
-installer_dir:
-  envs:
-  - ubuntu-stable
-  modes:
-  - devcontainer
-  - standalone
-  options:
-    method: binary
-    installer_dir: /tmp/shellcheck-trace
-  tests:
-  - installer_dir

@@ -35,13 +35,6 @@ fish_hook:
   modes: [devcontainer, standalone]
   tests: [fish_hook]
 
-installer_dir:
-  envs: [ubuntu-stable]
-  modes: [devcontainer, standalone]
-  options:
-    installer_dir: /tmp/fzf-trace
-  tests: [installer_dir]
-
 version_match_idempotency:
   expect_install_failure: true
   envs: [debian-stable]

@@ -120,24 +120,6 @@ if_exists_skip_no_mutation:
       cmd: bash -c '[ "$(gh --version 2>/dev/null | head -1 | awk "{print \$3}")" = "2.67.0" ]'
     - title: curl remains absent when install is skipped
       cmd: bash -c '! command -v curl >/dev/null 2>&1'
-installer_dir:
-  description: |
-    installer_dir=/tmp/gh-trace: the downloaded archive and checksums file must
-    remain in installer_dir after installation completes.
-  checks:
-    - title: gh binary installed
-      cmd: test -f /usr/local/bin/gh
-    - title: gh --version succeeds
-      cmd: gh --version
-    - title: installer_dir exists
-      cmd: test -d /tmp/gh-trace
-      debug: |
-        echo "=== /tmp/gh-trace/ contents ==="
-        ls -la /tmp/gh-trace/ 2>/dev/null || echo "(directory missing)"
-    - title: gh archive preserved in installer_dir
-      cmd: bash -c 'ls /tmp/gh-trace/archive/gh_*.tar.gz 2>/dev/null | grep -q .'
-    - title: checksums file preserved in installer_dir
-      cmd: bash -c 'ls /tmp/gh-trace/sidecar/gh_*_checksums.txt 2>/dev/null | grep -q .'
 invalid_sign_commits:
   description: |
     Verify that passing an invalid sign_commits value causes the installer to exit non-zero.

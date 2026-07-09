@@ -83,16 +83,6 @@ version_match_idempotency:
     if_exists: fail
   tests:
     - version_match_idempotency
-installer_dir:
-  envs:
-    - ubuntu-stable
-  modes:
-    - devcontainer
-  options:
-    method: binary
-    installer_dir: /tmp/gh-trace
-  tests:
-    - installer_dir
 ghes_hostname:
   envs:
     - ubuntu-stable+git+sudo+vscode

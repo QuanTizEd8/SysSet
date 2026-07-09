@@ -46,13 +46,6 @@ custom_active_env:
     activate_env: myenv
   tests: [custom_active_env]
 
-installer_dir:
-  envs: [ubuntu-stable]
-  modes: [devcontainer]
-  options:
-    installer_dir: /tmp/miniforge-trace
-  tests: [installer_dir]
-
 if_exists_reinstall:
   envs: [ubuntu-stable+miniforge]
   modes: [devcontainer]

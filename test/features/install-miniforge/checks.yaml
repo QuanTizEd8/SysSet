@@ -309,26 +309,6 @@ if_exists_update_preinstall:
     - title: login PATH includes /opt/conda/bin
       cmd: bash -lc 'echo "$PATH" | grep -q /opt/conda/bin'
 
-installer_dir:
-  description: |
-    installer_dir=/tmp/miniforge-trace: the Miniforge installer script and its
-    .sha256 sidecar must remain in installer_dir after installation completes.
-
-  checks:
-    - title: conda binary installed
-      cmd: test -f /opt/conda/bin/conda
-    - title: conda --version succeeds
-      cmd: /opt/conda/bin/conda --version
-    - title: installer directory preserved
-      cmd: test -d /tmp/miniforge-trace
-      debug: |
-        echo "=== ls /tmp/miniforge-trace/ ==="
-        ls -la /tmp/miniforge-trace/ 2>/dev/null || echo "(missing or empty)"
-    - title: installer .sh file preserved
-      cmd: bash -c 'ls /tmp/miniforge-trace/asset/Miniforge3-*.sh 2>/dev/null | grep -q .'
-    - title: installer sidecar preserved
-      cmd: bash -c 'ls /tmp/miniforge-trace/sidecar/Miniforge3-*.sh.sha256 2>/dev/null | grep -q .'
-
 invalid_version:
   description: |
     Verify that requesting a nonexistent Miniforge version (0.0.0) fails because

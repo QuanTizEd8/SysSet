@@ -111,6 +111,11 @@ families:
     enabled: false
     reason: Scenario scaffolding only generates a scaffold that requires a hand-authored
       checks.yaml group; opt in per feature once that group exists.
+  installer_dir:
+    enabled: true
+    modes:
+    - devcontainer
+    - standalone
   log_file:
     enabled: true
     modes:
