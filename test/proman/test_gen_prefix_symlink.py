@@ -37,7 +37,10 @@ _CFG = GenerationConfig(
 def _facts(methods: dict) -> FeatureFacts:
     return FeatureFacts(
         feature_id="install-fixture",
-        verify={"args": "--version"},
+        verify={
+            "args": "--version",
+            "functional": {"description": "runs", "cmd": "{bin} --help"},
+        },
         methods=methods,
         prefix={"bins": ["tool"]},
     )
@@ -70,7 +73,10 @@ def test_pm_only_feature_skips_custom_prefix() -> None:
 def _facts_with_build(methods: dict, build: dict) -> FeatureFacts:
     return FeatureFacts(
         feature_id="install-fixture",
-        verify={"args": "--version"},
+        verify={
+            "args": "--version",
+            "functional": {"description": "runs", "cmd": "{bin} --help"},
+        },
         methods=methods,
         prefix={"bins": ["tool"]},
         dependencies={"build": build},

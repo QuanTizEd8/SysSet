@@ -21,7 +21,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from proman.test.environments import resolve_attributes
-from proman.test.gen import checks_builtin, envselect
+from proman.test.gen import blocks, checks_builtin, context, default_checks, envselect
+from proman.test.gen import outcome as outcome_mod
 from proman.test.gen.registry import register
 from proman.test.gen.scenarios_builtin import base_scenario
 from proman.test.gen.types import CheckGroup, CheckItem, GeneratedScenario
@@ -109,11 +110,7 @@ class PrefixSymlinkRule:
         *,
         root: bool,
     ) -> GeneratedScenario | None:
-        bin_ = facts.primary_bin
         custom_prefix = self._custom_prefix(facts)
-        resolved_path = facts.resolved_bin_path(custom_prefix, bin_)
-        link_dir = facts.symlink_root if root else facts.symlink_nonroot
-        link_path = f"{link_dir}/{bin_}"
 
         method_option = self._method_option(facts, envs, env)
         if method_option is None:
@@ -166,38 +163,28 @@ class PrefixSymlinkRule:
             scenario["standalone"] = {"user": "vscode"}
         scenario["tests"] = [name]
 
-        checks: list[CheckItem] = [
-            *checks_builtin.existence_triad(bin_, path=resolved_path),
-            CheckItem(
-                title=f"{bin_} --version succeeds at custom path",
-                cmd=f"{resolved_path} {facts.version_flag}",
-            ),
-            *checks_builtin.symlink_present_checks(resolved_path, link_path),
-            CheckItem(title=f"{bin_} resolves from PATH", cmd=f"command -v {bin_}"),
-        ]
-        functional = facts.functional
-        if functional is not None:
-            cmd_template, description = functional
-            checks.append(
-                checks_builtin.functional_check(
-                    cmd_template,
-                    f"{description} via custom path",
-                    resolved_path,
-                ),
-            )
-            checks.append(
-                checks_builtin.functional_check(
-                    cmd_template,
-                    f"{description} via PATH",
-                    bin_,
-                ),
-            )
+        # Full outcome bundle: the binary at the EXACT custom path, PATH resolves
+        # through the symlink to it, version, functional, recorded method, the
+        # symlink present at the (non-root) default location, no PATH-export
+        # block, and any activation block — a strict superset of the old
+        # symlink-only checks. The install is on PATH via the symlink, so the
+        # standard on-PATH bundle applies.
+        ctx = context.for_env(
+            env, envs, privileged=root, **envselect.provisioning_for(env, cfg)
+        )
+        outcome = outcome_mod.compute(
+            facts,
+            ctx,
+            method=method_option["method"],
+            prefix=custom_prefix,
+            prefix_discovery="symlink",
+        )
         location = "default" if root else "non-root default"
         group = CheckGroup(
             description=f"prefix={custom_prefix}, prefix_discovery=symlink: binary "
             f"installs at the custom prefix and a symlink is created at the "
-            f"{location} location.",
-            checks=checks,
+            f"{location} location; full install outcome verified.",
+            checks=default_checks.build(facts, cfg, outcome, method_pinned=True),
         )
         return GeneratedScenario(name=name, scenario=scenario, checks={name: group})
 
@@ -229,8 +216,22 @@ class PrefixSymlinkRule:
         )
         scenario["tests"] = [name]
 
+        # discovery=none installs the binary at the custom prefix but deliberately
+        # puts it on NO PATH (no symlink, no export) — so checks assert by absolute
+        # path only, with no `command -v`/login probe (which would rightly fail).
+        # Enriched beyond the old existence+functional pair: version via the
+        # absolute path, recorded method, no symlink, and no PATH-export block.
+        ctx = context.for_env(env, envs, **envselect.provisioning_for(env, cfg))
+        outcome = outcome_mod.compute(
+            facts,
+            ctx,
+            method=method_option["method"],
+            prefix=custom_prefix,
+            prefix_discovery="none",
+        )
         checks: list[CheckItem] = [
             *checks_builtin.existence_triad(bin_, path=resolved_path),
+            checks_builtin.version_format_check(resolved_path, facts.version_flag),
         ]
         functional = facts.functional
         if functional is not None:
@@ -243,6 +244,19 @@ class PrefixSymlinkRule:
                 ),
             )
         checks.append(checks_builtin.symlink_absent_check(link_path))
+        if outcome is not None and outcome.method is not None:
+            checks.append(
+                checks_builtin.installed_method_check(
+                    outcome.method, outcome.share_dir_var
+                ),
+            )
+            checks.append(
+                checks_builtin.block_absent_check(
+                    blocks.PROFILE_D_EXPR,
+                    blocks.export_marker(facts),
+                    title="no PATH-export block written",
+                ),
+            )
         group = CheckGroup(
             description=f"prefix={custom_prefix}, prefix_discovery=none: binary "
             "installs at the custom prefix and no symlink is created.",
