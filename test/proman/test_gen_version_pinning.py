@@ -58,10 +58,23 @@ def test_exact_pin_excludes_package_even_when_declared_first() -> None:
     """A specific version is never pinned to `package` (can't resolve host-side)."""
     facts = _facts({"package": {}, "binary": {"when": _AMD_ARM}}, ["1.2.3"])
     scenarios = VersionPinningRule().generate(facts, _CFG, _ENVS)
-    assert len(scenarios) == 1
-    scenario = scenarios[0]
-    assert scenario.scenario["options"]["method"] == "binary"
-    assert any("installed-method state is binary" in t for t in _pin_titles(scenario))
+    # version_pinned (exact) + version_partial (X.Y) for an X.Y.Z pin.
+    pinned = next(s for s in scenarios if s.name == "version_pinned")
+    assert pinned.scenario["options"]["method"] == "binary"
+    assert any("installed-method state is binary" in t for t in _pin_titles(pinned))
+
+
+def test_partial_semver_scenario_generated_and_distinct() -> None:
+    """An X.Y.Z pin also yields a `version: X.Y` scenario that checks the prefix."""
+    facts = _facts({"package": {}, "binary": {"when": _AMD_ARM}}, ["1.2.3"])
+    scenarios = VersionPinningRule().generate(facts, _CFG, _ENVS)
+    partial = next((s for s in scenarios if s.name == "version_partial"), None)
+    assert partial is not None
+    # Distinct version input from the exact pin, and never `package`.
+    assert partial.scenario["options"]["version"] == "1.2"
+    assert partial.scenario["options"]["method"] == "binary"
+    titles = [c["title"] for c in partial.checks["version_partial"]["checks"]]
+    assert any("version matches 1.2.x" in t for t in titles)
 
 
 def test_exact_pin_uses_canonical_priority_among_feasible() -> None:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from proman.test.gen import context, default_checks, envselect
+from proman.test.gen import checks_builtin, context, default_checks, envselect
 from proman.test.gen import outcome as outcome_mod
 from proman.test.gen.naming import legacy_scenario_name, pinned_scenario_name
 from proman.test.gen.registry import register
@@ -69,7 +69,57 @@ class VersionPinningRule:
         for index, value in enumerate(legacy):
             name = legacy_scenario_name(index, len(legacy))
             results.append(self._scenario(name, value, env, facts, cfg, envs))
+        # Partial-semver input: `version: X.Y` must resolve to the latest X.Y.z.
+        # Distinct from the exact pins (different version input) — exercises the
+        # resolver's partial-match path, which nothing else covers.
+        if pinned:
+            partial = self._partial(pinned[0], env, facts, cfg, envs)
+            if partial is not None:
+                results.append(partial)
         return results
+
+    def _partial(
+        self,
+        exact: str,
+        env: str,
+        facts: FeatureFacts,
+        cfg: GenerationConfig,
+        envs: dict,
+    ) -> GeneratedScenario | None:
+        """Build a `version: X.Y` scenario from the exact pin's major.minor."""
+        parts = exact.split(".")
+        min_semver_parts = 3  # need X.Y.Z to shorten to a distinct X.Y
+        if len(parts) < min_semver_parts:
+            return None
+        xy = ".".join(parts[:2])
+        # Upstream-resolving methods only (binary/source/npm/cargo): they resolve
+        # X.Y against the release list, unlike package (PM availability varies).
+        method = envselect.first_feasible_method(
+            facts, envs, env, version=xy, allowed=facts.prefix_capable_methods
+        )
+        if method is None:
+            return None
+        scenario = base_scenario(
+            [env], cfg, _FAMILY, options={"version": xy, "method": method}
+        )
+        scenario["tests"] = ["version_partial"]
+        ctx = context.for_env(env, envs, version_input=xy)
+        outcome = outcome_mod.compute(facts, ctx, method=method)
+        # Full outcome bundle (with a generic version-format check) PLUS the
+        # partial-semver assertion that the resolved version is X.Y.z.
+        checks = default_checks.build(facts, cfg, outcome, method_pinned=True)
+        checks.append(
+            checks_builtin.version_prefix_check(
+                facts.primary_bin, facts.version_flag, xy
+            )
+        )
+        group = CheckGroup(
+            description=f"version={xy} (partial semver) resolves to the latest {xy}.z.",
+            checks=checks,
+        )
+        return GeneratedScenario(
+            name="version_partial", scenario=scenario, checks={"version_partial": group}
+        )
 
     def _scenario(
         self,

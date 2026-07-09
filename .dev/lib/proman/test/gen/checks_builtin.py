@@ -132,6 +132,18 @@ def version_exact_check(bin_name: str, flag: str, expected: str) -> CheckItem:
     return CheckItem(title=f"{bin_name} version is {expected}", cmd=cmd)
 
 
+def version_prefix_check(bin_name: str, flag: str, prefix: str) -> CheckItem:
+    """Build a check that the installed version matches a partial-semver `prefix`.
+
+    For a `version: X.Y` input (no patch), the resolver picks the latest
+    `X.Y.z` — so verify the reported version is `X.Y` optionally followed by a
+    `.patch`, boundary-anchored so `1.8` can't match inside `1.80`/`11.8`.
+    """
+    pattern = rf"(^|[^0-9.])v?{re.escape(prefix)}(\.[0-9]+)?([^0-9.]|$)"
+    cmd = f"bash -c '{bin_name} {flag} 2>&1 | grep -Eq \"{pattern}\"'"
+    return CheckItem(title=f"{bin_name} version matches {prefix}.x", cmd=cmd)
+
+
 def functional_check(cmd_template: str, description: str, bin_value: str) -> CheckItem:
     """Render a feature's declared `_options.verify.functional.cmd`.
 
