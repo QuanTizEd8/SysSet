@@ -79,8 +79,19 @@ __install_run_script_run() {
   local _c
   for _c in "${COMPONENTS[@]}"; do [[ -n "${_c}" ]] && _args+=(-c "${_c}"); done
   for _c in "${TARGETS[@]}"; do [[ -n "${_c}" ]] && _args+=(-t "${_c}"); done
+  # rustup-init writes CARGO_HOME/RUSTUP_HOME directly, bypassing the file
+  # helpers' escalate-if-needed policy. When those dirs are root-owned (a
+  # non-root+sudo install to a system prefix like /usr/local/cargo, where
+  # file__mkdir already escalated), the direct write would fail with EACCES —
+  # escalate it the same way. Stay UNprivileged when the dirs are directly
+  # writable (real root, a user-owned prefix, or a sudo-less user-scoped
+  # ${HOME}/.cargo install) — `users__run_privileged` errors without sudo, so it
+  # must not run there. `env` re-sets CARGO_HOME/RUSTUP_HOME because `sudo -n`
+  # scrubs the environment.
+  local -a _priv=()
+  [[ -w "${_RESOLVED_PREFIX}" && -w "${RUSTUP_HOME}" ]] || _priv=(users__run_privileged)
   logging__launch "Running rustup-init (toolchain='${VERSION}', profile='${PROFILE}', prefix='${_RESOLVED_PREFIX}')."
-  CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_installer}" "${_args[@]}"
+  "${_priv[@]}" env CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_installer}" "${_args[@]}"
   local _rc=$?
   [[ ${_rc} == 0 ]] || {
     logging__error "rustup-init exited with status ${_rc}."
@@ -159,8 +170,12 @@ __install_run_package_post() {
     local -a _args=(-y --no-modify-path --default-toolchain "${VERSION}" --profile "${PROFILE}")
     for _c in "${_components[@]}"; do _args+=(-c "${_c}"); done
     for _c in "${_targets[@]}"; do _args+=(-t "${_c}"); done
+    # Escalate the direct write only when the target dirs are root-owned (see the
+    # note in __install_run_script_run); stays a plain `env` call otherwise.
+    local -a _priv=()
+    [[ -w "${_RESOLVED_PREFIX}" && -w "${RUSTUP_HOME}" ]] || _priv=(users__run_privileged)
     logging__install "Bootstrapping rustup via 'rustup-init' (toolchain='${VERSION}', profile='${PROFILE}', prefix='${_RESOLVED_PREFIX}')."
-    CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_rustup_init}" "${_args[@]}"
+    "${_priv[@]}" env CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_rustup_init}" "${_args[@]}"
     local _rc=$?
     [[ ${_rc} == 0 ]] || {
       logging__error "'rustup-init' failed (rc=${_rc})."
@@ -194,10 +209,15 @@ __install_run_package_post() {
     local -a _args=(--profile "${PROFILE}")
     for _c in "${_components[@]}"; do _args+=(--component "${_c}"); done
     for _c in "${_targets[@]}"; do _args+=(--target "${_c}"); done
+    # Escalate the direct writes (toolchain install + proxy symlinks) only when
+    # the target dirs are root-owned (see the note in __install_run_script_run);
+    # `env` re-sets CARGO_HOME/RUSTUP_HOME across `sudo -n`.
+    local -a _priv=()
+    [[ -w "${_RESOLVED_PREFIX}" && -w "${RUSTUP_HOME}" ]] || _priv=(users__run_privileged)
     logging__install "Provisioning Rust toolchain '${VERSION}' via keg-only 'rustup toolchain install' (prefix='${_RESOLVED_PREFIX}', RUSTUP_HOME='${RUSTUP_HOME}')."
-    CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_keg_bin}/rustup" toolchain install "${VERSION}" "${_args[@]}" || true
-    CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_keg_bin}/rustup" default "${VERSION}" || true
-    _rust_link_brew_proxies "${_keg_bin}"
+    "${_priv[@]}" env CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_keg_bin}/rustup" toolchain install "${VERSION}" "${_args[@]}" || true
+    "${_priv[@]}" env CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_keg_bin}/rustup" default "${VERSION}" || true
+    _rust_link_brew_proxies "${_keg_bin}" "${_priv[@]}"
     if [[ ! -x "${_RESOLVED_PREFIX}/bin/rustc" ]] || ! CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_RESOLVED_PREFIX}/bin/rustc" --version > /dev/null 2>&1; then
       logging__error "'rustc' not usable at '${_RESOLVED_PREFIX}/bin/rustc' after keg toolchain provisioning."
       return 1
@@ -245,12 +265,17 @@ __install_run_package_post() {
 # shellcheck disable=SC2329,SC2317
 _rust_link_brew_proxies() {
   local _keg_bin="$1"
+  shift
+  # Remaining args are the caller's conditional-escalation prefix (empty for a
+  # directly-writable prefix, `users__run_privileged` for a root-owned system
+  # prefix), so the symlink writes follow file__mkdir's escalate-if-needed policy.
+  local -a _priv=("$@")
   file__mkdir "${_RESOLVED_PREFIX}/bin"
   local _src _name
   for _src in "${_keg_bin}"/*; do
     [[ -e "${_src}" ]] || continue
     _name="${_src##*/}"
-    ln -sf "${_src}" "${_RESOLVED_PREFIX}/bin/${_name}"
+    "${_priv[@]}" ln -sf "${_src}" "${_RESOLVED_PREFIX}/bin/${_name}"
   done
 }
 
