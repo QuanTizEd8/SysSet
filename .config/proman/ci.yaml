@@ -82,13 +82,13 @@ triggers:
     - "features/metadata.shared.yaml"
   devcontainer:
     - ".devcontainer/.dev/**"
-    - ".github/workflows/cm-devcontainer.yaml"
+    - ".github/workflows/build-devcontainer.yaml"
   docs:
     - "docs/**"
     - "features/**"
     - "lib/**"
     - ".config/proman/docs.yaml"
-    - ".github/workflows/docs.yaml"
+    - ".github/workflows/build-docs.yaml"
   python_test:
     - ".dev/lib/**"
     - ".config/proman/**"
