@@ -147,32 +147,44 @@ __install_run_package_post() {
   for _c in "${COMPONENTS[@]}"; do [[ -n "${_c}" ]] && _components+=("${_c}"); done
   for _c in "${TARGETS[@]}"; do [[ -n "${_c}" ]] && _targets+=("${_c}"); done
 
-  # Homebrew installs the `rustup` formula KEG-ONLY ("it conflicts with rust"),
-  # so neither the `rustup` multiplexer nor the `rustc`/`cargo`/... proxies it
-  # symlinks alongside are linked into `$(brew --prefix)/bin`; they never land
-  # on PATH (Homebrew's own `rustup` caveat tells the user to add
-  # `$(brew --prefix rustup)/bin` to $PATH). Without this, the `command -v`
-  # lookups below miss the just-installed manager entirely — they fall through
-  # to an unrelated pre-existing `rustup` (GitHub's macOS runners ship one) or
-  # fail outright, and the final `rustc` usability check then fails. Resolve the
-  # keg's own bin/ via `brew --prefix rustup` — correct on both Apple Silicon
-  # (`/opt/homebrew`) and Intel (`/usr/local`), unlike a hardcoded path — and
-  # prepend it so every lookup here, and the closing `rustc --version` probe,
-  # resolve the keg-only binaries. Gated on brew being the detected package
-  # manager (always the case on macOS; also covers Linuxbrew, where the formula
-  # is keg-only too); a no-op for every native Linux OS package manager, which
-  # link `rustup` onto PATH normally.
-  if [[ "$(ospkg__pm_key 2> /dev/null)" == "brew" ]]; then
+  local _rustup_init
+  _rustup_init="$(command -v rustup-init 2> /dev/null || true)"
+
+  # Homebrew installs the `rustup` formula KEG-ONLY ("it conflicts with rust"):
+  # it renames the upstream `rustup-init` binary to `rustup` and never links it
+  # — nor the `rustc`/`cargo`/... proxies it ships — into `$(brew --prefix)/bin`,
+  # so nothing lands on PATH and the lookup above comes up empty. That binary IS
+  # `rustup-init`, though: rustup selects its mode from `argv[0]`, taking the
+  # installer/"setup" path when the program name starts with `rustup-init` and
+  # the multiplexer path when it is `rustup` (rust-lang/rustup `src/process.rs`
+  # `Process::name` → `src/lib.rs` `run_rustup_inner`). Expose the keg binary
+  # under its original `rustup-init` name via a symlink (whose basename becomes
+  # argv[0]) and hand it to the standard rustup-init branch below: that
+  # self-install populates `${_RESOLVED_PREFIX}/bin` with real
+  # rustc/cargo/rustdoc/rustup proxies and installs the toolchain into
+  # `${RUSTUP_HOME}` — byte-for-byte the same end state as METHOD=script — so
+  # every downstream step (prefix-PATH discovery onto the persisted runtime
+  # path, CARGO_HOME/RUSTUP_HOME exports, ~/.cargo·~/.rustup linking, shell
+  # completions) works unchanged. The `rustup toolchain install` multiplexer
+  # path (further below) is unusable here: it installs a toolchain but never
+  # creates the `${CARGO_HOME}/bin` proxy layer, leaving rustc/cargo/rustdoc off
+  # the persisted PATH. Resolve the keg via `brew --prefix rustup` — correct on
+  # both Apple Silicon (`/opt/homebrew`) and Intel (`/usr/local`), unlike a
+  # hardcoded path. Gated on brew being the detected PM (always so on macOS;
+  # also covers Linuxbrew); a no-op for every native Linux OS package manager,
+  # which already ships `rustup-init` or `rustup` on PATH.
+  if [[ -z "${_rustup_init}" && "$(ospkg__pm_key 2> /dev/null)" == "brew" ]]; then
     local _brew_prefix
     _brew_prefix="$(brew --prefix rustup 2> /dev/null || true)"
     if [[ -n "${_brew_prefix}" && -x "${_brew_prefix}/bin/rustup" ]]; then
-      logging__info "Homebrew installed 'rustup' keg-only; prepending '${_brew_prefix}/bin' to PATH."
-      export PATH="${_brew_prefix}/bin:${PATH}"
+      local _brew_init_dir
+      _brew_init_dir="$(file__mktmpdir rustup-init)"
+      ln -s "${_brew_prefix}/bin/rustup" "${_brew_init_dir}/rustup-init"
+      _rustup_init="${_brew_init_dir}/rustup-init"
+      logging__info "Homebrew 'rustup' is keg-only; running it as 'rustup-init' from '${_brew_prefix}/bin' to self-install the toolchain into '${_RESOLVED_PREFIX}'."
     fi
   fi
 
-  local _rustup_init
-  _rustup_init="$(command -v rustup-init 2> /dev/null || true)"
   if [[ -n "${_rustup_init}" ]]; then
     file__mkdir "${RUSTUP_HOME}"
     local -a _args=(-y --no-modify-path --default-toolchain "${VERSION}" --profile "${PROFILE}")
