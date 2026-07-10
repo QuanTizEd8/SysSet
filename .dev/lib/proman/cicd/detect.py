@@ -182,10 +182,14 @@ def compute_macos_matrix(feature_ids: list[str]) -> list[dict[str, str]]:
     )
     result: list[dict[str, str]] = []
     for fid in sorted(feature_ids):
-        feat = cfg.absolute_path("path.test_features") / fid
-        scenarios_file = feat / str(cfg["filename.feature_scenarios"])
-        if not scenarios_file.exists():
-            continue
+        # Do NOT gate on an on-disk scenarios.yaml existing (mirrors
+        # compute_feature_matrix): a fully generated feature has no hand-written
+        # scenarios file at all, yet load_effective() still produces its
+        # generated scenarios — including any macOS ones. Gating here would drop
+        # a no-hand-written-file feature's generated macOS scenarios from the
+        # macos-capable set, and hence from compute_feature_matrix's macos_ids.
+        # A feature that genuinely has nothing yields an empty effective set and
+        # simply contributes no entries.
         effective = load_effective(fid)
         for sc_name, merged in iter_merged_scenarios(
             effective.defaults,
