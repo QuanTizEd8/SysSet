@@ -147,6 +147,30 @@ __install_run_package_post() {
   for _c in "${COMPONENTS[@]}"; do [[ -n "${_c}" ]] && _components+=("${_c}"); done
   for _c in "${TARGETS[@]}"; do [[ -n "${_c}" ]] && _targets+=("${_c}"); done
 
+  # Homebrew installs the `rustup` formula KEG-ONLY ("it conflicts with rust"),
+  # so neither the `rustup` multiplexer nor the `rustc`/`cargo`/... proxies it
+  # symlinks alongside are linked into `$(brew --prefix)/bin`; they never land
+  # on PATH (Homebrew's own `rustup` caveat tells the user to add
+  # `$(brew --prefix rustup)/bin` to $PATH). Without this, the `command -v`
+  # lookups below miss the just-installed manager entirely — they fall through
+  # to an unrelated pre-existing `rustup` (GitHub's macOS runners ship one) or
+  # fail outright, and the final `rustc` usability check then fails. Resolve the
+  # keg's own bin/ via `brew --prefix rustup` — correct on both Apple Silicon
+  # (`/opt/homebrew`) and Intel (`/usr/local`), unlike a hardcoded path — and
+  # prepend it so every lookup here, and the closing `rustc --version` probe,
+  # resolve the keg-only binaries. Gated on brew being the detected package
+  # manager (always the case on macOS; also covers Linuxbrew, where the formula
+  # is keg-only too); a no-op for every native Linux OS package manager, which
+  # link `rustup` onto PATH normally.
+  if [[ "$(ospkg__pm_key 2> /dev/null)" == "brew" ]]; then
+    local _brew_prefix
+    _brew_prefix="$(brew --prefix rustup 2> /dev/null || true)"
+    if [[ -n "${_brew_prefix}" && -x "${_brew_prefix}/bin/rustup" ]]; then
+      logging__info "Homebrew installed 'rustup' keg-only; prepending '${_brew_prefix}/bin' to PATH."
+      export PATH="${_brew_prefix}/bin:${PATH}"
+    fi
+  fi
+
   local _rustup_init
   _rustup_init="$(command -v rustup-init 2> /dev/null || true)"
   if [[ -n "${_rustup_init}" ]]; then
