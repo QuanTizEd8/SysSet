@@ -242,7 +242,7 @@ and it is newer than the original file, the compiled file will be used instead.
 
 ## How DevFeats Applies These Patterns
 
-DevFeats' shared library (`lib/shell.bash`) and the {doc}`/features/setup-shell` feature implement the cross-invocation coverage described above, across five shells (bash, zsh, fish, tcsh, and elvish). Two ideas make this reliable and repeatable:
+DevFeats' shared library (`lib/shell.bash`) and the {doc}`/features/setup-shell/index` feature implement the cross-invocation coverage described above, across five shells (bash, zsh, fish, tcsh, and elvish). Two ideas make this reliable and repeatable:
 
 **Distro-aware detection (never existence-probing).** Startup-file locations are derived from the *detected operating system*, not by probing for files that happen to exist — a file placed at the wrong path for the distribution would simply never be sourced, so guessing is unsafe. For example, the system `bashrc` is resolved to `/etc/bash.bashrc` on Debian/Ubuntu, `/etc/bash/bashrc` on Alpine, and `/etc/bashrc` on Red Hat, openSUSE, and macOS.
 
@@ -309,7 +309,7 @@ BASH_ENV=/etc/bashenv
 emulate sh -c 'source "/etc/bashenv"'
 ```
 
-This is exactly the strategy DevFeats' `setup-shell` feature implements: a distro-specific `BASH_ENV` file (e.g. `/etc/bashenv`, or `/etc/bash/bashenv` on Alpine) that — together with `/etc/zsh/zshenv` — sources a single **shared POSIX file** (`/etc/shellenv`) holding the cross-shell environment. See {doc}`env-vars` for the full breakdown, and {doc}`/features/setup-shell` for the concrete file layout.
+This is exactly the strategy DevFeats' `setup-shell` feature implements: a distro-specific `BASH_ENV` file (e.g. `/etc/bashenv`, or `/etc/bash/bashenv` on Alpine) that — together with `/etc/zsh/zshenv` — sources a single **shared POSIX file** (`/etc/shellenv`) holding the cross-shell environment. See {doc}`env-vars` for the full breakdown, and {doc}`/features/setup-shell/index` for the concrete file layout.
 
 ### Modularize Your Configuration
 

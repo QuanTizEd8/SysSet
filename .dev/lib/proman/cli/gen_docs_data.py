@@ -12,7 +12,7 @@ from proman.docs import feat_doc_gen, lib_doc_gen
 from proman.docs.parse_lib import parse_lib_module
 from proman.git import git_owner_repo, git_repo_root
 from proman.metadata import MetadataLoader
-from proman.sync import sync_file
+from proman.sync import remove_file, sync_file
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -49,7 +49,16 @@ def main() -> int:
     lib_dir = config.absolute_path("path.library")
     data_transfer_dir = config.absolute_path("path.data_transfer")
     data_transfer_dir.mkdir(parents=True, exist_ok=True)
-    notes_filename = str(config["filename.feature_notes"])
+    # Per-feature note sources → child docs: (source filename, output docname
+    # stem, required level-1 heading supplying the child page title).
+    feature_child_page_specs = (
+        (str(config["filename.feature_notes"]), "notes", feat_doc_gen.NOTES_HEADING),
+        (
+            str(config["filename.feature_dev_notes"]),
+            "dev-notes",
+            feat_doc_gen.DEV_NOTES_HEADING,
+        ),
+    )
 
     owner, repo_name = git_owner_repo()
 
@@ -87,15 +96,46 @@ def main() -> int:
     sync_file(docs_build_context_path, docs_build_context_content)
 
     # ── Feature docs ──────────────────────────────────────────────────────────
+    #
+    # Each feature is emitted as a directory ``<id>/`` holding an ``index.md``
+    # (the generated reference page) plus optional ``notes.md`` / ``dev-notes.md``
+    # child pages, linked from ``index.md`` through a hidden toctree so the nav
+    # renders each feature with its note pages as children.
 
     feat_doc_dir = config.absolute_path("path.docs_source_features")
     feat_doc_dir.mkdir(parents=True, exist_ok=True)
     for feat_id, feat_metadata in all_metadata.items():
-        notes_path = features_dir / feat_id / notes_filename
-        notes = notes_path.read_text(encoding="utf-8") if notes_path.exists() else ""
-        doc_content = feat_doc_gen.generate(metadata=feat_metadata, notes=notes)
-        doc_path = feat_doc_dir / f"{feat_id}.md"
-        sync_file(doc_path, doc_content)
+        feat_dir = feat_doc_dir / feat_id
+        child_pages: list[str] = []
+        expected_files = {"index.md"}
+        for src_name, stem, heading in feature_child_page_specs:
+            src_path = features_dir / feat_id / src_name
+            if not src_path.exists():
+                continue
+            page = feat_doc_gen.render_child_page(
+                src_path.read_text(encoding="utf-8"),
+                heading,
+            )
+            sync_file(feat_dir / f"{stem}.md", page)
+            child_pages.append(stem)
+            expected_files.add(f"{stem}.md")
+        index_content = feat_doc_gen.generate(feat_metadata, child_pages=child_pages)
+        sync_file(feat_dir / "index.md", index_content)
+        for stale in sorted(feat_dir.glob("*.md")):
+            if stale.name not in expected_files:
+                remove_file(stale)
+
+    # Prune artifacts of prior layouts and deleted features: any top-level
+    # ``<id>.md`` (old flat layout) and any directory without a backing feature.
+    expected_dirs = set(all_metadata)
+    for entry in sorted(feat_doc_dir.iterdir()):
+        if entry.is_file() and entry.suffix == ".md":
+            remove_file(entry)
+        elif entry.is_dir() and entry.name not in expected_dirs:
+            for stale_file in sorted(entry.glob("*")):
+                if stale_file.is_file():
+                    remove_file(stale_file)
+            entry.rmdir()
 
     # ── Library docs ──────────────────────────────────────────────────────────
 
@@ -117,7 +157,7 @@ def main() -> int:
         f"docs build context:"
         f" {len(all_metadata)} features, {len(lib_modules)} lib modules"
         f" → {docs_build_context_path.relative_to(repo)}"
-        f" + {feat_doc_dir.relative_to(repo)}/*.md"
+        f" + {feat_doc_dir.relative_to(repo)}/*/index.md"
         f" + {lib_doc_dir.relative_to(repo)}/*.md",
     )
     return 0

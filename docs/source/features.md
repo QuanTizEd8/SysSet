@@ -8,7 +8,7 @@ This section provides a reference for all available features, with detailed docu
 |{% for feat_id, feat in feats|dictsort %}|
 :::{grid-item-card} |{{ feat.name }}| – `|{{ feat_id }}|`
 :class-title: sd-text-center
-:link: /features/|{{ feat_id }}|
+:link: /features/|{{ feat_id }}|/index
 :link-type: doc
 
 <div style="text-align:center">

@@ -1,4 +1,4 @@
-"""Generate feature documentation from metadata.yaml and NOTES.md files."""
+"""Generate feature documentation from metadata.yaml and note files."""
 
 import json
 from typing import Any
@@ -8,9 +8,35 @@ import mdit
 from proman.const import LIFECYCLE_COMMAND_KEYS
 from proman.sync.pipeline import resolve_lifecycle_command
 
+#: Required level-1 heading (page title) for the ``notes`` child page.
+NOTES_HEADING = "# Notes"
+#: Required level-1 heading (page title) for the ``dev-notes`` child page.
+DEV_NOTES_HEADING = "# Developer Notes"
 
-def generate(metadata: dict[str, Any], notes: str = "") -> str:
-    """Generate feature documentation."""
+
+def generate(
+    metadata: dict[str, Any],
+    child_pages: list[str] | None = None,
+) -> str:
+    """Generate a feature's ``index.md`` page.
+
+    Parameters
+    ----------
+    metadata
+        Feature metadata dict (as produced by the metadata loader).
+    child_pages
+        Docname stems of sibling pages (e.g. ``["notes", "dev-notes"]``) that
+        exist under the feature's docs directory. When non-empty, a hidden
+        ``{toctree}`` linking them is appended so they render as children of
+        this page in the site navigation.
+
+    Returns
+    -------
+    str
+        The Markdown content of the feature ``index.md`` page. Note that,
+        unlike earlier revisions, feature notes are **not** appended here; they
+        are emitted as separate sibling pages linked via the child toctree.
+    """
     name = metadata["name"]
     description = metadata["description"].strip()
     long_description = metadata.get("_long_description", "").strip()
@@ -41,10 +67,52 @@ def generate(metadata: dict[str, Any], notes: str = "") -> str:
     if extensions_section:
         parts.extend(["## VS Code Extensions", extensions_section])
 
-    if notes:
-        parts.append(notes)
+    doc = "\n\n".join(parts).strip() + "\n"
 
-    return "\n\n".join(parts).strip() + "\n"
+    toctree = _generate_child_toctree(child_pages or [])
+    if toctree:
+        doc = f"{doc}\n{toctree}"
+    return doc
+
+
+def render_child_page(content: str, heading: str) -> str:
+    """Return a note page guaranteed to start with the required H1 ``heading``.
+
+    Child pages (``notes.md`` / ``dev-notes.md``) are standalone documents and
+    therefore need a level-1 heading to supply the page title. If the source
+    content does not already start with the required heading, it is prepended
+    (a defensive measure until per-feature note content is migrated to include
+    the heading itself).
+
+    Parameters
+    ----------
+    content
+        Raw source content of the feature's note file.
+    heading
+        Required level-1 heading, e.g. :data:`NOTES_HEADING`.
+
+    Returns
+    -------
+    str
+        Page content beginning with ``heading`` and ending in a single newline.
+    """
+    body = content.lstrip("\n")
+    first_line = body.split("\n", 1)[0].strip() if body else ""
+    if first_line == heading:
+        page = body
+    elif body:
+        page = f"{heading}\n\n{body}"
+    else:
+        page = heading
+    return page.rstrip("\n") + "\n"
+
+
+def _generate_child_toctree(child_pages: list[str]) -> str:
+    """Render a hidden MyST ``{toctree}`` linking the given child docnames."""
+    if not child_pages:
+        return ""
+    lines = ["```{toctree}", ":hidden:", "", *child_pages, "```"]
+    return "\n".join(lines) + "\n"
 
 
 def _generate_keyword_badges(metadata: dict[str, Any]) -> str:

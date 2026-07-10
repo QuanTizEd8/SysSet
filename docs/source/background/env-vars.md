@@ -258,7 +258,7 @@ which determines which configuration files are sourced:
 
 To reliably cover all the above clients and invocation types, build the setup around a single
 **shared environment file** that every shell loads. This is exactly the layout DevFeats'
-{doc}`/features/setup-shell` feature generates.
+{doc}`/features/setup-shell/index` feature generates.
 
 **1. `/etc/environment` — static variables and bootstrap:**
 

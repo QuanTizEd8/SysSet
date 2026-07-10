@@ -21,7 +21,7 @@ entries:
   - title: Features
     file: features
     entries:
-      - glob: features/*
+      - glob: features/*/index
 
   - title: Library
     file: library
@@ -47,7 +47,7 @@ entries:
           - file: dev-guide/features/install.sh
           - file: dev-guide/features/install.bash
           - file: dev-guide/features/src
-          - file: dev-guide/features/notes.md
+          - file: dev-guide/features/notes.md.md
           - file: dev-guide/features/context
 
       - file: dev-guide/tests

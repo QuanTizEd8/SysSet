@@ -45,5 +45,5 @@ Writing into a user's home directory is made safe by **marker blocks**: each man
 wrapped in delimited `# >>> <name> >>>` … `# <<< <name> <<<` markers, and only the content
 *between* the markers is ever rewritten on re-runs. Anything you add outside the block is
 preserved, so re-running a feature never clobbers your own customizations. See
-{doc}`shell-config` and {doc}`env-vars` for the mechanism, and {doc}`/features/setup-shell` for
+{doc}`shell-config` and {doc}`env-vars` for the mechanism, and {doc}`/features/setup-shell/index` for
 the feature that materializes the layered per-user shell configuration.

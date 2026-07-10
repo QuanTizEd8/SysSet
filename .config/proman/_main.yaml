@@ -46,6 +46,7 @@ filename:
   feature_checks: checks.yaml
   feature_tests: tests
   feature_notes: notes.md
+  feature_dev_notes: dev-notes.md
   docs_build_context: docs_build_context.json
 
 features:

@@ -1,14 +1,12 @@
 # `notes.md`
 
-`features/<feature-id>/notes.md` is an optional markdown document for user-facing supplemental documentation that does not fit in `metadata.yaml`. Its content is appended to the auto-generated feature reference page on the docs site by `proman-gen-docs-data`.
+`features/<feature-id>/notes.md` is an optional markdown document for user-facing supplemental documentation that does not fit in `metadata.yaml`. `proman-gen-docs-data` renders it as a **`Notes` child page** under the feature's generated reference page — each feature is emitted as a directory with an `index` page plus optional `notes` / `dev-notes` child pages.
 
 :::{note}
-Do not confuse `notes.md` with the other optional per-feature docs, which are **not** published to the site and are **not** read by the build pipeline:
+Two sibling files are also optional:
 
-- **`dev-notes.md`** — developer-only notes (design decisions, research, implementation rationale).
-- **`tool-ref.md`** — a developer research reference on the tool's installation methods (templated from `features/tool-ref.template.md`).
-
-Only `notes.md` feeds the generated feature page.
+- **`dev-notes.md`** — developer-facing notes (design decisions, implementation rationale). It is rendered as a separate **`Developer Notes` child page** and should start with a `# Developer Notes` H1.
+- **`tool-ref.md`** — a developer research reference on the tool's installation methods (templated from `features/tool-ref.template.md`). Unlike the other two, it is **not** published to the site or read by the build pipeline.
 :::
 
 ## What to Put Here
@@ -32,7 +30,7 @@ Do not repeat information already generated from `metadata.yaml`. The following 
 
 ## Format Requirements
 
-- Use only level-2 (`##`) headings and deeper — no H1 (`#`). The page title is injected by the generator.
+- Start with a single top-level `# Notes` H1, then use `##` and deeper for sections. (The generator prepends the `# Notes` heading if it is missing, but including it keeps the source self-describing.)
 - Each H2 should represent a distinct topic.
 - All sections are optional; include only what is relevant to the specific feature.
 
