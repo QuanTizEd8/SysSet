@@ -12,7 +12,7 @@ _long_description: >-
   conversational AI with direct file editing, shell command execution, git workflows,
   and MCP server integrations.
 
-  Supports four installation methods: a direct binary download from Anthropic's CDN
+  Supports five installation methods: a direct binary download from Anthropic's CDN
   (self-contained, no system Node.js or package manager required), the Anthropic OS
   package repositories on Linux (apt/dnf/yum/apk — recommended for devcontainers),
   the standard Homebrew cask on macOS, npm-bundled (self-contained, no system

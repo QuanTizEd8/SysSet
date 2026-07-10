@@ -1,257 +1,47 @@
-## Usage Examples
-
-### Basic Installation (Latest)
-
-Install the latest GitHub CLI release using the official package repository (default behavior).
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {}
-}
-```
-
-Standalone installer:
-```bash
-curl -fsSL https://devfeats.quantized8.dev/install.sh | bash -s -- install-gh
-```
-
----
-
-### Pin to a Specific Version (Binary method)
-
-Install an exact version of gh using the binary download method, for reproducible container builds.
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "version": "2.89.0",
-    "method": "binary"
-  }
-}
-```
-
-Standalone installer:
-```bash
-curl -fsSL https://devfeats.quantized8.dev/install.sh | bash -s -- install-gh \
-  --version 2.89.0 --method binary
-```
-
----
-
-### Pin to a Specific Version (apt Repo method)
-
-Install an exact version via apt (Debian/Ubuntu only; not supported on Alpine/Arch).
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "version": "2.89.0",
-    "method": "upstream-package"
-  }
-}
-```
-
----
-
-### Custom Binary Install Path
-
-Install the binary to a non-default location (e.g. a user-writable `~/.local`).
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "method": "binary",
-    "prefix": "/home/vscode/.local"
-  }
-}
-```
-
----
-
-### Install with Extensions
-
-Install the GitHub CLI and one or more extensions. By default extensions are installed for the devcontainer `remoteUser` and `containerUser`. To limit to a specific user only, disable the auto-resolved users and list explicitly.
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "extensions": "dlvhdr/gh-dash,github/gh-copilot"
-  }
-}
-```
-
-Install extensions for one specific user only:
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "extensions": "dlvhdr/gh-dash,github/gh-copilot",
-    "add_current_user": false,
-    "add_remote_user": false,
-    "add_container_user": false,
-    "add_users": "alice"
-  }
-}
-```
-
----
-
-### Skip if Already Present (default) vs Fail if Already Present
-
-Default behavior — silently skip if gh is already installed:
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "if_exists": "skip"
-  }
-}
-```
-
-Fail loudly if gh is already present (useful to enforce a clean baseline):
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "if_exists": "fail"
-  }
-}
-```
-
----
-
-### Configure Git Credential Helper
-
-Register `gh` as the git credential helper so that `git push/pull` authenticates via the gh token without prompting. Useful in CI environments or devcontainers where `GH_TOKEN` is set as a secret.
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "setup_git": true
-  }
-}
-```
-
-For GitHub Enterprise Server:
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "setup_git": true,
-    "git_hostname": "git.corp.example.com"
-  }
-}
-```
-
----
-
-### Configure git Protocol and SSH Commit Signing
-
-Set the default git protocol to SSH and enable SSH-based commit signing (requires the user to set `user.signingkey` pointing to their public key, e.g. via dotfiles).
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "git_protocol": "ssh",
-    "sign_commits": "ssh"
-  }
-}
-```
-
-For GPG signing instead:
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "sign_commits": "gpg"
-  }
-}
-```
-
----
-
-### Custom Binary Install Path
-
-Install the binary to a non-default location with a symlink at `/usr/local/bin/gh` for PATH compatibility.
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "method": "binary",
-    "prefix": "/opt/gh",
-    "symlink": true
-  }
-}
-```
-
----
-
-### Keep Installer Artifacts for Trace Troubleshooting
-
-```jsonc
-"features": {
-  "ghcr.io/quantized8/devfeats/install-gh:0": {
-    "method": "binary",
-    "installer_dir": "/tmp/gh-trace"
-  }
-}
-```
-
----
-
-## Details
-
-### `method=upstream-package` Behavior by Platform
-
-| Platform | Package manager | Package name | Source | Version pinning |
-|---|---|---|---|---|
-| Debian / Ubuntu | `apt` | `gh` | Official GitHub CLI apt repo | `gh=<version>` via apt |
-| RHEL / Fedora / CentOS | `dnf` or `yum` | `gh` | Official GitHub CLI rpm repo | Not supported by this feature (use `method=binary`) |
-| SUSE / openSUSE | `zypper` | `gh` | Official GitHub CLI rpm repo | Not supported by this feature (use `method=binary`) |
-| Alpine Linux | `apk` | `github-cli` | Community (Alpine aports) | Not supported by apk |
-| Arch Linux | `pacman` | `github-cli` | Community (Arch extra repo) | Not supported by pacman |
-| macOS | `brew` | `gh` | Official Homebrew formula | Not available via formula |
-
-**Note on Alpine and Arch:** The packages on these distros are community-maintained and not officially supported by the GitHub CLI team. Version pinning is not possible with `apk` or `pacman`. When `version` is set to a specific value other than `latest` on Alpine or Arch, the feature logs a warning and installs the latest available community package.
-
-**Note on RHEL/SUSE version pinning:** The official GitHub CLI rpm docs only document un-versioned `dnf install gh`. If you need an exact version on RHEL, use `method=binary`.
-
-### `method=binary` Architecture Mapping
-
-The feature maps `uname -m` output to the GitHub Release asset architecture name:
-
-| `uname -m` | Asset arch |
-|---|---|
-| `x86_64` | `amd64` |
-| `aarch64`, `arm64` | `arm64` |
-| `i386`, `i686` | `386` |
-| `armv6l`, `armv7l` | `armv6` |
-
-macOS binaries use `macOS` (mixed-case) in the asset filename — not `darwin`.
-
-### `method=binary` Static Linking (Alpine Compatibility)
-
-The GitHub CLI Linux release binaries are built with `CGO_ENABLED=0` ([confirmed in `.goreleaser.yml`](https://github.com/cli/cli/blob/trunk/.goreleaser.yml)), producing fully static Go executables. They run on any Linux distribution, including Alpine/musl, without any glibc compatibility shim. No special handling is required on Alpine.
-
-### SHA-256 Checksum Verification
-
-For `method=binary`, the installer downloads `gh_<version>_checksums.txt` alongside the archive and verifies the SHA-256 digest before installation. If the checksum does not match, the installer exits non-zero.
-
-### Shell Completions (`shell_completions`)
-
-When `shell_completions` is non-empty (default: `"bash zsh"`), shell completions are installed for the listed shells:
-
-- **`method=binary`:** Completion files are read from the release archive (`share/bash-completion/completions/gh` and `share/zsh/site-functions/_gh`), which are bundled in every GitHub Releases archive.
-- **`method=upstream-package`:** Completions are generated on the fly via `gh completion -s bash` and `gh completion -s zsh`. This is necessary for Alpine and Arch, where the community package may not install completions, and ensures they land in the feature-controlled paths on all platforms.
-
-Installation paths:
-- **As root:** Bash → `/etc/bash_completion.d/gh`; Zsh → `<zshdir>/completions/_gh` (where `<zshdir>` is detected by `shell__detect_zshdir`)
-- **As non-root:** Bash → `$HOME/.local/share/bash-completion/completions/gh`; Zsh → `$HOME/.zfunc/_gh`
-
-### Extensions
-
-Extensions require the `gh` CLI binary to be installed and accessible. They are installed per-user by running `gh extension install <extension>` as each target user. This does **not** require GitHub authentication when installing public extensions from GitHub repositories.
-
-The users who receive extensions are resolved from the four `add_*_user_config` / `add_users` options via `users__resolve_list`, which auto-deduplicates and excludes root when non-root users are also targeted. The same user set also receives any per-user configuration from `git_protocol`, `setup_git`, and `sign_commits`.
-
-### `setup_git` and `git_hostname`
-
-`setup_git=true` runs `gh auth setup-git --force --hostname <git_hostname>` for each resolved user at container build time. `--force` is required because there is no active `gh` login during the feature install step. This writes two entries to `~/.gitconfig`:
+# Notes
+
+## Supported Installation Methods
+
+The feature resolves an installation method automatically from the platform (or
+you can force one with `method`):
+
+- **`upstream-package`** — adds the official GitHub CLI package repository and
+  signing key, then installs `gh` with the system package manager. Applies to
+  Debian/Ubuntu (`apt`), Fedora/RHEL and derivatives (`dnf`/`yum`), and
+  openSUSE (`zypper`). This is the recommended method on these platforms: the
+  packages are published by the GitHub CLI team. The added repository and key
+  are removed after install by default; set `keep_repos=true` to retain them so
+  the package manager can pick up future updates (e.g. via `apt upgrade`).
+- **`package`** — installs the `github-cli` package from the distribution's own
+  standard repositories. Applies to Alpine (`apk`) and Arch (`pacman`). These
+  packages are **community-maintained** — not published by the GitHub CLI team —
+  so they may lag the latest upstream release.
+- **`binary`** — downloads the pre-built release binary from GitHub Releases and
+  verifies its SHA-256 checksum. Works on every supported platform and is the
+  only method that installs into a custom `prefix`.
+
+macOS has no package-manager method defined, so installs on macOS always use
+`method=binary`.
+
+## Version Selection
+
+- **`method=binary`** downloads the exact requested release asset from GitHub
+  Releases, so any published version can be pinned reproducibly on every
+  platform. This is the method to use when an exact `gh` version matters.
+- **`method=package` and `method=upstream-package`** install whatever the
+  package manager's configured repositories currently offer. Exact-version
+  pinning is only as reliable as the package manager and repository allow; the
+  community `apk`/`pacman` packages in particular cannot be pinned to arbitrary
+  upstream versions. Prefer `method=binary` when reproducible pinning is
+  required.
+
+## Git Credential Helper (`setup_git`)
+
+`setup_git=true` runs `gh auth setup-git --force --hostname <git_hostname>` for
+each resolved user during installation. `--force` is required because there is
+no active `gh` login at container-build time.
+
+This writes a credential-helper entry to the user's `~/.gitconfig`, roughly:
 
 ```gitconfig
 [credential "https://github.com"]
@@ -259,44 +49,87 @@ The users who receive extensions are resolved from the four `add_*_user_config` 
     helper = !gh auth git-credential
 ```
 
-The empty first `helper =` line severs any pre-existing credential helper chain. Subsequent `git push/pull` operations authenticate via `gh auth git-credential`, which reads the `GH_TOKEN` environment variable or a stored token from `gh auth login`.
+The empty first `helper =` line resets any inherited credential-helper chain;
+the second line routes authentication through `gh`. Subsequent `git push/pull`
+operations then authenticate via `gh auth git-credential`, which reads the
+`GH_TOKEN` environment variable or a token stored by `gh auth login` — no
+separate credential store is needed. For GitHub Enterprise Server, set
+`git_hostname` to your GHES hostname so the entry targets the right host.
 
-For GitHub Enterprise Server, set `git_hostname` to your GHES hostname (e.g. `git.corp.example.com`).
+## Commit Signing (`sign_commits`)
 
-### `sign_commits`
+`sign_commits` pre-configures commit signing but deliberately **does not set
+`user.signingkey`** — the key identifier is user-specific and unknown at build
+time. Each user must set it themselves (e.g. via dotfiles). For SSH signing,
+commits show as **Verified** on GitHub only once the corresponding public key is
+registered under *Settings → SSH and GPG keys → New SSH signing key*.
 
-`sign_commits` pre-configures commit signing in each resolved user's `~/.gitconfig`:
-
-| Value | git config written | Notes |
-|---|---|---|
-| `"ssh"` | `gpg.format = ssh`, `commit.gpgsign = true` | Requires git ≥ 2.34. Best for devcontainers: silent, no TTY/pinentry. Requires SSH agent forwarding via `runArgs`/`remoteEnv`. |
-| `"gpg"` | `commit.gpgsign = true` (gpg.format unset → git default GPG) | Requires gpg-agent; socket forwarding into containers needs extra host setup. |
-| `""` | (nothing written) | Default. |
-
-**`user.signingkey` is intentionally not set** by this feature — the key identifier is user-specific and unknown at build time. Users must set it themselves (e.g. via dotfiles).
-
-For SSH signing to show commits as **Verified** on GitHub, the user's public key must be added to [GitHub Settings → SSH and GPG keys → New SSH signing key](https://github.com/settings/keys).
-
-**SSH agent forwarding:** `forwardAgent` is not a valid `devcontainer.json` property. To forward the SSH agent into the container, use `runArgs` and `remoteEnv`:
+SSH signing (`sign_commits=ssh`) is the simplest option in containers: it is
+silent and needs no TTY or pinentry, but the SSH agent must be forwarded into
+the container. `forwardAgent` is **not** a valid `devcontainer.json` property;
+forward the agent with `runArgs` and `remoteEnv` instead:
 
 ```jsonc
 // macOS / Docker Desktop
 "runArgs": ["--volume=/run/host-services/ssh-auth.sock:/run/host-services/ssh-auth.sock:ro"],
 "remoteEnv": { "SSH_AUTH_SOCK": "/run/host-services/ssh-auth.sock" }
-
-// Linux — substitute your host $SSH_AUTH_SOCK path, e.g. via a Docker Compose file
+// Linux — substitute your host's $SSH_AUTH_SOCK path
 ```
 
-### Security Considerations
+GPG signing (`sign_commits=gpg`) requires a running `gpg-agent`; forwarding its
+socket into a container needs additional host setup beyond the devcontainer
+spec, which is why SSH signing is usually preferable in container environments.
 
-- `method=upstream-package`: Uses GPG-signed package metadata for Debian/Ubuntu and RHEL/Fedora. The apt keyring is downloaded and placed in `/etc/apt/keyrings/` (modern, non-deprecated approach). The GPG fingerprints published by the GitHub CLI team are `2C6106201985B60E6C7AC87323F3D4EA75716059` and `7F38BBB59D064DBCB3D84D725612B36462313325`.
-- `method=binary`: Verifies SHA-256 of the downloaded archive against the `checksums.txt` file published with each release. Both the archive and checksums file are fetched from the same `github.com/cli/cli/releases/download/...` base URL over HTTPS.
+## Extensions
 
-### Troubleshooting
+Extensions listed in `extensions` are installed per-user by running
+`gh extension install <entry>` as each resolved user. Installing public
+extensions from GitHub repositories does **not** require a GitHub login, but it
+does require network access to `github.com` at install time. An extension that
+fails to install is logged as a warning and does not abort the feature (gh
+itself is still installed successfully).
 
-- **`gh` not found after install with `method=binary`:** Ensure `$prefix/bin` is on `$PATH`. The `containerEnv.PATH` entry in the feature adds `/usr/local/bin` automatically; if using a custom `prefix`, either use `/usr/local` (default) or enable `symlink=true` so `/usr/local/bin/gh` points to the binary.
-- **Version not found with `method=upstream-package` on Alpine/Arch:** Version pinning is not supported via `apk`/`pacman`. Use `method=binary` for an exact version on these platforms.
-- **GPG key issues on Debian/Ubuntu:** If the apt keyring download (`cli.github.com/packages/githubcli-archive-keyring.gpg`) fails due to network restrictions, use `method=binary` instead.
-- **Extension install fails:** `gh extension install` requires network access to `github.com`. Ensure the container has internet access at feature install time.
-- **Commits not showing as Verified with `sign_commits=ssh`:** Ensure the user's `user.signingkey` is set (pointing to a `.pub` file, e.g. `~/.ssh/id_ed25519.pub`) and the corresponding public key is registered as an SSH signing key on GitHub.
-- **`sign_commits=gpg` with no gpg-agent:** GPG signing requires `gpg-agent` to be running and accessible. In containers this typically requires socket forwarding from the host — significantly more setup than SSH signing.
+## User Configuration
+
+Per-user configuration (`git_protocol`, `setup_git`, `sign_commits`) and
+extension installation apply to the **same** resolved set of users. That set is
+built from `add_current_user`, `add_remote_user`, `add_container_user`, and
+`add_users`; duplicates are removed, and root is dropped automatically whenever
+any non-root user is present. To target one specific user only, disable the
+three auto-detected users and name the user explicitly:
+
+```jsonc
+"add_current_user": false,
+"add_remote_user": false,
+"add_container_user": false,
+"add_users": "alice"
+```
+
+None of these steps run unless at least one of `extensions`, `git_protocol`,
+`setup_git`, or `sign_commits` is active.
+
+## Security
+
+- **`method=binary`** verifies the downloaded archive's SHA-256 digest against
+  the `gh_<version>_checksums.txt` file published alongside each release; a
+  mismatch aborts the install.
+- **`method=upstream-package`** installs from GPG-signed official repositories:
+  the `apt` method places the keyring at `/etc/apt/keyrings/`, and the `rpm`
+  methods import the GitHub CLI signing key (`0x23F3D4EA75716059`) from
+  `keyserver.ubuntu.com`.
+
+## Troubleshooting
+
+- **Exact version not honoured on Alpine/Arch:** the `apk`/`pacman` packages
+  cannot be pinned to an arbitrary upstream version — use `method=binary`.
+- **Keyring download fails on Debian/Ubuntu:** if fetching
+  `cli.github.com/packages/githubcli-archive-keyring.gpg` is blocked, use
+  `method=binary` instead.
+- **Extension install fails:** ensure the container has network access to
+  `github.com` at install time.
+- **Commits not showing as Verified with `sign_commits=ssh`:** set the user's
+  `user.signingkey` (pointing at a `.pub` file, e.g. `~/.ssh/id_ed25519.pub`)
+  and register that public key as an SSH signing key on GitHub.
+- **`sign_commits=gpg` with no gpg-agent:** GPG signing needs a running,
+  reachable `gpg-agent`; in containers this usually means forwarding the agent
+  socket from the host.

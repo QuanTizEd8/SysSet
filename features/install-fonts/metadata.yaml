@@ -12,14 +12,16 @@ _long_description: >-
   release assets by repository slug, from the
   [Powerlevel10k MesloLGS NF](https://github.com/romkatv/powerlevel10k-media) bundle, or
   from individual font files and archives at arbitrary URLs — all in a single feature
-  invocation. Archives are extracted automatically, and font caches are refreshed after
-  installation.
+  invocation. Archives are extracted automatically, fonts are deduplicated by PostScript
+  name across every source, and font caches are refreshed after installation.
 options:
   nerd_fonts:
     default: "Meslo\nJetBrainsMono"
     description: >-
       [Nerd Fonts](https://www.nerdfonts.com/) archive names to install
-      (e.g. `Meslo`, `FiraCode`, `Hack`). Leave empty to skip Nerd Font downloads.
+      (e.g. `Meslo`, `FiraCode`, `Hack`); each name must match the archive
+      filename in the [nerd-fonts releases](https://github.com/ryanoasis/nerd-fonts/releases)
+      (e.g. `Meslo` downloads `Meslo.tar.xz`). Leave empty to skip Nerd Font downloads.
     proposals:
     - value: Meslo
       description: MesloLGS Nerd Font.
@@ -37,14 +39,17 @@ options:
     description: >-
       Direct URLs to download. Font files (`.ttf`, `.otf`, `.woff`, `.woff2`)
       and archives (`.tar.xz`, `.tar.gz`, `.tgz`, `.zip`) are installed under a
-      namespaced path derived from the URL. Fonts are deduplicated by PostScript name.
+      namespaced path derived from the URL (any query string is stripped first).
+      Fonts are deduplicated by PostScript name. A URL whose extension matches
+      neither a font nor an archive is skipped with a warning.
     type: array
   gh_release_fonts:
     default: ''
     description: >-
-      GitHub slugs in `owner/repo` or `owner/repo@tag` form. All font and
-      archive assets from the release are installed under
-      `gh/<owner>/<repo>/<tag>/<id>/`. Without a tag, the latest release is used.
+      GitHub slugs in `owner/repo` or `owner/repo@tag` form. Font and archive
+      assets from the release are installed under `gh/<owner>/<repo>/<tag>/<id>/`;
+      when a release ships both archives and loose font files, only the archives
+      are downloaded. Without a tag, the latest release is used.
       Fonts are deduplicated by PostScript name.
     type: array
   p10k_fonts:

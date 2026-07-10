@@ -8,13 +8,18 @@ keywords:
 - package manager
 - macos
 _long_description: |-
-  On **macOS** the feature ensures Xcode Command Line Tools are present before
-  running the official installer. On **Linux** it installs the required
-  build dependencies (git, curl, gcc, make, etc.) via the OS package manager
-  first, then invokes the official installer.
+  Homebrew never runs as `root`: the feature always drives the official
+  installer as a non-root user (see the notes for how that user is chosen on
+  each platform).
+  On **macOS** it ensures Xcode Command Line Tools are present before running
+  the installer. On **Linux** it installs the required build dependencies
+  (git, curl, gcc, make, etc.) via the OS package manager first, then invokes
+  the installer.
   After installation the feature writes an `eval "$(brew shellenv)"` block to
   the appropriate shell startup files so that `brew` and any tools it installs
-  are on `PATH` in subsequent shell sessions.
+  are on `PATH` in subsequent shell sessions, runs `brew update` (unless
+  `update=false`), and finally runs `brew doctor` as a non-fatal diagnostic —
+  its warnings are printed but never fail the install.
 options:
   update:
     type: boolean
@@ -25,13 +30,17 @@ options:
     default: ''
     description: |-
       Override `HOMEBREW_BREW_GIT_REMOTE` — the git remote for the `Homebrew/brew` repository.
-      Useful for air-gapped environments or mirrors.
+      Useful for air-gapped environments or mirrors. The value is applied to the
+      cloned repository and persisted as a `HOMEBREW_BREW_GIT_REMOTE` export in the
+      shell startup files so later `brew` runs reuse the same remote.
   core_git_remote:
     type: string
     default: ''
     description: |-
       Override `HOMEBREW_CORE_GIT_REMOTE` — the git remote for the `homebrew-core` tap.
-      Useful for air-gapped environments or mirrors.
+      Useful for air-gapped environments or mirrors. The value is applied to the
+      cloned tap and persisted as a `HOMEBREW_CORE_GIT_REMOTE` export in the shell
+      startup files so later `brew` runs reuse the same remote.
   no_install_from_api:
     type: boolean
     default: false
@@ -39,6 +48,8 @@ options:
       Set `HOMEBREW_NO_INSTALL_FROM_API=1` during installation.
       Forces `homebrew-core` to be cloned as a full git repository rather than relying on the JSON API.
       Slower but useful in environments where the API endpoint is blocked.
+      The setting is also persisted as a `HOMEBREW_NO_INSTALL_FROM_API` export in the
+      shell startup files so it stays in effect for later `brew` commands.
 _options:
   verify:
     args: "--version"

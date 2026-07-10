@@ -8,7 +8,8 @@ keywords:
   - llm
   - coding-agent
 _long_description: |-
-  Installs the Codex CLI (`codex`), OpenAI's AI coding agent for the terminal.
+  Installs the Codex CLI (`codex`), OpenAI's
+  [AI coding agent for the terminal](https://developers.openai.com/codex/cli).
   Supports npm global install (requires Node.js), npm-bundled (self-contained, no
   system Node.js required), a minimal direct binary download from GitHub releases,
   and Homebrew cask on macOS.
@@ -19,7 +20,9 @@ _long_description: |-
 
   Optional configuration keys (`model`, `approval_policy`, `sandbox_mode`) are written
   to `.codex/config.toml` the first time the lifecycle hook runs (skipped when the file
-  already exists so user edits are not overwritten).
+  already exists so user edits are not overwritten). See the
+  [Codex configuration reference](https://developers.openai.com/codex/config-reference)
+  for the full set of supported keys.
 
 _tool_name: codex
 _options:

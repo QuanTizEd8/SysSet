@@ -30,14 +30,18 @@ options:
     type: boolean
     default: true
     description: |
-      Install a `code` shim that delegates to the real `code` CLI
+      Install a `code` shim that forwards to the real `code` CLI
+      (the next `code` on `PATH` after the shim) when available,
       or falls back to `code-insiders`.
+      Exits with status `127` if neither is available.
   devcontainer-info:
     type: boolean
     default: true
     description: |
-      Install a `devcontainer-info` shim that queries dev container image metadata
-      from `meta.env` files.
+      Install a `devcontainer-info` shim that reads dev container image metadata
+      from the standard `meta.env` files.
+      Pass a subcommand (`version`, `release`, or `content`) to print a single
+      field, or run it with no arguments to print a summary of all available metadata.
   systemctl:
     type: boolean
     default: true

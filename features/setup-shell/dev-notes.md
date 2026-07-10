@@ -1,4 +1,4 @@
-# Implementation Reference
+# Developer Notes
 
 This feature deploys system-wide and per-user shell configuration for Bash and
 Zsh. It is built from a **block/target registry** rather than monolithic template
@@ -14,7 +14,7 @@ wrapped block with its own per-target lifecycle.
   `lifecycle_scope` (`system|skel|user|line`), a path (via `default_path`,
   `deploy_option`, or `path_resolver`), a `when` gate, and an ordered `blocks`
   list.
-- **Codegen** — pyserials templates in `metadata.yaml` generate (a) the ~64
+- **Codegen** — pyserials templates in `metadata.yaml` generate (a) the 64
   `block_*` options from the catalog (via the `? |…| :` complex-key, mirroring
   `metadata.shared.yaml`'s `ospkg_manifest_*`), and (b) `files/blocks.registry.bash`
   (via `_files`), which populates the `_FEAT_SS_*` bash associative arrays the

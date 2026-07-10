@@ -1,3 +1,5 @@
+# Notes
+
 ## Configuration Files
 
 The feature deploys a two-tier configuration architecture: **system-wide**
@@ -125,8 +127,9 @@ The following diagrams show the source chain for each shell invocation type.
 
 ```
 /etc/bash.bashrc
- └── /etc/shellrc → /etc/shellaliases
- └── /etc/shellenv (via sentinel re-entry)
+ └── /etc/shellrc (GPG_TTY, dircolors, lesspipe, ...)
+      ├── /etc/shellenv (PATH, XDG, locale, umask — first load this session)
+      └── /etc/shellaliases (ll, la, l)
 ~/.bashrc
  ├── ~/.config/bash/bashtheme (downstream feature blocks)
  └── ~/.shellrc
@@ -168,17 +171,20 @@ $ZDOTDIR/.zshrc
 
 The installer auto-detects the correct system configuration file paths for
 each distribution, since different Linux distributions place bash and zsh
-config files in different locations.
+config files in different locations. Detection is driven by the OS-release
+platform ID (`ID`/`ID_LIKE`), **not** by probing for whichever file happens to
+already exist — a config file written to the wrong path for the distro would
+never be sourced by any shell.
 
 ### Bash system bashrc
 
-These paths are probed in order and the first one that exists is used:
+Chosen from the resolved platform tag:
 
-| Path | Distributions |
+| Path | Platforms |
 |---|---|
-| `/etc/bash.bashrc` | Debian, Ubuntu, Arch, openSUSE |
-| `/etc/bashrc` | Fedora, RHEL, CentOS |
-| `/etc/bash/bashrc` | Gentoo, Alpine, Void |
+| `/etc/bashrc` | Fedora, RHEL, CentOS, Rocky, AlmaLinux, openSUSE, SLES, macOS |
+| `/etc/bash/bashrc` | Alpine |
+| `/etc/bash.bashrc` | Debian, Ubuntu, Arch, Gentoo, Void, and any other Linux (default) |
 
 ### Bash bashenv
 
@@ -193,12 +199,14 @@ Placed next to the detected bashrc (override with `sys_bashenv`):
 ### Zsh system directory
 
 Location of the system `zshenv`, `zprofile`, `zshrc`, and the
-`shellcompletions` hook file:
+`shellcompletions` hook file. Detected primarily by reading the global
+`zshenv` path compiled into the `zsh` binary; when `zsh` is unavailable, the
+platform tag is used as a fallback:
 
-| Path | Distributions |
+| Path | Platforms (fallback) |
 |---|---|
 | `/etc/zsh/` | Debian, Ubuntu, Arch, Gentoo, Alpine, Void |
-| `/etc/` | Fedora, RHEL, openSUSE, macOS |
+| `/etc/` | Fedora, RHEL, CentOS, openSUSE, macOS |
 
 ---
 

@@ -69,6 +69,9 @@ options:
     description: |-
       When set, the feature registers a hook script that the devcontainer CLI calls at
       the specified lifecycle event, instead of installing packages at build time.
+      Requires a non-empty `manifest`; the resolved manifest is copied to a persistent
+      location so it is still readable when the hook runs after the build, and all other
+      options (`log_level`, `keep_repos`, `interactive`, ...) are forwarded into the hook.
     enum:
     - value: ''
       description: Install packages immediately at build time.

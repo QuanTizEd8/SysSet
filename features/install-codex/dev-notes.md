@@ -1,3 +1,0 @@
-- [Codex CLI](https://developers.openai.com/codex/cli)
-- [Codex IDE Extension](https://developers.openai.com/codex/ide)
-- [Codex Configuration Reference](https://developers.openai.com/codex/config-reference)

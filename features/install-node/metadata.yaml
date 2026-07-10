@@ -20,7 +20,7 @@ options:
     type: boolean
     default: true
     description: |-
-      Install OS build dependencies required to compile native Node.js modules via node-gyp:
+      Install OS build dependencies required to compile native Node.js modules via node-gyp (such as `bcrypt`, `sharp`, or `sqlite3`):
       `make`, `gcc`/`g++`, and `python3`.
       On Alpine Linux, these tools are excluded via manifest conditions.
       Set to `false` to skip if you do not need to compile native modules.
@@ -57,6 +57,9 @@ _options:
       release), `lts` or `lts/*` (latest Active LTS release), `latest` (most
       recent release including non-LTS), a major version number (e.g. `22`),
       a major.minor (e.g. `22.1`), or an exact semver (e.g. `22.1.0`).
+      Non-exact specs are resolved against the nodejs.org release index at
+      install time (requires network access to nodejs.org); pin an exact
+      semver to skip the lookup.
   method:
     binary:
       asset_uri: "https://nodejs.org/dist/{feat.version}/node-{feat.version}-{plat.kernel:lower}-{plat.machine_node}.tar.xz"

@@ -81,6 +81,7 @@ options:
       Accepts standard gitconfig format.
 
       Inline content is detected when the value contains a newline; otherwise the value is treated as a file path, `file://`, `http(s)://`, `oci://`, or `gh://owner/repo@ref:path` URI.
+      A single-line value containing literal `\n` escapes (as some devcontainer CLI environments serialize multi-line values) is expanded to real newlines and treated as inline content.
       Append `#sha256=<hex>` to the URI for integrity verification.
       Use `fetch_headers` and `fetch_netrc` for authenticated fetches.
 

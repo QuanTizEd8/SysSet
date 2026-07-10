@@ -1,337 +1,52 @@
-# Implementation Reference
+# Developer Notes
 
-The installer follows the established pattern of a thin orchestrator script (`install.bash`) that
-dispatches to feature-local helper functions. All low-level primitives (platform detection, package management,
-HTTP fetches, checksum verification, shell directory detection, user resolution) come from `lib/`. No new
-library functions are required.
+This feature is almost entirely template-driven. Installation method dispatch,
+version resolution, GitHub-release download and checksum verification, shell
+completion generation, and prefix/PATH handling all come from the shared
+`install.tmpl.bash` flow driven by the `_options` block in `metadata.yaml`
+(`version.resolution=github_release`, the `binary`/`package`/`upstream-package`
+methods, `completions.subcmd="completion -s"`, and `prefix.bins=[gh]`). There is
+no bespoke installer code for any of that.
 
----
+The only feature-local code lives in `install.bash` as two post-install hooks,
+dispatched by `__install_finish_post` after the framework has installed `gh`,
+its completions, and its prefix symlinks/exports:
 
-## Building Blocks
+- `_configure_user` — applies `git_protocol`, `setup_git`, and `sign_commits`.
+- `_install_extensions` — installs the `extensions` entries.
 
-### `os__platform` · `os__id` · `os__id_like` · `os__arch` · `os__kernel`
-- **Reuse** from `lib/os.bash`.
-- `os__platform` → `debian|alpine|rhel|macos`; `os__id` → raw `/etc/os-release` `ID` field.
-- `os__id` is used for Arch Linux detection (ID=`arch`) since `os__platform` maps Arch → `debian` as the
-  fallback and would route incorrectly.
+`__install_finish_post` only calls each hook when its inputs are non-default
+(`git_protocol`/`setup_git`/`sign_commits` for the first, a non-empty
+`extensions` for the second).
 
-### `ospkg__run` · `ospkg__install` · `ospkg__update`
-- **Reuse** from `lib/ospkg.bash`.
-- `ospkg__run --manifest` installs the base dependencies; `ospkg__install` installs individual packages
-  (e.g. `gnupg` for the Debian repo method, `tar`/`unzip` in the binary method when not already present).
+## Per-user execution model
 
-### `github__latest_tag`
-- **Reuse** from `lib/github.bash`.
-- Used by `_gh__resolve_version` to translate `version=latest` → `v2.89.0` → strips the `v` prefix.
+Both hooks resolve their target users the same way: they translate the
+`ADD_CURRENT_USER`/`ADD_REMOTE_USER`/`ADD_CONTAINER_USER`/`ADD_USERS` options
+into `--current`/`--remote`/`--container`/`--user` flags for
+`users__resolve_list`, which deduplicates and drops root when other non-root
+users are present.
 
-### `net__fetch_url_file`
-- **Reuse** from `lib/net.bash`.
-- Used by `_gh__install_binary` to download the release archive and checksums file.
+For each resolved user, execution splits on whether the user is the current
+(installing) user:
 
-### `verify__sha`
-- **Reuse** from `lib/verify.bash`.
-- The `gh_<ver>_checksums.txt` file is a multi-asset file; the caller extracts the expected hash with `grep`
-  and passes it to `verify__sha <archive> <hash>`.
+- **Current user:** run `gh`/`git` directly with per-invocation env overrides
+  (`GH_CONFIG_DIR`, `HOME`, `GIT_CONFIG_GLOBAL`) pointing at that user's home,
+  avoiding an unnecessary `su`.
+- **Any other user:** run the command through `users__run_as <user>` so it
+  executes with the target user's identity and environment.
 
-### `shell__detect_zshdir`
-- **Reuse** from `lib/shell.bash`.
-- Used by `_gh__install_completions` to locate the system-wide zsh directory for zsh completion install.
+## Implementation caveats
 
-### `users__resolve_list`
-- **Reuse** from `lib/users.bash`.
-- Used by `_gh__install_extensions` to build a deduplicated list of usernames from the feature's
-  `ADD_CURRENT_USER`, `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, and `ADD_USERS`
-  env vars (set to `true`/`false`/`<username>` depending on the option values).
-
----
-
-## Feature-Local Helper Functions
-
-All the following live in `install.bash` and are named with the `_gh__` prefix.
-
-### `_gh__resolve_version`
-**Responsibility:** Resolve `VERSION` to a concrete semver string (no `v` prefix, e.g. `2.89.0`).
-- If `VERSION=latest`: call `github__latest_tag "cli/cli"`, strip leading `v`.
-- Otherwise: use `VERSION` as-is (no validation — invalid versions will fail at download time).
-- Prints the resolved version to stdout.
-
-### `_gh__check_existing`
-**Responsibility:** Detect whether `gh` is already installed and act on `IF_EXISTS`.
-- `command -v gh` to check presence.
-- If found and `IF_EXISTS=skip`: log notice and `exit 0`.
-- If found and `IF_EXISTS=fail`: log error and `exit 1`.
-- If found and the installed version string matches the resolved target version: always `exit 0` (idempotent),
-  regardless of `IF_EXISTS`.
-- Version comparison: `gh --version` → first line → extract semver with a sed pattern.
-
-### `_gh__install_repos`
-**Responsibility:** Dispatch to the correct platform-specific repos installer.
-
-Detection order:
-1. `os__id` = `arch` or `os__id_like` contains `arch` (or `manjaro`) → `_gh__repos_arch`
-2. `os__platform` = `alpine` → `_gh__repos_alpine`
-3. `os__platform` = `debian` → `_gh__repos_debian`
-4. `os__platform` = `rhel` → `_gh__repos_rhel`
-5. `os__platform` = `macos` → `_gh__repos_macos`
-6. Else: unsupported, `exit 1` with message.
-
-### `_gh__repos_debian`
-**Responsibility:** Set up the official GitHub CLI apt repo and install `gh`.
-1. Install prerequisites: `ospkg__install gnupg curl` (gpg may be absent on minimal images).
-2. Download and install GPG keyring:
-   ```bash
-   mkdir -p /etc/apt/keyrings
-   net__fetch_url_file \
-     "https://cli.github.com/packages/githubcli-archive-keyring.gpg" \
-     "/etc/apt/keyrings/githubcli-archive-keyring.gpg"
-   chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-   ```
-3. Add apt source list:
-   ```bash
-   local _arch; _arch="$(dpkg --print-architecture)"
-   cat > /etc/apt/sources.list.d/github-cli.list << EOF
-   deb [arch=${_arch} signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main
-   EOF
-   ```
-4. `ospkg__update --force`; then install:
-   - `VERSION=latest` → `ospkg__install gh`
-   - specific version → `ospkg__install "gh=${VERSION}"`
-
-### `_gh__repos_rhel`
-**Responsibility:** Set up the official GitHub CLI rpm repo and install `gh`.
-1. Detect sub-PM and add the repo:
-   - `command -v zypper`:
-     ```bash
-     mkdir -p /etc/zypp/repos.d
-     net__fetch_url_file \
-       "https://cli.github.com/packages/rpm/gh-cli.repo" \
-       "/etc/zypp/repos.d/gh-cli.repo"
-     zypper --gpg-auto-import-keys ref gh-cli
-     ```
-     (Fetch the `.repo` file directly into `/etc/zypp/repos.d/` — `zypper addrepo <URL>` misinterprets `.repo` URLs as base URLs, producing wrong metadata paths. This is zypper's native location; do **not** use `/etc/yum.repos.d/` for zypper.)
-   - `command -v dnf` or `command -v yum`:
-     ```bash
-     mkdir -p /etc/yum.repos.d
-     net__fetch_url_file \
-       "https://cli.github.com/packages/rpm/gh-cli.repo" \
-       "/etc/yum.repos.d/gh-cli.repo"
-     ```
-2. Detect sub-PM and install:
-   - `command -v zypper`: `zypper install -y gh` (with exit code 6 guard — zypper returns 6 for INFO_REPOS_SKIPPED in containers; treat as success)
-   - `command -v dnf`: `dnf install -y gh --repo gh-cli`
-   - `command -v yum`: `yum install -y gh`
-3. Version pinning is not supported via rpm/zypper; a warning is logged when `VERSION ≠ latest`.
-
-**Note:** Downloading the `.repo` file directly to `/etc/yum.repos.d/` bypasses the need for
-`dnf config-manager` (which requires a plugin), giving a simpler cross-variant flow.
-
-### `_gh__repos_alpine`
-**Responsibility:** Install `github-cli` via apk.
-1. If `VERSION ≠ latest`, log a warning: version pinning is not supported via apk.
-2. `ospkg__install github-cli`
-
-### `_gh__repos_arch`
-**Responsibility:** Install `github-cli` via pacman.
-1. If `VERSION ≠ latest`, log a warning: version pinning is not supported via pacman.
-2. `ospkg__update` then `ospkg__install github-cli`
-
-### `_gh__repos_macos`
-**Responsibility:** Install `gh` via Homebrew.
-1. `VERSION=latest` → `ospkg__install gh`
-2. Specific version: log a warning that Homebrew has no versioned formula for `gh`. Install `gh` (latest)
-   and advise using `method=binary` for version pinning.
-
-### `_gh__install_binary`
-**Responsibility:** Download, verify, and install the `gh` binary from GitHub Releases.
-Accepts the resolved version string as `$1` (already resolved by the orchestrator at step 8; does **not** call `_gh__resolve_version` again).
-1. Determine asset name:
-   - Kernel (`os__kernel`): `Linux` → `os=linux`, `Darwin` → `os=macOS`
-   - Architecture (`os__arch`): map `uname -m` → asset arch
-     - `x86_64` → `amd64`; `aarch64|arm64` → `arm64`; `i386|i686` → `386`; `armv6l|armv7l` → `armv6`
-   - Extension: Linux → `tar.gz`, macOS → `zip`
-   - Archive name: `gh_${VERSION}_${os}_${arch}.${ext}`
-   - Archive dir inside: `gh_${VERSION}_${os}_${arch}` (due to `wrap_in_directory: true` in goreleaser)
-3. Download to `INSTALLER_DIR`:
-   ```bash
-   mkdir -p "${INSTALLER_DIR}"
-   _url_base="https://github.com/cli/cli/releases/download/v${VERSION}"
-   net__fetch_url_file "${_url_base}/${_archive_name}" "${INSTALLER_DIR}/${_archive_name}"
-   net__fetch_url_file "${_url_base}/gh_${VERSION}_checksums.txt" "${INSTALLER_DIR}/checksums.txt"
-   ```
-4. Extract expected SHA-256 from checksums.txt:
-   ```bash
-   _expected="$(grep "${_archive_name}" "${INSTALLER_DIR}/checksums.txt" | awk '{print $1}')"
-   ```
-5. Verify: `verify__sha "${INSTALLER_DIR}/${_archive_name}" "${_expected}"`; exit 1 on mismatch.
-6. Extract archive:
-   - Linux: `tar -xzf ... -C "${INSTALLER_DIR}"`
-   - macOS: `unzip -q ... -d "${INSTALLER_DIR}"`
-7. Install binary:
-   ```bash
-   mkdir -p "${PREFIX}/bin"
-   install -m 755 "${INSTALLER_DIR}/${_archive_dir}/bin/gh" "${PREFIX}/bin/gh"
-   ```
-8. If `SHELL_COMPLETIONS` is non-empty, call `_gh__install_completions --from-archive "${INSTALLER_DIR}/${_archive_dir}"`.
-9. `github__install_release` auto-cleans the work directory when `installer_dir` is empty (default); a non-empty `installer_dir` is retained.
-10. Verify: `"${PREFIX}/bin/gh" --version`.
-
-### `_gh__create_symlink`
-**Responsibility:** Create a symlink from the canonical bin directory to `$PREFIX/bin/gh` when
-`method=binary` and `PREFIX` differs from the canonical path.
-- No-op conditions: `SYMLINK ≠ true`, `METHOD=repos`, or `PREFIX` already equals the canonical path.
-- Root: creates `/usr/local/bin/gh -> $PREFIX/bin/gh`. If `/usr/local/bin/gh` already exists as a real file (not a symlink), log an error and exit 1.
-- Non-root: creates `$HOME/.local/bin/gh -> $PREFIX/bin/gh` (creating `$HOME/.local/bin` if needed).
-
-### `_gh__install_completions`
-**Responsibility:** Install completions for each shell listed in `SHELL_COMPLETIONS`. No-op when empty.
-- Called after gh is installed, regardless of method.
-- Iterates over each shell name in `SHELL_COMPLETIONS` (space-separated).
-- For `method=binary`: reads completion content from the extracted archive directory.
-- For `method=upstream-package`: generates content on the fly via `gh completion -s <shell>`.
-- Destination logic (per shell):
-  - As root: bash → `/etc/bash_completion.d/gh`; zsh → `<zshdir>/completions/_gh` (via `shell__detect_zshdir`)
-  - As non-root: bash → `$HOME/.local/share/bash-completion/completions/gh`; zsh → `$HOME/.zfunc/_gh`
-- Exits with an error for any unrecognised shell name (e.g. `fish` — not supported by `gh`).
-
-### `_gh__install_extensions`
-**Responsibility:** Install one or more gh CLI extensions for all resolved users.
-1. Split `EXTENSIONS` on `,` into an array. Each entry is passed verbatim to `gh extension install`
-   (accepts owner/repo slugs, full https:// URLs, or local paths).
-2. Call `users__resolve_list` with the four env vars (`ADD_CURRENT_USER`,
-   `ADD_REMOTE_USER`, `ADD_CONTAINER_USER`, `ADD_USERS`) populated from
-   the corresponding feature options (`add_current_user`, `add_remote_user`,
-   `add_container_user`, `add_users`). These same env vars are also used by
-   `_gh__configure_user`; both functions share the same resolved user set.
-3. `users__resolve_list` auto-deduplicates; root is excluded from auto-detected paths when other
-   non-root users are present.
-4. For each user, for each extension:
-   - As root: `su -l <user> -c "gh extension install <ext>"`
-   - As non-root: run directly (restricted to current user by `users__resolve_list`)
-5. Errors are logged as warnings (non-fatal) — one failed extension should not abort the install.
-
-### `_gh__configure_user`
-**Responsibility:** Apply per-user post-install configuration (`git_protocol`, `setup_git`,
-`sign_commits`) for all resolved users.
-1. Call `users__resolve_list` (same env var population as `_gh__install_extensions`).
-2. If user list is empty, this function is a no-op.
-3. For each user:
-   a. If `GIT_PROTOCOL ≠ ""`: run `gh config set git_protocol "${GIT_PROTOCOL}"` as that user.
-      - As root: `su -l <user> -c "gh config set git_protocol ${GIT_PROTOCOL}"`
-      - As non-root: run directly.
-      - This writes to `~/.config/gh/config.yml` (auto-created by gh on first write).
-   b. If `SETUP_GIT=true`: run `gh auth setup-git --force --hostname "${GIT_HOSTNAME}"` as that user.
-      - `--force` is required to succeed at build time without an active login.
-      - Writes two entries to `~/.gitconfig` (via `git config --global`): an empty helper to sever
-        any existing chain, then `credential."https://<hostname>".helper = !gh auth git-credential`.
-   c. If `SIGN_COMMITS ≠ ""`: run as that user:
-      - `ssh`: `git config --global gpg.format ssh` + `git config --global commit.gpgsign true`
-      - `gpg`: `git config --global --unset-all gpg.format || true`
-               (exit code 5 when the key doesn't exist; `|| true` prevents aborting under `set -e`) +
-               `git config --global commit.gpgsign true`
-      - In both cases, `user.signingkey` is not written (user-specific, unknown at build time).
-4. Called even when `extensions` is empty (config steps are independent of extension installation).
-5. Skip the function entirely if all three of `GIT_PROTOCOL`, `SETUP_GIT`, and `SIGN_COMMITS` are
-   at their defaults (empty, false, empty).
-
----
-
-## Details
-
-### Step-by-Step Orchestration in `install.sh`
-
-```
-1.  Source libs: ospkg.bash → logging.bash → github.bash → checksum.sh → shell.bash → users.bash
-2.  logging__setup + trap EXIT logging__cleanup
-3.  Dual-mode argument parsing (env vars vs --flags)
-4.  Apply defaults: VERSION=latest, METHOD=repos, PREFIX=/usr/local,
-    SYMLINK=true, SHELL_COMPLETIONS="bash zsh", IF_EXISTS=skip, INSTALLER_DIR="",
-    EXTENSIONS="", GIT_PROTOCOL="", SETUP_GIT=false, SIGN_COMMITS="",
-    GIT_HOSTNAME=github.com, ADD_CURRENT_USER=true, ADD_REMOTE_USER=true,
-    ADD_CONTAINER_USER=true, ADD_USERS=""
-5.  [[ LOG_LEVEL == true ]] && set -x
-6.  EARLY-EXIT (no-mutation): if VERSION=latest AND gh is already in PATH:
-      if IF_EXISTS=skip:  print info, exit 0  (no deps installed, no API call)
-      if IF_EXISTS=fail:  print error, exit 1 (no deps installed, no API call)
-    This runs BEFORE os__require_root and BEFORE installing base deps, preserving the contract
-    that skip/fail make zero system changes when the tool is already present and no specific
-    version was requested.
-7.  os__require_root  (must run as root for all subsequent steps)
-8.  ospkg__run --manifest base.yaml --skip_installed  (install curl, ca-certificates)
-9.  _resolved_version="$(_gh__resolve_version)"
-10. Export user config env vars:
-      ADD_CURRENT_USER, ADD_REMOTE_USER,
-      ADD_CONTAINER_USER, ADD_USERS
-      (from the corresponding feature options, so users__resolve_list picks them up)
-11. _gh__check_existing "$_resolved_version"  (handles version-pinned case: may exit 0 or 1
-      based on IF_EXISTS, or always exit 0 when installed version matches target)
-12. if METHOD=repos:
-      _gh__install_repos
-    elif METHOD=binary:
-      _gh__install_binary "$_resolved_version"
-13. _gh__create_symlink  (no-op when method=upstream-package or prefix=/usr/local)
-14. if SHELL_COMPLETIONS is non-empty:
-      if METHOD=binary:  (already called inside _gh__install_binary — no duplicate call needed)
-        # completions handled inside _gh__install_binary via --from-archive
-      elif METHOD=repos:
-        _gh__install_completions --from-command
-15. if GIT_PROTOCOL non-empty OR SETUP_GIT=true OR SIGN_COMMITS non-empty:
-      _gh__configure_user
-16. if EXTENSIONS non-empty:
-      _gh__install_extensions
-17. log success
-```
-
-### Arch Detection
-
-Arch Linux has `ID=arch` in `/etc/os-release` and an empty `ID_LIKE`. `os__platform` maps unrecognised
-IDs → `debian` (the fallback), which would incorrectly route Arch to `_gh__repos_debian` and fail. To
-prevent this, the detection order in `_gh__install_repos` checks `os__id == arch` (or `os__id_like` contains
-`arch` for Manjaro) explicitly, before falling through to `os__platform`.
-
-### Version Pinning Constraints
-
-| Platform / PM | `method=upstream-package` pinning | `method=binary` pinning |
-|---|---|---|
-| Debian / Ubuntu | `gh=<version>` (apt) | Exact tarball download |
-| RHEL / Fedora / Amazon Linux / SUSE | Not supported (warning logged) | Exact tarball download |
-| Alpine | Not supported (warning logged) | Exact tarball download |
-| Arch | Not supported (warning logged) | Exact tarball download |
-| macOS | Not supported via Homebrew (warning logged) | Exact zip download |
-
-### Binary Archive Inner Directory Structure
-
-From `.goreleaser.yml` (`wrap_in_directory: true`):
-```
-gh_<version>_linux_<arch>/
-  bin/gh
-  share/bash-completion/completions/gh
-  share/zsh/site-functions/_gh
-  share/fish/vendor_completions.d/gh.fish
-  share/man/man1/gh*.1
-  LICENSE
-```
-macOS (zip) uses the same structure with `macOS` in the directory name.
-
-### Error Handling
-
-- **Version resolution failure** (GitHub API unreachable and `version=latest`): fatal, exit 1.
-- **Checksum mismatch**: fatal, exit 1 (security boundary).
-- **Missing arch**: if `uname -m` returns an unmapped value, log error and exit 1.
-- **Extension install failure**: non-fatal warning. The feature's job is to install gh; extensions are
-  best-effort post-install steps.
-- **APT version not found**: `apt-get install gh=<version>` will fail naturally with a clear message.
-
----
-
-## References
-
-- [Installation Reference](installation.md) — methods, commands, asset naming, and official repo details
-- [API Reference](api.md) — options, defaults, and usage examples
-- [goreleaser.yml — CGO_ENABLED=0, archive structure, naming convention](https://github.com/cli/cli/blob/trunk/.goreleaser.yml)
-- [Official Linux Install Docs](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
-- [install-git install.bash — Platform dispatch and GPG key import patterns](../../src/install-git/install.bash)
-- [install-pixi install.bash — Binary download + version resolution pattern](../../src/install-pixi/install.bash)
-- [lib/github.bash — github__latest_tag, github__release_asset_urls](../../lib/github.bash)
-- [lib/verify.bash — verify__sha](../../lib/verify.bash)
-- [lib/shell.bash — shell__detect_zshdir](../../lib/shell.bash)
-- [lib/users.bash — users__resolve_list](../../lib/users.bash)
+- **`setup_git`** runs `gh auth setup-git --force`; `--force` is required
+  because there is no active `gh` login at build time. Afterwards the user's
+  `~/.gitconfig` is `chown`ed back to the user (best-effort) in case `gh` created
+  it as root.
+- **`sign_commits=gpg`** clears any inherited `gpg.format` with
+  `git config --global --unset-all gpg.format || true`; `git config --unset-all`
+  exits 5 when the key is absent, so the `|| true` prevents an abort under
+  `set -e`.
+- **Extensions are best-effort:** a failed `gh extension install` is logged as a
+  warning and does not fail the install — the feature's contract is to install
+  `gh`, and extension availability depends on external network/repo state.
+  Each entry is whitespace-trimmed before use.

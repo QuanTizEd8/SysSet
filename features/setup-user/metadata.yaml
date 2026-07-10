@@ -41,7 +41,9 @@ options:
   home_dir:
     default: ''
     _default: /home/$USERNAME
-    description: Home directory for the user. Defaults to `/home/<username>` when left empty.
+    description: |-
+      Home directory for the user. Defaults to `/home/<username>` when left empty.
+      An existing directory is reused as-is: its contents are left untouched and only its ownership is corrected.
     type: string
   user_shell:
     default: /bin/bash

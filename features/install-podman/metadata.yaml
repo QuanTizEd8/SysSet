@@ -37,7 +37,7 @@ mounts:
 # per-user graphRoot parent directory (/var/lib/containers/storage/users/)
 # has correct sticky-world-writable permissions.
 entrypoint:
-  description: Configure mount propagation and cgroup v2 delegation required for rootless Podman.
+  description: Configure mount propagation, cgroup v2 delegation, and the per-user storage parent directory required for rootless Podman.
 
 _options:
   configure_users: true
