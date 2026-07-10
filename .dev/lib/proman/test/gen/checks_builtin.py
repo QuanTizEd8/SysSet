@@ -28,11 +28,13 @@ from proman.test.gen.types import CheckItem
 # invocation's typically short, version-dominated output.
 _VERSION_FORMAT_PATTERN = r"(^|[^0-9.])v?[0-9]+\.[0-9]+(\.[0-9]+)?([^0-9.]|$)"
 
-# One file-ownership/name-existence probe per `plat.pm` value, verified against
-# real checks.yaml usage and lib/ospkg.bash's own ospkg__is_managed(). The
-# dpkg/rpm/pacman variants need the resolved binary *path* (file-ownership
-# queries); apk/brew need the OS *package name*, which can differ from the
-# binary name (e.g. `github-cli` package -> `gh` binary).
+# One managed-by-PM probe per `plat.pm` value, verified against real checks.yaml
+# usage and lib/ospkg.bash's own ospkg__is_managed(). The dpkg/rpm/pacman
+# variants query the resolved binary *path* (file-ownership); apk needs the OS
+# *package name*, which can differ from the binary name (e.g. `github-cli`
+# package -> `gh` binary). Homebrew is macOS-only and its "managed" signal takes
+# two shapes (binary under the prefix, or the formula/cask installed), so it has
+# its own formula/cask-aware builder — see `brew_managed_check`.
 #
 # apt also retries the legacy /bin path: on a usrmerged Debian/Ubuntu the dpkg
 # DB records a shell/core package at /bin (zsh -> /bin/zsh) while PATH resolves
@@ -48,7 +50,6 @@ _PM_CHECK_CMD: dict[str, str] = {
     "zypper": "bash -c 'rpm -qf \"$(command -v {bin})\" >/dev/null 2>&1'",
     "apk": "bash -c 'apk info -e {pkg_name} >/dev/null 2>&1'",
     "pacman": "bash -c 'pacman -Qo \"$(command -v {bin})\" >/dev/null 2>&1'",
-    "brew": "bash -c 'brew list {pkg_name} >/dev/null 2>&1'",
 }
 
 
@@ -202,8 +203,8 @@ def pm_managed_check(
 
     `pkg_names` maps each PM to that PM's package name (they legitimately
     differ — oras is `golang-oras` on dnf, `oras-cli` on apk), used by the
-    name-based apk/brew probes; the file-ownership probes ignore it. Falls
-    back to `bin_name` for a PM with no declared name.
+    name-based apk probe; the file-ownership (dpkg/rpm/pacman) and brew-prefix
+    probes ignore it. Falls back to `bin_name` for a PM with no declared name.
     """
     cmds = list(
         dict.fromkeys(
@@ -216,6 +217,38 @@ def pm_managed_check(
     if len(cmds) == 1:
         return CheckItem(title=title, cmd=cmds[0])
     return CheckItem(title=title, kind="multiple", min=1, cmd=cmds)
+
+
+def brew_managed_check(bin_name: str, pkg_name: str, *, is_cask: bool) -> CheckItem:
+    """Assert a tool is Homebrew-managed — robust across brew's package shapes.
+
+    "brew-managed" manifests two ways, so this is a `min: 1` of two probes:
+
+    - **binary under the prefix** — `$(command -v {bin})` starts with
+      `$(brew --prefix)`. True for a formula that puts its CLI on PATH (go-task
+      symlinks `task` into `$(brew --prefix)/bin`) or a CLI cask (claude-code
+      links `claude` there — confirmed in a runner log). Name-independent, so
+      robust to per-PM `brew:` overrides and versioned (`@latest`) cask names.
+    - **the declared formula/cask is installed** — `brew list --formula|--cask
+      <name>`. The case a *manager* formula needs, where the tool's binary lands
+      outside the brew prefix: install-rust's `rustup` formula provisions
+      `rustc` under CARGO_HOME (`~/.cargo/bin`), not `$(brew --prefix)`, yet the
+      toolchain is genuinely brew-provided.
+
+    Either passing proves brew management, covering both CLI packages and manager
+    formulae without the caller needing to know which a feature is.
+    """
+    kind = "cask" if is_cask else "formula"
+    prefix_probe = (
+        f'bash -c \'[[ "$(command -v {bin_name})" == "$(brew --prefix)"/* ]]\''
+    )
+    name_probe = f"bash -c 'brew list --{kind} {pkg_name} >/dev/null 2>&1'"
+    return CheckItem(
+        title="binary is package-manager-managed",
+        kind="multiple",
+        min=1,
+        cmd=[prefix_probe, name_probe],
+    )
 
 
 # Pure-bash extractor of a `# >>> M >>>`…`# <<< M <<<` block (markers inclusive),

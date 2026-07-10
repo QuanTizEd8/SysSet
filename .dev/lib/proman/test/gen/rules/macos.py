@@ -89,22 +89,24 @@ class MacosRule:
         outcome = outcome_mod.compute(facts, ctx, method="package")
         if outcome is None:  # package not feasible on the brew env
             return None
-        pkg_name = facts.package_name("package", "brew")
+        brew_pkg = facts.brew_package()
+        name, is_cask = brew_pkg if brew_pkg is not None else (facts.primary_bin, False)
+        kind = "cask" if is_cask else "formula"
         scenario = base_scenario([env], cfg, _FAMILY, options={"method": "package"})
         scenario["modes"] = ["macos"]
-        # Clean slate: a shared macOS runner may already have the formula.
+        # Clean slate: a shared macOS runner may already have the formula/cask.
+        # Use the correct `--cask`/`--formula` kind and name (best-effort; casks
+        # and formula-name overrides like go-task both occur).
         scenario["setup"] = (
-            f"brew list --formula {pkg_name} >/dev/null 2>&1 "
-            f"&& brew uninstall --formula {pkg_name} || true\n"
+            f"brew list --{kind} {name} >/dev/null 2>&1 "
+            f"&& brew uninstall --{kind} {name} || true\n"
         )
         scenario["tests"] = ["macos_package_default"]
 
         checks: list[CheckItem] = [
             CheckItem(title="brew is on PATH", cmd="command -v brew"),
             *default_checks.build(facts, cfg, outcome, method_pinned=True),
-            checks_builtin.pm_managed_check(
-                facts.primary_bin, {"brew": pkg_name}, ["brew"]
-            ),
+            checks_builtin.brew_managed_check(facts.primary_bin, name, is_cask=is_cask),
         ]
         group = CheckGroup(
             description=f"method=package on macOS installs {facts.primary_bin} from "

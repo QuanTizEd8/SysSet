@@ -14,6 +14,19 @@ from dataclasses import dataclass, field
 from proman import when_util
 
 
+def _brew_base_name(cask: str) -> str:
+    """Extract a base cask name from a possibly version-templated entry.
+
+    `{feat.version_input==latest?claude-code@latest:claude-code}` -> `claude-code`
+    (take the ternary's else-branch, drop braces and any `@tag`). A plain name
+    passes through unchanged.
+    """
+    name = cask
+    if "?" in name and ":" in name:
+        name = name.rsplit(":", 1)[1]  # else-branch of the `?A:B` ternary
+    return name.strip("{} ").split("@", 1)[0]
+
+
 def _when_applies_to_pm(when: dict | list | None, pm: str) -> bool:
     """Whether a package entry's `when` applies to package manager `pm`.
 
@@ -322,8 +335,17 @@ class FeatureFacts:
         `oras-cli` on apk, `oras` on apt). Without `pm`, returns the first
         declared name. Falls back to `primary_bin` when nothing is declared.
         """
-        run_deps = self.dependencies.get("run", {})
-        packages = run_deps.get(f"method-{method}", {}).get("packages", [])
+        method_deps = self.dependencies.get("run", {}).get(f"method-{method}", {})
+        if not isinstance(method_deps, dict):
+            return self.primary_bin
+        # Package entries live either flat (`method-<m>.packages`) or nested
+        # per-PM (`method-<m>.<pm>.packages`, e.g. Homebrew's
+        # `method-package.brew.packages` carrying `{name: task, brew: go-task}`).
+        # Prefer the PM-keyed block when a pm is given, then the flat list.
+        packages: list = []
+        if pm is not None and isinstance(method_deps.get(pm), dict):
+            packages.extend(method_deps[pm].get("packages", []))
+        packages.extend(method_deps.get("packages", []))
         if pm is not None:
             for pkg in packages:
                 if isinstance(pkg, dict) and _when_applies_to_pm(pkg.get("when"), pm):
@@ -332,6 +354,26 @@ class FeatureFacts:
             if isinstance(pkg, dict) and pkg.get("name"):
                 return pkg["name"]
         return self.primary_bin
+
+    def brew_package(self) -> tuple[str, bool] | None:
+        """Return `(name, is_cask)` for the `package` method's Homebrew entry.
+
+        Homebrew packages are declared under `method-package.brew` as either
+        `casks: [<cask>]` (a cask, e.g. `claude-code`) or `packages: [{name,
+        brew}]` (a formula, e.g. `go-task`), or via the flat
+        `method-package.packages` (a formula, e.g. `rustup`). Cask names may be
+        version-templated (`{feat.version_input==latest?claude-code@latest:
+        claude-code}`); the base name (the ternary's else-branch, minus any
+        `@tag`) is returned — enough for a best-effort `brew uninstall` clean
+        slate. Returns `None` when no `package` method is declared.
+        """
+        method_deps = self.dependencies.get("run", {}).get("method-package", {})
+        if not isinstance(method_deps, dict):
+            return None
+        brew = method_deps.get("brew")
+        if isinstance(brew, dict) and brew.get("casks"):
+            return _brew_base_name(str(brew["casks"][0])), True
+        return self.package_name("package", "brew"), False
 
     def build_packages(
         self, method: str, pm: str, attrs: dict | None = None

@@ -17,7 +17,7 @@ from proman.test.codegen import _dquote
 from proman.test.gen import checks_builtin
 from proman.test.gen.facts import FeatureFacts
 
-_ALL_PMS = ["apt", "dnf", "zypper", "apk", "pacman", "brew"]
+_ALL_PMS = ["apt", "dnf", "zypper", "apk", "pacman"]
 
 
 def test_package_name_resolves_per_pm() -> None:
@@ -45,6 +45,99 @@ def test_package_name_resolves_per_pm() -> None:
     assert facts.package_name("package", "apk") == "oras-cli"  # per-PM override
     assert facts.package_name("package", "apt") == "oras"  # name, no override
     assert facts.package_name("package") == "golang-oras"  # first, no pm
+
+
+def test_package_name_resolves_pm_keyed_brew_shape() -> None:
+    """A PM-keyed `method-package.brew.packages` resolves the brew formula name.
+
+    install-taskfile nests its Homebrew formula under `method-package.brew`
+    (not the flat `method-package.packages`), with `{name: task, brew: go-task}`
+    — so the brew formula is `go-task`, not the binary `task`.
+    """
+    facts = FeatureFacts(
+        feature_id="install-taskfile",
+        verify={"cmd": "task"},
+        methods={"package": {}},
+        prefix={"bins": ["task"]},
+        dependencies={
+            "run": {
+                "method-package": {
+                    "brew": {"packages": [{"name": "task", "brew": "go-task"}]},
+                },
+            },
+        },
+    )
+    assert facts.package_name("package", "brew") == "go-task"
+
+
+def test_brew_package_detects_cask_and_strips_version_template() -> None:
+    """A cask entry is detected and its version-templated name reduced to a base."""
+    facts = FeatureFacts(
+        feature_id="install-claude",
+        verify={"cmd": "claude"},
+        methods={"package": {}},
+        prefix={"bins": ["claude"]},
+        dependencies={
+            "run": {
+                "method-package": {
+                    "brew": {
+                        "casks": [
+                            "{feat.version_input==latest?claude-code@latest:claude-code}",
+                        ],
+                    },
+                },
+            },
+        },
+    )
+    assert facts.brew_package() == ("claude-code", True)
+
+
+def test_brew_package_formula_pm_keyed_and_flat() -> None:
+    """brew_package returns (formula, False) for both PM-keyed and flat shapes."""
+    taskfile = FeatureFacts(
+        feature_id="install-taskfile",
+        verify={"cmd": "task"},
+        methods={"package": {}},
+        prefix={"bins": ["task"]},
+        dependencies={
+            "run": {
+                "method-package": {
+                    "brew": {"packages": [{"name": "task", "brew": "go-task"}]},
+                },
+            },
+        },
+    )
+    assert taskfile.brew_package() == ("go-task", False)
+    rust = FeatureFacts(
+        feature_id="install-rust",
+        verify={"cmd": "rustc"},
+        methods={"package": {}},
+        prefix={"bins": ["rustc"]},
+        dependencies={"run": {"method-package": {"packages": [{"name": "rustup"}]}}},
+    )
+    assert rust.brew_package() == ("rustup", False)
+
+
+def test_brew_managed_check_has_prefix_and_name_probes() -> None:
+    """brew_managed_check is min:1 of a prefix probe OR a `brew list` name probe.
+
+    The prefix probe (binary under `$(brew --prefix)`) covers CLI formulae/casks
+    name-independently; the `brew list --formula|--cask <name>` probe covers a
+    manager formula (rustup) whose binary lands outside the brew prefix. Either
+    passing proves brew management.
+    """
+    item = checks_builtin.brew_managed_check("rustc", "rustup", is_cask=False)
+    assert item["kind"] == "multiple"
+    assert item["min"] == 1
+    probes = item["cmd"]
+    assert any('"$(command -v rustc)" == "$(brew --prefix)"/*' in p for p in probes)
+    assert any("brew list --formula rustup" in p for p in probes)
+
+
+def test_brew_managed_check_uses_cask_flag_for_casks() -> None:
+    """A cask uses `brew list --cask`, a formula `brew list --formula`."""
+    cask = checks_builtin.brew_managed_check("claude", "claude-code", is_cask=True)
+    assert any("brew list --cask claude-code" in p for p in cask["cmd"])
 
 
 def _probe_cmds() -> list[str]:
