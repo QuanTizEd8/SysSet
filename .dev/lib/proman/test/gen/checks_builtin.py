@@ -375,19 +375,28 @@ def installed_method_check_either_scope(method: str) -> CheckItem:
 
     On macOS the runner user has write access to system dirs (Homebrew-owned), so
     a system-prefix install records under `_FEAT_SHARE_DIR_ROOT` — but a feature
-    whose prefix is user-home-relative records under `_FEAT_SHARE_DIR_NONROOT`
-    instead (install-rust's `${HOME}/.cargo`). A generated macOS scenario can't
-    always tell which a feature resolves to, so accept either. `method` is a
-    fixed enum value (package/binary/…) with no shell metacharacters, so it is
-    embedded directly inside the `bash -c` body.
+    whose prefix resolves user-scoped records under `_FEAT_SHARE_DIR_NONROOT`
+    instead (install-rust on the non-root runner). A generated macOS scenario
+    can't always tell which a feature resolves to, so accept either.
+
+    `_FEAT_SHARE_DIR_ROOT` is an absolute path, but `_FEAT_SHARE_DIR_NONROOT`'s
+    value embeds a literal `${HOME}` (install.bash expands it at runtime; the
+    harness injects the value verbatim into the check env), so a single expansion
+    in the check shell leaves `${HOME}` unexpanded and the grep misses the file.
+    `eval` re-expands the (controlled, `[a-z0-9-]`-only namespace/feature) path
+    before the grep. `method` is a fixed enum value with no shell metacharacters,
+    embedded directly.
     """
     root = '"${_FEAT_SHARE_DIR_ROOT}/state/installed-method"'
-    nonroot = '"${_FEAT_SHARE_DIR_NONROOT}/state/installed-method"'
+    nonroot_reexpand = (
+        'eval "_n=${_FEAT_SHARE_DIR_NONROOT}"; '
+        f'grep -Fqx {method} "${{_n}}/state/installed-method" 2>/dev/null'
+    )
     return CheckItem(
         title=f"installed-method state is {method}",
         cmd=(
             f"bash -c 'grep -Fqx {method} {root} 2>/dev/null "
-            f"|| grep -Fqx {method} {nonroot} 2>/dev/null'"
+            f"|| {{ {nonroot_reexpand}; }}'"
         ),
     )
 

@@ -153,6 +153,9 @@ def test_installed_method_check_either_scope_probes_both_share_dirs() -> None:
     assert "_FEAT_SHARE_DIR_ROOT" in cmd
     assert "_FEAT_SHARE_DIR_NONROOT" in cmd
     assert "||" in cmd
+    # The nonroot value embeds a literal ${HOME}; the probe must re-expand it
+    # (a single expansion would leave ${HOME} unresolved and miss the file).
+    assert 'eval "_n=${_FEAT_SHARE_DIR_NONROOT}"' in cmd
 
 
 def _probe_cmds() -> list[str]:
