@@ -124,6 +124,21 @@ run_auto_method() {
   [[ "${VERSION_INPUT}" == "stable" ]]
 }
 
+@test "cargo resolution dispatches to cargo__resolve_version_uri and preserves VERSION_INPUT" {
+  VERSION="stable"
+  VERSION_RESOLUTION="cargo"
+  VERSION_URI="https://crates.io/api/v1/crates/ripgrep"
+  METHOD="binary"
+  install_test__capture_version_input
+  cargo__resolve_version_uri() {
+    printf '13.0.0\n'
+    return 0
+  }
+  __resolve_input_version__
+  [[ "${VERSION}" == "13.0.0" ]]
+  [[ "${VERSION_INPUT}" == "stable" ]]
+}
+
 @test "auto method uses VERSION_INPUT not resolved VERSION" {
   VERSION="2.47.0"
   VERSION_RESOLUTION="github_release"

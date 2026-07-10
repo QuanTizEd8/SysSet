@@ -6,6 +6,8 @@ _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$_LIB_DIR/argparse.bash"
 # shellcheck source=lib/bootstrap.bash
 . "$_LIB_DIR/bootstrap.bash"
+# shellcheck source=lib/cargo.bash
+. "$_LIB_DIR/cargo.bash"
 # shellcheck source=lib/ctx.bash
 . "$_LIB_DIR/ctx.bash"
 # shellcheck source=lib/file.bash

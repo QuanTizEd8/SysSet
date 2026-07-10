@@ -2346,6 +2346,20 @@ __feat_resolve_version_spec__() {
       }
       printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
       ;;
+    cargo)
+      if [[ -z "${VERSION_URI:-}" ]]; then
+        logging__error "_options.version.resolution=cargo requires VERSION_URI to be set in metadata."
+        return 1
+      fi
+      logging__info "Resolving cargo version (URI='${VERSION_URI}', spec='${_spec}')."
+      _FEAT_RESOLVE_VERSION_RESULT="$(cargo__resolve_version_uri "${VERSION_URI}" "${_spec}")"
+      local _rc=$?
+      [[ $_rc == 0 ]] || {
+        logging__error "failed to resolve cargo version (URI='${VERSION_URI}', spec='${_spec}')."
+        return "$_rc"
+      }
+      printf '%s\n' "${_FEAT_RESOLVE_VERSION_RESULT}"
+      ;;
     git_ref)
       if [[ -z "${GIT_CLONE_URI:-}" ]]; then
         logging__error "VERSION_RESOLUTION=git_ref requires GIT_CLONE_URI to be set."
@@ -2585,6 +2599,11 @@ __resolve_input_version__() {
   #                   npm__resolve_version_uri.  _FEAT_RESOLVED_TAG is left
   #                   empty (npm installs are addressed by version, not tag).
   #                   Requires VERSION_URI to be the registry package URL.
+  #
+  #   cargo           Resolves against the crates.io registry via VERSION_URI
+  #                   using cargo__resolve_version_uri.  _FEAT_RESOLVED_TAG is
+  #                   left empty (cargo installs are addressed by version, not
+  #                   tag).  Requires VERSION_URI to be the crates.io crate URL.
   #
   #   none / ""       VERSION is already a concrete value; no network resolution
   #                   is needed.  A silent no-op.
