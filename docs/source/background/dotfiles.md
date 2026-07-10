@@ -3,7 +3,7 @@
 Many applications allow users to customize their behavior through configuration files.
 These are mostly plain text files that define user-specific settings and preferences
 in a format recognized by the corresponding application (e.g., JSON, YAML, Bash).
-They are commonly reffered to as "dotfiles"
+They are commonly referred to as "dotfiles"
 because their filenames usually begin with a dot (`.`).
 This is Unix convention to hide files from default directory listings,
 helping prevent accidental modifications or deletions.
@@ -25,11 +25,25 @@ while still allowing individual users to override and/or extend them.
 ## Dotfiles in Devcontainers
 
 On a system shared by different users---such as a devcontainer---it
-is good practice to only set configurations in global dotfiles,
+is good practice to prefer global dotfiles,
 allowing each user to override and/or extend them using their own dotfiles.
-Therefore, while a devcontainer commonly predefines
-a single non-root user for everyone using it,
-configuration files should not be placed in that user's home directory.
-This allows each user to readily [add their own dotfiles](#add-dotfiles-repo)
-in the container user's home directory after connecting to the container,
+A devcontainer commonly predefines a single non-root user for everyone using it,
+so configuration placed directly and unconditionally in that user's home directory
+risks overwriting changes the user makes later.
+Keeping shared defaults in global files lets each user readily
+[add their own dotfiles](https://code.visualstudio.com/docs/devcontainers/containers#_personalizing-with-dotfile-repositories)
+in their home directory after connecting to the container,
 without the risk of unintentionally overwriting global configurations.
+
+## How DevFeats Manages Dotfiles
+
+DevFeats features write **both** global dotfiles (system scope) and, when a feature configures
+individual users (e.g. shell setup or `git` configuration), **per-user** dotfiles in each resolved
+user's home directory — mirroring them into `/etc/skel` so newly created users inherit them too.
+
+Writing into a user's home directory is made safe by **marker blocks**: each managed edit is
+wrapped in delimited `# >>> <name> >>>` … `# <<< <name> <<<` markers, and only the content
+*between* the markers is ever rewritten on re-runs. Anything you add outside the block is
+preserved, so re-running a feature never clobbers your own customizations. See
+{doc}`shell-config` and {doc}`env-vars` for the mechanism, and {doc}`/features/setup-shell` for
+the feature that materializes the layered per-user shell configuration.

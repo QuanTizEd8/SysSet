@@ -4,18 +4,24 @@ The `lib/` directory contains reusable bash modules covering OS detection, packa
 
 > **Always check here before implementing something from scratch.** If a function does what you need, use it. If you are writing logic that could benefit other features, add it to `lib/` instead of keeping it inline.
 
-## Guard Pattern
+## Module Conventions
 
-To prevent double-sourcing and circular imports, all shell modules must start with an idempotency guard:
+Every module contains **only function definitions and inert module-global declarations** — no top-level executable code. Because of this:
 
-```bash
-[[ -n "${_MODULE_NAME__LIB_LOADED-}" ]] && return 0
-_MODULE_NAME__LIB_LOADED=1
-```
+- The whole library is sourced **once**, as a unit, by `lib/__init__.bash` (which the installer framework sources for you). Module load **order does not matter**, and there is **no double-source guard** — none is needed.
+- All library functions are available in `install.bash`, and in other modules, without any explicit `source`.
 
-Every public function is covered by the BATS unit suite under `test/lib/`. Run `just test-lib` to verify changes locally before pushing. See {doc}`/dev-guide/tests/lib` for how to write new tests.
+**Naming.** Public functions are named `module__function` (e.g. `os__platform`, `shell__sync_config`); private helpers are `_module__function`; module-global variables are `_MODULE__NAME` (upper-case). This namespacing is what lets every module load into one shell without collisions.
 
-**Multi-value conventions:** many helpers return multiple logical items as one stdout line per item (empty list → no output). This composes naturally with pipes, `while read -r`, and `mapfile`.
+**Local variables.** Function-scoped variables must be declared `local` (or `declare`). This is enforced by the `lint-sh-local-vars` check (part of `just lint`); only `ALL_CAPS` names and `_<MODULE>__`-prefixed globals are exempt (with per-case suppressions in `.config/lib-local-vars.allowlist`).
+
+**POSIX vs bash.** Most modules are bash and use the `.bash` extension. Two modules — **`logging.sh`** and **`posix.sh`** — are POSIX `sh` because they run during the bootstrap phase (`install.sh`), before a bash ≥ 4.4 is guaranteed to exist.
+
+**Non-shell assets.** `lib/` also ships files that are copied into each feature but are **not** auto-documented: the `.jq` filters (`ctx-match.jq`, `ctx-when-eval.jq`, `ospkg-manifest.jq`), `argparse-manifest.schema.json`, the vendored ospkg manifests under `lib/deps/`, and `lib/metadata.yaml` (library package metadata, used by `just build-lib`).
+
+**Testing.** Every public function is covered by the BATS unit suite under `test/lib/`. Run `just test-lib` to verify changes locally before pushing. See {doc}`/dev-guide/tests/lib` for how to write new tests.
+
+**Multi-value conventions.** Many helpers return multiple logical items as one stdout line per item (empty list → no output). This composes naturally with pipes, `while read -r`, and `mapfile`.
 
 ## Documentation
 
@@ -23,10 +29,10 @@ Each shell module in `lib/` (`*.bash` plus the small POSIX `*.sh` subset) is aut
 
 ### Module header
 
-The first comment block immediately after the shebang becomes the module's page header. The **first non-empty line** is the one-line summary (used in the library index card); everything after the first blank comment line is the long description.
+A module has **no shebang** (it is sourced, not executed); its first line is a `# shellcheck shell=bash` directive. The leading comment block after that directive becomes the module's page header: the **first non-empty comment line** is the one-line summary (used in the library index card), and everything after the first blank comment line is the long description.
 
 ```bash
-#!/usr/bin/env bash
+# shellcheck shell=bash
 # One-line summary of the module.
 #
 # Longer description. May span multiple lines and contain
@@ -49,25 +55,25 @@ All functions — public and private — should use the `# @brief` format. The g
 - The separator between signature and description must be an em-dash (`—`, U+2014). A space-hyphen-space (` - `) is also accepted but the em-dash is preferred.
 - The function name is taken as the first whitespace-delimited word of `<signature>`.
 
-**Body blocks** follow the `@brief` line. All contiguous comment lines up to the function definition are collected; blank comment lines (`#` on its own) act as block separators.
+**Body blocks** follow the `@brief` line. By convention the whole annotation block is the **first thing inside the function body** (the parser also accepts it immediately above the definition). All contiguous comment lines are collected; blank comment lines (`#` on its own) act as block separators.
 
 ```bash
-# @brief myfunc <arg> — Short description.
-#
-# Optional paragraph with more detail.
-# Can span multiple lines.
-#
-# Args:
-#   <arg>        What the argument means.
-#   --flag <v>   What the flag does.
-#
-# Env:
-#   MY_VAR  Environment variable description.
-#
-# Stdout: what is printed to stdout.
-#
-# Returns: exit codes and their meaning.
 myfunc() {
+  # @brief myfunc <arg> — Short description.
+  #
+  # Optional paragraph with more detail.
+  # Can span multiple lines.
+  #
+  # Args:
+  #   <arg>        What the argument means.
+  #   --flag <v>   What the flag does.
+  #
+  # Env:
+  #   MY_VAR  Environment variable description.
+  #
+  # Stdout: what is printed to stdout.
+  #
+  # Returns: exit codes and their meaning.
   ...
 }
 ```

@@ -135,7 +135,7 @@ Each file can have a global and a user-specific version.
 The global `profile` file is always expected at `/etc/profile`,
 while the location where Bash searches for the global `bashrc` file is installation-specific;
 `/etc/bash.bashrc` on Debian, `/etc/bash/bashrc` on Alpine,
-and `/etc/bashrc` on Red Hat and macOS.
+and `/etc/bashrc` on Red Hat, openSUSE, and macOS.
 (cf. [here](https://github.com/devcontainers/features/blob/8895eb3d161d28ada3a8de761a83135e811cae3d/src/common-utils/main.sh#L479-L489)).
 
 User-specific configuration files are only expected
@@ -176,7 +176,7 @@ Zsh recognizes five configuration files: `zshenv`, `zprofile`, `zshrc`, `zlogin`
 Each file can have a global and a user-specific version.
 The location where Zsh searches for global files is installation-specific;
 on most Linux distributions it is the `/etc/zsh/` directory,
-whereas on Red Hat distributions and macOS
+whereas on Red Hat and openSUSE distributions and macOS
 they are expected directly under the `/etc/` directory
 (cf. [here](https://github.com/devcontainers/features/blob/8895eb3d161d28ada3a8de761a83135e811cae3d/src/common-utils/main.sh#L510-L514)).
 
@@ -205,11 +205,11 @@ the order of execution for all startup files for each shell type is as follows:
 3. `zprofile` (login)
 4. `.zprofile` (login)
 5. `zshrc` (interactive)
-6. `zshrc` (interactive)
+6. `.zshrc` (interactive)
 7. `zlogin` (login)
 8. `.zlogin` (login)
 
-This results in the following executation orders for each shell type:
+This results in the following execution orders for each shell type:
 
 - **Non-Login Non-Interactive**: `zshenv` → `.zshenv`
 - **Non-Login Interactive**:     `zshenv` → `.zshenv` → `zshrc` → `.zshrc`
@@ -239,6 +239,22 @@ If a compiled file exists (named for the original file plus the .zwc extension)
 and it is newer than the original file, the compiled file will be used instead.
 :::
 
+
+## How DevFeats Applies These Patterns
+
+DevFeats' shared library (`lib/shell.bash`) and the {doc}`/features/setup-shell` feature implement the cross-invocation coverage described above, across five shells (bash, zsh, fish, tcsh, and elvish). Two ideas make this reliable and repeatable:
+
+**Distro-aware detection (never existence-probing).** Startup-file locations are derived from the *detected operating system*, not by probing for files that happen to exist — a file placed at the wrong path for the distribution would simply never be sourced, so guessing is unsafe. For example, the system `bashrc` is resolved to `/etc/bash.bashrc` on Debian/Ubuntu, `/etc/bash/bashrc` on Alpine, and `/etc/bashrc` on Red Hat, openSUSE, and macOS.
+
+**Marker blocks (idempotent, non-destructive edits).** Every managed edit is wrapped in a named, delimited block:
+
+```text
+# >>> <name> >>>
+…managed content…
+# <<< <name> <<<
+```
+
+On re-run, only the content *between* the markers is rewritten; anything outside the block — including your own customizations — is left untouched. This is what makes it safe for DevFeats to write into shared global files **and** per-user dotfiles idempotently, so re-running a feature never clobbers hand-edited config. See {doc}`env-vars` for how the same marker-block mechanism persists environment variables and `PATH`.
 
 ## Best Practices
 
@@ -273,6 +289,8 @@ shell configuration in global files (`/etc/bash.bashrc`, `/etc/zsh/zshenv`, etc.
 rather than in the container user's home directory. This allows each user to
 freely [add their own dotfiles](https://code.visualstudio.com/docs/devcontainers/containers#_personalizing-with-dotfile-repositories)
 in the home directory after connecting, without overwriting distributed configuration.
+When per-user configuration *is* required (as with several DevFeats features), make the edits
+idempotent with **marker blocks** so users can still layer their own dotfiles safely.
 
 ### Cover All Devcontainer Invocation Types
 
@@ -283,15 +301,15 @@ most robust strategy:
 
 ```ini
 # /etc/environment
-BASH_ENV=/etc/bash/bash_env
+BASH_ENV=/etc/bashenv
 ```
 
 ```zsh
 # /etc/zsh/zshenv
-emulate sh -c 'source "/etc/bash/bash_env"'
+emulate sh -c 'source "/etc/bashenv"'
 ```
 
-See {doc}`env-vars` for details.
+This is exactly the strategy DevFeats' `setup-shell` feature implements: a distro-specific `BASH_ENV` file (e.g. `/etc/bashenv`, or `/etc/bash/bashenv` on Alpine) that — together with `/etc/zsh/zshenv` — sources a single **shared POSIX file** (`/etc/shellenv`) holding the cross-shell environment. See {doc}`env-vars` for the full breakdown, and {doc}`/features/setup-shell` for the concrete file layout.
 
 ### Modularize Your Configuration
 

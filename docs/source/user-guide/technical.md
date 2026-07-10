@@ -7,7 +7,7 @@ Features are packaged as self-contained tarballs, versioned according to Semanti
 Every feature is released under its own version, with a dedicated Git tag, GitHub release, and OCI tags for the major, minor, and patch versions (and a rolling `latest` tag):
 
 - **Git tag:** `<feature-id>/<version>` (e.g. `install-pixi/1.2.3`)
-- **GitHub release:** per-tag, with a single asset `devfeats-<feature-id>-<version>.tar.gz` (e.g. `devfeats-install-pixi-1.2.3.tar.gz`).
+- **GitHub release:** per-tag, with a single asset `devfeats-<feature-id>.tar.gz` (e.g. `devfeats-install-pixi.tar.gz`). The version is carried by the release tag and download URL, **not** the filename.
 - **OCI tags:** `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>:<version>`, where `<version>` can be `latest` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:latest`), `<major>` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:1`), `<major>.<minor>` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:1.2`), or `<major>.<minor>.<patch>` (e.g. `ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-pixi:1.2.3`).
 
 ### Release Artifacts
@@ -19,14 +19,14 @@ devfeats-<feature-id>.tar.gz
 ├── devcontainer-feature.json
 ├── install.sh
 ├── install.bash
-├── files/
-└── _lib/
+├── lib/
+└── files/
 ```
 - [`devcontainer-feature.json`](https://containers.dev/implementors/features/#devcontainer-feature-json-properties) is the metadata file consumed by dev container tooling, defining the feature's identifiers, options, dependencies, and container-specific configuration.
-- [`install.sh`](https://containers.dev/implementors/features/#invoking-installsh) is the main entry point for the installer. It is a POSIX sh script that is identical for all features. Its sole purpose is to bootstrap the main `install.bash` installer by ensuring a compatible version (≥ 4) of bash is available before executing it. This indirection allows the installer to use modern bash features while maintaining compatibility with environments where only older shells are available by default (e.g. Alpine Linux with busybox sh).
+- [`install.sh`](https://containers.dev/implementors/features/#invoking-installsh) is the main entry point for the installer. It is a POSIX sh script that is identical for all features. Its sole purpose is to bootstrap the main `install.bash` installer by ensuring a compatible version (≥ 4.4) of bash is available before executing it. This indirection allows the installer to use modern bash features while maintaining compatibility with environments where only older shells are available by default (e.g. Alpine Linux with busybox sh).
 - `install.bash` is the main installer script that performs the installation logic.
+- `lib/` contains the installer's internal library code (a collection of sourceable bash files), which is shared across all features and handles common tasks such as networking, API interactions, package management, and more.
 - `files/` contains any static files the installer needs to copy to the system (e.g. shell snippets, configuration templates, helper scripts).
-- `_lib/` contains the installer's internal library code (a collection of sourceable bash files), which is shared across all features and handles common tasks such as networking, API interactions, package management, and more.
 
 ## Dev Container Specific Configurations
 

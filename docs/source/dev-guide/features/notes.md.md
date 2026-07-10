@@ -1,6 +1,15 @@
 # `notes.md`
 
-`features/<feature-id>/notes.md` is an optional markdown document for user-facing supplemental documentation that does not fit in `metadata.yaml`. Its content is appended to the auto-generated feature reference page on the docs site.
+`features/<feature-id>/notes.md` is an optional markdown document for user-facing supplemental documentation that does not fit in `metadata.yaml`. Its content is appended to the auto-generated feature reference page on the docs site by `proman-gen-docs-data`.
+
+:::{note}
+Do not confuse `notes.md` with the other optional per-feature docs, which are **not** published to the site and are **not** read by the build pipeline:
+
+- **`dev-notes.md`** — developer-only notes (design decisions, research, implementation rationale).
+- **`tool-ref.md`** — a developer research reference on the tool's installation methods (templated from `features/tool-ref.template.md`).
+
+Only `notes.md` feeds the generated feature page.
+:::
 
 ## What to Put Here
 

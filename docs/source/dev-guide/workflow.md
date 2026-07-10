@@ -10,13 +10,21 @@ just --list          # full list with descriptions, grouped by category
 
 Tasks follow the naming convention `<type>-<domain>[-<modifier>]` (e.g. `format-sh`, `lint-py-check`, `test-feats`). The bare name applies changes; the `-check` suffix is the verify-only, no-write variant. See {doc}`/dev-guide/devops/dev` for the full architecture.
 
-Every recipe routes to either a `pixi run <task>` call (Python-managed tools) or a `bash .dev/scripts/...` call (system-level operations). There is no inline logic in the `justfile`.
+Every recipe routes to either a `pixi run <task>` call (Python-managed tools such as `proman`, `ruff`, `pytest`, and Sphinx) or a `bash .dev/scripts/...` call (system-level operations like Docker, BATS, and GHA log streaming). Most recipes delegate directly with no inline logic; a few composite recipes (`lint`, `test`, `work`) assemble a list of steps for the capture runner.
 
 ### Git Hooks
 
 [Lefthook](https://github.com/evilmartians/lefthook) manages optional pre-commit hooks, defined in `.config/lefthook.yml`. Run `lefthook install` once after cloning to register the hooks. The pre-commit hook runs `just format-sh` on staged shell files and `just lint-py` plus `just format-py` on staged Python files (re-staging any fixes). Hooks are opt-in; CI enforces the same checks unconditionally.
 
 ## Typical Daily Loop
+
+After making changes, the fastest path is **`just work`**, which formats, lints, re-syncs `src/`, and runs the tests impacted by your changed files — all in one command:
+
+```bash
+just work                      # format + lint + sync-src + targeted tests for changed files
+```
+
+To run individual steps:
 
 ```bash
 # After editing features/ or lib/:
@@ -27,14 +35,14 @@ just format                    # format all shell + Python files in place
 just lint                      # check-only lint — what CI runs
 
 # Run tests:
-just test-lib                  # library unit tests (requires Docker)
+just test-lib                  # library unit tests in a container (requires Docker)
 just test-feats <feature>      # feature scenario tests (requires Docker)
 
 # Build and preview docs:
 just build-docs-live           # live-reload docs in browser
 ```
 
-All task output is captured with a timestamped log under `.local/reports/<name>/`.
+Recipes that wrap their work in the capture runner (e.g. `lint`, `test-*`, `work`, `build-docs-live`) write a timestamped log under `.local/reports/<name>/` and print its path as the last line of output. CI-log fetches from `just fetch-gha` land under `.local/logs/gha/` instead.
 
 ## Code Style
 
@@ -43,6 +51,8 @@ All task output is captured with a timestamped log under `.local/reports/<name>/
 All shell scripts are formatted with **shfmt** and linted with **shellcheck**. Style is fully defined in `.editorconfig` (shfmt reads it automatically) and `.shellcheckrc`. Run `just format` to format and `just lint` to check.
 
 `features/*/install.bash` are body-only files (no shebang). Shellcheck runs on the assembled `src/*/install.bash`, so run `just sync-src` before `just lint-sh-check` when `src/` is missing or stale.
+
+In addition to shellcheck, `just lint` runs a project-specific check, `lint-sh-local-vars`, that requires function-scoped variables in `lib/*.{bash,sh}` to be declared `local` (module globals must be `ALL_CAPS` or `_<MODULE>__`-prefixed; suppressions live in `.config/lib-local-vars.allowlist`).
 
 ### Python
 

@@ -12,20 +12,18 @@ Tests run in the `test` pixi environment (activated automatically via `pixi run 
 
 ## What's Covered
 
-| Test file | What it tests |
-|-----------|--------------|
-| `test_metadata.py` | Feature metadata parsing and validation |
-| `test_config.py` | Project config loading (`_main.yaml`, `ci.yaml`, `docs.yaml`) |
-| `test_config_schema.py` | Config schema validation |
-| `test_codegen.py` | `install.bash` code generation from templates |
-| `test_install_script_codegen.py` | Generated install script structure and content |
-| `test_argparse_manifest_schema.py` | Argparse manifest schema validation |
-| `test_schema_bundle.py` | JSON schema bundling for docs publication |
-| `test_feature_env.py` | Feature environment variable computation |
-| `test_cicd_detect.py` | CI/CD change detection logic |
-| `test_detect_releasable.py` | Release detection (features needing new GitHub Releases) |
-| `test_run_install.py` | Test runner injection logic |
-| `test_test_runner_injection.py` | Test script generation from `checks.yaml` |
+`test/proman/` holds ~40 `test_*.py` files (browse the directory for the full, current set). They cluster into a few areas:
+
+| Area | Example files | What it tests |
+|------|---------------|---------------|
+| Metadata & config | `test_metadata.py`, `test_config*.py` | `metadata.yaml` parsing/validation; project-config loading |
+| Sync / codegen | `test_codegen.py`, `test_install_script_codegen.py` | `install.bash` and `devcontainer-feature.json` generation |
+| Schemas | `test_argparse_manifest_schema.py`, `test_schema_bundle.py` | schema validation and docs-schema bundling |
+| Test-generation engine | `test_gen_*.py` (≈15 files) | the feature-test generator: rules, outcome model, method resolver, env selection, blocks |
+| Test loading / validation | `test_feature_test_loader.py`, `test_effective_suppress.py`, `test_scenarios.py`, `test_checks.py`, `test_environments.py` | merging generated + hand-written tests, suppression, schema validation |
+| CI / release | `test_cicd_detect.py`, `test_detect_releasable.py` | change detection and release eligibility |
+
+`test/proman/` itself is the source of truth — this table is an orientation aid, not an exhaustive list.
 
 ## When to Add Tests
 

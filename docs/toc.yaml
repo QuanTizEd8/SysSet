@@ -48,6 +48,7 @@ entries:
           - file: dev-guide/features/install.bash
           - file: dev-guide/features/src
           - file: dev-guide/features/notes.md
+          - file: dev-guide/features/context
 
       - file: dev-guide/tests
         entries:

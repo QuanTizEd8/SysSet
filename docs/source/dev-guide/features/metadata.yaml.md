@@ -73,6 +73,8 @@ options:
 | `_apply_when` | `metadata.shared.yaml` only | **Sync-time** boolean. A `#{{ python }}#` expression; if falsy, the shared option is excluded from that feature entirely. |
 | `_path` | Either | File-test validation (e.g. `-f`, `-d`, `-x`) generated into the install-script header; skipped when the option is empty |
 | `_uri` | Either | Marks an option as URI-capable. `true` fetches the URI to a temp file; object form: `{chmod: "+x"}` for executables or `{chmod: "600"}` for credential files |
+| `_content_or_uri` | Either | Value may be inline multi-line content **or** a URI/path; materialized to a session temp file before validation |
+| `_jsonschema` | Either | Validate the resolved file (from `_uri` / `_content_or_uri` / `_path`) against a JSON Schema (path relative to the feature dir) |
 
 For `type: array` options, generated scripts trim each element and drop empty entries before URI resolution and validation.
 
@@ -84,7 +86,7 @@ For `type: array` options, generated scripts trim each element and drop empty en
 - `method` — installation method (`auto` | `binary` | `package` | ...)
 - `log_level` — verbosity (`silent | error | warn | info | debug | trace`)
 - `log_file` — path to capture install log
-- `log_file_level` — file log verbosity (default: `trace`, enables bash xtrace)
+- `log_file_level` — file log verbosity (default: `debug`; `trace` additionally enables bash xtrace)
 - `if_exists` — behavior when tool is already present (`skip | fail | reinstall | update | uninstall`)
 - Additional options for common patterns (`keep_cache`, `keep_build_deps`, fetch headers, etc.)
 
@@ -105,7 +107,7 @@ _options:
     inputs: [stable, latest, semver]
   method:
     binary:
-      asset_uri: "https://github.com/{GH_REPO}/releases/download/{TAG}/tool-{VERSION}-{OS}-{ARCH}.tar.gz"
+      asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/tool-{feat.version}-{plat.kernel:lower}-{plat.machine_release}.tar.gz"
       binary_src:
         - tool
     package: {}
@@ -176,6 +178,7 @@ Everything else has a sensible default: `default` is `stable`, `flag` is `--vers
 |-----|---------|---------------|
 | `default` | `stable` | The tool's natural default is not `stable` (e.g. `lts/*` for Node.js, `master` for git-cloned repos) |
 | `flag` | `--version` | The tool reports its version differently (e.g. `version` as a subcommand) |
+| `tag_prefix` | (empty) | Filter releases/tags by a tag prefix (e.g. `v`, `jq-`) before matching |
 | `uri` | auto-derived from `gh_repo` | `resolution: sidecar` — URL of the checksum file |
 | `pattern` | (required for sidecar) | `resolution: sidecar` — filename pattern, e.g. `zsh-[version].tar.xz` |
 | `description` | auto-generated per resolution type | `resolution: none` — the tool has a unique versioning scheme the generic description doesn't capture |
@@ -244,13 +247,16 @@ The `method` shared option is only injected when at least two methods are declar
 
 ```yaml
 binary:
-  asset_uri: "https://github.com/{GH_REPO}/releases/download/{feat.tag}/tool-{feat.version}-{plat.kernel:lower}-{plat.machine_release}.tar.gz"
-  sidecar_uri: "https://github.com/{GH_REPO}/releases/download/{feat.tag}/tool-{feat.version}-{plat.kernel:lower}-{plat.machine_release}.tar.gz.sha256"
+  asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/tool-{feat.version}-{plat.kernel:lower}-{plat.machine_release}.tar.gz"
+  sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/tool-{feat.version}-{plat.kernel:lower}-{plat.machine_release}.tar.gz.sha256"
   binary_src:             # source path(s) inside the archive (suffix-match)
     - tool                # one entry: single binary; multiple entries: fan-out copies
+  companion_bins:         # optional: extra bins in the archive to symlink to the primary
+    - tool-helper
+  # gpg_key_uri / gpg_sig_uri:  optional GPG signature verification
 ```
 
-URI substitutions use qualified context tokens expanded by `ctx__expand_pattern` — see [Unified condition context](context.md). Common tokens: `{feat.version}`, `{feat.tag}`, `{plat.kernel:lower}`, `{plat.machine_release}`, `{plat.rust_triple}`, `{GH_REPO}` (from `_options.gh_repo`).
+The repository is referenced with `${{ _options.gh_repo }}$`, a **build-time** pyserials substitution resolved during `sync-src` (not a runtime token). The remaining `{…}` placeholders are **runtime** context tokens expanded by `ctx__expand_pattern` at install time — see {doc}`context`. Common runtime tokens: `{feat.version}`, `{feat.tag}`, `{plat.kernel:lower}`, `{plat.machine_release}`, `{plat.rust_triple}`. Inline conditionals are supported, e.g. `{feat.version>=1.7?new:old}`.
 
 The auto-implementation handles: URI expansion, fetch, SHA256 verification (from GitHub JSON or sidecar), extraction, and binary placement. A single `binary_src` entry installs to `${PREFIX}/bin/<basename>`; multiple entries install real copies into `${PREFIX}/bin/` via fan-out (use `companion_bins` for symlinks to the primary binary only). Override with `__install_run_binary_pre` only when the asset URI or verification logic must be computed dynamically.
 
@@ -278,11 +284,15 @@ Use this for any package-manager install that first extends package-source confi
 
 ```yaml
 source:
-  asset_uri: "https://github.com/{GH_REPO}/archive/refs/tags/{feat.tag}.tar.gz"
-  sidecar_uri: "https://github.com/{GH_REPO}/releases/download/{feat.tag}/sha256sums.txt"
-  build_system: make              # or: autotools
+  asset_uri: "https://github.com/${{ _options.gh_repo }}$/archive/refs/tags/{feat.tag}.tar.gz"
+  sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/sha256sums.txt"
+  fallback_asset_uri: "..."       # optional: alternate URL if the primary fetch fails
+  build_system: make              # autotools | make | cmake
+  configure_args: ["--with-openssl"]  # autotools ./configure args
+  cmake_args: ["-DBUILD_TESTS=OFF"]    # cmake args (build_system: cmake)
   build_env:                      # optional: exported during auto-build
     - GOTOOLCHAIN=auto
+  make_flags: ["USE_LIBPCRE2=YesPlease"]  # optional make variable assignments
   make_targets: ["all"]           # optional; defaults to ["all", "install"]
   install_bins:                   # optional: copy built artifacts after auto-build
     - bin/tool
@@ -290,8 +300,9 @@ source:
 
 The source auto-implementation handles: archive download, optional sidecar verification, extraction, and the declared auto-build flow:
 
-- `build_system: autotools` → `./configure --prefix="${PREFIX}"` then `make`
-- `build_system: make` → `make` only
+- `build_system: autotools` → `./configure --prefix="<prefix>" ${configure_args}` then `make`
+- `build_system: make` → `make ${make_flags} ${make_targets}` only
+- `build_system: cmake` → configure + build with `${cmake_args}`
 
 Use `build_env` for exported build-time environment variables that must be visible to `./configure` and/or `make`. Use `make_targets` / `make_flags` / `configure_args` when upstream already exposes a suitable install target. Use `install_bins` when upstream builds binaries but does not provide an install step; each listed path is copied from the extracted source tree into `${PREFIX}/bin/<basename>` after the auto-build succeeds. Only define `__install_run_source_build` when the build/install process cannot be expressed with those declarative controls.
 
@@ -336,19 +347,6 @@ npm-bundled:
 
 Bundles its own Node.js installation at `${PREFIX}` — no system Node.js required.
 
-**`source` — build and install from a source tarball:**
-
-```yaml
-source:
-  asset_uri: "https://github.com/{GH_REPO}/archive/refs/tags/{TAG}.tar.gz"
-  build_system: autotools   # autotools | make
-  configure_args: ["--with-openssl"]
-  make_flags: ["USE_LIBPCRE2=YesPlease"]
-  make_targets: ["all", "install"]
-```
-
-When `build_system` is set, auto-runs `./configure --prefix=${PREFIX} ${configure_args}` then `make`. Omit `build_system` and define `__install_run_source_build <src_dir>` for custom build logic.
-
 **`git-clone` — clone a Git repository:**
 
 ```yaml
@@ -371,8 +369,8 @@ _options:
     bin_dir: bin                      # subdirectory of PREFIX containing binaries (default: "bin")
     root: /usr/local                  # default prefix when root (default: "/usr/local")
     nonroot: "${HOME}/.local"         # default prefix when non-root
-    platform_overrides:               # platform-specific prefix defaults
-      - when: {kernel: darwin}
+    platform_overrides:               # platform-specific prefix defaults (first match wins)
+      - when: {plat.kernel: Darwin}
         default: /opt/homebrew
     symlink:
       root: /usr/local/bin            # where to create symlinks when root
@@ -502,22 +500,22 @@ Full manifest syntax (same format as `features/install-os-pkg/manifest.schema.js
 
 ```yaml
 # Optional global condition — skips entire manifest if false
-when: {pm: apt}
+when: {plat.pm: apt}
 
 # Signing keys fetched before repos
 keys:
   - url: https://example.com/key.gpg
     dest: /usr/share/keyrings/example.gpg
 
-# Repository lines (PM-native format; {deb_arch} etc. substituted at runtime)
+# Repository lines (PM-native format; {plat.deb_arch} etc. substituted at runtime)
 repos:
-  - content: "deb [arch={deb_arch} signed-by=...] https://repo.example.com stable main"
+  - content: "deb [arch={plat.deb_arch} signed-by=...] https://repo.example.com stable main"
 
 # Packages for all PMs (or with per-item conditions)
 packages:
   - git
   - name: curl
-    when: {pm: apt}
+    when: {plat.pm: apt}
 
 # Per-PM package blocks
 apt:
@@ -534,7 +532,7 @@ scripts: |
   ldconfig
 ```
 
-Available `when` keys: `pm` (`apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman`), `kernel` (`linux`/`darwin`), `arch`, `deb_arch`, `id`, `id_like`, `version_id`, `version_codename`, and any other `/etc/os-release` field.
+`when` keys must be **qualified** (`plat.*` / `os.*` / `feat.*`), using the same grammar as feature `when` blocks — see {doc}`context`. Common manifest keys: `plat.pm` (`apt`, `brew`, `dnf`, `apk`, `yum`, `zypper`, `pacman`), `plat.kernel` (`Linux`/`Darwin`), `plat.machine_release`, `plat.deb_arch`, `os.id`, `os.id_like`, `os.version_id`, `os.version_codename`, and any other `os.<field>` from `/etc/os-release`.
 
 The schema is published at `/schema/manifest.json` on the docs site. See `.config/proman/docs.yaml` → `json_schemas_publish`.
 
@@ -584,6 +582,20 @@ customizations:
 _long_description: >-
   Detailed prose description used for docs generation.
 ```
+
+### Advanced internal fields
+
+For features with special needs, `metadata.yaml` also supports these internal (`_`-prefixed) fields:
+
+| Field | Purpose |
+|-------|---------|
+| `_files` | Files to write under `src/<id>/files/` at sync time (`{path, content}`); may be pyserials-generated |
+| `_internal` | Free-form data reused elsewhere in the metadata via pyserials (`get("_internal.…")`); never emitted |
+| `_system_requirements` | `platforms` (a `when`-list) and `root` (bool or `when`-list) guards enforced before install |
+| `_env_vars` | Extra canonical bash env vars exposed to the installer |
+| `_tool_name` | Human-readable tool name used in generated docs |
+| `_devcontainer` | Example `devcontainer.json` used for the generated `.devcontainer/{test,try}-<id>/` containers |
+| `entrypoint._conf_vars` / lifecycle `_conf_vars` | Install-time values persisted into the feature's entrypoint / lifecycle config |
 
 ---
 

@@ -218,9 +218,9 @@ def _parse_body(raw_lines: list[str]) -> list[ParagraphBlock | SectionBlock]:
 def _parse_module_header(lines: list[str]) -> tuple[str, str]:
     """Extract (summary, long_description) from the initial comment block.
 
-    Reads the consecutive comment lines immediately after the shebang.
-    The first non-empty line is the summary; lines after the first blank
-    comment line form the long description.
+    Reads the consecutive comment lines immediately after the shebang or a
+    leading ``# shellcheck`` directive. The first non-empty line is the
+    summary; lines after the first blank comment line form the long description.
 
     Returns
     -------
@@ -236,6 +236,15 @@ def _parse_module_header(lines: list[str]) -> tuple[str, str]:
         raw.append(content)
 
     # Drop leading blank lines.
+    while raw and not raw[0]:
+        raw.pop(0)
+
+    # Library modules are sourced, not executed, so they begin with a
+    # `# shellcheck shell=bash` directive instead of a shebang. Skip leading
+    # shellcheck directive lines so the human summary — not the linter
+    # directive — becomes the module summary.
+    while raw and raw[0].startswith("shellcheck"):
+        raw.pop(0)
     while raw and not raw[0]:
         raw.pop(0)
 

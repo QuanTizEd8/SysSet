@@ -10,6 +10,7 @@ The CI/CD stack lives under `.github/workflows/`. All workflows are reusable and
 | `lint.yaml` | Reusable | Shell format-check + shellcheck, Python format-check + ruff, and devcontainer-feature.json schema validation |
 | `test-lib.yaml` | Reusable | Library unit tests (BATS) in container matrix |
 | `test-dev.yaml` | Reusable | Python unit tests for proman (pytest) |
+| `test-install.yaml` | Reusable | Install-framework tests (BATS over synced `install.bash`) |
 | `test-features.yaml` | Reusable | Feature scenario tests (devcontainer + standalone + macOS) |
 | `build-devcontainer.yaml` | Reusable | Build and publish the CI devcontainer image |
 | `build-docs.yaml` | Reusable | Build Sphinx docs |
@@ -35,8 +36,9 @@ Jobs are enabled/disabled based on which paths changed. Glob patterns are config
 | `**/*.sh`, `**/*.bash`, `**/*.bats` | lint (shell) |
 | `**/metadata.yaml`, `**/*.schema.json` | lint (schema validation) |
 | `lib/*.sh`, `lib/*.bash`, `lib/*.json`, `test/lib/**` | `test-lib` |
-| `lib/**` or `features/install.sh` | `test-features` for **all** features |
+| `lib/**`, `features/install.sh`, or `features/metadata.shared.yaml` | `test-features` for **all** features |
 | `features/<id>/` or `test/features/<id>/` | `test-features` for **that feature only** |
+| `features/install.tmpl.bash`, `lib/**`, or `test/install/**` | `test-install` (install-framework) |
 | `.devcontainer/.dev/**` | `build-devcontainer` |
 | `docs/**`, `features/**`, `lib/**`, `.config/proman/docs.yaml` | `build-docs` |
 | `.dev/lib/**`, `.config/proman/**`, `test/proman/**` | `test-dev` (Python tests) |
@@ -95,6 +97,8 @@ Per-scenario install logs are also written during local/CI test runs under
 | `run_python` | true | Python lint + pytest |
 | `run_docs` | true | Build docs |
 | `run_unit` | true | Library unit tests |
+| `run_install` | true | Install-framework unit tests |
+| `run_install_linux` | true | Install-framework tests in Linux container matrix |
 | `run_lib_linux` | true | Library tests in Linux container matrix |
 | `run_lib_macos` | true | Library tests on macOS runner |
 | `run_features` | true | Feature scenario tests |
@@ -123,6 +127,10 @@ Two parallel groups:
 | Linux container matrix | ubuntu-latest runner; each environment from `test/lib/scenarios.yaml` runs in its own Docker container (Ubuntu, Debian, Fedora, Rocky, Alpine, openSUSE, Arch) |
 | macOS | Native macOS runners; installs bash ≥4 via `brew install bash` before running |
 
+### Install Framework Tests
+
+Runs the install-framework BATS suite (`test/install/*.bats`) against the synced `install.bash` in the Linux container matrix. It exercises the template orchestration helpers (`__resolve_auto_method__`, dependency dispatch, version-input parsing, init resolution order) by sourcing a synced feature installer with its final dispatch call stripped. Requires `just sync-src` to have run.
+
 ### Feature Scenario Tests
 
 Runs feature tests via `proman-test-run`. Three sub-modes run in parallel:
@@ -131,7 +139,7 @@ Runs feature tests via `proman-test-run`. Three sub-modes run in parallel:
 - **Standalone Linux** (`test-features-linux`): runs `install.bash` directly in plain Docker containers (standalone mode).
 - **macOS** (`test-features-macos`): runs on native `macos-latest` runners for scenarios with `modes: [macos]`.
 
-Scenarios inherit logging defaults from `test/features/defaults.shared.yaml` (`log_level: debug`, `log_file_level: debug`). Each job uploads `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` as a `feat-log-*` artifact for post-mortem analysis (see log table under **Monitoring CI** above).
+Scenarios inherit logging defaults from `test/features/defaults.shared.yaml` (`log_level: debug`, `log_file_level: debug`). Each job uploads `.local/logs/tests/features/<feature>--<scenario-key>--<mode>.log` as a `feat-log-*` artifact for post-mortem analysis (see the log table under **Manual Triggers** above).
 
 ### Docs Build
 
@@ -147,7 +155,7 @@ Deployment runs automatically on `push` to `main` when at least one feature has 
 
 ### Deploy: GHCR
 
-Uses `devcontainers/action` with `publish-features: "true"` to push each feature as an OCI image to GHCR. Tags: `:<major>`, `:<major.minor>`, `:<major.minor.patch>`.
+Uses `devcontainers/action` with `publish-features: "true"` to push each feature (from the synced `src/` artifact) as an OCI image to GHCR. The action generates the tags `:latest`, `:<major>`, `:<major.minor>`, and `:<major.minor.patch>`.
 
 Repo-tagging is disabled (`disable-repo-tagging: "true"`) — the `deploy-gh-release` job handles Git tags.
 
@@ -158,9 +166,13 @@ A matrix job runs per feature in `features_to_release`. For each feature:
 1. Creates annotated Git tag `<feature-id>/<X.Y.Z>` on the commit.
 2. Creates a GitHub Release `<feature-id>/<X.Y.Z>` with the feature tarball as the release asset (`devfeats-<feature-id>.tar.gz`).
 
+### Deploy: Library
+
+The shared bash library is released **independently** of the features by the `deploy-lib-release` job: it creates the Git tag `lib/<X.Y.Z>` and a GitHub Release whose single asset is `devfeats-bashlib.tar.gz` (built by `just build-lib`). The library is **not** published to GHCR.
+
 ### Deploy: Docs
 
-Deploys the built docs site to GitHub Pages when docs content changes.
+The `deploy-gh-pages` job publishes the built docs site to GitHub Pages. It runs as part of the deployment workflow — i.e. on every `push` to `main` that triggers a deploy — not only when docs content changes.
 
 ### Release Identity
 
@@ -170,7 +182,9 @@ Each feature has its own independent release identity:
 |----------|--------|
 | Git tag | `<feature-id>/<X.Y.Z>` (e.g. `install-pixi/1.2.3`) |
 | GitHub Release | One per tag; one asset: `devfeats-<feature-id>.tar.gz` |
-| GHCR image | `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>:<major>`, `:<major.minor>`, `:<major.minor.patch>` |
+| GHCR image | `ghcr.io/|{{github_user}}|/|{{github_repo}}|/<feature-id>` tagged `:latest`, `:<major>`, `:<major.minor>`, `:<major.minor.patch>` |
+
+The shared library has its own separate identity: Git tag `lib/<X.Y.Z>` and one GitHub Release with the asset `devfeats-bashlib.tar.gz` (no GHCR image).
 
 ## Version-Bump Discipline (CI Guard)
 

@@ -131,17 +131,17 @@ oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-gh:0.1.0 -o ./inst
 
 ##### From GitHub Releases
 
-Features are published to GitHub Releases under `<base>/<feature-id>/<version>/devfeats-<feature-id>-<version>.tar.gz`, where `<base>` is `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. To download a feature from GitHub Releases, you can use any networking tool (e.g. `curl` or `wget`) to download the corresponding asset. For example:
+Features are published to GitHub Releases under `<base>/<feature-id>/<version>/devfeats-<feature-id>.tar.gz`, where `<base>` is `https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download`. The version appears in the release tag (and therefore the URL path), but **not** in the asset filename. To download a feature from GitHub Releases, you can use any networking tool (e.g. `curl` or `wget`) to download the corresponding asset. For example:
 
 ```sh
 # use curl to download 'install-gh' version '0.1.0' and save as './feature.tgz'
 ID=install-gh; VERSION=0.1.0; curl -fsSL \
-  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
+  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID.tar.gz \
   -o ./feature.tgz
 
 # use wget to download 'install-git' version '0.1.0' and save as 'install-git/feature.tgz'
 ID=install-git; VERSION=0.1.0; wget -q \
-  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz \
+  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID.tar.gz \
   -O $ID/feature.tgz
 ```
 

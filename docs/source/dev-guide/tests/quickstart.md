@@ -5,30 +5,26 @@
 ```
 test/
 ├── environments.yaml            ← Central Docker image registry for all tests
+├── environments.schema.json
 ├── features/
-│   └── <feature-id>/
-│       ├── scenarios.yaml       ← Test matrix (envs, modes, options) — edit this
-│       ├── checks.yaml          ← Test assertions — edit this
-│       └── tests/
-│           └── *.sh             ← AUTO-GENERATED from checks.yaml — never edit
+│   ├── generation.yaml          ← Global test-generation config
+│   ├── defaults.shared.yaml     ← Options merged into every generated scenario
+│   ├── {scenarios,checks,generation}.schema.json
+│   └── <feature-id>/            ← ONLY when a feature overrides/augments generated tests
+│       ├── scenarios.yaml       ← Extra/override scenarios + generation: block — edit this
+│       └── checks.yaml          ← Extra/override assertions — edit this
+│                                  (test scripts are rendered on the fly — no tests/*.sh on disk)
 ├── lib/
 │   ├── *.bats                   ← BATS unit tests (one file per lib module)
 │   ├── integration/             ← real-tool integration tier
 │   ├── scenarios.yaml           ← BATS test environment matrix
-│   ├── helpers/
-│   │   ├── common.bash          ← reload_lib() helper
-│   │   ├── stubs.bash           ← create_fake_bin(), begin/end_path_isolation()
-│   │   └── json_assert.bash     ← JSON-specific assertions
+│   ├── helpers/                 ← reload_lib(), stubs, JSON/ctx assertions
 │   ├── setup_suite.bash         ← bash ≥4 guard (auto-discovered by bats)
-│   └── bats/                    ← Git submodules — NEVER EDIT
+│   └── bats/                    ← Git submodules (bats-core/-support/-assert/-file) — NEVER EDIT
 ├── install/
-│   ├── *.bats                   ← install framework unit tests (see {doc}`install`)
-│   ├── scenarios.yaml           ← container matrix for install framework CI
-│   └── helpers/                 ← source_framework + lib helper re-exports
-│       ├── bats-core/
-│       ├── bats-support/
-│       ├── bats-assert/
-│       └── bats-file/
+│   ├── *.bats                   ← install-framework unit tests (see {doc}`install`)
+│   ├── scenarios.yaml           ← container matrix for install-framework CI
+│   └── helpers/                 ← ensure_framework / source_framework + stubs / capture
 └── proman/
     └── test_*.py                ← pytest tests for the build system (proman)
 ```
@@ -40,9 +36,10 @@ test/
 |--------|--------------|
 | New or changed `lib/` function | `@test` block in `test/lib/<module>.bats` |
 | New or changed install framework helper in `install.tmpl.bash` | `@test` in `test/install/<concern>.bats` — see {doc}`install` |
-| New feature behavior (devcontainer) | New scenario in `scenarios.yaml` + checks in `checks.yaml` |
+| New feature behavior not auto-derivable | New scenario in `scenarios.yaml` + checks in `checks.yaml` |
+| Adjust an auto-generated scenario | A `generation:` block (`suppress` / `augment_tests`) in `scenarios.yaml` — see {doc}`features` |
 | Feature install should fail (non-zero exit) | `kind: install_failure` check in `checks.yaml` |
-| Feature behavior requiring real macOS | Scenario with `envs: [macos-latest]` and `modes: [macos]` |
+| Feature behavior requiring real macOS | Scenario with `envs: [macos-current]` (or `macos-current+brew`) and `modes: [macos]` |
 | Network-isolated code path | Standalone scenario with `standalone.network: none` |
 | Non-root install path | Scenario with `setup: useradd -m -s /bin/bash <user>` and `devcontainer.remoteUser`/`standalone.user` |
 | Build system / metadata change | `test/proman/test_*.py` |
@@ -74,12 +71,17 @@ just test [<feature>]
 
 ## Workflow for a New Feature
 
-```bash
-# 1. Write scenarios and checks
-vim test/features/<feature>/scenarios.yaml
-vim test/features/<feature>/checks.yaml
+Most features need **no** hand-written tests — the generator derives them from `metadata.yaml`. Preview what it produces, then add overrides only if needed:
 
-# 2. Run
+```bash
+# 1. See the generated tests (no writes)
+proman-test-gen-preview <feature>
+
+# 2. (Optional) add overrides in test/features/<feature>/{scenarios,checks}.yaml,
+#    using a generation: block to suppress/augment generated scenarios.
+
+# 3. Validate and run
+just validate-tests <feature>
 just test-feats <feature>
 ```
 

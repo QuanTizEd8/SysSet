@@ -99,7 +99,7 @@ Enum options are just like string options, but their allowed values are constrai
 
 ### Boolean
 
-Boolean options are flags that can be either `true` or `false`.
+Boolean options are set to either `true` or `false`. The value is always explicit — there are no bare on/off flags, so on the CLI you write `--<option> true`, not a lone `--<option>`.
 
 ::::{tab-set}
 
@@ -107,8 +107,8 @@ Boolean options are flags that can be either `true` or `false`.
 ```jsonc
 {
   "features": {
-    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-direnv": {
-      "method": "binary"
+    "ghcr.io/|{{github_user}}|/|{{github_repo}}|/install-git": {
+      "keep_cache": true
     }
   }
 }
@@ -118,15 +118,15 @@ Boolean options are flags that can be either `true` or `false`.
 :::{tab-item} CLI
 
 ```sh
-sh install-direnv/install.sh \
-  --method binary
+sh install-git/install.sh \
+  --keep_cache true
 ```
 :::
 
 :::{tab-item} Env Var
 
 ```sh
-METHOD=binary sh install-direnv/install.sh
+KEEP_CACHE=true sh install-git/install.sh
 ```
 :::
 
@@ -185,7 +185,58 @@ FiraCode" sh install-fonts/install.sh
 
 ## Common Options
 
-Some options are shared across features, such as logging-related options, cache configuration, authentication options, user configuration, version specification, installation method, and more. These appear in each feature's reference page, with the same names and semantics, so you can rely on them working the same way in every feature that supports them.
+Some options are **shared across features**, with the same names and semantics everywhere, so you can rely on them working the same way in every feature that supports them. Which of these a feature actually exposes depends on what it does — for example, only features that offer more than one installation strategy have a `method` option, and only features that install a versioned tool have a `version` option. The canonical set of shared options and their defaults is defined once in [`features/metadata.shared.yaml`](https://github.com/|{{github_user}}|/|{{github_repo}}|/blob/main/features/metadata.shared.yaml); each feature's exact option list, types, and defaults are on its reference page in the [Features](/features.md) section. This section describes the most common ones by semantics; consult the feature page for concrete values.
+
+### Tool Version
+
+The **`version`** option selects which version of the underlying tool a feature installs. This is the *tool* version, not the feature's own release version — see [Feature Version ≠ Tool Version](versioning.md#feature-version-tool-version). It is present only on features that install a versioned tool. Accepted spellings depend on the feature's upstream source, but generally include:
+
+- **`stable`** *(usual default)* — the newest stable (non-pre-release) version.
+- **`latest`** — the newest version, **including** pre-releases.
+- **a partial or full version** (`1`, `1.2`, `1.2.3`, `1.2.3-rc1`) — the newest version matching that prefix.
+- **source-specific forms** — e.g. npm dist-tags (`next`), or a git branch/tag/commit for features installed from source.
+
+See the feature's reference page for its accepted values. Advanced overrides (`version_uri`, `version_resolution`, `version_flag`, `version_tag_prefix`, `version_pattern`) let you redirect version resolution to a mirror, proxy, or private registry.
+
+### Installation Method
+
+The **`method`** option chooses *how* a feature installs its tool. It appears only when a feature offers **more than one** method; single-method features have no `method` option. The default, **`auto`**, selects the best method that is feasible on the current OS, architecture, and privilege level. Concrete values are per-feature (e.g. `binary`, `package`, `upstream-package`, `source`, `cargo`, `npm`, `script`, `git-clone`); see the feature's reference page for which methods it supports and when each is preferred.
+
+### Re-runs & Idempotency
+
+The **`if_exists`** option *(enum, default `skip`)* controls what happens when the tool is already installed:
+
+- **`skip`** — leave the existing installation untouched (default; makes re-runs cheap).
+- **`fail`** — abort with an error.
+- **`reinstall`** — remove the existing installation and install fresh.
+- **`update`** — resolve the requested version and switch to it if it differs from what's installed.
+- **`uninstall`** — remove the tool.
+
+Because installers guard already-completed work, re-running one after fixing an environment issue is safe and does not require uninstalling first.
+
+### Install Location & Scope
+
+Features that lay down files under a prefix expose a family of options controlling **where** the tool is installed and **how** it is exposed on `PATH`:
+
+- **`prefix`** — the install prefix. It defaults to a system location when running as root (e.g. `/usr/local`) and to a per-user location otherwise (e.g. `~/.local`), so the same feature adapts to system-wide vs. user-scoped installs automatically.
+- **`prefix_discovery`** *(`auto`/`symlink`/`shell`/`all`/`none`)* — how the tool's binaries are put on `PATH`: by symlinking them into a bin directory already on `PATH`, by writing shell `PATH` exports, both, or neither.
+- **`prefix_symlinks`, `prefix_exports`, `prefix_bins`, `prefix_bin_dir`, `prefix_symlink_root`, `prefix_symlink_nonroot`, `runtime_path`** — fine-grained control over the symlink targets, exported shells, and the `PATH` used to decide whether the prefix is already reachable.
+- **`write_group`, `write_users`, `install_user`** — for a tool installed once but shared by several users, these control the OS group that owns the prefix and which users may write to it.
+
+See [Environment Variables](../background/env-vars.md) and [Shell Configuration](../background/shell-config.md) for the underlying `PATH` and shell-startup mechanics these options drive.
+
+### User Configuration
+
+Features that write **per-user** configuration (e.g. shell setup or `git` config) expose options selecting which users to configure:
+
+- **`add_current_user`** *(default `true`)* — the invoking user (or `SUDO_USER`).
+- **`add_remote_user`** *(default `true`)* — the dev container's remote user.
+- **`add_container_user`** *(default `true`)* — the dev container's container user.
+- **`add_users`** — additional usernames to configure.
+
+### Shell Completions
+
+The **`shell_completions`** option *(array)* selects which shells to install command-line completions for (e.g. `bash`, `zsh`, `fish`), for features whose tool ships completion scripts.
 
 ### Logging
 
@@ -222,12 +273,20 @@ All features provide a `keep_cache` boolean option that controls whether package
 
 Most features depend on tools to download files (e.g. `curl`, `wget`, `git`), extract archives (e.g. `tar`, `unzip`), parse JSON API responses (e.g. `jq`), build from source (e.g. `make`, `cmake`), and more. These are not runtime dependencies of the installed features, but they are required to perform the installation. By default, the installer attempts to detect which tools are available in the environment and use them accordingly. If any required tool is missing, the installer will install it automatically and mark it for removal at the end of the installation to avoid leaving unnecessary packages on the system. However, you can also choose to keep them by setting `keep_build_deps` to `true`. This is useful to speed up subsequent installs of other features that use the same tools, at the cost of leaving them on the system.
 
+### Repositories
+
+Features that install their tool from a third-party package repository (e.g. an APT or DNF repo, a Homebrew tap, or a PPA) expose a **`keep_repos`** boolean option *(default `false`)*. When `false`, the added repository and its signing key are removed after installation to leave the system clean. Set it to `true` to keep them registered so the tool can later be upgraded with the system package manager.
+
+### Fetching User-Provided Files
+
+Features that accept file inputs by URI (e.g. a config file or key) expose **`fetch_headers`** and **`fetch_netrc`** for authenticated downloads, and **`installer_dir`** to control the working directory used to download and extract installation artifacts (a temporary directory by default).
+
 
 ## Secrets
 
 Some features support options that are secrets (e.g. tokens, passwords, private keys). These are always only accepted via environment variables, regardless of the installation channel, and are always masked in the captured log stream. They include:
 
-- `GITHUB_TOKEN` *(optional)*: If set, used to authenticate GitHub API calls (avoids anonymous rate limits).
+- `GITHUB_TOKEN` *(optional)*: If set, used to authenticate GitHub API calls and `ghcr.io` OCI pulls (avoids anonymous rate limits). `GH_TOKEN` is accepted as a fallback when `GITHUB_TOKEN` is unset.
 
 ::::{tab-set}
 

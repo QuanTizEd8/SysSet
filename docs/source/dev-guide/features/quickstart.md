@@ -7,7 +7,7 @@ Each feature lives in `features/<feature-id>/`. The canonical `id` is the direct
 ```
 features/<feature-id>/
 ├── metadata.yaml       ← Required: options, description, deps, version (source of truth)
-├── install.bash        ← Required: body-only installer (bash ≥4; header auto-generated)
+├── install.bash        ← Optional: body-only hooks/overrides (bash ≥4.4; template generates the rest)
 ├── notes.md            ← Optional: user-facing supplemental documentation
 ├── dev-notes.md        ← Optional: developer notes (design, research, implementation)
 ├── tool-ref.md         ← Optional: tool installation methods reference for developers
@@ -27,17 +27,17 @@ Files shared across all features (do not duplicate in per-feature directories):
 
 2. **Create `metadata.yaml`** following {doc}`metadata.yaml`. Validate against `features/metadata.schema.json` (VS Code auto-validates when the schema is registered, which the dev container does).
 
-3. **Create `install.bash`** (body only — no shebang, no header). The header and template orchestration are generated. See {doc}`install.bash` for what hooks are available.
+3. **Add `install.bash` only if needed** (body only — no shebang, no header). Many features — e.g. a standard GitHub binary release — need none: `_options` in `metadata.yaml` drives the whole install. Add hooks or overrides here only for custom logic. See {doc}`install.bash` for the available hooks.
 
 4. **Run `just sync-src`** to generate `src/<feature-id>/` and verify the output compiles cleanly.
 
 5. **Run `just lint-sh-check`** to catch shellcheck issues in the assembled `src/<feature-id>/install.bash`.
 
-6. **Create `test/features/<feature-id>/scenarios.yaml`** and `test/features/<feature-id>/checks.yaml`. See {doc}`/dev-guide/tests/features` for the format.
+6. **(Optional) Add tests.** Feature tests are largely **auto-generated** from `metadata.yaml`, so most features need nothing here. To add or override scenarios/checks, create `test/features/<feature-id>/scenarios.yaml` and `checks.yaml` — see {doc}`/dev-guide/tests/features`.
 
-7. **Run `just sync-tests <feature-id>`** to generate the test `*.sh` scripts from `checks.yaml`.
+7. **Validate** any test config with `just validate-tests` (also enforced in CI).
 
-8. **Run `just test-feats <feature-id>`** to execute the scenarios (requires Docker).
+8. **Run** the feature's scenarios with `just test-feats <feature-id>` (requires Docker).
 
 9. **Bump `version`** in `metadata.yaml` for any change that affects behavior. See {doc}`/dev-guide/devops/ci` for the version-bump discipline enforced in CI.
 

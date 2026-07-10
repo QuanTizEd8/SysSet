@@ -116,8 +116,10 @@ html_theme_options = _docs_cfg["html_theme_options"] | {
 
 html_context = _docs_cfg["html_context"] | {
     "project_name": _REPO_NAME,
-    "github_user": _REPO_OWNER,
-    "github_repo": _REPO_NAME,
+    # Lower-cased for OCI (GHCR) references, which must be lowercase; GitHub web
+    # URLs are case-insensitive, so the same lowercased slugs work there too.
+    "github_user": _REPO_OWNER.lower(),
+    "github_repo": _REPO_NAME.lower(),
     "feats": _feature_metadata,
     "lib_modules": _lib_modules,
 }

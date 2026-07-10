@@ -94,6 +94,21 @@ Rules:
 - **No case flavors** in when YAML (`plat.kernel:lower` is invalid). Flavors are pattern-expand-only.
 - Ordering operators (`gte`, `lt`, …) accept strings only (not arrays).
 
+### Where `when` blocks appear
+
+`when` conditions are authored in several places in a feature's `metadata.yaml`. The **selection semantics** — how multiple candidate groups are combined — differ by site:
+
+| Site | Meaning | Selection |
+|------|---------|-----------|
+| `_options.method.<m>.when` | Whether a method is feasible on the current platform (gates `method=auto`) | Any matching group (OR) |
+| `_options.method.binary.binary_src[].when` | Whether to install a given archive member | Per-line filter (AND within the line) |
+| `_options.method.source.{build_env,install_bins}[].when` | Conditional build env / install paths | Any matching group (OR) |
+| `_options.prefix.platform_overrides[].when` | Platform-specific prefix override | **First** matching group wins |
+| `_system_requirements.platforms` / `.root` | Supported-platform / root-required guards | Any matching group (OR) |
+| ospkg manifest `when` (top-level, package, group) | Conditional package installation | Any matching group (OR) |
+
+The build pipeline serializes these YAML `when` blocks into the generated option defaults; at install time the shared library evaluates them against the context registry (`ctx__match_when` / `ctx-match.jq`). Authors write YAML — they never handle the serialized wire form.
+
 ## Pattern expansion
 
 URI, manifest, and option strings use `{namespace.key}` tokens expanded by `ctx__expand_pattern`:
@@ -137,7 +152,7 @@ Unknown keys in conditionals take the false branch; unknown bare tokens are emit
 | `{LIBC}` | `{plat.libc}` |
 | `{OS==linux?…}` | `{plat.kernel==linux?…}` |
 
-Run `.dev/lib/proman/migrate_ctx_metadata.py` to codemod metadata files.
+These mappings are provided for reference when updating older metadata by hand; the current schema rejects the legacy flat keys and tokens outright.
 
 ## `os.id_like` authoring
 

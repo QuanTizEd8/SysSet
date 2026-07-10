@@ -34,7 +34,7 @@ How the generated installer works: the template, hook functions, dispatch order,
 :link: features/install.sh
 :link-type: doc
 
-The POSIX shim that bootstraps bash ≥4 and hands off to `install.bash`.
+The POSIX shim that bootstraps bash ≥4.4 and hands off to `install.bash`.
 :::
 
 :::{grid-item-card} Shared Library
@@ -51,6 +51,14 @@ The shared bash library available to every feature installer. Read this before w
 :link-type: doc
 
 What `just sync-src` produces, how the sync pipeline works, and what each generated file contains.
+:::
+
+:::{grid-item-card} Condition Context
+:class-title: sd-text-center
+:link: features/context
+:link-type: doc
+
+The unified `os.*` / `plat.*` / `feat.*` context registry behind `when` conditions and URI/manifest pattern tokens.
 :::
 
 ::::

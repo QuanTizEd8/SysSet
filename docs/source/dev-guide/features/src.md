@@ -8,8 +8,9 @@
 src/<feature-id>/
 ├── devcontainer-feature.json   ← Generated from metadata.yaml
 ├── install.sh                  ← Copied from features/install.sh (POSIX bootstrap)
-├── install.bash                ← Generated: template header + features/*/install.bash body
-├── lib/                       ← Copy of lib/ (all modules + __init__.bash)
+├── install.bash                ← Rendered template with the feature body injected
+├── lib/                        ← Copy of lib/ (modules + __init__.bash + .jq + schemas)
+├── dependencies/               ← Resolved dependency manifests (sync artifact; not in the release tarball)
 └── files/                      ← Copied from features/<feature-id>/files/ (if present)
 ```
 
@@ -19,9 +20,9 @@ src/<feature-id>/
 
 **`install.sh`** — the POSIX bootstrap. See {doc}`install.sh`.
 
-**`install.bash`** — the assembled installer. The template from `features/install.tmpl.bash` provides the framework; the feature body from `features/<feature-id>/install.bash` is appended after. See {doc}`install.bash`.
+**`install.bash`** — the assembled installer. The template from `features/install.tmpl.bash` provides the framework; the feature body from `features/<feature-id>/install.bash` is **injected after all template function definitions** (just before the final `__main__` dispatch call), then the whole file is formatted with `shfmt`. There is no "header + body" split — the entire template is rendered as one file. See {doc}`install.bash`.
 
-**`lib/`** — a full copy of `lib/`. Sourced at runtime via `lib/__init__.bash`. Each feature gets its own copy so that feature tarballs are self-contained.
+**`lib/`** — a full copy of `lib/` (modules, `__init__.bash`, `.jq` filters, and schemas). Sourced at runtime via `lib/__init__.bash`. Each feature gets its own copy so that feature tarballs are self-contained.
 
 ## Sync Command
 
@@ -31,10 +32,11 @@ just sync-src-check     # verify src/ is current (exits non-zero if stale; used 
 ```
 
 `just sync-src` runs `proman-sync` (Python), which:
-1. Validates every `features/*/metadata.yaml` against `features/metadata.schema.json`.
-2. Generates `devcontainer-feature.json` and `install.bash` for each feature.
-3. Copies `features/install.sh` and `lib/` into each feature's output directory.
+1. Loads and augments each `features/*/metadata.yaml` (merges `metadata.shared.yaml`, filters `_apply_when` options, runs the pyserials template filler) and validates it against `features/metadata.schema.json`.
+2. Generates `devcontainer-feature.json` and renders `install.bash` for each feature.
+3. Copies `features/install.sh`, all of `lib/`, and any other git-tracked feature-root asset (e.g. a `manifest.schema.json`) into each feature's output directory.
 4. Copies any `features/<id>/files/` content.
+5. Writes the `.devcontainer/{test,try}-<id>/devcontainer.json` live-testing containers (see {doc}`/dev-guide/tests/live`).
 
 Feature discovery is automatic — any directory under `features/` that contains a `metadata.yaml` is treated as a feature.
 

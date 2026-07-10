@@ -2,7 +2,7 @@
 
 `features/<feature-id>/install.bash` is the feature-specific body of the installer. It contains **only** the hooks and data overrides that define the feature's custom behavior — no shebang, no header, no argument parsing.
 
-The full installer is assembled by `just sync-src`: the template (`features/install.tmpl.bash`) provides the entire framework (argument parsing, library sourcing, version/method resolution, binary installation, PATH export, shell completions, lifecycle hooks), and the feature's `install.bash` is **appended after all template definitions**. Any function a feature defines overrides the corresponding template function.
+The full installer is assembled by `just sync-src`: the template (`features/install.tmpl.bash`) provides the entire framework (argument parsing, library sourcing, version/method resolution, binary installation, PATH export, shell completions, lifecycle hooks), and the feature's `install.bash` is **injected after all template function definitions** (immediately before the single `__main__ "$@"` dispatch call at the end of the file). Any function a feature defines therefore overrides the corresponding template function.
 
 ---
 
@@ -104,8 +104,10 @@ LOG_LEVEL                   # Console verbosity (silent|error|warn|info|debug|tr
 LOG_FILE                    # Path to session log file (empty = no file)
 LOG_FILE_LEVEL              # File verbosity (default: trace)
 IF_EXISTS                   # Behavior when tool exists: skip|fail|reinstall|update|uninstall
-PREFIX                      # Installation directory (set when _options.prefix declared)
+PREFIX                      # Raw prefix option (may be an array with root/non-root/platform variants)
+_RESOLVED_PREFIX            # Resolved, writable install prefix — use THIS in build/install hooks
 PREFIX_SCOPE                # "system" (root) or "user" (non-root)
+RUNTIME_PATH                # PATH used to decide whether the prefix is already reachable
 SHELL_COMPLETIONS           # Array of shells for completions
 INSTALLER_DIR               # Working dir for downloads (set when _options.installer_dir true)
 ```
@@ -114,8 +116,9 @@ INSTALLER_DIR               # Working dir for downloads (set when _options.insta
 
 ```bash
 VERSION_URI                 # Metadata endpoint (GitHub API URL, npm registry URL, etc.)
-VERSION_RESOLUTION          # Resolution type: github_release, github_tag, npm, cargo, git_ref, none
+VERSION_RESOLUTION          # Resolution type: github_release, github_tag, npm, cargo, sidecar, git_ref, none
 VERSION_FLAG                # CLI flag for version queries (default: --version)
+VERSION_TAG_PREFIX          # Tag prefix used to filter releases/tags (e.g. "v")
 _FEAT_RESOLVED_TAG          # Full VCS tag (e.g., "v1.7.1"); empty for non-VCS resolution
 _FEAT_RESOLVED_GIT_SHA      # SHA when using git_ref resolution
 ```
@@ -127,6 +130,7 @@ _FEAT_RESOLVED_GIT_SHA      # SHA when using git_ref resolution
 BINARY_ASSET_URI            # Expanded download URL
 BINARY_SIDECAR_URI          # Checksum file URL
 BINARY_SRC                  # Filename inside archive
+BINARY_COMPANION_BINS       # Additional binaries to symlink alongside the primary one
 BINARY_SHA256               # Pre-computed SHA256 (optional)
 
 # script method
@@ -138,16 +142,23 @@ CARGO_CRATE                 # Crate name
 
 # npm / npm-bundled
 NPM_PACKAGE                 # Package name
+NPM_REGISTRY                # npm registry URL (optional)
+NPM_CMD                     # Command name to expose (npm-bundled)
 NODE_VERSION                # Node.js version (npm-bundled only)
+
+# package / upstream-package method
+REGISTER_PACKAGE_NAME       # OS package name registered for version checks / dummy package
 
 # source method
 SOURCE_ASSET_URI            # Source tarball URL
-SOURCE_BUILD_SYSTEM         # autotools | make
+SOURCE_FALLBACK_ASSET_URI   # Alternate source URL if the primary fetch fails
+SOURCE_BUILD_SYSTEM         # autotools | make | cmake
 SOURCE_CONFIGURE_ARGS       # Array of ./configure arguments
+SOURCE_CMAKE_ARGS           # Array of cmake arguments (build_system: cmake)
 SOURCE_BUILD_ENV            # Array of NAME=value env overrides injected into source auto-builds
 SOURCE_MAKE_FLAGS           # Array of make variable assignments
 SOURCE_MAKE_TARGETS         # Array of make targets
-SOURCE_INSTALL_BINS         # Array of built binary paths copied to ${PREFIX}/bin/
+SOURCE_INSTALL_BINS         # Array of built binary paths copied to ${_RESOLVED_PREFIX}/bin/
 
 # git-clone method
 GIT_CLONE_URI               # Repository URL
@@ -240,13 +251,16 @@ When a feature fully overrides `__install_run__` (e.g. `setup-user`), call `__de
 Run before/after a specific method. Use `_pre` to set data variables:
 
 ```bash
-# Override binary asset pattern dynamically
+# Override the binary download URL dynamically
 __install_run_binary_pre() {
-  # OS-specific asset naming
-  case "$(os__id)" in
-    alpine) _FEAT_BINARY_ASSET_PATTERN="tool-{VERSION}-linux-musl-{ARCH}.tar.gz" ;;
-    *)      _FEAT_BINARY_ASSET_PATTERN="tool-{VERSION}-linux-{ARCH}.tar.gz" ;;
+  # Set BINARY_ASSET_URI directly (overrides the metadata asset_uri).
+  local arch
+  arch="$(ctx__get plat.machine_release)"
+  case "$(os__platform)" in
+    alpine) BINARY_ASSET_URI="https://example.com/tool-${VERSION}-linux-musl-${arch}.tar.gz" ;;
+    *)      BINARY_ASSET_URI="https://example.com/tool-${VERSION}-linux-${arch}.tar.gz" ;;
   esac
+  # You may also set BINARY_SIDECAR_URI (checksum file) or BINARY_SHA256 here.
 }
 ```
 
@@ -267,10 +281,12 @@ __install_run_source_build() {
   make -C "${src_dir}" \
     USE_LIBPCRE2=YesPlease \
     INSTALL_SYMLINKS=1 \
-    prefix="${PREFIX}" \
+    prefix="${_RESOLVED_PREFIX}" \
     install
 }
 ```
+
+Use `${_RESOLVED_PREFIX}` — the resolved, writable install path — in build and install hooks, **not** the raw `PREFIX` option (which may be an array with root/non-root/platform variants).
 
 ### `__install_run_script_run <script_path>` — custom script invocation
 
@@ -349,6 +365,16 @@ __get_completion_content__() {
 
 The auto-implementation handles this when `_options.completions.subcmd` is declared in metadata.
 
+### Other lifecycle hooks
+
+Every template function `foo()` runs an optional `__foo_pre` on entry and `__foo_post` on exit, so you can hook **any** stage of the lifecycle — for example `__resolve_input_prefixes_post` (compute sibling directories once the prefix is resolved), `__install_run_source_pre` / `__install_run_source_post`, or `__detect_existing_path_post`. The full, authoritative list is in the contract comment at the end of `features/install.tmpl.bash`.
+
+Uninstall / reinstall / update flows can also be customized:
+
+- `__uninstall_run__` — full override of how the tool is removed.
+- `__uninstall_run_prefix_post`, `__uninstall_finish_post` — clean up feature-specific artifacts.
+- `__prefix_activation_snippet <shell>`, `__prefix_discovery_snippet__ <shell>` — emit custom activation / PATH-discovery snippets per shell.
+
 ---
 
 ## Data Variable Overrides
@@ -357,8 +383,9 @@ Set these in `_pre` hooks to control method behavior without overriding the full
 
 | Variable | Type | Set in hook | Effect |
 |----------|------|-------------|--------|
-| `_FEAT_BINARY_ASSET_PATTERN` | string | `__install_run_binary_pre` | Override asset URI pattern |
-| `_FEAT_BINARY_BINARY_SRC` | string | `__install_run_binary_pre` | Binary filename inside archive |
+| `BINARY_ASSET_URI` | string | `__install_run_binary_pre` | Override the binary download URL |
+| `BINARY_SIDECAR_URI` | string | `__install_run_binary_pre` | Override the checksum/sidecar URL |
+| `BINARY_SHA256` | string | `__install_run_binary_pre` | Provide a pre-computed SHA256 (skips sidecar lookup) |
 | `_FEAT_INSTALL_SCRIPT_ARGS` | array | `__install_run_script_pre` | Extra args to installer script |
 | `_FEAT_CARGO_COMMAND` | array | `__install_run_cargo_pre` | Override cargo command (e.g., `(cargo binstall --no-confirm)`) |
 | `_FEAT_CARGO_INSTALL_ARGS` | array | `__install_run_cargo_pre` | Extra args to cargo install |
@@ -394,12 +421,44 @@ See {doc}`lib` for the full API reference.
 
 ---
 
+## Build-Dependency Cleanup and Concurrency
+
+Features often install transient OS packages needed only while building (compilers, headers, `curl`, `git`). These are installed with `ospkg__install_tracked <sub-id> <pkg>...` (or `ospkg__run --build-group <id>`), which records them in a per-invocation sidecar and marks them removable via PM-native mechanisms (`apt-mark auto`, `pacman --asdeps`, apk virtual groups, …). At `__exit__`, unless `KEEP_BUILD_DEPS=true`, the framework removes them with `ospkg__cleanup_all_build_groups` and purges the PM cache with `ospkg__clean` (unless `KEEP_CACHE=true`).
+
+The removal step mutates **machine-global** package state (`apt-get --purge autoremove`, `dnf autoremove`, `pacman -Rns`, `apk del`, plus the global auto/dep mark snapshot and PM cache). Two coordination layers make this safe when multiple installers touch the same machine.
+
+### 1. SYSSET session co-ownership (frozen public contract)
+
+An external orchestrator (`syspkg-installer`) may run several features as one **session** so a build dep pulled in by feature A is not reaped while feature B still needs it. The contract is a set of environment variables plus one coordinator function, and must not change:
+
+| Name | Role |
+|------|------|
+| `_SYSSET_BUILD_CONTEXT` | Context prefix for group IDs (`feature::<id>`, `install-bash`); set by the template. |
+| `_SYSSET_SESSION_TRACK_DIR` | Shared directory where each child mirrors its tracked packages. When set, children **skip their own** `__exit__` build-dep cleanup. |
+| `_SYSSET_INITIAL_SNAPSHOT` | Baseline package list (`ospkg__take_initial_snapshot`); pre-existing packages are never cleaned. |
+| `ospkg__cleanup_session_build_groups <install-bash-keep>` | Called once by the orchestrator at session end. Applies **keep-wins** across all co-owners (any co-owner with `keep_build_deps: true`, read from `_OPT_OF`, protects the package) and removes only packages no co-owner keeps. |
+
+### 2. The `.ospkg-live` registry (concurrency-safe last-out)
+
+Independent, possibly concurrent invocations (devcontainer entrypoints run in parallel with lifecycle hooks; same-stage hooks run under `Promise.allSettled`) are coordinated by a machine-visible **live registry**, co-located with the guarded state:
+
+- **Location** — system PMs: `$(dirname "$_FEAT_SHARE_DIR_ROOT")/.ospkg-live` (the namespace parent, shared by all features); brew: `$(dirname "$_FEAT_SHARE_DIR_NONROOT")/.ospkg-live`. All registry filesystem ops for system PMs go through `users__run_privileged` (the same channel tracked installs already require); brew is user-owned and runs direct. Tests override the root verbatim with `_OSPKG__REGISTRY_ROOT`.
+- **Layout** — `registrants/<pid>.<token>` (one per live invocation; `token` is the process start time, guarding PID reuse), `groups/<context>::<sub-id>` (co-ownership sidecars promoted from the temp session root, with `.keep` and, for apk, `.apkvirts`), and `.global_auto_before` (the shared auto/dep-mark snapshot). A portable `mutex/` directory (`mkdir`-atomic, with stale takeover by PID liveness or a 900 s backstop) guards registration and the last-out critical section — never the installs themselves, so parallelism is preserved.
+- **Last-out semantics** — each invocation registers lazily at its first tracked install; the first registrant takes the global-auto snapshot. At cleanup an invocation deregisters, prunes dead registrants, and:
+  - if any **live** registrant remains, it **parks** — skipping the autoremove, global-auto restore, `ospkg__clean`, and bootstrap-bash removal so it cannot reap a sibling's in-use dep;
+  - if it is the **last out**, it unions all `groups/` sidecars, applies per-group `.keep` keep-wins, removes the survivors via the normal per-PM path, restores the global-auto state, and clears the registry.
+
+  `ospkg__is_last_out` reports the decision; the template gates `ospkg__clean` and bootstrap-bash removal on it. A live SYSSET session participates as **one** registrant, so a session and a concurrent bare invocation cannot reap each other's deps.
+- **Degradation** — a nonroot-without-sudo invocation cannot do tracked installs at all, so the registry no-ops and cleanup falls back to the exact single-invocation behavior. The same byte-compatible fallback applies when the registry is otherwise unavailable.
+
+---
+
 ## Decision Guide: What to Write
 
 | Feature characteristic | What to write in `install.bash` |
 |------------------------|----------------------------------|
 | GitHub binary release, standard URL pattern | Nothing — declare `_options.method.binary.asset_uri` in metadata |
-| GitHub binary release, OS-specific URL | `__install_run_binary_pre` to set `_FEAT_BINARY_ASSET_PATTERN` |
+| GitHub binary release, OS-specific URL | `__install_run_binary_pre` to set `BINARY_ASSET_URI` |
 | OS package manager | Nothing — declare `_options.method.package` and `_dependencies.run.method-package` (generates `ospkg_manifest_method_package_run`) |
 | Multiple methods, auto-select by platform | Nothing when `when` blocks are sufficient; otherwise `__resolve_method` |
 | Custom version lookup (not GitHub/npm/cargo) | `__resolve_version` |

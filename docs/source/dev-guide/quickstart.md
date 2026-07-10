@@ -94,6 +94,10 @@ just format            # auto-format all shell + Python files (writes in place)
 just lint              # check-only lint (what CI runs); no writes
 ```
 
+:::{tip}
+`just work` runs format, lint, `sync-src`, and the tests impacted by your changed files in a single command — the recommended one-shot after making changes.
+:::
+
 For targeted checks:
 
 ```bash
@@ -114,7 +118,7 @@ just build-docs        # one-shot build to .local/build/docs/
 just sync-src-check    # verify src/ is current (CI runs this)
 just format-check      # check formatting without writing
 just lint              # shellcheck + ruff
-just test-lib          # fast lib tests
+just test-lib          # library unit tests (one container image; requires Docker)
 just release-detect    # preview which features need a new release (queries GitHub API)
 ```
 

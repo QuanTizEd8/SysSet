@@ -45,8 +45,9 @@ Adjust the image, feature path, and env vars as needed. This matches how the dev
 
 ## Debugging Install Failures
 
-Feature tests default to `log_level=debug` and `log_file_level=trace` via
-`test/features/defaults.shared.yaml` (see {doc}`/dev-guide/tests/features`).
+Feature tests default to `log_level=debug` and `log_file_level=debug` via
+`test/features/defaults.shared.yaml` (see {doc}`/dev-guide/tests/features`). `trace` (bash xtrace) is
+enabled only per-run via `--xtrace` or CI debug logging.
 
 Set `log_level=trace` to enable `set -x` on the **console** and see every command executed:
 

@@ -1,16 +1,48 @@
 # Feature Tests
 
-Each feature has a test definition under `test/features/<feature-id>/` consisting of two hand-authored YAML files and a set of auto-generated shell scripts.
+Feature tests install a feature into a real container (or runner) and then assert the resulting system state. For most `install-*` features these tests are **auto-generated** from `metadata.yaml` — authors write little or nothing. When a feature needs cases the generator can't derive, authors add or override them under `test/features/<feature-id>/`.
 
 ## Files
 
+A feature's `test/features/<feature-id>/` directory — present **only** when a feature augments or overrides the generated tests — holds two optional hand-authored YAML files:
+
 | File | Edit? | Purpose |
 |------|-------|---------|
-| `scenarios.yaml` | ✅ Yes | Test matrix: which environments, modes, and options to run |
-| `checks.yaml` | ✅ Yes | Test assertions: what commands to run to verify a scenario passed |
-Test scripts are rendered on-the-fly by the test runner from `checks.yaml` — no sync step is needed.
+| `scenarios.yaml` | ✅ Yes | Test matrix (environments, modes, options) plus a `generation:` block to suppress/augment generated scenarios |
+| `checks.yaml` | ✅ Yes | Test assertions: the commands that verify a scenario passed |
 
-After editing either YAML file, run tests directly:
+The actual test shell scripts are rendered **on the fly** by the runner from `checks.yaml` (merged with generated checks) — there is no persisted `tests/*.sh` directory and no sync step.
+
+## Test Generation & Overrides
+
+A test-generation engine (`.dev/lib/proman/test/gen/`) derives a feature's scenarios and checks directly from its `metadata.yaml` (`_options`, `_dependencies`, `_system_requirements`). From the declared install methods, version pins, `if_exists` behavior, prefix/symlink settings, completions, and so on, it produces the mechanical matrix — method-per-package-manager installs, version-pinned/partial resolution, `if_exists` transitions, custom-prefix symlink/no-symlink cases, invalid-enum rejection, completions, and a log-file scenario — together with the checks that prove the resulting install state.
+
+Because of this, **a fully-generated feature has no `test/features/<id>/` directory at all** (e.g. `install-node`); its tests exist only as generated content and still run under `just test-feats` and in CI.
+
+Hand-written and generated tests are combined at a single merge point (`effective.load_effective`). The merge is **strict**: a hand-written scenario or check group whose name collides with a generated one is a hard error unless you explicitly suppress the generated one. To adjust generated tests, use the `generation:` block in `scenarios.yaml`:
+
+```yaml
+generation:
+  suppress:
+    scenarios: [package_default, source_default]   # drop these generated scenarios
+    checks: [package_default]                       # drop these generated check groups
+    check_items: ["symlink points to"]              # drop generated check items by title prefix
+  augment_tests:
+    default: [extra_smoke]                          # append hand-written check groups to a generated scenario
+```
+
+- **`suppress.scenarios` / `suppress.checks`** — remove named generated scenarios / check groups (e.g. to replace them with hand-written ones of the same name).
+- **`suppress.check_items`** — remove individual generated check items (matched by title prefix), keeping the rest of the group.
+- **`augment_tests`** — append hand-written `checks.yaml` group ids to a *generated* scenario's `tests:` list, so it stays generated but gains extra assertions.
+
+Whether generation applies to a feature (plus its environment pool and per-family settings) is configured in **`test/features/generation.yaml`**. Preview and validate the result:
+
+```bash
+proman-test-gen-preview <feature>   # print the generated scenarios + checks (no writes)
+just validate-tests [feature]       # validate merged (generated + hand-written) tests vs schema (CI runs this)
+```
+
+`test/features/install-rust/` and `test/features/install-jq/` are good real-world examples of overriding generated tests with documented rationale.
 
 ## Feature Tests vs Library Unit Tests
 
@@ -133,6 +165,8 @@ invalid_method:
   tests: [invalid_method]
 ```
 
+Two top-level keys are reserved: **`defaults`** (a scenario body merged into every scenario) and **`generation`** (the suppress/augment directives from [Test Generation & Overrides](#test-generation-overrides)). Every other top-level key is a scenario name.
+
 **Scenario-level keys:**
 
 | Key | Description |
@@ -147,6 +181,9 @@ invalid_method:
 | `devcontainer` | Mode-specific overrides: `remoteUser`, `containerUser` |
 | `standalone` | Mode-specific overrides: `user` (run tests as this user), `sudo: false` (disable sudo for user), `network: none` (block outbound traffic), `skip_install: true` (test script calls install itself) |
 | `fast_net_fail` | When `true`, set `DEVFEATS_NET_FETCH_RETRIES=1` and `DEVFEATS_NET_FETCH_DELAY=0` during install so expected unreachable-host failures finish quickly. Implied automatically when `standalone.network: none` |
+| `args` | Extra CLI args passed to `install.sh` (rare; prefer `options` / `env_vars`) |
+| `env_vars` | Extra environment variables set for the install |
+| `test_shell` | `login` or `nonlogin` — shell style for generated standalone test scripts |
 
 **`modes`:**
 - `devcontainer` — installs via the devcontainer CLI in a Docker container.
@@ -385,7 +422,7 @@ See {doc}`/dev-guide/devops/ci` for the full CI setup and log-fetch workflow.
 
 ## Test Environment Reference
 
-All named test environments are declared in `test/environments.yaml`. The canonical set of pinned base environments — updated whenever a distribution releases a new stable/LTS version — is:
+All named test environments are declared in `test/environments.yaml`, which is **authoritative** — the image pins below drift as distributions release new versions, so verify against the file. The canonical set of pinned base environments is roughly:
 
 | Key | Docker image | Notes |
 |---|---|---|
@@ -426,7 +463,7 @@ No categorical suffixes (`-preinstalled`, `-build-deps`, `-base`). The name shou
 
 ## Naming Conventions
 
-These conventions are enforced by the verification scripts in §4 of the test infrastructure plan. Violations will be caught by CI.
+The generator produces conforming names automatically (`naming.py`); these conventions apply to **hand-written** scenarios and checks and are enforced by CI validation (`just validate-tests`).
 
 ### Scenario keys
 

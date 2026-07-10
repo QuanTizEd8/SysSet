@@ -9,6 +9,7 @@ Features are versioned **independently** using a [semantic versioning](https://s
 
 :::{admonition} Feature Version ≠ Tool Version
 :class: note dropdown
+:name: feature-version-tool-version
 
 Feature versions represent the evolution of the feature's API, functionality, and behavior itself, not the versions of the underlying tools they install. For features that install versioned tools, the tool versions can be specified via feature input options, regardless of the feature's own version.
 :::
@@ -61,7 +62,7 @@ oras pull ghcr.io/|{{github_user}}|/|{{github_repo}}|/setup-shell:1.2.3
 ::::{tab-item} GitHub Release
 ```sh
 ID=setup-shell; VERSION=1.2.3; curl -fsSL \
-  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID-$VERSION.tar.gz
+  https://github.com/|{{github_user}}|/|{{github_repo}}|/releases/download/$ID/$VERSION/devfeats-$ID.tar.gz
 ```
 ::::
 

@@ -4,10 +4,12 @@ The test suite has four layers, each targeting a different scope:
 
 | Layer | Directory | Framework | Docker needed |
 |-------|-----------|-----------|---------------|
-| Library unit tests | `test/lib/` | BATS (Bash Automated Testing System) | No |
+| Library unit tests | `test/lib/` | BATS (Bash Automated Testing System) | Optional* |
 | Install framework tests | `test/install/` | BATS + synced `install.bash` | No (CI: yes) |
 | Feature scenario tests | `test/features/<id>/` | devcontainer CLI + plain Docker | Yes (Linux) |
 | Build system tests | `test/proman/` | pytest | No |
+
+\* Library unit tests run natively via `run-unit.sh` (used by `just test` and `just work`); `just test-lib` runs the same tests inside a container matrix, which needs Docker.
 
 ::::{grid} 1
 :gutter: 3
@@ -25,7 +27,7 @@ Test directory layout, which test to add for which change, and the most common r
 :link: tests/features
 :link-type: doc
 
-`scenarios.yaml` and `checks.yaml` formats, how test scripts are generated, running modes (devcontainer / standalone / macOS), and writing effective assertions.
+How feature tests are **auto-generated** from `metadata.yaml` (and overridden); `scenarios.yaml`/`checks.yaml` formats; running modes (devcontainer / standalone / macOS); and writing effective assertions.
 :::
 
 :::{grid-item-card} Library Unit Tests

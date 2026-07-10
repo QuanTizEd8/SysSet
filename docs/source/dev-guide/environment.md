@@ -8,16 +8,22 @@ The project ships a fully-configured Dev Container at `.devcontainer/.dev/`. Ope
 
 ### What's Installed
 
-The dev container installs the following features at container creation time:
+The dev container is based on **`ubuntu:24.04`** and runs as the non-root user **`devfeats-dev`**. It provisions its own toolchain using DevFeats' features — built from the local `src/` via the `.devcontainer/.src` symlink — plus upstream Docker-in-Docker. The authoritative list (and any version pins) lives in [`.devcontainer/.dev/devcontainer.json`](https://github.com/|{{github_user}}|/|{{github_repo}}|/blob/main/.devcontainer/.dev/devcontainer.json); at the time of writing it installs:
 
 | Category | Tools |
 |----------|-------|
-| Core | `setup-user`, `install-git`, `install-gh`, `install-jq`, `install-just`, `install-yq` |
-| Shell | `install-zsh`, `setup-shell` (bash + zsh env setup), `install-shfmt`, `install-shellcheck` |
+| User & shell | `setup-user`, `install-bash`, `install-zsh`, `setup-shell` |
+| Git & CLI | `install-git`, `install-gh`, `install-jq`, `install-yq`, `install-just` |
+| Shell tooling | `install-shfmt`, `install-shellcheck` |
 | Python / envs | `install-miniforge`, `install-pixi` |
-| Packaging | `install-devcontainer-cli`, `install-oras` |
-| AI tooling | `install-claude`, `install-codex`, `install-copilot`, `install-cursor` |
-| CI infra | Docker-in-Docker (`devcontainers/features/docker-in-docker`) |
+| Node | `install-nvm` |
+| Packaging / OCI | `install-devcontainer-cli`, `install-oras` |
+| Git hooks | `install-lefthook` |
+| OS packages | `install-os-pkg-bundle` (bundled CLI tools) |
+| AI tooling | `install-claude`, `install-codex`, `install-copilot` |
+| CI infra | Docker-in-Docker (upstream `devcontainers/features/docker-in-docker`) |
+
+A few tools are version-pinned in the devcontainer definition (e.g. `install-just`, `install-shellcheck`, `install-shfmt`); consult that file for the current pins rather than relying on this table.
 
 ### Post-Start Setup
 
@@ -38,7 +44,7 @@ The dev container configures VS Code automatically:
 - **Extensions:** Bash IDE, EditorConfig, YAML support, Even Better TOML, Python (Pylance), Ruff, Docker, Markdown, Claude Code, PDF viewer, Copilot, Copilot Chat
 - **YAML schema:** `features/metadata.schema.json` is registered for `features/*/metadata.yaml` files, enabling validation and autocompletion in the editor
 - **JSON schema:** `devcontainer-feature.json` schema is registered for generated feature output files
-- **Search/watcher excludes:** `.git/`, `__pycache__/`, `.pixi/` are excluded to keep VS Code responsive
+- **Search/watcher excludes:** `.git/`, `__pycache__/`, `.pixi/`, `miniforge3/`, `*.egg-info/` are excluded to keep VS Code responsive
 - **Docker credential helper disabled:** `dev.containers.dockerCredentialHelper` is set to `false` (see below)
 
 ### Docker-in-Docker

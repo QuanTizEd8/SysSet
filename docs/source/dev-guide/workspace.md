@@ -7,7 +7,7 @@ devfeats/
 ├── features/                ← Feature source definitions (source of truth)
 │   ├── <feature-id>/
 │   │   ├── metadata.yaml    ← Options, description, deps, version
-│   │   ├── install.bash     ← Body-only installer (bash ≥4; header auto-generated)
+│   │   ├── install.bash     ← Body-only installer (bash ≥4.4; header auto-generated)
 │   │   ├── notes.md         ← User-facing supplemental documentation (optional)
 │   │   ├── dev-notes.md     ← Developer notes (design decisions, research) (optional)
 │   │   ├── tool-ref.md      ← Tool installation reference (optional)
@@ -16,13 +16,14 @@ devfeats/
 │   ├── install.tmpl.bash    ← Install script template used by proman-sync
 │   ├── metadata.shared.yaml ← Options injected into every feature at sync time
 │   ├── metadata.schema.json ← JSON Schema for metadata.yaml files
+│   ├── tool-ref.template.md ← Template for per-feature tool-ref.md (developer reference)
 │   └── install-os-pkg-bundle/ ← Package bundle manifests for install-os-pkg (not standalone features)
 │       └── bundles/<bundle-id>/
 │           ├── metadata.yaml  ← Bundle metadata (descriptions, URLs)
 │           └── packages.yaml    ← ospkg manifest for the bundle
 │
 ├── lib/                     ← Shared bash library modules (source of truth)
-│   ├── __init__.bash        ← Master loader; sources all modules in dependency order
+│   ├── __init__.bash        ← Master loader; sources every module once (order-independent)
 │   ├── logging.sh           ← POSIX logging dispatcher used before bash is available
 │   ├── posix.sh             ← POSIX bootstrap helpers shared with install.sh
 │   ├── logging.bash         ← Structured bash logging backend
@@ -35,20 +36,25 @@ devfeats/
 │   ├── users.bash           ← User/group management
 │   ├── ver.bash             ← Version parsing and comparison
 │   ├── install.bash         ← Installation state management, asset extraction
-│   ├── *.bash               ← Additional bash-only modules (oci.bash, json.bash, etc.)
+│   ├── *.bash               ← Additional bash-only modules (oci, json, ctx, npm, uri, etc.)
+│   ├── *.jq                 ← jq programs (ctx-match, ctx-when-eval, ospkg-manifest)
+│   ├── deps/                ← Vendored ospkg manifests for the library's own tool deps
+│   ├── metadata.yaml        ← Library package metadata (used by build-lib)
 │   └── argparse-manifest.schema.json ← JSON Schema for argparse manifests
 │
 ├── test/                    ← Test suite
 │   ├── environments.yaml    ← Central registry of Docker images for tests
+│   ├── environments.schema.json ← JSON Schema for environments.yaml
 │   ├── features/
-│   │   ├── checks.schema.json   ← JSON Schema for test checks.yaml files
-│   │   ├── scenarios.schema.json ← JSON Schema for test scenarios.yaml files
-│   │   ├── defaults.shared.yaml ← Options merged into every feature scenario
-│   │   └── <feature-id>/
-│   │       ├── scenarios.yaml  ← Test matrix (envs, modes, options)
-│   │       ├── checks.yaml     ← Test assertions (source of truth for *.sh scripts)
-│   │       └── tests/
-│   │           └── *.sh        ← Auto-generated test scripts (DO NOT EDIT)
+│   │   ├── checks.schema.json     ← JSON Schema for checks.yaml
+│   │   ├── scenarios.schema.json  ← JSON Schema for scenarios.yaml
+│   │   ├── generation.yaml        ← Global test-generation config
+│   │   ├── generation.schema.json ← JSON Schema for generation config
+│   │   ├── defaults.shared.yaml   ← Options merged into every generated scenario
+│   │   └── <feature-id>/          ← Present only when a feature augments/overrides generated tests
+│   │       ├── scenarios.yaml     ← Extra/override scenarios (test scripts are generated on the fly)
+│   │       └── checks.yaml        ← Extra/override checks
+│   ├── install/                   ← Install-framework BATS tests (dep_install.bats, …)
 │   ├── lib/
 │   │   ├── *.bats              ← BATS unit tests (one file per lib module)
 │   │   ├── scenarios.yaml      ← BATS test environment matrix
@@ -71,6 +77,7 @@ devfeats/
 │       ├── install.sh
 │       ├── install.bash
 │       ├── lib/
+│       ├── dependencies/    ← Resolved dependency manifests (sync artifact; not in the release tarball)
 │       └── files/
 │
 ├── .dev/                    ← Development tooling

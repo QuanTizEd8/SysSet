@@ -74,6 +74,3 @@ Add a `customizations.codespaces.repositories` block to the consuming
 Most other implementing tools (e.g. VS Code Dev Containers, the devcontainer
 CLI) use a broadly-scoped token and work without this configuration.
 For more information, see [GitHub Container Registry — managing package visibility](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
-
-
----

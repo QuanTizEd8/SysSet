@@ -99,13 +99,13 @@ bash subprocess then automatically sources the target file:
 
 ```ini
 # /etc/environment
-BASH_ENV=/etc/bash/bash_env
+BASH_ENV=/etc/bashenv
 ```
 
 ```sh
-# /etc/bash/bash_env  (keep this free of interactive-only code)
-export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/.local/bin"
-export EDITOR=nano
+# /etc/bashenv  (bash entry point; keep it free of interactive-only code)
+# Source a single shared, POSIX-compatible env file that zsh loads too:
+. /etc/shellenv
 ```
 
 **Caveats:**
@@ -124,7 +124,7 @@ environment setup file used for bash:
 
 ```zsh
 # /etc/zsh/zshenv
-emulate sh -c 'source "/etc/bash/bash_env"'
+emulate sh -c 'source "/etc/shellenv"'
 ```
 
 The `emulate sh` wrapper evaluates the sourced script in POSIX-compatible mode,
@@ -256,44 +256,50 @@ which determines which configuration files are sourced:
 
 ## Recommended Setup for All Scenarios
 
-To reliably cover all the above clients and invocation types in a devcontainer or
-any Debian/Ubuntu-based Linux system, use this layered approach:
+To reliably cover all the above clients and invocation types, build the setup around a single
+**shared environment file** that every shell loads. This is exactly the layout DevFeats'
+{doc}`/features/setup-shell` feature generates.
 
-**1. `/etc/environment` — Static variables and bootstrapping:**
+**1. `/etc/environment` — static variables and bootstrap:**
 
 ```ini
 # Static values only — no variable expansion
 EDITOR=nano
 PAGER=less
-# Wire up non-interactive bash to source the dynamic env file
-BASH_ENV=/etc/bash/bash_env
+# Point non-interactive bash at its entry file
+BASH_ENV=/etc/bashenv
 ```
 
-**2. `/etc/bash/bash_env` — Dynamic variables and PATH:**
+**2. `/etc/shellenv` — the shared, POSIX-compatible env file (PATH, XDG, locale):**
 
 ```sh
-# Sourced by:
-#   - login bash          (via /etc/profile → profile.d, or directly)
-#   - non-interactive bash (via $BASH_ENV)
-#   - all zsh              (via /etc/zsh/zshenv)
+# Sourced by bash (via /etc/bashenv) and by all zsh (via /etc/zsh/zshenv).
+# `extend_path` is a small helper defined at the TOP of this file (not a system
+# command); it prepends/appends to PATH while de-duplicating entries.
 extend_path --prepend "$HOME/.local/bin" "$HOME/bin"
-extend_path --append "/opt/myapp/bin"
 export XDG_CONFIG_HOME="${HOME}/.config"
 export XDG_DATA_HOME="${HOME}/.local/share"
 export XDG_CACHE_HOME="${HOME}/.cache"
 export XDG_STATE_HOME="${HOME}/.local/state"
 ```
 
-**3. `/etc/zsh/zshenv` — All Zsh invocations:**
-
-```zsh
-emulate sh -c 'source "/etc/bash/bash_env"'
-```
-
-**4. `/etc/profile.d/env.sh` — Login shells of any Bourne-compatible shell:**
+**3. `/etc/bashenv` — the bash entry point (the `BASH_ENV` target):**
 
 ```sh
-# Same PATH additions for any login shell (bash, sh, dash, ksh, zsh via zprofile)
+# Bash-only entry; sources the shared file. Keeping it separate lets you add
+# bash-specific setup without polluting the POSIX shared file.
+. /etc/shellenv
+```
+
+**4. `/etc/zsh/zshenv` — all Zsh invocations:**
+
+```zsh
+emulate sh -c 'source "/etc/shellenv"'
+```
+
+**5. `/etc/profile.d/env.sh` (optional) — login shells of any Bourne-compatible shell:**
+
+```sh
 export PATH="$PATH:/opt/myapp/bin"
 ```
 
@@ -301,12 +307,28 @@ This setup ensures:
 
 | Scenario | PATH / vars available |
 |---|---|
-| VS Code terminal (zsh) | `/etc/environment` + `bash_env` (via `zshenv`) |
-| VS Code terminal (bash) | `/etc/environment` + `bash.bashrc` |
-| devcontainer CLI / GHA / Copilot | `/etc/environment` + `bash_env` (via `$BASH_ENV`) |
+| VS Code terminal (zsh) | `/etc/environment` + `/etc/shellenv` (via `zshenv`) |
+| VS Code terminal (bash) | `/etc/environment` + `bash.bashrc` (interactive) |
+| devcontainer CLI / GHA / Copilot | `/etc/environment` + `/etc/shellenv` (via `$BASH_ENV` → `/etc/bashenv`) |
 | SSH login (bash/zsh) | PAM (`/etc/environment`) + `/etc/profile` + `/etc/profile.d/` |
-| Non-interactive bash | `/etc/environment` + `bash_env` (via `$BASH_ENV`) |
-| All zsh | `/etc/environment` + `bash_env` (via `zshenv`) |
+| Non-interactive bash | `/etc/environment` + `/etc/shellenv` (via `$BASH_ENV` → `/etc/bashenv`) |
+| All zsh | `/etc/environment` + `/etc/shellenv` (via `zshenv`) |
+
+:::{admonition} How DevFeats persists environment variables and `PATH`
+:class: note
+
+**Persisting** a variable or `PATH` entry means writing it to an on-disk startup file so it
+survives into *future* shells and sessions — as opposed to a transient `export` inside an install
+process, which dies with that process. DevFeats does this through **marker blocks** (see
+{doc}`shell-config`): each managed edit is wrapped in `# >>> <name> >>>` … `# <<< <name> <<<`
+markers and written into the coverage set above, so re-runs are idempotent and never disturb your
+own lines.
+
+For tools installed under a prefix (e.g. `/usr/local` or `~/.local`), the **`prefix_discovery`**
+option (see [Install Location & Scope](/user-guide/options.md)) controls how `<prefix>/bin` is put
+on `PATH`: by symlinking the binaries into a directory already on `PATH`, by writing `PATH`-export
+marker blocks for selected shells (via `prefix_exports`), both, or neither.
+:::
 
 ---
 
@@ -324,7 +346,7 @@ conform to it use these environment variables to locate files:
 | `XDG_STATE_HOME` | `$HOME/.local/state` | Persistent state: logs, history files |
 | `XDG_RUNTIME_DIR` | `/run/user/<uid>` | Runtime sockets and PIDs (short-lived) |
 
-Setting these variables early in the environment (e.g., in `/etc/bash/bash_env`)
+Setting these variables early in the environment (e.g., in the shared `/etc/shellenv`)
 ensures all applications use consistent, predictable locations regardless of how
 the shell was invoked.
 
