@@ -131,6 +131,11 @@ __install_run_source_build() {
 #     installed at '<CARGO_HOME>'" self-check message and a non-zero exit even
 #     on a fully successful install (confirmed empirically) — verify the
 #     actual outcome instead of trusting that exit code.
+#   - macOS/Linuxbrew (brew) package a KEG-ONLY, MULTIPLEXER-ONLY `rustup`
+#     (built `--features no-self-update`: no `rustup-init`/self-install path,
+#     and not on PATH). Handled by a dedicated branch: install the toolchain
+#     with the keg multiplexer, then mirror its proxy set onto our prefix (see
+#     `_rust_link_brew_proxies`).
 # shellcheck disable=SC2329,SC2317
 __install_run_package_post() {
   # Always ensure the prefix directory exists, even for the "rustup already
@@ -149,42 +154,6 @@ __install_run_package_post() {
 
   local _rustup_init
   _rustup_init="$(command -v rustup-init 2> /dev/null || true)"
-
-  # Homebrew installs the `rustup` formula KEG-ONLY ("it conflicts with rust"):
-  # it renames the upstream `rustup-init` binary to `rustup` and never links it
-  # — nor the `rustc`/`cargo`/... proxies it ships — into `$(brew --prefix)/bin`,
-  # so nothing lands on PATH and the lookup above comes up empty. That binary IS
-  # `rustup-init`, though: rustup selects its mode from `argv[0]`, taking the
-  # installer/"setup" path when the program name starts with `rustup-init` and
-  # the multiplexer path when it is `rustup` (rust-lang/rustup `src/process.rs`
-  # `Process::name` → `src/lib.rs` `run_rustup_inner`). Expose the keg binary
-  # under its original `rustup-init` name via a symlink (whose basename becomes
-  # argv[0]) and hand it to the standard rustup-init branch below: that
-  # self-install populates `${_RESOLVED_PREFIX}/bin` with real
-  # rustc/cargo/rustdoc/rustup proxies and installs the toolchain into
-  # `${RUSTUP_HOME}` — byte-for-byte the same end state as METHOD=script — so
-  # every downstream step (prefix-PATH discovery onto the persisted runtime
-  # path, CARGO_HOME/RUSTUP_HOME exports, ~/.cargo·~/.rustup linking, shell
-  # completions) works unchanged. The `rustup toolchain install` multiplexer
-  # path (further below) is unusable here: it installs a toolchain but never
-  # creates the `${CARGO_HOME}/bin` proxy layer, leaving rustc/cargo/rustdoc off
-  # the persisted PATH. Resolve the keg via `brew --prefix rustup` — correct on
-  # both Apple Silicon (`/opt/homebrew`) and Intel (`/usr/local`), unlike a
-  # hardcoded path. Gated on brew being the detected PM (always so on macOS;
-  # also covers Linuxbrew); a no-op for every native Linux OS package manager,
-  # which already ships `rustup-init` or `rustup` on PATH.
-  if [[ -z "${_rustup_init}" && "$(ospkg__pm_key 2> /dev/null)" == "brew" ]]; then
-    local _brew_prefix
-    _brew_prefix="$(brew --prefix rustup 2> /dev/null || true)"
-    if [[ -n "${_brew_prefix}" && -x "${_brew_prefix}/bin/rustup" ]]; then
-      local _brew_init_dir
-      _brew_init_dir="$(file__mktmpdir rustup-init)"
-      ln -s "${_brew_prefix}/bin/rustup" "${_brew_init_dir}/rustup-init"
-      _rustup_init="${_brew_init_dir}/rustup-init"
-      logging__info "Homebrew 'rustup' is keg-only; running it as 'rustup-init' from '${_brew_prefix}/bin' to self-install the toolchain into '${_RESOLVED_PREFIX}'."
-    fi
-  fi
-
   if [[ -n "${_rustup_init}" ]]; then
     file__mkdir "${RUSTUP_HOME}"
     local -a _args=(-y --no-modify-path --default-toolchain "${VERSION}" --profile "${PROFILE}")
@@ -197,6 +166,42 @@ __install_run_package_post() {
       logging__error "'rustup-init' failed (rc=${_rc})."
       return "${_rc}"
     }
+    return 0
+  fi
+
+  # -- Homebrew keg-only rustup (macOS & Linuxbrew) --
+  # Homebrew's `rustup` is a keg-only, MULTIPLEXER-ONLY build (see
+  # `_rust_link_brew_proxies`): there is no `rustup-init`/self-install path, so
+  # the branch above never fires, and — being keg-only — `$(brew --prefix
+  # rustup)/bin` is off PATH. Provision the toolchain into `${RUSTUP_HOME}` with
+  # the keg multiplexer, then mirror the keg's proxy set onto
+  # `${_RESOLVED_PREFIX}/bin` so the feature's persisted prefix-PATH discovery +
+  # CARGO_HOME/RUSTUP_HOME exports expose it in the runtime/verify shell (a
+  # process-local PATH tweak would not persist). Resolve the keg via `brew
+  # --prefix rustup` — correct on both Apple Silicon (`/opt/homebrew`) and Intel
+  # (`/usr/local`), no hardcoded path. Gated on brew being the detected PM
+  # (always so on macOS; also covers Linuxbrew); a strict no-op for the native
+  # Linux OS package managers (handled below) and the METHOD=script path.
+  if [[ "$(ospkg__pm_key 2> /dev/null)" == "brew" ]]; then
+    local _brew_prefix _keg_bin
+    _brew_prefix="$(brew --prefix rustup 2> /dev/null || true)"
+    _keg_bin="${_brew_prefix}/bin"
+    [[ -n "${_brew_prefix}" && -x "${_keg_bin}/rustup" ]] || {
+      logging__error "METHOD=package: Homebrew keg 'rustup' not found via 'brew --prefix rustup' (looked in '${_keg_bin}')."
+      return 1
+    }
+    file__mkdir "${RUSTUP_HOME}"
+    local -a _args=(--profile "${PROFILE}")
+    for _c in "${_components[@]}"; do _args+=(--component "${_c}"); done
+    for _c in "${_targets[@]}"; do _args+=(--target "${_c}"); done
+    logging__install "Provisioning Rust toolchain '${VERSION}' via keg-only 'rustup toolchain install' (prefix='${_RESOLVED_PREFIX}', RUSTUP_HOME='${RUSTUP_HOME}')."
+    CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_keg_bin}/rustup" toolchain install "${VERSION}" "${_args[@]}" || true
+    CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_keg_bin}/rustup" default "${VERSION}" || true
+    _rust_link_brew_proxies "${_keg_bin}"
+    if [[ ! -x "${_RESOLVED_PREFIX}/bin/rustc" ]] || ! CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_RESOLVED_PREFIX}/bin/rustc" --version > /dev/null 2>&1; then
+      logging__error "'rustc' not usable at '${_RESOLVED_PREFIX}/bin/rustc' after keg toolchain provisioning."
+      return 1
+    fi
     return 0
   fi
 
@@ -216,6 +221,37 @@ __install_run_package_post() {
     logging__error "'rustc' still not usable after 'rustup toolchain install'."
     return 1
   fi
+}
+
+# _rust_link_brew_proxies <keg-bin-dir> — mirror Homebrew's keg-only rustup
+# proxy set onto the resolved prefix bin/.
+#
+# Homebrew's `rustup` is a MULTIPLEXER-ONLY build: it is compiled with
+# `--features no-self-update`, which strips the installer/setup ("rustup-init")
+# code path ("This formula no longer provides `rustup-init`"; confirmed on a
+# real macOS runner — even invoked as `rustup-init` the keg binary runs as the
+# multiplexer and rejects `-y`). So there is no self-install to populate
+# `${CARGO_HOME}/bin`, and — being keg-only — `$(brew --prefix rustup)/bin` is
+# never on PATH. That keg bin/ ships the `rustup` multiplexer plus its proxy set
+# (rustc, cargo, cargo-clippy, cargo-fmt, cargo-miri, clippy-driver, rls,
+# rust-analyzer, rustdoc, rustfmt, rust-gdb, rust-gdbgui, rust-lldb — all
+# dispatching through rustup). Symlink every entry into `${_RESOLVED_PREFIX}/bin`
+# (= CARGO_HOME/bin — the exact dir the framework's prefix-PATH discovery
+# persists and the script/rustup-init method populates natively), enumerated at
+# runtime so the formula's set is mirrored without hardcoding it. Once the
+# toolchain is installed under `${RUSTUP_HOME}` and CARGO_HOME/RUSTUP_HOME are
+# exported (`_rust_sync_env`), these proxies resolve it in the persisted verify
+# shell — the same exposure METHOD=script gets.
+# shellcheck disable=SC2329,SC2317
+_rust_link_brew_proxies() {
+  local _keg_bin="$1"
+  file__mkdir "${_RESOLVED_PREFIX}/bin"
+  local _src _name
+  for _src in "${_keg_bin}"/*; do
+    [[ -e "${_src}" ]] || continue
+    _name="${_src##*/}"
+    ln -sf "${_src}" "${_RESOLVED_PREFIX}/bin/${_name}"
+  done
 }
 
 # -- Idempotency / completions (method-aware; rustup is absent for METHOD=source) --
@@ -378,6 +414,10 @@ __uninstall_finish_post() {
 # shellcheck disable=SC2329,SC2317
 __uninstall_run__() {
   local _rustup_bin="${_RESOLVED_PREFIX}/bin/rustup"
+  # Unlink the ~/.cargo·~/.rustup symlinks _rust_link_user_home created — runs
+  # whenever a rustup proxy layer exists at the prefix, whether a real
+  # self-installed binary (METHOD=script / package rustup-init) or the Homebrew
+  # keg symlinks we mirror there.
   if [[ -x "${_rustup_bin}" ]]; then
     local -a _wargs=()
     if [[ "${#WRITE_USERS[@]}" -gt 0 ]]; then
@@ -390,6 +430,13 @@ __uninstall_run__() {
     for _u in "${_write_users[@]}"; do
       [[ -n "${_u}" ]] && _rust_unlink_user_home "${_u}"
     done
+  fi
+  if [[ -x "${_rustup_bin}" && ! -L "${_rustup_bin}" ]]; then
+    # A real, self-installed rustup owns its CARGO_HOME/RUSTUP_HOME layout — let
+    # it tear itself down. (Excludes the Homebrew keg case below: there
+    # `${_rustup_bin}` is a symlink into the brew-managed, multiplexer-only keg,
+    # whose build has no `self uninstall`; invoking it could also try to delete
+    # the keg binary itself. We only drop our own symlink layer instead.)
     logging__remove "Uninstalling Rust via 'rustup self uninstall'."
     CARGO_HOME="${_RESOLVED_PREFIX}" RUSTUP_HOME="${RUSTUP_HOME}" "${_rustup_bin}" self uninstall -y
   elif [[ -x "${_RESOLVED_PREFIX}/lib/rustlib/uninstall.sh" ]]; then
