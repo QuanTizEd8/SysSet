@@ -370,6 +370,28 @@ def installed_method_check(method: str, share_var: str) -> CheckItem:
     )
 
 
+def installed_method_check_either_scope(method: str) -> CheckItem:
+    """Assert installed-method is `method` under EITHER the root or nonroot scope.
+
+    On macOS the runner user has write access to system dirs (Homebrew-owned), so
+    a system-prefix install records under `_FEAT_SHARE_DIR_ROOT` — but a feature
+    whose prefix is user-home-relative records under `_FEAT_SHARE_DIR_NONROOT`
+    instead (install-rust's `${HOME}/.cargo`). A generated macOS scenario can't
+    always tell which a feature resolves to, so accept either. `method` is a
+    fixed enum value (package/binary/…) with no shell metacharacters, so it is
+    embedded directly inside the `bash -c` body.
+    """
+    root = '"${_FEAT_SHARE_DIR_ROOT}/state/installed-method"'
+    nonroot = '"${_FEAT_SHARE_DIR_NONROOT}/state/installed-method"'
+    return CheckItem(
+        title=f"installed-method state is {method}",
+        cmd=(
+            f"bash -c 'grep -Fqx {method} {root} 2>/dev/null "
+            f"|| grep -Fqx {method} {nonroot} 2>/dev/null'"
+        ),
+    )
+
+
 def installed_method_recorded_check(share_var: str) -> CheckItem:
     """Assert the framework recorded *some* installed method (value-agnostic).
 

@@ -140,6 +140,21 @@ def test_brew_managed_check_uses_cask_flag_for_casks() -> None:
     assert any("brew list --cask claude-code" in p for p in cask["cmd"])
 
 
+def test_installed_method_check_either_scope_probes_both_share_dirs() -> None:
+    """The either-scope check accepts the state under root OR nonroot share dir.
+
+    A system-prefix macOS install records under _FEAT_SHARE_DIR_ROOT, but a
+    user-home-prefix one (install-rust's ${HOME}/.cargo) records under
+    _FEAT_SHARE_DIR_NONROOT — accept either.
+    """
+    item = checks_builtin.installed_method_check_either_scope("package")
+    cmd = item["cmd"]
+    assert item["title"] == "installed-method state is package"
+    assert "_FEAT_SHARE_DIR_ROOT" in cmd
+    assert "_FEAT_SHARE_DIR_NONROOT" in cmd
+    assert "||" in cmd
+
+
 def _probe_cmds() -> list[str]:
     item = checks_builtin.pm_managed_check(
         "zsh", dict.fromkeys(_ALL_PMS, "zsh"), _ALL_PMS

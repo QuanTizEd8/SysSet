@@ -29,15 +29,19 @@ def build(
     outcome: ExpectedOutcome | None = None,
     *,
     method_pinned: bool = True,
+    method_either_scope: bool = False,
 ) -> list[CheckItem]:
     """Build the full install-outcome check bundle.
 
     `method_pinned=True` (explicit `method:` scenario) asserts the recorded
     install-method by value; `False` (`method=auto`) asserts only that a method
     was recorded, since a feature `__resolve_method` hook can override the
-    generation-time prediction. The exact install location, symlink, and export
-    block are asserted regardless — they follow from the resolved outcome, and a
-    mismatch is a real signal (fix the resolver, or a genuine feature bug).
+    generation-time prediction. `method_either_scope=True` accepts the
+    installed-method state under either the root or nonroot share dir — for the
+    macOS scenario, where whether a feature records root/nonroot depends on its
+    prefix. The exact install location, symlink, and export block are asserted
+    regardless — they follow from the resolved outcome, and a mismatch is a real
+    signal (fix the resolver, or a genuine feature bug).
     """
     if facts.is_git_clone_only:
         return _git_clone_checks(facts)
@@ -49,7 +53,11 @@ def build(
     else:
         items = _generic_path_items(facts, cfg, outcome)
 
-    items.extend(_method_items(outcome, method_pinned=method_pinned))
+    items.extend(
+        _method_items(
+            outcome, method_pinned=method_pinned, either_scope=method_either_scope
+        )
+    )
     items.extend(_symlink_items(outcome))
     items.extend(_export_items(facts, outcome))
     items.extend(_activation_items(facts, outcome))
@@ -139,12 +147,15 @@ def _method_items(
     outcome: ExpectedOutcome | None,
     *,
     method_pinned: bool,
+    either_scope: bool = False,
 ) -> list[CheckItem]:
     """Assert the recorded install-method (by value when pinned, else existence)."""
     if outcome is None or outcome.method is None:
         return []
     if not method_pinned:
         return [checks_builtin.installed_method_recorded_check(outcome.share_dir_var)]
+    if either_scope:
+        return [checks_builtin.installed_method_check_either_scope(outcome.method)]
     return [
         checks_builtin.installed_method_check(outcome.method, outcome.share_dir_var)
     ]

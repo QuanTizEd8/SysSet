@@ -105,7 +105,13 @@ class MacosRule:
 
         checks: list[CheckItem] = [
             CheckItem(title="brew is on PATH", cmd="command -v brew"),
-            *default_checks.build(facts, cfg, outcome, method_pinned=True),
+            # method_either_scope: a system-prefix feature records installed-method
+            # under the root share dir, but one with a user-home prefix (rust's
+            # ${HOME}/.cargo) records under nonroot even on the privileged macOS
+            # runner — accept either.
+            *default_checks.build(
+                facts, cfg, outcome, method_pinned=True, method_either_scope=True
+            ),
             checks_builtin.brew_managed_check(facts.primary_bin, name, is_cask=is_cask),
         ]
         group = CheckGroup(
