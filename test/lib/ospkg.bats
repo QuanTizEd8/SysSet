@@ -3248,3 +3248,286 @@ _setup_has_available_version() {
   run ospkg__has_available_version "this-package-does-not-exist-12345" "1.0"
   assert_failure
 }
+
+# ---------------------------------------------------------------------------
+# Live registry (concurrency-safe build-dep co-ownership)
+#
+# These tests pin _OSPKG__REGISTRY_ROOT under BATS_TEST_TMPDIR so the registry
+# is active in DIRECT mode (no privilege wrapper). PM is mocked as apt-get with a
+# logging fake so autoremove can be asserted. Siblings are real background
+# processes; teardown reaps any that survive an early assertion failure.
+# ---------------------------------------------------------------------------
+
+teardown() {
+  local _p
+  for _p in "${_REG_SIBLING_PIDS[@]:-}"; do
+    [[ -n "$_p" ]] && kill "$_p" 2> /dev/null || true
+  done
+}
+
+# _seed_registry_apt — seed a mocked apt-get PM with the live registry pinned
+# under BATS_TEST_TMPDIR (direct mode). apt-get logs its args to apt-get.log.
+_seed_registry_apt() {
+  _seed_apt_context
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
+  export _OSPKG__REGISTRY_ROOT="${BATS_TEST_TMPDIR}/registry"
+  _OSPKG__REGISTERED=false
+  _OSPKG__SELF_TOKEN=""
+  _OSPKG__LAST_OUT_DECISION=true
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\necho "$@" >> "%s/apt-get.log"\n' "${BATS_TEST_TMPDIR}" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  _create_smart_apt_mark
+  prepend_fake_bin_path
+}
+
+# _reg_make_registrant <key> [keep] — write a registrant file directly.
+_reg_make_registrant() {
+  local _key="$1" _keep="${2:-false}"
+  mkdir -p "${_OSPKG__REGISTRY_ROOT}/registrants"
+  printf 'feat=test\nkeep=%s\npm=apt-get\n' "$_keep" \
+    > "${_OSPKG__REGISTRY_ROOT}/registrants/${_key}"
+}
+
+# _reg_make_group <name> <keep> <pkg>... — write a registry group + .keep.
+_reg_make_group() {
+  local _name="$1" _keep="$2"
+  shift 2
+  mkdir -p "${_OSPKG__REGISTRY_ROOT}/groups"
+  printf '%s\n' "$@" | sort -u > "${_OSPKG__REGISTRY_ROOT}/groups/${_name}"
+  printf '%s\n' "$_keep" > "${_OSPKG__REGISTRY_ROOT}/groups/${_name}.keep"
+}
+
+@test "registry: _ospkg__registry_register creates a registrant for this process" {
+  _seed_registry_apt
+  _ospkg__registry_register
+  local _self
+  _self="$$.$(_ospkg__proc_token "$$")"
+  assert_file_exists "${_OSPKG__REGISTRY_ROOT}/registrants/${_self}"
+  grep -q "^pm=apt-get$" "${_OSPKG__REGISTRY_ROOT}/registrants/${_self}"
+  [[ "${_OSPKG__REGISTERED}" == true ]]
+}
+
+@test "registry: _ospkg__registry_register is idempotent per process" {
+  _seed_registry_apt
+  _ospkg__registry_register
+  _ospkg__registry_register
+  local _n
+  _n="$(ls -1 "${_OSPKG__REGISTRY_ROOT}/registrants" | wc -l)"
+  [[ "$_n" -eq 1 ]]
+}
+
+@test "registry: cleanup parks (no autoremove) when a live sibling registrant remains" {
+  _seed_registry_apt
+  _ospkg__registry_register
+  _reg_make_group "grpA" false curl
+  sleep 300 3>&- < /dev/null > /dev/null 2>&1 &
+  local _sib=$!
+  _REG_SIBLING_PIDS+=("$_sib")
+  local _tok
+  _tok="$(_ospkg__proc_token "$_sib")"
+  _reg_make_registrant "${_sib}.${_tok}" false
+
+  ospkg__cleanup_all_build_groups false
+
+  # Parked → not last-out and no autoremove ran.
+  run ospkg__is_last_out
+  assert_failure
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-get.log" ]]
+  # Self deregistered; sibling and parked group remain for whoever is last-out.
+  local _self
+  _self="$$.$(_ospkg__proc_token "$$")"
+  [[ ! -e "${_OSPKG__REGISTRY_ROOT}/registrants/${_self}" ]]
+  assert_file_exists "${_OSPKG__REGISTRY_ROOT}/registrants/${_sib}.${_tok}"
+  assert_file_exists "${_OSPKG__REGISTRY_ROOT}/groups/grpA"
+
+  kill "$_sib" 2> /dev/null || true
+}
+
+@test "registry: a dead-PID registrant is pruned and the survivor becomes last-out (autoremove runs)" {
+  _seed_registry_apt
+  _reg_make_group "grpA" false curl
+  sleep 60 3>&- < /dev/null > /dev/null 2>&1 &
+  local _dp=$!
+  local _dtok
+  _dtok="$(_ospkg__proc_token "$_dp")"
+  kill "$_dp" 2> /dev/null || true
+  wait "$_dp" 2> /dev/null || true
+  _reg_make_registrant "${_dp}.${_dtok}" false
+
+  ospkg__cleanup_all_build_groups false
+
+  run ospkg__is_last_out
+  assert_success
+  [[ ! -e "${_OSPKG__REGISTRY_ROOT}/registrants/${_dp}.${_dtok}" ]]
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-get.log"
+  grep -q "autoremove" "${BATS_TEST_TMPDIR}/apt-get.log"
+}
+
+@test "registry: last-out honours .keep keep-wins (kept package is not autoremoved)" {
+  _seed_registry_apt
+  _reg_make_group "grpKeep" true curl
+  _reg_make_group "grpDrop" false curl
+
+  ospkg__cleanup_all_build_groups false
+
+  run ospkg__is_last_out
+  assert_success
+  # curl is keep-wins true across the union → nothing to remove → no autoremove.
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-get.log" ]]
+}
+
+@test "registry: mixed keep — only the keep=false package is removed, kept one is protected" {
+  _seed_registry_apt
+  _reg_make_group "grpKeep" true keepme
+  _reg_make_group "grpDrop" false dropme
+
+  ospkg__cleanup_all_build_groups false
+
+  run ospkg__is_last_out
+  assert_success
+  # dropme triggers autoremove; keepme is pinned manual (protected) beforehand.
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-get.log"
+  grep -q "autoremove" "${BATS_TEST_TMPDIR}/apt-get.log"
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "manual" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "keepme" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "registry: first-in registrant snapshots global-auto into the registry root" {
+  _seed_registry_apt
+  printf 'wget\nlibz1\n' > "${BATS_TEST_TMPDIR}/apt-showauto.txt"
+  _ospkg__registry_register
+  assert_file_exists "${_OSPKG__REGISTRY_ROOT}/.global_auto_before"
+  grep -q "^libz1$" "${_OSPKG__REGISTRY_ROOT}/.global_auto_before"
+  grep -q "^wget$" "${_OSPKG__REGISTRY_ROOT}/.global_auto_before"
+  grep -q "manual" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+@test "registry: global-auto is restored only at last-out, not when parked" {
+  _seed_registry_apt
+  mkdir -p "${_OSPKG__REGISTRY_ROOT}"
+  printf 'libz1\n' > "${_OSPKG__REGISTRY_ROOT}/.global_auto_before"
+  _reg_make_group "grpA" false curl
+  printf '#!/bin/bash\nprintf "libz1\\n"\n' > "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg-query"
+  prepend_fake_bin_path
+  sleep 300 3>&- < /dev/null > /dev/null 2>&1 &
+  local _sib=$!
+  _REG_SIBLING_PIDS+=("$_sib")
+  local _tok
+  _tok="$(_ospkg__proc_token "$_sib")"
+  _reg_make_registrant "${_sib}.${_tok}" false
+
+  # First cleanup: parked (sibling alive) → snapshot NOT restored.
+  ospkg__cleanup_all_build_groups false
+  assert_file_exists "${_OSPKG__REGISTRY_ROOT}/.global_auto_before"
+
+  # Sibling exits → next cleanup is last-out → snapshot restored (removed).
+  rm -f "${_OSPKG__REGISTRY_ROOT}/registrants/${_sib}.${_tok}"
+  kill "$_sib" 2> /dev/null || true
+  ospkg__cleanup_all_build_groups false
+  [[ ! -e "${_OSPKG__REGISTRY_ROOT}/.global_auto_before" ]]
+}
+
+@test "registry: mutex acquire takes over a stale (dead-owner) lock" {
+  _seed_registry_apt
+  mkdir -p "${_OSPKG__REGISTRY_ROOT}/mutex"
+  sleep 60 3>&- < /dev/null > /dev/null 2>&1 &
+  local _dp=$!
+  local _dtok
+  _dtok="$(_ospkg__proc_token "$_dp")"
+  kill "$_dp" 2> /dev/null || true
+  wait "$_dp" 2> /dev/null || true
+  printf '%s.%s\n' "$_dp" "$_dtok" > "${_OSPKG__REGISTRY_ROOT}/mutex/owner"
+
+  _ospkg__mutex_acquire "${_OSPKG__REGISTRY_ROOT}"
+  grep -q "^$$\." "${_OSPKG__REGISTRY_ROOT}/mutex/owner"
+  _ospkg__mutex_release "${_OSPKG__REGISTRY_ROOT}"
+  [[ ! -d "${_OSPKG__REGISTRY_ROOT}/mutex" ]]
+}
+
+@test "registry: nonroot without sudo degrades to today's (no-registry) cleanup path" {
+  _seed_apt_context
+  export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
+  export _FEAT_SHARE_DIR_ROOT="${BATS_TEST_TMPDIR}/share/ns/feat"
+  # No _OSPKG__REGISTRY_ROOT override; force unprivileged so the system-PM
+  # registry is inactive and behaviour degrades to today's path.
+  users__is_privileged() { return 1; }
+  users__is_root() { return 1; }
+  mkdir -p "${BATS_TEST_TMPDIR}/bin" "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf '#!/bin/bash\necho "$@" >> "%s/apt-get.log"\n' "${BATS_TEST_TMPDIR}" \
+    > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  prepend_fake_bin_path
+  printf 'curl\n' > "${BATS_TEST_TMPDIR}/ospkg/build-deps/grp"
+
+  run _ospkg__registry_active
+  assert_failure
+
+  ospkg__cleanup_all_build_groups false
+  grep -q "autoremove" "${BATS_TEST_TMPDIR}/apt-get.log"
+  [[ ! -f "${BATS_TEST_TMPDIR}/ospkg/build-deps/grp" ]]
+  run ospkg__is_last_out
+  assert_success
+}
+
+@test "registry: single invocation is immediately last-out and removes its build group" {
+  _seed_registry_apt
+  _ospkg__registry_register
+  _reg_make_group "grpA" false curl
+
+  ospkg__cleanup_all_build_groups false
+
+  run ospkg__is_last_out
+  assert_success
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-get.log"
+  grep -q "autoremove" "${BATS_TEST_TMPDIR}/apt-get.log"
+  # Registry cleared on last-out.
+  [[ -z "$(ls -A "${_OSPKG__REGISTRY_ROOT}/registrants" 2> /dev/null)" ]]
+  [[ -z "$(ls -A "${_OSPKG__REGISTRY_ROOT}/groups" 2> /dev/null)" ]]
+}
+
+@test "registry: session mode registers a single session-keyed registrant" {
+  _seed_registry_apt
+  export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/session"
+  mkdir -p "$_SYSSET_SESSION_TRACK_DIR"
+  _ospkg__registry_register
+  local _key
+  _key="$(_ospkg__session_reg_key)"
+  assert_file_exists "${_OSPKG__REGISTRY_ROOT}/registrants/${_key}"
+  # No PID-keyed registrant was created.
+  local _n
+  _n="$(ls -1 "${_OSPKG__REGISTRY_ROOT}/registrants" | wc -l)"
+  [[ "$_n" -eq 1 ]]
+}
+
+@test "registry: session cleanup parks its groups when a live sibling remains" {
+  _seed_registry_apt
+  export _SYSSET_SESSION_TRACK_DIR="${BATS_TEST_TMPDIR}/session"
+  mkdir -p "$_SYSSET_SESSION_TRACK_DIR"
+  printf 'curl\n' > "${_SYSSET_SESSION_TRACK_DIR}/install-bash::grp"
+  local _skey
+  _skey="$(_ospkg__session_reg_key)"
+  _reg_make_registrant "$_skey" false
+  sleep 300 3>&- < /dev/null > /dev/null 2>&1 &
+  local _sib=$!
+  _REG_SIBLING_PIDS+=("$_sib")
+  local _tok
+  _tok="$(_ospkg__proc_token "$_sib")"
+  _reg_make_registrant "${_sib}.${_tok}" false
+
+  ospkg__cleanup_session_build_groups false
+
+  run ospkg__is_last_out
+  assert_failure
+  # Parked → no autoremove; session dir gone; session registrant removed; curl
+  # parked into the registry groups for the last-out invocation.
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-get.log" ]]
+  [[ ! -d "$_SYSSET_SESSION_TRACK_DIR" ]]
+  [[ ! -e "${_OSPKG__REGISTRY_ROOT}/registrants/${_skey}" ]]
+  grep -rq "^curl$" "${_OSPKG__REGISTRY_ROOT}/groups/"
+
+  kill "$_sib" 2> /dev/null || true
+}

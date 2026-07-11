@@ -25,6 +25,19 @@ _OSPKG__DNF_MARK_USER="install"
 _OSPKG__DNF_MARK_DEP="remove"
 _OSPKG__PM_KEY=""
 _OSPKG__DEB_ARCH=""
+# Live-registry state (concurrency-safe build-dep co-ownership; see the "Live
+# registry" section below and docs/source/dev-guide/features/lib.md).
+# _OSPKG__REGISTRY_ROOT is an OPTIONAL override honoured verbatim (no privilege
+# wrapper) so tests can pin the registry under a writable temp dir; it is left
+# unset in production, where the root is derived from the feature share dir.
+_OSPKG__REGISTERED=false
+_OSPKG__SELF_TOKEN=""
+# Whether this invocation performed the shared "last-out" teardown at cleanup
+# (true when it was the last live registrant, or when no registry was active).
+_OSPKG__LAST_OUT_DECISION=true
+# Backstop (seconds) after which a mutex owner or session registrant is treated
+# as stale even when liveness cannot be established.
+_OSPKG__REGISTRY_STALE_SECS=900
 
 _ospkg__clean_apk() {
   # @brief _ospkg__clean_apk — Remove the Alpine APK package cache (`/var/cache/apk/*`).
@@ -954,8 +967,57 @@ ospkg__take_initial_snapshot() {
 
 _ospkg__global_auto_snapshot_file() {
   # _ospkg__global_auto_snapshot_file — print the path for the global pre-install
-  # auto-state snapshot stored alongside build-dep sidecars.
+  # auto-state snapshot. When the live registry is active it is relocated to the
+  # registry root (shared across concurrent invocations; first-in snapshots,
+  # last-out restores). Otherwise it lives alongside the per-invocation build-dep
+  # sidecars (today's behaviour, byte-compatible).
+  local _root
+  if _ospkg__registry_active && _root="$(_ospkg__registry_root)" && [[ -n "$_root" ]]; then
+    printf '%s/.global_auto_before' "$_root"
+    return 0
+  fi
   printf '%s/.global_auto_before' "$(_ospkg__build_deps_dir)"
+}
+
+_ospkg__snap_exists() {
+  # _ospkg__snap_exists <file> — test existence of a global-auto snapshot file,
+  # routing through the registry privilege channel when the registry is active.
+  local _f="$1"
+  if _ospkg__registry_active; then
+    _ospkg__reg_run test -f "$_f"
+  else
+    [[ -f "$_f" ]]
+  fi
+}
+
+_ospkg__snap_write() {
+  # _ospkg__snap_write <file> — write stdin to a global-auto snapshot file.
+  local _f="$1"
+  if _ospkg__registry_active; then
+    _ospkg__reg_write "$_f"
+  else
+    cat > "$_f"
+  fi
+}
+
+_ospkg__snap_read() {
+  # _ospkg__snap_read <file> — print a global-auto snapshot file (empty if absent).
+  local _f="$1"
+  if _ospkg__registry_active; then
+    _ospkg__reg_read "$_f"
+  else
+    cat "$_f" 2> /dev/null || true
+  fi
+}
+
+_ospkg__snap_rm() {
+  # _ospkg__snap_rm <file> — remove a global-auto snapshot file.
+  local _f="$1"
+  if _ospkg__registry_active; then
+    _ospkg__reg_run rm -f "$_f" 2> /dev/null || true
+  else
+    rm -f "$_f"
+  fi
 }
 
 _ospkg__ensure_global_auto_snapshot() {
@@ -965,12 +1027,12 @@ _ospkg__ensure_global_auto_snapshot() {
   # cannot touch packages that pre-existed our build.
   local _snap
   _snap="$(_ospkg__global_auto_snapshot_file)"
-  [[ -f "$_snap" ]] && return 0
+  _ospkg__snap_exists "$_snap" && return 0
   case "$_OSPKG__PKG_MNGR" in
     apt-get)
-      apt-mark showauto 2> /dev/null | sort > "$_snap"
+      apt-mark showauto 2> /dev/null | sort | _ospkg__snap_write "$_snap"
       local -a _auto_pkgs=()
-      mapfile -t _auto_pkgs < "$_snap"
+      mapfile -t _auto_pkgs < <(_ospkg__snap_read "$_snap")
       [[ ${#_auto_pkgs[@]} -gt 0 ]] &&
         users__run_privileged apt-mark manual "${_auto_pkgs[@]}" > /dev/null 2>&1 || true
       ;;
@@ -979,25 +1041,25 @@ _ospkg__ensure_global_auto_snapshot() {
       # user-installed so autoremove won't touch them during our cleanup.
       comm -23 \
         <(rpm -qa --queryformat='%{NAME}\n' 2> /dev/null | sort) \
-        <("$_OSPKG__PKG_MNGR" history userinstalled 2> /dev/null | sort) > "$_snap"
+        <("$_OSPKG__PKG_MNGR" history userinstalled 2> /dev/null | sort) | _ospkg__snap_write "$_snap"
       local -a _dep_pkgs=()
-      mapfile -t _dep_pkgs < "$_snap"
+      mapfile -t _dep_pkgs < <(_ospkg__snap_read "$_snap")
       [[ ${#_dep_pkgs[@]} -gt 0 ]] &&
         users__run_privileged "$_OSPKG__PKG_MNGR" -y mark "${_OSPKG__DNF_MARK_USER}" "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
       ;;
     pacman)
       # Snapshot all asdeps packages and temporarily mark them asexplicit so
       # 'pacman -Qdtq' only surfaces packages we newly installed.
-      pacman -Qq --deps 2> /dev/null | sort > "$_snap"
+      pacman -Qq --deps 2> /dev/null | sort | _ospkg__snap_write "$_snap"
       local -a _dep_pkgs=()
-      mapfile -t _dep_pkgs < "$_snap"
+      mapfile -t _dep_pkgs < <(_ospkg__snap_read "$_snap")
       [[ ${#_dep_pkgs[@]} -gt 0 ]] &&
         users__run_privileged pacman -D --asexplicit "${_dep_pkgs[@]}" > /dev/null 2>&1 || true
       ;;
     *)
       # apk uses virtual groups; zypper/microdnf/brew use per-package safe removal.
       # Create an empty sentinel so subsequent calls skip this work.
-      : > "$_snap"
+      printf '' | _ospkg__snap_write "$_snap"
       ;;
   esac
   return 0
@@ -1009,10 +1071,10 @@ _ospkg__restore_global_auto_state() {
   # removes the snapshot file. Idempotent (no-op if no snapshot was taken).
   local _snap
   _snap="$(_ospkg__global_auto_snapshot_file)"
-  [[ -f "$_snap" ]] || return 0
+  _ospkg__snap_exists "$_snap" || return 0
   local -a _pkgs=()
-  mapfile -t _pkgs < "$_snap"
-  rm -f "$_snap"
+  mapfile -t _pkgs < <(_ospkg__snap_read "$_snap")
+  _ospkg__snap_rm "$_snap"
   [[ ${#_pkgs[@]} -eq 0 ]] && return 0
   # Intersect snapshot with currently installed packages in one batch query.
   # Some packages may have been removed as build deps and no longer exist.
@@ -1235,6 +1297,435 @@ _ospkg__remove_build_group() {
   return 0
 }
 
+# ── Live registry (concurrency-safe build-dep co-ownership) ───────────────────
+# A machine-visible registry, shared across all concurrent installer invocations
+# and features, co-located with the guarded package state (the feature-share-dir
+# namespace parent for system PMs; the user share dir for brew). It lets the LAST
+# invocation to exit ("last-out") perform the machine-global build-dep purge,
+# global-auto restore, cache clean, and bootstrap-bash removal, while earlier
+# ("parked") invocations skip those shared teardown steps so they cannot reap a
+# still-live sibling's in-use build dependencies. All filesystem ops for system
+# PMs route through users__run_privileged (the same channel tracked installs use);
+# brew and the _OSPKG__REGISTRY_ROOT test override run direct.
+
+_ospkg__registry_root() {
+  # _ospkg__registry_root — print the registry root for the active PM, or return
+  # 1 when none applies (unknown PM, or the share-dir base var is unset).
+  if [[ -n "${_OSPKG__REGISTRY_ROOT:-}" ]]; then
+    printf '%s' "${_OSPKG__REGISTRY_ROOT}"
+    return 0
+  fi
+  case "${_OSPKG__PKG_MNGR:-}" in
+    brew)
+      [[ -n "${_FEAT_SHARE_DIR_NONROOT:-}" ]] || return 1
+      printf '%s/.ospkg-live' "$(dirname "${_FEAT_SHARE_DIR_NONROOT}")"
+      ;;
+    '')
+      return 1
+      ;;
+    *)
+      [[ -n "${_FEAT_SHARE_DIR_ROOT:-}" ]] || return 1
+      printf '%s/.ospkg-live' "$(dirname "${_FEAT_SHARE_DIR_ROOT}")"
+      ;;
+  esac
+  return 0
+}
+
+_ospkg__registry_active() {
+  # _ospkg__registry_active — return 0 when the live registry is usable for the
+  # active PM. System PMs require privilege (a nonroot-no-sudo invocation cannot
+  # do tracked installs, so the registry no-ops and behaviour degrades to today).
+  local _root
+  _root="$(_ospkg__registry_root)" || return 1
+  [[ -n "$_root" ]] || return 1
+  [[ -n "${_OSPKG__REGISTRY_ROOT:-}" ]] && return 0   # test override → active (direct)
+  [[ "${_OSPKG__PKG_MNGR:-}" == "brew" ]] && return 0 # brew → active (user-owned)
+  users__is_privileged                                # system PM → needs privilege
+}
+
+_ospkg__reg_privileged() {
+  # _ospkg__reg_privileged — return 0 when registry filesystem ops must be wrapped
+  # in users__run_privileged (system PMs). The test override and brew run direct.
+  [[ -n "${_OSPKG__REGISTRY_ROOT:-}" ]] && return 1
+  [[ "${_OSPKG__PKG_MNGR:-}" == "brew" ]] && return 1
+  return 0
+}
+
+_ospkg__reg_run() {
+  # _ospkg__reg_run <cmd>... — run a registry filesystem command with the correct
+  # privilege routing.
+  if _ospkg__reg_privileged; then
+    users__run_privileged "$@"
+  else
+    "$@"
+  fi
+}
+
+_ospkg__reg_write() {
+  # _ospkg__reg_write <file> — write stdin to <file> with the correct privilege
+  # routing (a privileged `tee` for system PMs; a direct redirect otherwise).
+  local _file="$1"
+  if _ospkg__reg_privileged; then
+    users__run_privileged tee "$_file" > /dev/null
+  else
+    cat > "$_file"
+  fi
+}
+
+_ospkg__reg_read() {
+  # _ospkg__reg_read <file> — print <file> (empty when absent), privilege-routed.
+  _ospkg__reg_run cat "$1" 2> /dev/null || true
+}
+
+_ospkg__reg_list() {
+  # _ospkg__reg_list <dir> — print entry basenames of <dir> (empty when absent).
+  _ospkg__reg_run ls -1A "$1" 2> /dev/null || true
+}
+
+_ospkg__reg_path_age_gt() {
+  # _ospkg__reg_path_age_gt <path> <seconds> — return 0 when <path> mtime is older
+  # than <seconds>.
+  local _path="$1" _secs="$2" _mtime _now
+  _mtime="$(_ospkg__reg_run stat -c %Y "$_path" 2> /dev/null || _ospkg__reg_run stat -f %m "$_path" 2> /dev/null || true)"
+  [[ -n "${_mtime:-}" ]] || return 1
+  _now="$(date +%s)"
+  ((_now - _mtime > _secs))
+}
+
+_ospkg__proc_token() {
+  # _ospkg__proc_token [<pid>] — print a stable per-process token (the process
+  # start time) that guards against PID reuse. On Linux the PRIMARY source is
+  # /proc/<pid>/stat starttime (field 22): deterministic and load-insensitive.
+  # `ps -o lstart=` is only the fallback (e.g. macOS, no /proc). The sources must
+  # not be mixed within a run: register-time and check-time must agree, so a
+  # transient `ps` failure that silently switched representations (date string vs
+  # clock ticks) would misjudge a live registrant as PID-reused and wrongly purge.
+  # Prints `noproc` when neither is available.
+  local _pid="${1:-$$}" _t=""
+  if [[ -r "/proc/${_pid}/stat" ]]; then
+    local _line _rest
+    _line="$(cat "/proc/${_pid}/stat" 2> /dev/null)"
+    _rest="${_line##*) }"
+    _t="$(printf '%s\n' "$_rest" | awk '{print $20}')"
+  fi
+  if [[ -z "$_t" ]]; then
+    _t="$(ps -o lstart= -p "$_pid" 2> /dev/null | tr -s '[:space:]' '_')"
+    _t="${_t#_}"
+    _t="${_t%_}"
+  fi
+  [[ -n "$_t" ]] || _t="noproc"
+  printf '%s' "$_t"
+}
+
+_ospkg__registrant_alive() {
+  # _ospkg__registrant_alive <pid> <token> — return 0 when the process is alive
+  # AND its current start-time token matches <token> (guards PID reuse).
+  local _pid="$1" _token="$2" _cur
+  [[ -n "$_pid" ]] || return 1
+  _ospkg__reg_run kill -0 "$_pid" 2> /dev/null || return 1
+  _cur="$(_ospkg__proc_token "$_pid")"
+  [[ "$_cur" == "$_token" ]]
+}
+
+_ospkg__session_reg_key() {
+  # _ospkg__session_reg_key — print the session registrant key derived from a hash
+  # of _SYSSET_SESSION_TRACK_DIR so a live session appears as one registrant.
+  local _h
+  _h="$(printf '%s' "${_SYSSET_SESSION_TRACK_DIR:-}" | cksum 2> /dev/null | awk '{print $1}')"
+  [[ -n "${_h:-}" ]] || _h="0"
+  printf 'session.%s' "$_h"
+}
+
+_ospkg__self_keep() {
+  # _ospkg__self_keep — print this invocation's keep_build_deps intent (best-effort
+  # from the KEEP_BUILD_DEPS install.bash global; false when unset).
+  if [[ "${KEEP_BUILD_DEPS:-false}" == "true" ]]; then
+    printf 'true'
+  else
+    printf 'false'
+  fi
+}
+
+_ospkg__mutex_stale() {
+  # _ospkg__mutex_stale <root> — return 0 when the mutex may be taken over: owner
+  # PID not alive, token mismatch, or (primary signals failing / owner unwritten)
+  # the lock is older than the backstop.
+  local _root="$1" _owner _pid _token
+  _owner="$(_ospkg__reg_read "${_root}/mutex/owner")"
+  if [[ -z "${_owner//[[:space:]]/}" ]]; then
+    _ospkg__reg_path_age_gt "${_root}/mutex" "${_OSPKG__REGISTRY_STALE_SECS:-900}"
+    return
+  fi
+  _pid="${_owner%%.*}"
+  _token="${_owner#*.}"
+  _ospkg__registrant_alive "$_pid" "$_token" || return 0
+  _ospkg__reg_path_age_gt "${_root}/mutex/owner" "${_OSPKG__REGISTRY_STALE_SECS:-900}"
+}
+
+_ospkg__mutex_acquire() {
+  # _ospkg__mutex_acquire <root> — acquire the registry mutex (mkdir-atomic),
+  # taking over a stale lock by liveness/backstop. Bounded; never deadlocks.
+  local _root="$1"
+  local _mutex="${_root}/mutex"
+  local _self _tries=0 _max_tries=300
+  _self="$$.$(_ospkg__proc_token "$$")"
+  # Ensure the registry root exists so the atomic (non -p) mkdir of the mutex dir
+  # can only fail on EEXIST (lock held), never ENOENT (missing parent) — otherwise
+  # a cleanup that never registered would spin forever on a missing root.
+  _ospkg__reg_run mkdir -p "$_root" 2> /dev/null || true
+  while true; do
+    if _ospkg__reg_run mkdir "$_mutex" 2> /dev/null; then
+      printf '%s\n' "$_self" | _ospkg__reg_write "${_mutex}/owner"
+      return 0
+    fi
+    if _ospkg__mutex_stale "$_root"; then
+      _ospkg__reg_run rm -rf "$_mutex" 2> /dev/null || true
+      continue
+    fi
+    _tries=$((_tries + 1))
+    if ((_tries >= _max_tries)); then
+      logging__warn "ospkg registry: mutex acquire timed out — forcing takeover."
+      _ospkg__reg_run rm -rf "$_mutex" 2> /dev/null || true
+      _tries=0
+      continue
+    fi
+    sleep 0.2
+  done
+}
+
+_ospkg__mutex_release() {
+  # _ospkg__mutex_release <root> — release the registry mutex.
+  _ospkg__reg_run rm -rf "${1}/mutex" 2> /dev/null || true
+}
+
+_ospkg__registry_register() {
+  # _ospkg__registry_register — register this invocation in the live registry
+  # (lazily, idempotent per process). In session mode a single session-keyed
+  # registrant is (re)written so the session appears live across child processes.
+  # The FIRST registrant takes the shared global-auto snapshot under the mutex.
+  [[ "${_OSPKG__REGISTERED}" == true ]] && return 0
+  _ospkg__registry_active || return 0
+  local _root
+  _root="$(_ospkg__registry_root)" || return 0
+  _ospkg__reg_run mkdir -p "${_root}/registrants" "${_root}/groups" 2> /dev/null || return 0
+  local _self_key
+  if [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" ]]; then
+    _self_key="$(_ospkg__session_reg_key)"
+  else
+    _OSPKG__SELF_TOKEN="$(_ospkg__proc_token "$$")"
+    _self_key="$$.${_OSPKG__SELF_TOKEN}"
+  fi
+  _ospkg__mutex_acquire "$_root"
+  local _existing
+  _existing="$(_ospkg__reg_list "${_root}/registrants")"
+  {
+    printf 'feat=%s\n' "${_FEAT_ID:-unknown}"
+    printf 'keep=%s\n' "$(_ospkg__self_keep)"
+    printf 'pm=%s\n' "${_OSPKG__PKG_MNGR:-}"
+  } | _ospkg__reg_write "${_root}/registrants/${_self_key}"
+  if [[ -z "${_existing//[[:space:]]/}" ]]; then
+    _ospkg__ensure_global_auto_snapshot
+  fi
+  _ospkg__mutex_release "$_root"
+  _OSPKG__REGISTERED=true
+  return 0
+}
+
+_ospkg__registry_mirror_group() {
+  # _ospkg__registry_mirror_group <group-id> — mirror the local build-group
+  # sidecar (+ .keep, + .apkvirts for apk) into the registry `groups/` so it
+  # survives this invocation's temp session root. Non-session mode only; keep is
+  # keep-wins with any existing registry entry for the same group name.
+  _ospkg__registry_active || return 0
+  local _group_id="$1"
+  local _root _bd_dir _name _sidecar _gfile _keep _existing_keep
+  _root="$(_ospkg__registry_root)" || return 0
+  _bd_dir="$(_ospkg__build_deps_dir)"
+  _name="${_group_id//\//_}"
+  _sidecar="${_bd_dir}/${_name}"
+  [[ -f "$_sidecar" ]] || return 0
+  _ospkg__reg_run mkdir -p "${_root}/groups" 2> /dev/null || return 0
+  _gfile="${_root}/groups/${_name}"
+  {
+    _ospkg__reg_read "$_gfile"
+    cat "$_sidecar"
+  } | sort -u | _ospkg__reg_write "$_gfile"
+  _keep="$(_ospkg__self_keep)"
+  _existing_keep="$(_ospkg__reg_read "${_gfile}.keep")"
+  [[ "$_existing_keep" == "true" ]] && _keep=true
+  printf '%s\n' "$_keep" | _ospkg__reg_write "${_gfile}.keep"
+  if [[ "${_OSPKG__PKG_MNGR:-}" == "apk" ]]; then
+    local _virts
+    _virts="$(_ospkg__apk_virts_file "$_sidecar")"
+    if [[ -f "$_virts" ]]; then
+      {
+        _ospkg__reg_read "${_gfile}.apkvirts"
+        cat "$_virts"
+      } | sort -u | _ospkg__reg_write "${_gfile}.apkvirts"
+    fi
+  fi
+  return 0
+}
+
+_ospkg__registry_park_pkgs() {
+  # _ospkg__registry_park_pkgs <root> <keep> <group-name> <pkg>... — record
+  # <pkg>... into a registry group (keep-wins `.keep`) so a still-live sibling's
+  # last-out invocation applies the session's keep decision to them.
+  local _root="$1" _keep="$2" _gname="$3"
+  shift 3
+  [[ $# -gt 0 ]] || return 0
+  _ospkg__reg_run mkdir -p "${_root}/groups" 2> /dev/null || return 0
+  local _gfile="${_root}/groups/${_gname}" _existing_keep
+  {
+    _ospkg__reg_read "$_gfile"
+    printf '%s\n' "$@"
+  } | sort -u | _ospkg__reg_write "$_gfile"
+  _existing_keep="$(_ospkg__reg_read "${_gfile}.keep")"
+  [[ "$_existing_keep" == "true" ]] && _keep=true
+  printf '%s\n' "$_keep" | _ospkg__reg_write "${_gfile}.keep"
+  return 0
+}
+
+_ospkg__registry_prune_dead() {
+  # _ospkg__registry_prune_dead <root> — remove registrants whose process is gone
+  # or whose PID was reused (token mismatch). Session registrants (no owning PID)
+  # are pruned only once older than the backstop.
+  local _root="$1"
+  local _reg_dir="${_root}/registrants"
+  local -a _entries=()
+  mapfile -t _entries < <(_ospkg__reg_list "$_reg_dir")
+  local _entry _pid _token
+  for _entry in "${_entries[@]}"; do
+    [[ -z "$_entry" ]] && continue
+    if [[ "$_entry" == session.* ]]; then
+      _ospkg__reg_path_age_gt "${_reg_dir}/${_entry}" "${_OSPKG__REGISTRY_STALE_SECS:-900}" &&
+        _ospkg__reg_run rm -f "${_reg_dir}/${_entry}" 2> /dev/null || true
+      continue
+    fi
+    _pid="${_entry%%.*}"
+    _token="${_entry#*.}"
+    _ospkg__registrant_alive "$_pid" "$_token" ||
+      _ospkg__reg_run rm -f "${_reg_dir}/${_entry}" 2> /dev/null || true
+  done
+  return 0
+}
+
+_ospkg__registry_has_live() {
+  # _ospkg__registry_has_live <root> — return 0 when any registrant remains.
+  local _list
+  _list="$(_ospkg__reg_list "${1}/registrants")"
+  [[ -n "${_list//[[:space:]]/}" ]]
+}
+
+_ospkg__registry_purge_groups() {
+  # _ospkg__registry_purge_groups <root> — union all registry group sidecars,
+  # apply keep-wins from each group's `.keep`, and remove the resulting
+  # build-only packages by writing the synthetic `__session_cleanup__` sidecar and
+  # calling the UNCHANGED per-PM removal path. Kept packages are protected first.
+  local _root="$1"
+  local _groups_dir="${_root}/groups"
+  local -A _pkg_keep=()
+  local -a _names=()
+  mapfile -t _names < <(_ospkg__reg_list "$_groups_dir")
+  local _name _keep _pkg
+  for _name in "${_names[@]}"; do
+    [[ -z "$_name" ]] && continue
+    [[ "$_name" == *.keep || "$_name" == *.apkvirts ]] && continue
+    _keep="$(_ospkg__reg_read "${_groups_dir}/${_name}.keep")"
+    [[ "$_keep" == "true" ]] || _keep=false
+    while IFS= read -r _pkg; do
+      [[ -z "$_pkg" ]] && continue
+      [[ "${_pkg_keep[$_pkg]:-false}" == "true" ]] && continue
+      _pkg_keep["$_pkg"]="$_keep"
+    done < <(_ospkg__reg_read "${_groups_dir}/${_name}")
+  done
+
+  local -a _to_remove=() _to_keep=()
+  for _pkg in "${!_pkg_keep[@]}"; do
+    if [[ "${_pkg_keep[$_pkg]}" == "true" ]]; then
+      _to_keep+=("$_pkg")
+    else
+      _to_remove+=("$_pkg")
+    fi
+  done
+
+  if [[ ${#_to_remove[@]} -eq 0 ]]; then
+    logging__info "ospkg registry last-out: no build-dep packages to remove."
+    return 0
+  fi
+
+  [[ ${#_to_keep[@]} -gt 0 ]] && _ospkg__protect_user_pkgs "${_to_keep[@]}"
+
+  local _synth_dir _synth_sidecar
+  _synth_dir="$(_ospkg__build_deps_dir)"
+  _synth_sidecar="${_synth_dir}/__session_cleanup__"
+  printf '%s\n' "${_to_remove[@]}" | sort > "$_synth_sidecar"
+
+  if [[ "${_OSPKG__PKG_MNGR:-}" == "apk" ]]; then
+    local _grp_has_keep
+    for _name in "${_names[@]}"; do
+      [[ -z "$_name" ]] && continue
+      [[ "$_name" == *.keep || "$_name" == *.apkvirts ]] && continue
+      _grp_has_keep=false
+      while IFS= read -r _pkg; do
+        [[ -z "$_pkg" ]] && continue
+        if [[ "${_pkg_keep[$_pkg]:-false}" == "true" ]]; then
+          _grp_has_keep=true
+          break
+        fi
+      done < <(_ospkg__reg_read "${_groups_dir}/${_name}")
+      [[ "$_grp_has_keep" == true ]] && continue
+      _ospkg__reg_read "${_groups_dir}/${_name}.apkvirts" >> "${_synth_sidecar}.apkvirts"
+    done
+  fi
+
+  logging__remove "ospkg registry last-out: removing ${#_to_remove[@]} build-dep package(s): ${_to_remove[*]}"
+  _ospkg__remove_build_group "__session_cleanup__" || true
+  return 0
+}
+
+_ospkg__registry_gate() {
+  # _ospkg__registry_gate <self-key> — the shared last-out critical section:
+  # under the mutex, deregister <self-key>, prune dead registrants, and either
+  # PARK (a live sibling remains → skip shared teardown) or run LAST-OUT (purge
+  # unioned groups, restore global-auto, clear the registry). Sets
+  # _OSPKG__LAST_OUT_DECISION. Assumes the registry is active.
+  local _self_key="$1" _root
+  _root="$(_ospkg__registry_root)" || {
+    _OSPKG__LAST_OUT_DECISION=true
+    return 0
+  }
+  _ospkg__mutex_acquire "$_root"
+  _ospkg__reg_run rm -f "${_root}/registrants/${_self_key}" 2> /dev/null || true
+  _ospkg__registry_prune_dead "$_root"
+  if _ospkg__registry_has_live "$_root"; then
+    logging__info "ospkg registry: live sibling invocation(s) present — parking build-dep teardown."
+    _OSPKG__LAST_OUT_DECISION=false
+    _ospkg__mutex_release "$_root"
+    return 0
+  fi
+  _OSPKG__LAST_OUT_DECISION=true
+  _ospkg__registry_purge_groups "$_root"
+  _ospkg__restore_global_auto_state
+  _ospkg__reg_run rm -rf "${_root}/groups" "${_root}/registrants" 2> /dev/null || true
+  _ospkg__mutex_release "$_root"
+  return 0
+}
+
+ospkg__is_last_out() {
+  # @brief ospkg__is_last_out — Return 0 when this invocation may perform shared,
+  # machine-global teardown (package-manager cache clean, bootstrap-bash removal).
+  #
+  # Under the live registry this is true only for the last-out invocation (the
+  # last live registrant at cleanup); without an active registry it is always
+  # true (today's single-invocation behaviour). Meaningful only after
+  # `ospkg__cleanup_all_build_groups` / `ospkg__cleanup_session_build_groups` has
+  # run for this invocation.
+  #
+  # Returns: 0 when shared teardown is permitted, 1 when parked.
+  [[ "${_OSPKG__LAST_OUT_DECISION:-true}" == true ]]
+}
+
 ospkg__install_tracked() {
   # @brief ospkg__install_tracked <sub-id> <pkg>... — Install packages and register them as build-only under `<sub-id>` for later cleanup. Idempotent.
   #
@@ -1254,7 +1745,10 @@ ospkg__install_tracked() {
   _before_snapshot="${_bd_dir}/${_group_id//\//\_}.before"
   logging__detect "Detecting package manager for tracked install (group '${_group_id}')."
   _ospkg__detect
-  _ospkg__ensure_global_auto_snapshot
+  # Register in the live registry (first-in takes the shared global-auto snapshot
+  # under the mutex). Without an active registry, snapshot per-invocation as before.
+  _ospkg__registry_register
+  _ospkg__registry_active || _ospkg__ensure_global_auto_snapshot
 
   if [[ "$_OSPKG__PKG_MNGR" == "apk" ]]; then
     # APK: create a named virtual group so 'apk del VIRT' at cleanup removes
@@ -1309,14 +1803,44 @@ ospkg__install_tracked() {
       printf '%s\n' "$_pkg" >> "$_session_sidecar"
     done
     [[ -f "$_session_sidecar" ]] && sort -u "$_session_sidecar" -o "$_session_sidecar"
+  else
+    # Non-session: mirror the group into the live registry so it survives this
+    # invocation's temp session root and is visible to a concurrent last-out.
+    _ospkg__registry_mirror_group "$_group_id"
   fi
   return 0
 }
 
 ospkg__cleanup_all_build_groups() {
-  # @brief ospkg__cleanup_all_build_groups — Remove every registered build-dep group. Scans the sidecar directory and calls `_ospkg__remove_build_group` for each entry.
+  # @brief ospkg__cleanup_all_build_groups [<keep_build_deps>] — Remove every registered build-dep group (or defer to the last-out invocation under the live registry).
+  #
+  # Without an active registry (nonroot-no-sudo, brew without a share dir, or the
+  # registry disabled) this is today's behaviour: with `<keep_build_deps>` unset or
+  # `false` it scans the per-invocation sidecar directory and removes each group,
+  # then restores the global-auto state; with `true` it is a no-op (build deps are
+  # kept). With the registry active it deregisters this invocation under the mutex
+  # and, only if it is the last live registrant ("last-out"), unions all co-owned
+  # groups, applies per-group keep-wins, purges, and restores the global-auto state;
+  # a parked invocation removes nothing. `ospkg__is_last_out` reports the decision.
+  #
+  # Args:
+  #   <keep_build_deps>  `true` or `false` (default `false`) — this invocation's
+  #                      keep_build_deps intent.
   #
   # Returns: 0 on success.
+  local _keep="${1:-false}"
+  _OSPKG__LAST_OUT_DECISION=true
+
+  if _ospkg__registry_active; then
+    local _self_key="$$.${_OSPKG__SELF_TOKEN:-$(_ospkg__proc_token "$$")}"
+    _ospkg__registry_gate "$_self_key"
+    return 0
+  fi
+
+  # ── No active registry: today's exact, byte-compatible behaviour. ──
+  if [[ "$_keep" == "true" ]]; then
+    return 0
+  fi
   local _deps_dir
   _deps_dir="$(_ospkg__build_deps_dir)"
   [[ -d "$_deps_dir" ]] || return 0
@@ -1344,9 +1868,17 @@ ospkg__cleanup_session_build_groups() {
   #   <install-bash-keep>  `"true"` or `"false"` — keep_build_deps for the install-bash context. Feature keep_build_deps is read from `_OPT_OF`.
   #
   # Returns: 0 on success.
+  #
+  # The keep-wins to-remove computation is unchanged. When the live registry is
+  # active the ACTUATION is routed through the same last-out gate as
+  # `ospkg__cleanup_all_build_groups`: the session is one registrant, so if a
+  # concurrent invocation is still live the session's groups are PARKED into the
+  # registry (with keep-wins preserved) for whoever is last-out, and the session's
+  # own purge / global-auto restore / session-dir removal are deferred.
   local _getbash_keep="${1:-false}"
   [[ -n "${_SYSSET_SESSION_TRACK_DIR:-}" ]] || return 0
   [[ -d "$_SYSSET_SESSION_TRACK_DIR" ]] || return 0
+  _OSPKG__LAST_OUT_DECISION=true
 
   # Build pkg -> should_keep map (keep wins: any true overrides all false).
   local -A _session_pkg_keep=()
@@ -1380,19 +1912,44 @@ ospkg__cleanup_session_build_groups() {
     done < "$_sidecar"
   done
 
-  # Collect packages where all co-owners said keep=false.
-  local -a _to_remove=()
+  # Partition into to-remove (all co-owners said keep=false) and to-keep.
+  local -a _to_remove=() _to_keep=()
   for _pkg in "${!_session_pkg_keep[@]}"; do
-    [[ "${_session_pkg_keep[$_pkg]}" != "true" ]] && _to_remove+=("$_pkg")
+    if [[ "${_session_pkg_keep[$_pkg]}" == "true" ]]; then
+      _to_keep+=("$_pkg")
+    else
+      _to_remove+=("$_pkg")
+    fi
   done
 
+  # Route actuation through the live-registry last-out gate.
+  local _reg_root='' _reg_active=false _mode=purge
+  if _ospkg__registry_active; then
+    _reg_active=true
+    _reg_root="$(_ospkg__registry_root)"
+    _ospkg__mutex_acquire "$_reg_root"
+    _ospkg__reg_run rm -f "${_reg_root}/registrants/$(_ospkg__session_reg_key)" 2> /dev/null || true
+    _ospkg__registry_prune_dead "$_reg_root"
+    _ospkg__registry_has_live "$_reg_root" && _mode=park
+  fi
+
+  if [[ "$_mode" == park ]]; then
+    # A concurrent invocation is still live — park the session's groups (keep-wins
+    # preserved) for whoever is last-out; defer purge, global-auto restore, and
+    # session-dir removal. Nothing is removed now.
+    logging__info "Session cleanup: live sibling invocation(s) present — parking session build groups for last-out."
+    [[ ${#_to_keep[@]} -gt 0 ]] && _ospkg__registry_park_pkgs "$_reg_root" true "__session_keep__" "${_to_keep[@]}"
+    [[ ${#_to_remove[@]} -gt 0 ]] && _ospkg__registry_park_pkgs "$_reg_root" false "__session_drop__" "${_to_remove[@]}"
+    _ospkg__mutex_release "$_reg_root"
+    rm -rf "$_SYSSET_SESSION_TRACK_DIR"
+    _OSPKG__LAST_OUT_DECISION=false
+    return 0
+  fi
+
+  # PURGE — no registry, or registry last-out (mutex held while _reg_active).
   if [[ ${#_to_remove[@]} -gt 0 ]]; then
     # Protect packages that should be kept: mark them manual so autoremove-based
     # cleanup (apt, dnf, pacman) doesn't remove them as orphaned build deps.
-    local -a _to_keep=()
-    for _pkg in "${!_session_pkg_keep[@]}"; do
-      [[ "${_session_pkg_keep[$_pkg]}" == "true" ]] && _to_keep+=("$_pkg")
-    done
     [[ ${#_to_keep[@]} -gt 0 ]] && _ospkg__protect_user_pkgs "${_to_keep[@]}"
 
     logging__remove "Session cleanup: removing ${#_to_remove[@]} build-dep package(s): ${_to_remove[*]}"
@@ -1431,6 +1988,10 @@ ospkg__cleanup_session_build_groups() {
 
   rm -rf "$_SYSSET_SESSION_TRACK_DIR"
   _ospkg__restore_global_auto_state
+  if [[ "$_reg_active" == true ]]; then
+    _ospkg__reg_run rm -rf "${_reg_root}/groups" "${_reg_root}/registrants" 2> /dev/null || true
+    _ospkg__mutex_release "$_reg_root"
+  fi
   return 0
 }
 
@@ -2207,7 +2768,10 @@ ospkg__run() {
       _bd_dir="$(_ospkg__build_deps_dir)"
       _before_snapshot_file="${_bd_dir}/${_build_group//\//_}.before"
       logging__info "Build group '${_build_group}': recording pre-install package snapshot."
-      _ospkg__ensure_global_auto_snapshot
+      # Register in the live registry (first-in takes the shared global-auto
+      # snapshot under the mutex); otherwise snapshot per-invocation as before.
+      _ospkg__registry_register
+      _ospkg__registry_active || _ospkg__ensure_global_auto_snapshot
       _ospkg__snapshot_packages "$_before_snapshot_file"
     fi
 
@@ -2658,6 +3222,10 @@ ospkg__run() {
     if [[ -n "$_build_group" && -n "$_before_snapshot_file" ]]; then
       _ospkg__mark_build_group "$_build_group" "$_before_snapshot_file"
       rm -f "$_before_snapshot_file"
+      # Mirror the group into the live registry (non-session mode) so it survives
+      # this invocation's temp session root and a concurrent last-out can see it.
+      [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] &&
+        _ospkg__registry_mirror_group "$_build_group"
     fi
 
   fi # end manifest processing

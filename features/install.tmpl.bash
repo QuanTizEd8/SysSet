@@ -1956,7 +1956,22 @@ __exit__() {
   # for feature-specific cleanup (e.g. removing temp files).
   __run_feature_hook__ --warn __exit_pre
 
-  if [[ "${KEEP_CACHE}" != true ]]; then
+  # Build-dependency group cleanup runs FIRST so that, under the ospkg live
+  # registry, this invocation deregisters and the last-out decision is computed
+  # before the shared, machine-global teardown steps below (cache clean,
+  # bootstrap-bash removal) consult ospkg__is_last_out. It is always invoked in
+  # non-session mode — even when KEEP_BUILD_DEPS=true — so the invocation still
+  # deregisters; the function itself preserves keep semantics (and today's exact
+  # behaviour when no registry is active). Session children defer to the session
+  # orchestrator's ospkg__cleanup_session_build_groups.
+  if [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]]; then
+    ospkg__cleanup_all_build_groups "${KEEP_BUILD_DEPS:-false}" || logging__warn "Build-dependency group cleanup failed."
+  fi
+
+  # Package-manager cache cleanup is machine-global state: perform it only when
+  # this invocation is the registry last-out (ospkg__is_last_out is true without
+  # an active registry, so single invocations behave as today).
+  if [[ "${KEEP_CACHE}" != true ]] && ospkg__is_last_out; then
     if users__is_privileged || [[ "$(os__kernel)" == "Darwin" ]]; then
       ospkg__clean || logging__warn "Package-manager cache cleanup failed."
     else
@@ -1964,15 +1979,13 @@ __exit__() {
     fi
   fi
 
-  if [[ "${KEEP_BUILD_DEPS}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]]; then
-    ospkg__cleanup_all_build_groups || logging__warn "Build-dependency group cleanup failed."
-  fi
   if [[ "${KEEP_BUILD_DEPS}" != true ]]; then
     ospkg__cleanup_resources || logging__warn "Tracked resource cleanup failed."
   fi
-  # Remove a PM-installed bootstrap bash when it is no longer needed.
+  # Remove a PM-installed bootstrap bash when it is no longer needed. This mutates
+  # machine-global package state, so it is gated on the registry last-out decision.
   if [[ "${KEEP_BUILD_DEPS}" != true ]] && [[ -z "${_SYSSET_SESSION_TRACK_DIR:-}" ]] && \
-     [[ -n "${_BASH_INSTALLED_BY_PM:-}" ]]; then
+     ospkg__is_last_out && [[ -n "${_BASH_INSTALLED_BY_PM:-}" ]]; then
     case "${_BASH_INSTALLED_BY_PM}" in
       port)
         # port dependents: remove only when nothing else requires bash.

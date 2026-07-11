@@ -37,8 +37,57 @@ setup() {
 teardown() {
   if [[ -n "${_OSPKG__PKG_MNGR:-}" ]]; then
     ospkg__cleanup_all_build_groups 2> /dev/null || true
-    ospkg__is_installed "$_OSPKG_INT_PKG" && _pkg_force_remove "$_OSPKG_INT_PKG" || true
+    # apk tracked installs live in named virtual groups (.df-*); `apk del <pkg>`
+    # is blocked while its virtual still depends on it, so drop the virtuals
+    # first to release members a test intentionally kept (e.g. keep=true).
+    if [[ "$_OSPKG__PKG_MNGR" == apk ]]; then
+      local _v
+      for _v in $(apk info 2> /dev/null | grep -E '^\.df-' || true); do
+        apk del "$_v" > /dev/null 2>&1 || true
+      done
+    fi
+    local _p
+    for _p in "$_OSPKG_INT_PKG" tree; do
+      ospkg__is_installed "$_p" && _pkg_force_remove "$_p" || true
+    done
   fi
+}
+
+# _int_concurrency_canary — echo a portable leaf package for the concurrency
+# tests, or return 1 (test skips) for package managers without one. `tree` is in
+# the default repos of every supported Linux PM; brew is user-scoped and covered
+# by the unit tests, so it is skipped here.
+_int_concurrency_canary() {
+  case "$_OSPKG__PKG_MNGR" in
+    apt-get | apk | dnf | yum | microdnf | zypper | pacman) printf 'tree' ;;
+    *) return 1 ;;
+  esac
+}
+
+# _int_bg_invocation <label> <context> <canary> <keep> <post_install_bash>
+# Background a real lib invocation that shares the test registry ($_REG) but has
+# its own, correctly-established session root, installs <canary> as a tracked
+# build dep, signals "<_SYNC>/<label>_installed", then runs <post_install_bash>.
+# NOTE: _FILE__SESSION_ROOT and KEEP_BUILD_DEPS are exported INSIDE the subshell
+# after sourcing — lib/file.bash resets the former at source time (see the
+# concurrency test below), and this keeps both robust.
+_int_bg_invocation() {
+  local _label="$1" _ctx="$2" _canary="$3" _keep="$4" _post="$5"
+  mkdir -p "${BATS_TEST_TMPDIR}/${_label}"
+  env _OSPKG__REGISTRY_ROOT="$_REG" _SESS_ROOT="${BATS_TEST_TMPDIR}/${_label}" \
+    _KEEP_VAL="$_keep" _SYSSET_BUILD_CONTEXT="$_ctx" LIB_ROOT="$LIB_ROOT" \
+    _CANARY="$_canary" _SYNC="$_SYNC" _LABEL="$_label" \
+    bash -c '
+      set +e
+      # shellcheck source=/dev/null
+      source "${LIB_ROOT}/__init__.bash"
+      export _FILE__SESSION_ROOT="$_SESS_ROOT"
+      export KEEP_BUILD_DEPS="$_KEEP_VAL"
+      _ospkg__detect
+      ospkg__install_tracked "grp" "$_CANARY" && : > "${_SYNC}/${_LABEL}_installed"
+      '"$_post"'
+    ' < /dev/null > /dev/null 2>&1 3>&- &
+  _INT_BG_PID=$!
 }
 
 # ── PM detection ─────────────────────────────────────────────────────────────
@@ -162,4 +211,259 @@ teardown() {
   ospkg__is_installed devfeats-inttest-dummy
   # Unregister; non-fatal if removal is partial.
   ospkg__unregister_dummy devfeats-inttest-dummy 2> /dev/null || true
+}
+
+# ── Concurrency: live registry last-out semantics (real apt) ──────────────────
+#
+# Two concurrent invocations (separate bash processes) share a live registry
+# pinned under BATS_TEST_TMPDIR. Invocation A installs and holds a tracked build
+# dep, then idles; invocation B installs its own tracked build dep and exits,
+# running cleanup while A is still alive. B must PARK (its machine-global purge is
+# deferred), so A's in-use dep survives B's exit; both are removed only when A —
+# the last-out invocation — finally cleans up.
+
+# _int_wait_for <file> <max-100ms-ticks> — poll for <file> to appear.
+_int_wait_for() {
+  local _f="$1" _max="${2:-600}" _n=0
+  while [[ ! -e "$_f" && $_n -lt $_max ]]; do
+    sleep 0.1
+    _n=$((_n + 1))
+  done
+  [[ -e "$_f" ]]
+}
+
+@test "concurrent invocations: a sibling's in-use build dep survives its exit and is removed only at last-out" {
+  [[ "$_OSPKG__PKG_MNGR" == "apt-get" ]] || skip "apt-only concurrency test"
+  local _canary_b=tree
+  ospkg__is_installed "$_canary_b" && skip "'${_canary_b}' already installed; cannot use as canary"
+  # setup() does not refresh apt lists; do it here so the availability pre-check
+  # (and the two canary installs below) see the repo. Both canaries (bc, tree)
+  # live in the distro's main component, so a missing one is a real failure to
+  # surface loudly — not a reason to silently skip this crux concurrency proof.
+  apt-get update > /dev/null 2>&1 || true
+  apt-cache show "$_canary_b" > /dev/null 2>&1 || fail "'${_canary_b}' unexpectedly not available in apt after update"
+
+  local _reg="${BATS_TEST_TMPDIR}/registry"
+  local _sync="${BATS_TEST_TMPDIR}/sync"
+  mkdir -p "$_sync" "${BATS_TEST_TMPDIR}/A" "${BATS_TEST_TMPDIR}/B"
+
+  # NOTE on _FILE__SESSION_ROOT: it must be exported INSIDE each subshell AFTER
+  # sourcing __init__.bash — lib/file.bash resets it to empty at source time, so
+  # an env-injected value (unlike _OSPKG__REGISTRY_ROOT) would be clobbered. A
+  # stable per-invocation session root is required or each _ospkg__build_deps_dir
+  # call (a command substitution) would mktemp a fresh root, and the build-group
+  # sidecar written by mark would not be found by the registry mirror. Production
+  # install.bash fixes the root early in the main shell via logging__setup.
+
+  # Invocation A: install + hold "$_OSPKG_INT_PKG" as a tracked build dep, idle
+  # until told to finish, then clean up (should become last-out).
+  env _OSPKG__REGISTRY_ROOT="$_reg" _SESS_ROOT="${BATS_TEST_TMPDIR}/A" \
+    _SYSSET_BUILD_CONTEXT="feature::inttest-A" LIB_ROOT="$LIB_ROOT" \
+    _CANARY="$_OSPKG_INT_PKG" _SYNC="$_sync" \
+    bash -c '
+      set +e
+      # shellcheck source=/dev/null
+      source "${LIB_ROOT}/__init__.bash"
+      export _FILE__SESSION_ROOT="$_SESS_ROOT"
+      _ospkg__detect
+      ospkg__install_tracked "grp" "$_CANARY" && : > "${_SYNC}/A_installed"
+      _n=0
+      while [[ ! -e "${_SYNC}/A_go" && $_n -lt 900 ]]; do sleep 0.2; _n=$((_n + 1)); done
+      ospkg__cleanup_all_build_groups false
+      : > "${_SYNC}/A_done"
+    ' < /dev/null > /dev/null 2>&1 3>&- &
+  local _apid=$!
+
+  # A must finish installing before B starts (avoids dpkg-lock contention).
+  _int_wait_for "${_sync}/A_installed" 1200 || {
+    kill "$_apid" 2> /dev/null || true
+    fail "invocation A did not install '${_OSPKG_INT_PKG}' in time"
+  }
+  ospkg__is_installed "$_OSPKG_INT_PKG"
+
+  # Invocation B: install its own tracked build dep, then exit + clean up while A
+  # is still alive. Its machine-global purge must be parked.
+  env _OSPKG__REGISTRY_ROOT="$_reg" _SESS_ROOT="${BATS_TEST_TMPDIR}/B" \
+    _SYSSET_BUILD_CONTEXT="feature::inttest-B" LIB_ROOT="$LIB_ROOT" \
+    _CANARY="$_canary_b" _SYNC="$_sync" \
+    bash -c '
+      set +e
+      # shellcheck source=/dev/null
+      source "${LIB_ROOT}/__init__.bash"
+      export _FILE__SESSION_ROOT="$_SESS_ROOT"
+      _ospkg__detect
+      ospkg__install_tracked "grp" "$_CANARY"
+      ospkg__cleanup_all_build_groups false
+      : > "${_SYNC}/B_done"
+    ' < /dev/null > /dev/null 2>&1 3>&- &
+  local _bpid=$!
+
+  _int_wait_for "${_sync}/B_done" 1200 || {
+    kill "$_apid" "$_bpid" 2> /dev/null || true
+    fail "invocation B did not finish in time"
+  }
+  wait "$_bpid" 2> /dev/null || true
+
+  # B parked because A is still a live registrant: A's in-use dep must survive,
+  # and B's own tracked dep is deferred (not reaped mid-flight either).
+  ospkg__is_installed "$_OSPKG_INT_PKG"
+  ospkg__is_installed "$_canary_b"
+
+  # Release A; it is now the last registrant → last-out purge removes both deps.
+  : > "${_sync}/A_go"
+  _int_wait_for "${_sync}/A_done" 1200 || {
+    kill "$_apid" 2> /dev/null || true
+    fail "invocation A did not finish cleanup in time"
+  }
+  wait "$_apid" 2> /dev/null || true
+
+  run ospkg__is_installed "$_OSPKG_INT_PKG"
+  assert_failure
+  run ospkg__is_installed "$_canary_b"
+  assert_failure
+
+  # Defensive: ensure the B canary is gone even if an assertion above failed.
+  ospkg__is_installed "$_canary_b" && _pkg_force_remove "$_canary_b" || true
+}
+
+# The tests below are package-manager-portable (apt/apk/dnf/yum/zypper/pacman)
+# and use a single shared canary co-owned by both invocations, so the same
+# assertions hold regardless of the PM-specific removal command.
+
+@test "concurrent co-ownership: a shared build dep survives while a co-owner is live, removed only at last-out (all PMs)" {
+  local _canary
+  _canary="$(_int_concurrency_canary)" || skip "no portable canary for '${_OSPKG__PKG_MNGR}'"
+  ospkg__is_installed "$_canary" && skip "'${_canary}' already installed; cannot use as canary"
+
+  local _REG="${BATS_TEST_TMPDIR}/registry"
+  local _SYNC="${BATS_TEST_TMPDIR}/sync"
+  mkdir -p "$_SYNC"
+
+  # A installs the canary and holds it until released, then cleans up.
+  _int_bg_invocation A "feature::int-A" "$_canary" false '
+    _n=0; while [[ ! -e "${_SYNC}/A_go" && $_n -lt 900 ]]; do sleep 0.2; _n=$((_n + 1)); done
+    ospkg__cleanup_all_build_groups "${KEEP_BUILD_DEPS:-false}"
+    : > "${_SYNC}/A_done"'
+  local _apid=$_INT_BG_PID
+  _int_wait_for "${_SYNC}/A_installed" 1200 || {
+    kill "$_apid" 2> /dev/null || true
+    fail "invocation A did not install '${_canary}' in time"
+  }
+  ospkg__is_installed "$_canary"
+
+  # B co-owns the same canary, then exits + cleans while A is still live.
+  _int_bg_invocation B "feature::int-B" "$_canary" false '
+    ospkg__cleanup_all_build_groups "${KEEP_BUILD_DEPS:-false}"
+    : > "${_SYNC}/B_done"'
+  local _bpid=$_INT_BG_PID
+  _int_wait_for "${_SYNC}/B_done" 1200 || {
+    kill "$_apid" "$_bpid" 2> /dev/null || true
+    fail "invocation B did not finish in time"
+  }
+  wait "$_bpid" 2> /dev/null || true
+
+  # B parked (A is a live registrant) → the co-owned canary survives.
+  ospkg__is_installed "$_canary"
+
+  # Release A → last registrant → last-out purge removes the canary.
+  : > "${_SYNC}/A_go"
+  _int_wait_for "${_SYNC}/A_done" 1200 || {
+    kill "$_apid" 2> /dev/null || true
+    fail "invocation A did not finish cleanup in time"
+  }
+  wait "$_apid" 2> /dev/null || true
+
+  run ospkg__is_installed "$_canary"
+  assert_failure
+  ospkg__is_installed "$_canary" && _pkg_force_remove "$_canary" || true
+}
+
+@test "concurrent keep: a keep_build_deps=true invocation's build dep survives the last-out purge (all PMs)" {
+  # Cross-owner keep-wins (true overrides false on the SAME package) is covered by
+  # the mocked unit tests; a real second installer of an already-present package
+  # produces an empty group, so here A solely owns the canary with keep=true and B
+  # is the concurrent keep=false sibling that parks. This proves keep=true is
+  # honored end-to-end through the registry last-out path under a real PM.
+  local _canary
+  _canary="$(_int_concurrency_canary)" || skip "no portable canary for '${_OSPKG__PKG_MNGR}'"
+  ospkg__is_installed "$_canary" && skip "'${_canary}' already installed; cannot use as canary"
+
+  local _REG="${BATS_TEST_TMPDIR}/registry"
+  local _SYNC="${BATS_TEST_TMPDIR}/sync"
+  mkdir -p "$_SYNC"
+
+  # A holds the canary with keep_build_deps=true.
+  _int_bg_invocation A "feature::int-A" "$_canary" true '
+    _n=0; while [[ ! -e "${_SYNC}/A_go" && $_n -lt 900 ]]; do sleep 0.2; _n=$((_n + 1)); done
+    ospkg__cleanup_all_build_groups "${KEEP_BUILD_DEPS:-false}"
+    : > "${_SYNC}/A_done"'
+  local _apid=$_INT_BG_PID
+  _int_wait_for "${_SYNC}/A_installed" 1200 || {
+    kill "$_apid" 2> /dev/null || true
+    fail "invocation A did not install '${_canary}' in time"
+  }
+
+  # B co-owns the same canary with keep_build_deps=false, then exits + cleans.
+  _int_bg_invocation B "feature::int-B" "$_canary" false '
+    ospkg__cleanup_all_build_groups "${KEEP_BUILD_DEPS:-false}"
+    : > "${_SYNC}/B_done"'
+  local _bpid=$_INT_BG_PID
+  _int_wait_for "${_SYNC}/B_done" 1200 || {
+    kill "$_apid" "$_bpid" 2> /dev/null || true
+    fail "invocation B did not finish in time"
+  }
+  wait "$_bpid" 2> /dev/null || true
+
+  # Release A (the last-out invocation). Keep-wins: the canary is co-owned by a
+  # keep=true group, so last-out must NOT remove it.
+  : > "${_SYNC}/A_go"
+  _int_wait_for "${_SYNC}/A_done" 1200 || {
+    kill "$_apid" 2> /dev/null || true
+    fail "invocation A did not finish cleanup in time"
+  }
+  wait "$_apid" 2> /dev/null || true
+
+  ospkg__is_installed "$_canary" || fail "'${_canary}' was removed despite keep_build_deps=true"
+  _pkg_force_remove "$_canary"
+}
+
+@test "concurrent stale-registrant: a killed invocation is pruned so the survivor's last-out purges (all PMs)" {
+  local _canary
+  _canary="$(_int_concurrency_canary)" || skip "no portable canary for '${_OSPKG__PKG_MNGR}'"
+  ospkg__is_installed "$_canary" && skip "'${_canary}' already installed; cannot use as canary"
+
+  local _REG="${BATS_TEST_TMPDIR}/registry"
+  local _SYNC="${BATS_TEST_TMPDIR}/sync"
+  mkdir -p "$_SYNC"
+
+  # A installs the canary and then idles forever — it will be killed hard,
+  # simulating a crashed invocation that never deregisters.
+  _int_bg_invocation A "feature::int-A" "$_canary" false '
+    while true; do sleep 1; done'
+  local _apid=$_INT_BG_PID
+  _int_wait_for "${_SYNC}/A_installed" 1200 || {
+    kill "$_apid" 2> /dev/null || true
+    fail "invocation A did not install '${_canary}' in time"
+  }
+  ospkg__is_installed "$_canary"
+
+  # Kill A without a chance to deregister → it leaves a stale registrant behind.
+  kill -9 "$_apid" 2> /dev/null || true
+  wait "$_apid" 2> /dev/null || true
+
+  # B installs the same canary and cleans up: it must prune A's dead registrant
+  # (liveness check), become last-out, and purge the canary.
+  _int_bg_invocation B "feature::int-B" "$_canary" false '
+    ospkg__cleanup_all_build_groups "${KEEP_BUILD_DEPS:-false}"
+    : > "${_SYNC}/B_done"'
+  local _bpid=$_INT_BG_PID
+  _int_wait_for "${_SYNC}/B_done" 1200 || {
+    kill "$_bpid" 2> /dev/null || true
+    fail "invocation B did not finish in time"
+  }
+  wait "$_bpid" 2> /dev/null || true
+
+  run ospkg__is_installed "$_canary"
+  assert_failure
+  ospkg__is_installed "$_canary" && _pkg_force_remove "$_canary" || true
 }

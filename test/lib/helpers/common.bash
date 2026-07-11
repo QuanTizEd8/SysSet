@@ -122,6 +122,13 @@ reload_lib() {
   _OSPKG__DETECTED=false
   _OSPKG__PM_KEY=""
   _OSPKG__DEB_ARCH=""
+  # Reset ospkg.bash live-registry state and drop any test override so registry
+  # tests do not bleed into each other.
+  _OSPKG__REGISTERED=false
+  _OSPKG__SELF_TOKEN=""
+  _OSPKG__LAST_OUT_DECISION=true
+  _OSPKG__REGISTRY_STALE_SECS=900
+  unset _OSPKG__REGISTRY_ROOT
   ctx__reset
 
   # Reset logging state flags.
