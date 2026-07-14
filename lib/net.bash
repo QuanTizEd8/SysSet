@@ -177,10 +177,14 @@ _NET_HDR_EOF_
     fi
     return "${_rc}"
   elif [ "$_NET__FETCH_TOOL" = "wget" ]; then
+    # -q (quiet): match curl's -s. Without it, wget (notably BusyBox wget on
+    # Alpine) streams "Connecting to …" / progress-bar lines to stderr, which
+    # pollutes command output captured by callers and test harnesses. Fetch
+    # errors are still surfaced via the exit code and logging__error below.
     if [ -n "$_dest" ]; then
-      set -- -O "$_dest"
+      set -- -q -O "$_dest"
     else
-      set -- -O-
+      set -- -q -O-
     fi
     [ -n "$_netrc" ] && set -- "$@" "--netrc-file=${_netrc}"
     while IFS= read -r _h; do
