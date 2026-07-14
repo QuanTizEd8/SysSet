@@ -1446,28 +1446,27 @@ _ospkg__self_keep() {
   fi
 }
 
-_ospkg__mutex_stale() {
-  # _ospkg__mutex_stale <root> — return 0 when the mutex may be taken over: owner
-  # PID not alive, token mismatch, or (primary signals failing / owner unwritten)
-  # the lock is older than the backstop.
-  local _root="$1" _owner _pid _token
-  _owner="$(_ospkg__reg_read "${_root}/mutex/owner")"
-  if [[ -z "${_owner//[[:space:]]/}" ]]; then
-    _ospkg__reg_path_age_gt "${_root}/mutex" "${_OSPKG__REGISTRY_STALE_SECS:-900}"
-    return
-  fi
-  _pid="${_owner%%.*}"
-  _token="${_owner#*.}"
-  _ospkg__registrant_alive "$_pid" "$_token" || return 0
-  _ospkg__reg_path_age_gt "${_root}/mutex/owner" "${_OSPKG__REGISTRY_STALE_SECS:-900}"
-}
-
 _ospkg__mutex_acquire() {
-  # _ospkg__mutex_acquire <root> — acquire the registry mutex (mkdir-atomic),
-  # taking over a stale lock by liveness/backstop. Bounded; never deadlocks.
+  # _ospkg__mutex_acquire <root> — acquire the registry mutex.
+  #
+  # Normal acquisition is an atomic `mkdir` of the lock dir (only one racer wins).
+  # A DEAD owner is taken over by atomically RENAMING its owner file to a unique
+  # name: rename(2) is atomic, so exactly one racer can move a given owner file
+  # (the rest get ENOENT and re-loop) — the winner then writes its own owner and
+  # keeps the SAME lock dir. This closes the TOCTOU of the older
+  # "detect-stale → rm -rf → mkdir" scheme, where a waiter could `rm -rf` a lock
+  # a different waiter had already validly re-acquired, letting two processes into
+  # the critical section. `rm -rf` is now used only for the narrow cases where no
+  # owner file exists (holder died between mkdir and the owner write) or an
+  # absolute deadlock cap trips — both guarded by the age backstop. Verify-after-
+  # acquire re-reads the owner as belt-and-suspenders. Bounded; never deadlocks.
   local _root="$1"
-  local _mutex="${_root}/mutex"
-  local _self _tries=0 _max_tries=300
+  local _mutex="${_root}/mutex" _owner_f="${_root}/mutex/owner"
+  local _self _tries=0
+  # Absolute anti-deadlock cap, kept well ABOVE the staleness backstop so a
+  # legitimately long-held lock is reclaimed by the age-based takeover below,
+  # never force-broken while its owner is alive and working.
+  local _max_tries=$(((${_OSPKG__REGISTRY_STALE_SECS:-900} + 300) * 5))
   _self="$$.$(_ospkg__proc_token "$$")"
   # Ensure the registry root exists so the atomic (non -p) mkdir of the mutex dir
   # can only fail on EEXIST (lock held), never ENOENT (missing parent) — otherwise
@@ -1475,19 +1474,43 @@ _ospkg__mutex_acquire() {
   _ospkg__reg_run mkdir -p "$_root" 2> /dev/null || true
   while true; do
     if _ospkg__reg_run mkdir "$_mutex" 2> /dev/null; then
-      printf '%s\n' "$_self" | _ospkg__reg_write "${_mutex}/owner"
-      return 0
+      printf '%s\n' "$_self" | _ospkg__reg_write "$_owner_f"
+      [[ "$(_ospkg__reg_read "$_owner_f")" == "$_self" ]] && return 0
+      continue
     fi
-    if _ospkg__mutex_stale "$_root"; then
-      _ospkg__reg_run rm -rf "$_mutex" 2> /dev/null || true
+    local _owner _pid _token _takeover=0
+    _owner="$(_ospkg__reg_read "$_owner_f")"
+    if [[ -z "${_owner//[[:space:]]/}" ]]; then
+      # No owner file: the holder died between mkdir and the owner write, or a
+      # takeover is mid-flight. Reclaim only once the dir is older than the
+      # backstop; otherwise let it settle.
+      if _ospkg__reg_path_age_gt "$_mutex" "${_OSPKG__REGISTRY_STALE_SECS:-900}"; then
+        _ospkg__reg_run rm -rf "$_mutex" 2> /dev/null || true
+      fi
+    else
+      _pid="${_owner%%.*}"
+      _token="${_owner#*.}"
+      if ! _ospkg__registrant_alive "$_pid" "$_token" ||
+        _ospkg__reg_path_age_gt "$_owner_f" "${_OSPKG__REGISTRY_STALE_SECS:-900}"; then
+        _takeover=1
+      fi
+    fi
+    if ((_takeover)); then
+      # Atomic ownership transfer — see the header note. Only the racer whose
+      # rename succeeds claims the (dead) owner slot; others get ENOENT and loop.
+      local _claim="${_owner_f}.claim.$$.${RANDOM}"
+      if _ospkg__reg_run mv "$_owner_f" "$_claim" 2> /dev/null; then
+        _ospkg__reg_run rm -f "$_claim" 2> /dev/null || true
+        printf '%s\n' "$_self" | _ospkg__reg_write "$_owner_f"
+        [[ "$(_ospkg__reg_read "$_owner_f")" == "$_self" ]] && return 0
+      fi
       continue
     fi
     _tries=$((_tries + 1))
     if ((_tries >= _max_tries)); then
-      logging__warn "ospkg registry: mutex acquire timed out — forcing takeover."
+      logging__warn "ospkg registry: mutex acquire exceeded the deadlock cap — forcing takeover."
       _ospkg__reg_run rm -rf "$_mutex" 2> /dev/null || true
       _tries=0
-      continue
     fi
     sleep 0.2
   done

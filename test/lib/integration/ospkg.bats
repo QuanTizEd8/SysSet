@@ -467,3 +467,55 @@ _int_wait_for() {
   assert_failure
   ospkg__is_installed "$_canary" && _pkg_force_remove "$_canary" || true
 }
+
+# Mutex regression: a dead lock owner must be taken over by exactly one of several
+# concurrent waiters. Uses real subprocesses (distinct PIDs — a bash subshell
+# keeps the parent's $$) that guard a short critical section with an atomic
+# noclobber flag; a second simultaneous holder fails the create and records an
+# overlap. PM-agnostic (pure filesystem), so it runs on every environment.
+@test "concurrent mutex: a dead owner is taken over by exactly one of several waiters" {
+  local _root="${BATS_TEST_TMPDIR}/reg"
+  local _held="${BATS_TEST_TMPDIR}/held"
+  local _overlap="${BATS_TEST_TMPDIR}/overlap"
+  local _done="${BATS_TEST_TMPDIR}/done"
+
+  _spawn_mutex_racer() {
+    env _OSPKG__REGISTRY_ROOT="$_root" LIB_ROOT="$LIB_ROOT" \
+      _HELD="$_held" _OVERLAP="$_overlap" _DONE="$_done" \
+      bash -c '
+        set +e
+        # shellcheck source=/dev/null
+        source "${LIB_ROOT}/__init__.bash"
+        _ospkg__mutex_acquire "$_OSPKG__REGISTRY_ROOT"
+        if ( set -o noclobber; : > "$_HELD" ) 2> /dev/null; then
+          sleep 0.15
+          rm -f "$_HELD"
+        else
+          : > "$_OVERLAP"
+        fi
+        _ospkg__mutex_release "$_OSPKG__REGISTRY_ROOT"
+        printf x >> "$_DONE"
+      ' < /dev/null > /dev/null 2>&1 3>&- &
+  }
+
+  local _iter
+  for _iter in $(seq 1 12); do
+    rm -f "$_held" "$_overlap" "$_done"
+    mkdir -p "${_root}/mutex"
+    # Seed the mutex as owned by a now-dead process (token guards PID reuse).
+    sleep 30 3>&- < /dev/null > /dev/null 2>&1 &
+    local _dp=$!
+    kill "$_dp" 2> /dev/null || true
+    wait "$_dp" 2> /dev/null || true
+    printf '%s.deadtoken\n' "$_dp" > "${_root}/mutex/owner"
+
+    # Several waiters race to take over the dead lock at once.
+    _spawn_mutex_racer
+    _spawn_mutex_racer
+    _spawn_mutex_racer
+    wait
+
+    [[ ! -f "$_overlap" ]] || fail "iteration ${_iter}: two processes held the mutex simultaneously"
+    [[ "$(wc -c < "$_done" 2> /dev/null || echo 0)" -eq 3 ]] || fail "iteration ${_iter}: not all racers completed"
+  done
+}
