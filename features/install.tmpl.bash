@@ -1176,6 +1176,23 @@ __install_run_source__() {
     _fetch_args+=(--sidecar "${_sc_uri}")
   fi
 
+  # GPG verification is applied to both the primary and fallback fetches so that
+  # archived releases (whose checksums may have rotated off the main index) stay
+  # verified. The fallback deliberately omits any explicit --gpg-sig so its
+  # signature auto-derives from its own asset URI (a different mirror path).
+  local -a _fallback_gpg_args=()
+  if [[ -v SOURCE_GPG_KEY_URI && -n "${SOURCE_GPG_KEY_URI}" ]]; then
+    local _gpg_key_uri
+    _gpg_key_uri="$(ctx__expand_pattern "${SOURCE_GPG_KEY_URI}")"
+    _fetch_args+=(--gpg-key "${_gpg_key_uri}")
+    _fallback_gpg_args+=(--gpg-key "${_gpg_key_uri}")
+    if [[ -v SOURCE_GPG_SIG_URI && -n "${SOURCE_GPG_SIG_URI}" ]]; then
+      local _gpg_sig_uri
+      _gpg_sig_uri="$(ctx__expand_pattern "${SOURCE_GPG_SIG_URI}")"
+      _fetch_args+=(--gpg-sig "${_gpg_sig_uri}")
+    fi
+  fi
+
   logging__download "Fetching source asset '${_asset_uri}'."
   local _fetch_rc=0
   uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || _fetch_rc=$?
@@ -1184,7 +1201,7 @@ __install_run_source__() {
       local _fallback_uri
       _fallback_uri="$(ctx__expand_pattern "${SOURCE_FALLBACK_ASSET_URI}")"
       logging__warn "Primary source fetch failed (rc=${_fetch_rc}); trying fallback '${_fallback_uri}'."
-      uri__fetch_asset "${_fallback_uri}" --installer-dir "${INSTALLER_DIR}" --sha256 none
+      uri__fetch_asset "${_fallback_uri}" --installer-dir "${INSTALLER_DIR}" --sha256 none "${_fallback_gpg_args[@]+"${_fallback_gpg_args[@]}"}"
     else
       return "${_fetch_rc}"
     fi
@@ -2401,8 +2418,18 @@ __feat_resolve_version_spec__() {
         return 1
       fi
       logging__info "Resolving version from sidecar (URI='${VERSION_URI}', spec='${_spec}')."
-      _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${_spec}")"
-      local _rc=$?
+      # `|| _rc=$?` keeps a primary miss non-fatal under errexit/the ERR trap so
+      # the fallback below can run; without it the failing command substitution
+      # aborts the function before the fallback is reached.
+      local _rc=0
+      _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${_spec}")" || _rc=$?
+      if [[ $_rc != 0 && -n "${VERSION_FALLBACK_URI:-}" ]]; then
+        # Primary index lists only the current release (e.g. zsh's pub/); retry
+        # against the archive listing so explicitly pinned older versions resolve.
+        logging__info "Primary sidecar did not resolve '${_spec}'; trying fallback sidecar (URI='${VERSION_FALLBACK_URI}')."
+        _rc=0
+        _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_FALLBACK_URI}" "${VERSION_PATTERN}" "${_spec}")" || _rc=$?
+      fi
       [[ $_rc == 0 ]] || {
         logging__error "failed to resolve sidecar version (URI='${VERSION_URI}', spec='${_spec}')."
         return "$_rc"

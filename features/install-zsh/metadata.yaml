@@ -31,15 +31,23 @@ _options:
     resolution: sidecar
     test_pins:
       pinned: ["5.9.1"]
-    uri: "https://www.zsh.org/pub/SHA256SUM"
+    # zsh keeps only the current release under pub/ and moves older releases to
+    # pub/old/. Resolve stable/latest from pub/, then fall back to the pub/old/
+    # listing so an explicitly pinned older version (e.g. 5.9.1) still resolves.
+    uri: "https://www.zsh.org/pub/"
+    fallback_uri: "https://www.zsh.org/pub/old/"
     pattern: "zsh-[version].tar.xz"
   method:
     package:
       registers_as: zsh
     source:
       asset_uri: "https://www.zsh.org/pub/zsh-{feat.version}.tar.xz"
-      sidecar_uri: "https://www.zsh.org/pub/SHA256SUM"
       fallback_asset_uri: "https://www.zsh.org/pub/old/zsh-{feat.version}.tar.xz"
+      # Verify via GPG rather than a checksum sidecar: pub/SHA256SUM only lists
+      # the current release, so checksums for older versions are unavailable —
+      # but every tarball (in pub/ and pub/old/) ships a detached .asc signed by
+      # a key in pub/zsh-keyring.asc. The signature auto-derives as {asset}.asc.
+      gpg_key_uri: "https://www.zsh.org/pub/zsh-keyring.asc"
       build_system: autotools
       configure_args:
         - "--with-term-lib=ncursesw ncurses curses termcap"

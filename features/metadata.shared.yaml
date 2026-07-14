@@ -398,6 +398,19 @@ options:
       `version_resolution=sidecar`. Use `[version]` as the placeholder for the
       version number (e.g. `zsh-[version].tar.xz`).
 
+  version_fallback_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.version.fallback_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.version.fallback_uri", "") }}#
+    description: >-
+      Secondary sidecar URI consulted when the primary `version_uri` does not
+      resolve the requested spec, parsed with the same `version_pattern`. Use for
+      upstreams that keep only the current release on the main index and move
+      older releases to a separate archive listing (e.g. zsh's `pub/old/`). Only
+      applies when `version_resolution=sidecar`.
+
   version_resolution:
     _apply_when: |
       #{{ return bool(get("_options.version")) }}#
@@ -619,8 +632,33 @@ options:
       #{{ return get("_options.method.source.fallback_asset_uri", "") }}#
     description: >-
       Fallback URI for the source tarball, tried when the primary `source_asset_uri`
-      fetch fails. Sidecar verification is skipped for the fallback download.
+      fetch fails. Checksum-sidecar verification is skipped for the fallback
+      download, but GPG verification (via `source_gpg_key_uri`) still applies.
       Supports the same runtime substitutions as `binary_asset_uri`.
+
+  source_gpg_key_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.source.gpg_key_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.source.gpg_key_uri", "") }}#
+    description: >-
+      URI of the GPG public key (or keyring) used to verify the source tarball
+      signature. Applies to both the primary and fallback downloads, so it is the
+      robust way to verify archived releases whose checksums have rotated off the
+      main index. When set, passed to `--gpg-key` during `uri__fetch_asset`.
+
+  source_gpg_sig_uri:
+    _apply_when: |
+      #{{ return bool(get("_options.method.source.gpg_sig_uri")) }}#
+    type: string
+    default: |
+      #{{ return get("_options.method.source.gpg_sig_uri", "") }}#
+    description: >-
+      URI of the detached GPG signature for the source tarball.
+      Supports the same runtime substitutions as `binary_asset_uri`.
+      Defaults to the fetched asset URI with `.asc` appended.
+      When set, passed to `--gpg-sig` during `uri__fetch_asset`.
 
   source_build_system:
     _apply_when: |

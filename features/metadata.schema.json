@@ -150,6 +150,10 @@
               "description": "Filename pattern with `[version]` placeholder for extracting version strings from the sidecar file when `resolution=sidecar` (e.g. `zsh-[version].tar.xz`). The `[version]` marker is parsed by `ver__resolve_from_sidecar` to split filenames into prefix/suffix — it is not a context substitution token and is never expanded by `ctx__expand_pattern`.",
               "type": "string"
             },
+            "fallback_uri": {
+              "description": "Secondary sidecar URI (parsed with the same `pattern`) consulted only when `uri` does not resolve the requested spec, for `resolution=sidecar`. Use for upstreams that keep only the current release on the main index and move older releases to a separate archive listing (e.g. zsh's `pub/old/`), so an explicitly pinned older version still resolves.",
+              "type": "string"
+            },
             "test_pins": {
               "description": "Explicit version values consumed by the test-generation pipeline (not the install/build pipeline) to generate `version_pinned`/`version_legacy` scenarios with real cross-validation against a known-good value. Static and hand-maintained so generation stays deterministic and offline.",
               "type": "object",
@@ -430,7 +434,15 @@
                   "minItems": 1
                 },
                 "fallback_asset_uri": {
-                  "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same qualified context tokens as `binary.asset_uri`. Sidecar verification is skipped for the fallback. Sets the default for the auto-generated `source_fallback_asset_uri` option.",
+                  "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same qualified context tokens as `binary.asset_uri`. Checksum-sidecar verification is skipped for the fallback, but GPG verification (via `gpg_key_uri`) still applies. Sets the default for the auto-generated `source_fallback_asset_uri` option.",
+                  "type": "string"
+                },
+                "gpg_key_uri": {
+                  "description": "URI of the GPG public key or keyring used to verify the source tarball signature. Applies to both the primary and fallback downloads, making it the robust way to verify archived releases whose checksums have rotated off the main index. Sets the default for the auto-generated `source_gpg_key_uri` option.",
+                  "type": "string"
+                },
+                "gpg_sig_uri": {
+                  "description": "URI of the detached GPG signature for the source tarball. Supports the same qualified context tokens as `binary.asset_uri`. Defaults to the fetched asset URI with `.asc` appended. Sets the default for the auto-generated `source_gpg_sig_uri` option.",
                   "type": "string"
                 }
               }
