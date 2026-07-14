@@ -594,11 +594,17 @@ bootstrap__oras() {
   local _install_dir
   _install_dir="$(file__tmpdir "bootstrap/oras")"
   logging__install "Installing oras asset '${_asset}' from GitHub release '${_tag}'."
+  # Verify via the GPG-signed checksums file rather than a per-asset detached
+  # signature: oras stopped publishing per-asset `.asc` files in v1.3.3, but
+  # every release (old and new) ships `oras_<ver>_checksums.txt` plus a signed
+  # `oras_<ver>_checksums.txt.asc`. The sidecar covers the tarball's SHA-256 and
+  # its `.asc` (auto-derived) is verified against the project KEYS.
   install__release_asset \
     --asset-uri "https://github.com/oras-project/oras/releases/download/${_tag}/${_asset}" \
     --binary-src oras \
     --binary-dest "${_install_dir}/" \
-    --gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS"
+    --sidecar "https://github.com/oras-project/oras/releases/download/${_tag}/oras_${_resolved_ver}_checksums.txt" \
+    --sidecar-gpg-key "https://raw.githubusercontent.com/oras-project/oras/refs/heads/main/KEYS"
 
   install__state_record "oras" "internal" "binary" "${_install_dir}/oras" "devfeats-bootstrap-oras" || true
   # Path is emitted by install__release_asset → uri__fetch_asset (see bootstrap__yq).

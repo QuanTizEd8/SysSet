@@ -29,18 +29,22 @@ _options:
     resolution: github_release
     test_pins:
       pinned: ["1.2.3"]
-      # 1.2.2 (not 1.2.0): oras signs release tarballs with a detached GPG
-      # signature, and 1.2.0 was signed with a key (46D3369B…404F) no longer
-      # present in the project's current KEYS file, so it is genuinely
-      # unverifiable and the feature (correctly) refuses to install it. 1.2.2
-      # is signed with the same key as 1.2.3 (73C7F42E…0185, in KEYS).
+      # 1.2.2 (not 1.2.0): every oras release ships a GPG-signed checksums file
+      # (verified against the project KEYS), but 1.2.0's signature uses a key
+      # (46D3369B…404F) no longer present in the current KEYS file, so it is
+      # genuinely unverifiable and the feature (correctly) refuses to install it.
+      # 1.2.2 is signed with the same key as 1.2.3 (73C7F42E…0185, in KEYS).
       legacy: ["1.2.2"]
   method:
     binary:
       asset_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/oras_{feat.version}_{plat.kernel:lower}_{plat.machine_release}.tar.gz"
       binary_src:
         - oras
-      gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/refs/heads/main/KEYS"
+      # Verify via the GPG-signed checksums file: oras dropped per-asset `.asc`
+      # signatures in v1.3.3, but every release ships `oras_<ver>_checksums.txt`
+      # and a signed `oras_<ver>_checksums.txt.asc` (sidecar sig auto-derived).
+      sidecar_uri: "https://github.com/${{ _options.gh_repo }}$/releases/download/{feat.tag}/oras_{feat.version}_checksums.txt"
+      sidecar_gpg_key_uri: "https://raw.githubusercontent.com/${{ _options.gh_repo }}$/refs/heads/main/KEYS"
       when: {plat.machine_release: [amd64, arm64, armv7, ppc64le, s390x, riscv64, loong64]}
     package:
       when:
