@@ -6,6 +6,24 @@
 documentationURL: ${{ _project.docs.website_base_url }}$/features/${{ id }}$
 licenseURL: ${{ _project.repo_url }}$/blob/main/LICENSE
 
+# Soft install-order dependency, generated from the single canonical order in
+# `_internal.install_order`. Each feature's `installsAfter` is every feature
+# listed BEFORE it in that order (as full OCI refs), so a spec-compliant
+# installer building any subset of features preserves their relative order.
+# Features absent from the list (e.g. the `install` meta-feature) get no
+# ordering constraints. This is the sole source of truth — do not hand-write
+# `installsAfter` in a feature's metadata.yaml.
+installsAfter:
+  - |
+    *{{ #{{
+      order = get("_internal.install_order", [])
+      fid = get("id", "")
+      base = get("_project.oci_base", "")
+      if fid in order:
+          return [base + "/" + f for f in order[:order.index(fid)]]
+      return []
+    }}# }}*
+
 _oci_ref: ${{ _project.oci_base }}$/${{ id }}$
 _lifecycle_key_prefix: ${{ _project.owner_slug }}$-${{ _project.name_slug }}$--${{ id }}$--
 
@@ -32,6 +50,95 @@ _env_vars:
 # Reusable ospkg manifest fragments for pyserials substitution in feature metadata.
 # Not emitted to devcontainer-feature.json.
 _internal:
+  # Canonical, total installation order for all features. Consumed by the shared
+  # `installsAfter` template above: each feature installs after every feature
+  # listed before it here. Only the REGION boundaries below encode real ordering
+  # intent — within a region marked "free order" the entries are mutually
+  # unconstrained and kept alphabetical, so the list stays easy to scan and to
+  # extend (drop a new tool into the right region, alphabetically).
+  install_order:
+    # ── Foundation & bootstrap providers (order matters) ──────────────────────
+    # Each installs the tools/files the rest rely on, front-loaded so later
+    # features reuse them instead of bootstrapping throwaway copies of their own.
+    - setup-user            # create users before any per-user work
+    - install-homebrew      # macOS package-manager provider — above every package-method feature
+    - install-bash          # front-load bash 4+: later install.sh find it on PATH, skipping the (macOS) bash bootstrap
+    - install-jq            # universal bootstrap tools — nearly every feature parses metadata/manifests with them …
+    - install-yq            #   … (jq before yq: yq resolves its own release version via jq)
+    - install-os-pkg-bundle # bulk OS-dependency provider — pre-satisfies other features' _dependencies (takes no file inputs)
+    - install-jsonschema    # setup-files bootstraps it (json__validate) and it needs no files → must precede setup-files
+    - install-oras          # OCI-fetch tool; setup-files (oci:// src) + os-pkg/conda-env/pixi/texlive bootstrap it, and it needs no files → precede setup-files
+    - setup-files           # deploys files (manifests, configs, env files, gitconfig …) that later features reference by path
+    - install-os-pkg        # custom-manifest OS installs — after setup-files (its manifest may itself be a deployed file)
+    # ── Language runtimes / compilers (base providers; free order → alphabetical) ──
+    # Kept above every tool that installs via a toolchain (cargo / npm / go /
+    # conda) so those tools reuse it instead of bootstrapping their own. These are
+    # mutually independent → alphabetical.
+    - install-go            # source-build consumer: direnv
+    - install-miniforge     # conda consumer: conda-env
+    - install-node          # npm consumers: pnpm, yarn, the npm-method CLIs
+    - install-nvm           #   (alternative Node provider)
+    - install-rust          # cargo consumers: just, ripgrep(-all), ruff, tokei, typst, starship — plus pixi/uv below
+    # ── Package managers built on those runtimes (after them; free → alphabetical) ─
+    # pixi and uv are Rust applications (uv already ships a `cargo` method), so
+    # they sit BELOW install-rust; they're providers too (reserved for a future
+    # pixi/uv install method), hence still above the general tools.
+    - install-pixi          # Rust app / Python-conda PM; file-consumer → also below setup-files
+    - install-uv            # Rust app / Python PM; has a cargo method → below install-rust
+    # ── Shell environment (order matters) ────────────────────────────────────
+    - install-zsh           # before setup-shell (auto-detect) and oh-my-zsh / zsh-completion
+    - setup-shell           # before the shell-userland region below
+    # ── Tools depended on by other general tools (free order → alphabetical) ──
+    # Hoisted above the general region so their dependents there stay alphabetical:
+    #   git    → gh, git-lfs, lefthook, oh-my-*, zsh-completion (also below setup-files: reads a user gitconfig)
+    #   pandoc → ripgrep-all
+    #   ripgrep→ codex (runtime rg), ripgrep-all
+    - install-git
+    - install-pandoc
+    - install-ripgrep
+    # ── General tools & first-order dependents (free order → alphabetical) ────
+    # Every hard dependency of these lives in a region above (runtimes in the
+    # providers region; git/pandoc/ripgrep in the depended-on-tools region), so
+    # their relative order is unconstrained.
+    - install-act
+    - install-claude        # bundles its own rg (npm-bundled) — no ripgrep dep
+    - install-codex         # → ripgrep (above)
+    - install-conda-env     # → miniforge
+    - install-copilot
+    - install-cursor
+    - install-devcontainer-cli
+    - install-gh            # → git
+    - install-git-lfs       # → git
+    - install-just
+    - install-lefthook      # → git
+    - install-opencode
+    - install-pnpm          # → node / nvm
+    - install-podman
+    - install-ripgrep-all   # → ripgrep, pandoc (above)
+    - install-ruff
+    - install-shellcheck
+    - install-shfmt
+    - install-taskfile
+    - install-texlive
+    - install-tokei
+    - install-typst
+    - install-yarn          # → node / nvm
+    # ── Shell userland — completions & frameworks (after setup-shell; free) ───
+    - install-bash-completion
+    - install-fonts
+    - install-ohmybash
+    - install-ohmyzsh
+    - install-zsh-completion
+    # ── Prompt (after the frameworks; overrides their theme) ──────────────────
+    - install-starship
+    # ── Shell-hook activators — after the frameworks AND the prompt ────────────
+    # direnv's hook must run after anything that manipulates PROMPT_COMMAND /
+    # keybindings (oh-my-* and starship); these hooks are appended to the rc file.
+    - install-direnv
+    - install-fzf
+    # ── Last ──────────────────────────────────────────────────────────────────
+    - setup-shim            # command shims — after all feature installs
+    - install               # generic script-runner — genuinely last; its scripts can use every feature above
   epel_rhel_family:
     label: RHEL-family via EPEL
     when:

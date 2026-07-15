@@ -70,11 +70,6 @@ options:
       - Linux user: `$XDG_DATA_HOME/fonts` (default: `~/.local/share/fonts`)
       - macOS user: `~/Library/Fonts`
     type: string
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/setup-user
-#   - ghcr.io/quantized8/devfeats/install-jq
-#   - ghcr.io/quantized8/devfeats/install-yq
-#   - ghcr.io/quantized8/devfeats/setup-shell
 _dependencies:
   run:
     base:

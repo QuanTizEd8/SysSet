@@ -122,4 +122,3 @@ _dependencies:
             sslcacert=/etc/ssl/ca-bundle.pem
             metadata_expire=300
             type=rpm-md
-# installsAfter: []

@@ -101,9 +101,6 @@ options:
       user's login environment at configure time, so `~`, `$HOME`, and
       `${VAR:-default}` expressions are all supported.
     type: string
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-ohmyzsh
-#   - ghcr.io/quantized8/devfeats/install-ohmybash
 _dependencies:
   run:
     method-package:

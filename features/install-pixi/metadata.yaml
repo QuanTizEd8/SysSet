@@ -112,7 +112,6 @@ entrypoint:
   args: "${containerWorkspaceFolder}/.pixi"
   description: Fix ownership of the .pixi named volume mount so the remote user can write to it.
   _conf_vars: [_REMOTE_USER]
-# installsAfter: []
 customizations:
   vscode:
     extensions:

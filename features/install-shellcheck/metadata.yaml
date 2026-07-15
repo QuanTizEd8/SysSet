@@ -51,4 +51,3 @@ _dependencies:
         - name: shellcheck
           zypper: ShellCheck
           version: "{feat.pm_version}"
-# installsAfter: []

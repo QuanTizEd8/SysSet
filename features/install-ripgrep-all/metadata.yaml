@@ -107,5 +107,3 @@ _dependencies:
 _devcontainer:
   features:
     "../.src/install-ripgrep": {}
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-ripgrep

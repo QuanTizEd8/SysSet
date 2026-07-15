@@ -127,9 +127,3 @@ options:
       (e.g. `/opt/conda/bin/mamba`). The conda base directory is derived
       automatically via `<solver> info --base`.
     type: string
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/setup-user
-#   - ghcr.io/quantized8/devfeats/install-jq
-#   - ghcr.io/quantized8/devfeats/install-yq
-#   - ghcr.io/quantized8/devfeats/setup-shell
-#   - ghcr.io/quantized8/devfeats/install-miniforge

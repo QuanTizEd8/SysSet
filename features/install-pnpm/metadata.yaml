@@ -11,9 +11,6 @@ _long_description: |-
   Installs pnpm globally using `npm install -g pnpm[@VERSION]`.
   Requires Node.js to be installed first (via install-node or install-nvm).
 _tool_name: pnpm
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-node
-#   - ghcr.io/quantized8/devfeats/install-nvm
 _options:
   verify:
     args: "--version"

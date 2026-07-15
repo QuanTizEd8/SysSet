@@ -44,4 +44,3 @@ _dependencies:
       packages:
         - name: shfmt
           version: "{feat.pm_version}"
-# installsAfter: []

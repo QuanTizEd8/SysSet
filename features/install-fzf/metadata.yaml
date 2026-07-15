@@ -43,7 +43,6 @@ _options:
         Injects `eval "$(fzf --bash)"` into `.bashrc` and `source <(fzf --zsh)` into `.zshrc`
         (both guarded with `command -v fzf`), enabling key bindings (Ctrl-R, Ctrl-T, Alt-C)
         and `**<TAB>` fuzzy completion in interactive shells.
-# installsAfter: []
 customizations:
   vscode:
     extensions:

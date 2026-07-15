@@ -144,12 +144,6 @@ customizations:
       - github.vscode-github-actions
       - github.vscode-pull-request-github
       - ms-vscode.vscode-github-issue-notebooks
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/setup-user
-#   - ghcr.io/quantized8/devfeats/install-jq
-#   - ghcr.io/quantized8/devfeats/install-yq
-#   - ghcr.io/quantized8/devfeats/setup-shell
-#   - ghcr.io/quantized8/devfeats/install-git
 _dependencies:
   run:
     base:

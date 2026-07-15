@@ -87,10 +87,6 @@ _options:
         and environment auto-activation in interactive shells.
     write_group:
       default: conda
-# installsAfter: []
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/setup-shell
-#   - ghcr.io/quantized8/devfeats/setup-user
 customizations:
   vscode:
     extensions:

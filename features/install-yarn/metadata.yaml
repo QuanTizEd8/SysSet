@@ -31,9 +31,6 @@ options:
         description: Use `corepack enable` (preferred) or `npm install -g yarn`.
       - value: 1.22.22
         description: Yarn Classic v1.22.22, installed via npm.
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-node
-#   - ghcr.io/quantized8/devfeats/install-nvm
 _options:
   verify:
     args: "--version"

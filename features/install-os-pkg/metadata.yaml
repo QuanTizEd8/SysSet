@@ -126,8 +126,6 @@ options:
     description: Run in interactive mode, allowing the package manager to prompt the user.
     type: boolean
 _dependencies: {}
-# installsAfter:
-#   - ghcr.io/quantized8/devfeats/install-homebrew
 onCreateCommand:
   install:
     command: '[ -f ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$install.sh ] && sh ${{ _env_vars._FEAT_LIFECYCLE_ON_CREATE }}$install.sh || true'

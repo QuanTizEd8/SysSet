@@ -74,4 +74,3 @@ _dependencies:
           apk: oras-cli
           version: "{feat.pm_version}"
           when: {plat.pm: [apk, apt, brew, zypper]}
-# installsAfter: []

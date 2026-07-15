@@ -43,9 +43,6 @@ _options:
       skip: true
     exports:
       skip: true
-installsAfter:
-  - ghcr.io/quantized8/devfeats/install-zsh
-  - ghcr.io/quantized8/devfeats/setup-shell
 _dependencies:
   run:
     base:

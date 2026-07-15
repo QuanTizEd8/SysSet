@@ -22,9 +22,6 @@ _options:
   configure_users: true
   method:
     package: {}
-installsAfter:
-  - ghcr.io/quantized8/devfeats/install-bash
-  - ghcr.io/quantized8/devfeats/setup-shell
 _dependencies:
   run:
     method-package:

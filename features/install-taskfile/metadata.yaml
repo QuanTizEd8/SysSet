@@ -112,4 +112,3 @@ _dependencies:
       zypper:
         repos:
           - *rpm-repo
-# installsAfter: []
