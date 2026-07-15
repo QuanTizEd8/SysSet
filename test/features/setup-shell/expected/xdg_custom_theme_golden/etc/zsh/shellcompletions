@@ -1,0 +1,4 @@
+# >>> setup-shell-shellcompletions-fpath-baseline >>>
+fpath=( "/etc/zsh/completions" "${HOME}/.zfunc" ${fpath[@]} )
+# <<< setup-shell-shellcompletions-fpath-baseline <<<
+

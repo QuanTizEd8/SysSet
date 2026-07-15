@@ -377,3 +377,46 @@ no_bash_env:
       cmd: bash -c '! grep -q "^BASH_ENV=" /etc/environment'
     - title: shared shellenv still deployed
       cmd: test -f /etc/shellenv
+
+xdg_custom_theme_paths:
+  description: A custom XDG_CONFIG_HOME is honored by the bash/zsh theme scaffolds and ZDOTDIR, so the scaffold setup-shell creates is the file the rc actually sources.
+  checks:
+    # --- bash ---
+    - title: bash theme scaffold created under the custom XDG
+      cmd: test -f /root/.local/config/bash/bashtheme
+    - title: no orphaned bash theme scaffold at the default .config path
+      cmd: bash -c '! test -f /root/.config/bash/bashtheme'
+    - title: setup-shell's bash theme scaffold is actually sourced by an interactive shell
+      cmd: |-
+        bash -c 's="$(find /root -path "*/bash/bashtheme" -type f | head -1)"; [ -n "$s" ] || exit 1; printf "echo __BT_SENTINEL__\n" > "$s"; : | bash -i 2>/dev/null | grep -q __BT_SENTINEL__'
+    # --- zsh ---
+    - title: ZDOTDIR honors the custom XDG in ~/.zshenv
+      cmd: grep -q '/.local/config/zsh' /root/.zshenv
+    - title: zsh theme scaffold created under the custom XDG
+      cmd: test -f /root/.local/config/zsh/zshtheme
+    - title: no orphaned zsh theme scaffold at the default .config path
+      cmd: bash -c '! test -f /root/.config/zsh/zshtheme'
+    # ZDOTDIR follows XDG: the whole zdotdir (zshrc/zprofile) relocates.
+    - title: user .zshrc deployed under the custom XDG (ZDOTDIR follows XDG)
+      cmd: test -f /root/.local/config/zsh/.zshrc
+    - title: user .zprofile deployed under the custom XDG
+      cmd: test -f /root/.local/config/zsh/.zprofile
+    - title: no orphaned .zshrc at the default .config/zsh path
+      cmd: bash -c '! test -f /root/.config/zsh/.zshrc'
+
+xdg_custom_theme_paths_skel:
+  description: Under a custom XDG_CONFIG_HOME, /etc/skel's zsh layout (ZDOTDIR) is placed under the custom XDG so a new user seeded from skel finds it.
+  checks:
+    - title: skel .zshrc deployed under the custom XDG
+      cmd: test -f /etc/skel/.local/config/zsh/.zshrc
+    - title: skel .zprofile deployed under the custom XDG
+      cmd: test -f /etc/skel/.local/config/zsh/.zprofile
+    - title: no orphaned skel .zshrc at the default .config/zsh path
+      cmd: bash -c '! test -f /etc/skel/.config/zsh/.zshrc'
+
+xdg_custom_theme_golden:
+  description: Full deployed tree under a custom XDG_CONFIG_HOME matches the reviewed golden (XDG-honoring layout).
+  checks:
+    - title: deployed tree matches golden fixtures
+      cmd: |-
+        bash -c '. "${REPO_ROOT}/test/features/setup-shell/support/assert_golden.sh"; ss_assert_golden xdg_custom_theme_golden'

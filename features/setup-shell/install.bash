@@ -144,12 +144,32 @@ _user_file_deploy_path() {
   # unchanged, so it must not be relied on to prepend HOME here.
   local _username="$1" _rel="$2"
   [[ -n "$_rel" ]] || return 1
+  # XDG_CONFIG_HOME is injected so a `${XDG_CONFIG_HOME:-…}` expression (e.g. the
+  # default user_bashtheme) resolves to the configured XDG location — the same
+  # value the deployed shellenv exports at runtime. _SS_XDG_CONFIG_HOME is set by
+  # _ss_set_user_context before this runs; if unset, an empty value degrades the
+  # `${XDG_CONFIG_HOME:-…}` fallback to the prior <home>/.config behavior.
   case "$_rel" in
     /*) printf '%s' "$_rel" ;;
     '~'*) users__expand_path --user "$_username" "$_rel" ;;
-    '$'*) users__expand_path --user "$_username" --env "HOME=$(users__resolve_home "$_username")" "$_rel" ;;
+    '$'*) users__expand_path --user "$_username" \
+      --env "HOME=$(users__resolve_home "$_username")" \
+      --env "XDG_CONFIG_HOME=${_SS_XDG_CONFIG_HOME:-}" "$_rel" ;;
     *) printf '%s/%s' "$(users__resolve_home "$_username")" "$_rel" ;;
   esac
+}
+
+# shellcheck disable=SC2016  # '$HOME' / '${XDG_CONFIG_HOME}' are literals to strip, not expansions
+_ss_xdg_config_rel() {
+  # Print the effective XDG_CONFIG_HOME location relative to $HOME, honoring the
+  # `block_sys_shellenv_xdg_config_home` option (default `.config`) — the same
+  # value the deployed /etc/shellenv exports at runtime. A leading `~/`, `$HOME/`,
+  # or `${HOME}/` is stripped so the result is a plain HOME-relative path.
+  local _xdg="${BLOCK_SYS_SHELLENV_XDG_CONFIG_HOME:-.config}"
+  _xdg="${_xdg#\~/}"
+  _xdg="${_xdg#\$HOME/}"
+  _xdg="${_xdg#\$\{HOME\}/}"
+  printf '%s' "$_xdg"
 }
 
 # shellcheck disable=SC2016  # single-quoted '$HOME' etc. are case patterns, not expansions
@@ -164,11 +184,7 @@ _user_file_skel_rel_path() {
     '$HOME'/*) printf '%s' "${_rel#\$HOME/}" ;;
     '${HOME}'/*) printf '%s' "${_rel#\$\{HOME\}/}" ;;
     '${XDG_CONFIG_HOME}'/*)
-      local _xdg="${BLOCK_SYS_SHELLENV_XDG_CONFIG_HOME:-.config}"
-      _xdg="${_xdg#\~/}"
-      _xdg="${_xdg#\$HOME/}"
-      _xdg="${_xdg#\$\{HOME\}/}"
-      printf '%s/%s' "$_xdg" "${_rel#\$\{XDG_CONFIG_HOME\}/}"
+      printf '%s/%s' "$(_ss_xdg_config_rel)" "${_rel#\$\{XDG_CONFIG_HOME\}/}"
       ;;
     *) printf '%s' "$_rel" ;;
   esac
@@ -179,8 +195,10 @@ _normalize_zdotdir_for_skel() {
   # Fails for absolute ZDOTDIR (cannot be mirrored under /etc/skel).
   # The tilde in the case pattern must be quoted: unquoted `~/*` undergoes
   # tilde expansion to the installer's own home and never matches the literal.
+  # The default follows the effective XDG_CONFIG_HOME so a new user seeded from
+  # skel finds its zsh layout where their (custom-XDG) ZDOTDIR resolves.
   case "${ZDOTDIR-}" in
-    '') printf '.config/zsh' ;;
+    '') printf '%s/zsh' "$(_ss_xdg_config_rel)" ;;
     '~'/*) printf '%s' "${ZDOTDIR#\~/}" ;;
     /*) return 1 ;;
     *) printf '%s' "${ZDOTDIR}" ;;
@@ -469,9 +487,12 @@ _ss_set_user_context() {
   _SS_USER="$_user"
   local _home
   _home="$(users__resolve_home "$_user")"
-  _SS_XDG_CONFIG_HOME="${_home}/.config"
+  # Honor the configured XDG_CONFIG_HOME (block_sys_shellenv_xdg_config_home) so
+  # theme scaffolds and ZDOTDIR land where the deployed shellenv points at
+  # runtime; defaults to <home>/.config when the option is unset.
+  _SS_XDG_CONFIG_HOME="${_home}/$(_ss_xdg_config_rel)"
   if [ -z "${ZDOTDIR-}" ]; then
-    _SS_ZDOTDIR="${_home}/.config/zsh"
+    _SS_ZDOTDIR="${_SS_XDG_CONFIG_HOME}/zsh"
   else
     _SS_ZDOTDIR="$(users__expand_path --user "$_user" "$ZDOTDIR")"
   fi

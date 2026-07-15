@@ -374,3 +374,45 @@ no_bash_env:
     setup_bash_env: false
     setup_zsh: false
   tests: [no_bash_env]
+
+# ── Custom XDG_CONFIG_HOME must be honored by the theme scaffolds + ZDOTDIR ──
+# REGRESSION (currently EXPECTED TO FAIL): setup-shell creates the per-user bash
+# theme scaffold at the install-time-resolved `.config` path, but its rc
+# source-line resolves `${XDG_CONFIG_HOME:-…}` at RUNTIME to the custom
+# `.local/config` — so the scaffold is orphaned. ZDOTDIR is likewise pinned to
+# `.config/zsh`, ignoring the custom XDG entirely. The invariant these checks
+# assert: the scaffold setup-shell creates is the same file the deployed rc
+# actually sources, and both honor the configured XDG_CONFIG_HOME.
+xdg_custom_theme_paths:
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    block_sys_shellenv_xdg_config_home: .local/config
+    setup_bash: true
+    setup_zsh: true
+  tests: [xdg_custom_theme_paths]
+
+# Same bug on the /etc/skel side: a new user seeded from skel gets a zsh layout
+# under .config/zsh while their .zshenv (ZDOTDIR, runtime XDG) points elsewhere.
+xdg_custom_theme_paths_skel:
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    block_sys_shellenv_xdg_config_home: .local/config
+    setup_skel: true
+    setup_bash: true
+    setup_zsh: true
+  tests: [xdg_custom_theme_paths_skel]
+
+# GOLDEN: byte-for-byte tree under a custom XDG_CONFIG_HOME (bash+zsh+skel). The
+# committed fixture encodes the CORRECT, XDG-honoring layout (scaffolds, ZDOTDIR,
+# skel all under .local/config), so it fails until the feature honors custom XDG.
+xdg_custom_theme_golden:
+  envs: [debian-stable]
+  modes: [standalone]
+  options:
+    block_sys_shellenv_xdg_config_home: .local/config
+    setup_skel: true
+    setup_bash: true
+    setup_zsh: true
+  tests: [xdg_custom_theme_golden]

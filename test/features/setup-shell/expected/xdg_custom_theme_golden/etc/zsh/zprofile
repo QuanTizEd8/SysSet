@@ -1,0 +1,4 @@
+# >>> setup-shell-zsh-zprofile-profile >>>
+emulate sh -c 'source "/etc/profile"'
+# <<< setup-shell-zsh-zprofile-profile <<<
+
