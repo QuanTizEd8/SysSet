@@ -21,6 +21,12 @@ _long_description: >-
   other supported package managers. Multiple bundles can be enabled in a single
   feature invocation; each bundle is installed independently in sequence.
 
+_internal:
+  # Bundles are the user's explicit install payload (and are largely dev-libs
+  # with no probe-able command), so they must install as specified rather than
+  # be silently skipped when a same-named command happens to be on PATH.
+  no_command_guard: true
+
 _options:
   installer_dir: false
 

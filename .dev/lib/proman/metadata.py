@@ -4,11 +4,13 @@ This is the single authoritative source for loading feature metadata.
 It is consumed by the sync pipeline, the docs pipeline, and CLI commands.
 """
 
+import functools
+
 import pyserials
 from jsonschema.exceptions import ValidationError
 
 from proman.config import load as load_config
-from proman.manifest_util import serialize_manifest
+from proman.manifest_util import inject_dep_commands, serialize_manifest
 from proman.schema_bundle import get_validator
 from proman.when_util import (
     serialize_path_entries,
@@ -59,7 +61,23 @@ class MetadataLoader:
         self._shared_metadata = pyserials.read.yaml_from_file(
             self._config.absolute_path("path.shared_metadata")
         )
+        self._dep_command_map = self._load_dep_command_map()
         self._schema_validator = get_validator()
+
+    def _load_dep_command_map(self) -> dict[str, str]:
+        """Load the ``package -> command`` guard map, if configured and present.
+
+        The map is optional: a repo (or minimal test harness) without a
+        ``path.dep_command_map`` entry or file simply gets no command guards
+        (``inject_dep_commands`` treats an empty map as a no-op).
+        """
+        try:
+            map_path = self._config.absolute_path("path.dep_command_map")
+        except TypeError:
+            return {}
+        if not map_path.is_file():
+            return {}
+        return pyserials.read.yaml_from_file(map_path) or {}
 
     def load(self, *feat_ids: str) -> dict[str, dict]:
         """Load and augment metadata for all features found in *features_dirpath*.
@@ -146,6 +164,10 @@ class MetadataLoader:
                     "serialize_path_entries": serialize_path_entries,
                     "serialize_value_entries": serialize_value_entries,
                     "serialize_manifest": serialize_manifest,
+                    "inject_dep_commands": functools.partial(
+                        inject_dep_commands,
+                        command_map=self._dep_command_map,
+                    ),
                 },
             ).fill(metadata)
         except Exception as e:

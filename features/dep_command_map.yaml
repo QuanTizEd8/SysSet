@@ -1,0 +1,47 @@
+# Dependency command map — single source of truth for `command:` PATH guards.
+#
+# Maps an OS-package *logical name* (the `name:` field, or a bare-string entry,
+# as written under a feature's `_dependencies`) to the command it puts on PATH.
+# During sync the build pipeline reads this map and injects the matching
+# `command:` into every generated ospkg manifest entry (see
+# `inject_dep_commands` in `.dev/lib/proman/manifest_util.py`, wired from
+# `features/metadata.shared.yaml`). At install time `ospkg__run` skips a
+# dependency whose `command` is already on PATH — honoring a tool that is
+# already present regardless of how it was installed (feature, distro package,
+# manual binary, …). The guard is bypassed under `--update`.
+#
+# Inclusion criterion — add an entry ONLY when the package has a single,
+# representative command such that "command on PATH ⟺ dependency satisfied":
+#
+#   • DO map single-command CLIs/tools:  git, curl, make, pandoc, ripgrep (rg)…
+#   • DON'T map dev-libraries (`*-dev`, `*-devel`): they ship headers/libs with
+#     no binary to probe, so a command guard is meaningless.
+#   • DON'T map meta / multi-binary packages (`build-essential`, `base-devel`,
+#     `gcc`): one command (e.g. `gcc`) present does not prove the whole package
+#     is installed (e.g. `g++` may be missing), so a single guard can
+#     under-install. Leave these unguarded — they always install.
+#
+# Keying is on the *logical* name, never the per-PM override — e.g. a `go`
+# entry with `apt: golang-go` is still keyed `go`, and its command is `go`.
+# Injection never touches `method-*` *run* groups (a feature installing itself)
+# nor `version:`-pinned entries; an explicit `command:` in metadata always wins
+# (use `command: false`/`null` there to opt a single entry out).
+
+git: git
+curl: curl
+tar: tar
+gzip: gzip
+zip: zip
+xz: xz
+file: file
+make: make
+cmake: cmake
+go: go
+pandoc: pandoc
+ripgrep: rg
+ffmpeg: ffmpeg
+asciidoctor: asciidoctor
+ghostscript: gs
+gnuplot: gnuplot
+gnupg: gpg
+bubblewrap: bwrap

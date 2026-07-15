@@ -1450,6 +1450,14 @@ options:
       if not deps:
         return {}
 
+      # Auto-inject `command:` PATH guards from features/dep_command_map.yaml.
+      # A feature opts out entirely with `_internal.no_command_guard: true`.
+      # Only genuine dependency groups are guarded: `base` and `option-*`
+      # (real deps), and `method-*` in the *build* lifecycle (build toolchains).
+      # `method-*` *run* groups are the feature installing itself and are never
+      # guarded (would skip the feature's own install when it is already present).
+      guard = not get("_internal.no_command_guard", False)
+
       override_suffix = (
           "Inline YAML when the value contains a newline; otherwise a file path or URI."
       )
@@ -1461,7 +1469,7 @@ options:
         lc_label = "runtime" if lc == "run" else "install-time"
         opts[f"ospkg_manifest_base_{lc}"] = {
             "type": "string",
-            "default": serialize_manifest(base) if base else "",
+            "default": serialize_manifest(inject_dep_commands(base, guard=guard)) if base else "",
             "description": (
                 f"OS packages always installed during initialization ({lc_label}). "
                 + override_suffix
@@ -1480,7 +1488,9 @@ options:
           lc_label = "runtime" if lc == "run" else "install-time"
           opts[f"ospkg_manifest_method_{m_key}_{lc}"] = {
               "type": "string",
-              "default": serialize_manifest(content) if content else "",
+              "default": serialize_manifest(
+                  inject_dep_commands(content, guard=(guard and lc == "build"))
+              ) if content else "",
               "description": (
                 f"OS packages installed when METHOD={method} ({lc_label}). "
                 + override_suffix
@@ -1494,7 +1504,7 @@ options:
         name = group.removeprefix("option-")
         opts[f"ospkg_manifest_option_{name}"] = {
             "type": "string",
-            "default": serialize_manifest(content),
+            "default": serialize_manifest(inject_dep_commands(content, guard=guard)),
             "description": (
               f"OS package manifest installed when '{name}' is true. "
               + override_suffix

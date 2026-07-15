@@ -538,6 +538,18 @@ The schema is published at `/schema/manifest.json` on the docs site. See `.confi
 
 Option-bound groups (`option-*`) with a matching boolean user option are installed automatically at the start of `__install_run__` (after options are parsed). Use manifest `when` clauses — not feature hooks — to skip installs on specific platforms (e.g. exclude Alpine for node-gyp deps).
 
+### `command:` PATH guards
+
+A package entry may carry a `command:` field naming the binary it provides. At install time `ospkg__run` skips that package when the command is already on `PATH` — honoring a tool already present regardless of how it was installed (another feature's binary/cargo/npm install, or a pre-existing system tool), on every platform. `run` deps probe the resolved `runtime_path`; `build` deps probe the install-time `PATH`. The guard is bypassed under `--update`.
+
+You almost never write `command:` by hand. During sync the pipeline auto-injects it from **[`features/dep_command_map.yaml`](../../../features/dep_command_map.yaml)** — a curated `package → command` map that is the single source of truth (via `inject_dep_commands` in [`manifest_util.py`](../../../.dev/lib/proman/manifest_util.py), wired from `metadata.shared.yaml`). Add single-command tools there (e.g. `ripgrep: rg`); the generated manifests then carry `command:` explicitly. Injection deliberately **skips**:
+
+- packages **not** in the map (dev-libraries and meta/multi-binary packages like `build-essential` stay unguarded — one command can't prove the whole package is present);
+- `version:`-pinned entries and every `method-*` **run** group (a feature installing *itself* — never skip the primary install);
+- features that opt out with `_internal.no_command_guard: true` (e.g. `install-os-pkg-bundle`, whose bundles are the user's explicit payload).
+
+An explicit `command:` in `_dependencies` always wins over the map; use `command: false` to opt a single entry out.
+
 ### Dependency manifest codegen
 
 | Rule | Rationale |

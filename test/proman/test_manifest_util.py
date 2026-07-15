@@ -9,6 +9,7 @@ from pathlib import Path
 from proman.manifest_util import (
     escape_devcontainer_default,
     generate_dep_trigger_specs,
+    inject_dep_commands,
     serialize_manifest,
 )
 from proman.sync.install_script import _shell_val
@@ -155,6 +156,114 @@ def test_generate_metadata_json_escapes_all_string_defaults() -> None:
         == r"\${XDG_CACHE_HOME:-\$HOME/.cache}/oh-my-zsh"
     )
     assert out["options"]["if_exists"]["default"] == "skip"
+
+
+_CMD_MAP = {"git": "git", "make": "make", "ripgrep": "rg", "go": "go"}
+
+
+def test_inject_bare_string_mapped_promoted_to_object() -> None:
+    """A mapped bare-string package becomes ``{name, command}``."""
+    out = inject_dep_commands({"packages": ["git", "sudo"]}, _CMD_MAP)
+    assert out["packages"] == [{"name": "git", "command": "git"}, "sudo"]
+
+
+def test_inject_object_name_mapped_gets_command() -> None:
+    """A mapped package object with no version/command gets a command."""
+    out = inject_dep_commands(
+        {"packages": [{"name": "ripgrep", "when": {"plat.kernel": "linux"}}]},
+        _CMD_MAP,
+    )
+    assert out["packages"][0]["command"] == "rg"
+    assert out["packages"][0]["when"] == {"plat.kernel": "linux"}
+
+
+def test_inject_skips_versioned_entry() -> None:
+    """Version-pinned entries (self-install) are never guarded."""
+    out = inject_dep_commands(
+        {"packages": [{"name": "git", "version": "{feat.pm_version}"}]},
+        _CMD_MAP,
+    )
+    assert "command" not in out["packages"][0]
+
+
+def test_inject_respects_explicit_command_override() -> None:
+    """An explicit ``command`` (incl. false/null opt-out) is left untouched."""
+    for override in ("custom", False, None):
+        out = inject_dep_commands(
+            {"packages": [{"name": "git", "command": override}]},
+            _CMD_MAP,
+        )
+        assert out["packages"][0]["command"] == override
+
+
+def test_inject_skips_unmapped_names() -> None:
+    """Packages not in the map are unchanged (no command key)."""
+    out = inject_dep_commands({"packages": ["curl", {"name": "sudo"}]}, _CMD_MAP)
+    assert out["packages"] == ["curl", {"name": "sudo"}]
+
+
+def test_inject_guard_false_is_noop() -> None:
+    """guard=False returns content unchanged (feature opt-out)."""
+    content = {"packages": ["git"]}
+    assert inject_dep_commands(content, _CMD_MAP, guard=False) == content
+
+
+def test_inject_empty_map_is_noop() -> None:
+    """An empty command map injects nothing."""
+    content = {"packages": ["git"]}
+    assert inject_dep_commands(content, {}) == content
+
+
+def test_inject_none_and_empty_content() -> None:
+    """None / empty content is returned as-is."""
+    assert inject_dep_commands(None, _CMD_MAP) is None
+    assert inject_dep_commands({}, _CMD_MAP) == {}
+
+
+def test_inject_recurses_into_nested_when_groups() -> None:
+    """Injection descends into nested ``{when, packages}`` group objects."""
+    out = inject_dep_commands(
+        {"packages": [{"when": {"plat.pm": "apt"}, "packages": ["make", "libc6-dev"]}]},
+        _CMD_MAP,
+    )
+    nested = out["packages"][0]["packages"]
+    assert nested == [{"name": "make", "command": "make"}, "libc6-dev"]
+
+
+def test_inject_recurses_into_pm_subblocks() -> None:
+    """Injection descends into PM-scoped ``{apt: {packages: …}}`` sub-blocks."""
+    out = inject_dep_commands(
+        {"apt": {"packages": ["make", "build-essential"]}},
+        _CMD_MAP,
+    )
+    assert out["apt"]["packages"] == [
+        {"name": "make", "command": "make"},
+        "build-essential",
+    ]
+
+
+def test_inject_keys_on_logical_name_not_pm_override() -> None:
+    """Commands key on the logical ``name``, ignoring per-PM name overrides."""
+    out = inject_dep_commands(
+        {"packages": [{"name": "go", "apt": "golang-go", "dnf": "golang"}]},
+        _CMD_MAP,
+    )
+    pkg = out["packages"][0]
+    assert pkg["command"] == "go"
+    assert pkg["apt"] == "golang-go"  # PM override untouched
+
+
+def test_inject_does_not_mutate_input() -> None:
+    """The original content is never mutated (a deep copy is returned)."""
+    content = {"packages": ["git", {"name": "make"}]}
+    inject_dep_commands(content, _CMD_MAP)
+    assert content == {"packages": ["git", {"name": "make"}]}
+
+
+def test_inject_top_level_list_shorthand() -> None:
+    """Array-shorthand content (a bare package list) is guarded too."""
+    out = inject_dep_commands(["git", "sudo"], _CMD_MAP)
+    assert out == [{"name": "git", "command": "git"}, "sudo"]
 
 
 def test_generate_dep_trigger_specs_bundle() -> None:

@@ -34,6 +34,7 @@ path:
   docs_source_library: ${{ path.docs_source }}$/library
   data_transfer: .local/data_transfer
   shared_metadata: ${{ path.features }}$/metadata.shared.yaml
+  dep_command_map: ${{ path.features }}$/dep_command_map.yaml
   metadata_schema: ${{ path.features }}$/metadata.schema.json
   checks_schema: ${{ path.test_features }}$/checks.schema.json
   scenarios_schema: ${{ path.test_features }}$/scenarios.schema.json
