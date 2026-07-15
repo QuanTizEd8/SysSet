@@ -72,6 +72,50 @@ block_disable_history:
     setup_zsh: false
   tests: [block_disable_history]
 
+# ── Foreign managed-block preservation across reinstall (declarative) ────────
+
+reinstall_preserves_managed_block:
+  # A foreign guarded managed block (as Homebrew, rustup, nvm write) present in a
+  # setup-shell-managed file survives a reinstall whole-file replace by default
+  # (preserve_managed_blocks defaults to true). This is what makes Homebrew —
+  # which must install before the shells, hence before setup-shell — safe.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: |
+    printf '\n# >>> prefix activation (install-homebrew) >>>\nexport HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\n# <<< prefix activation (install-homebrew) <<<\n' >> /etc/bash.bashrc
+  options:
+    if_exists_sys: reinstall
+    setup_zsh: false
+  tests: [reinstall_preserves_managed_block]
+
+reinstall_preserve_disabled_drops_block:
+  # preserve_managed_blocks=false restores the strict whole-file replace: the
+  # foreign block is dropped from the live file and survives only in the backup.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: |
+    printf '\n# >>> prefix activation (install-homebrew) >>>\nexport HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\n# <<< prefix activation (install-homebrew) <<<\n' >> /etc/bash.bashrc
+  options:
+    if_exists_sys: reinstall
+    preserve_managed_blocks: false
+    backup: 'true'
+    setup_zsh: false
+  tests: [reinstall_preserve_disabled_drops_block]
+
+reinstall_managed_block_allowlist:
+  # managed_block_markers restricts preservation to matching markers: an
+  # `* (install-*)` glob keeps the DevFeats-style block and drops a personal one.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: |
+    printf '\n# >>> prefix activation (install-homebrew) >>>\nexport HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew\n# <<< prefix activation (install-homebrew) <<<\n' >> /etc/bash.bashrc
+    printf '\n# >>> my-personal-tweaks >>>\nexport FOO=bar\n# <<< my-personal-tweaks <<<\n' >> /etc/bash.bashrc
+  options:
+    if_exists_sys: reinstall
+    managed_block_markers: '* (install-*)'
+    setup_zsh: false
+  tests: [reinstall_managed_block_allowlist]
+
 add_users:
   envs: [debian-stable]
   modes: [standalone]

@@ -175,7 +175,7 @@ options:
     - value: update
       description: Block-sync on existing paths (inject/sync/remove managed markers); non-managed bytes are never modified.
     - value: reinstall
-      description: Assemble enabled blocks into a new file, backing up any existing file first (destructive).
+      description: Assemble enabled blocks into a new file, backing up any existing file first. Foreign managed blocks are carried over unless `preserve_managed_blocks=false`.
     - value: fail
       description: Abort with zero writes if any target would modify an existing file.
     - value: uninstall
@@ -194,7 +194,7 @@ options:
     - value: update
       description: Block-sync skel targets.
     - value: reinstall
-      description: Reassemble skel targets from enabled blocks (destructive).
+      description: Reassemble skel targets from enabled blocks; foreign managed blocks are carried over unless `preserve_managed_blocks=false`.
     - value: fail
       description: Abort if any skel target would modify an existing file.
     - value: uninstall
@@ -213,7 +213,7 @@ options:
     - value: update
       description: Block-sync user dotfiles.
     - value: reinstall
-      description: Reassemble user dotfiles from enabled blocks (destructive).
+      description: Reassemble user dotfiles from enabled blocks; foreign managed blocks are carried over unless `preserve_managed_blocks=false`.
     - value: fail
       description: Abort if any user target would modify an existing file.
     - value: uninstall
@@ -239,6 +239,31 @@ options:
       writable entry is used, resolved via `users__first_writeable_path` at run
       time. Per-user dotfile backups go to each target user's own share
       directory instead, falling back to this resolved directory.
+  preserve_managed_blocks:
+    type: boolean
+    default: true
+    description: |-
+      When a `reinstall` replaces a file, carry over foreign *managed blocks* —
+      regions delimited by `# >>> <marker> >>>` / `# <<< <marker> <<<` guard
+      comments written by other features or tools (e.g. Homebrew's `brew shellenv`
+      activation, rustup, nvm) — into the freshly assembled file, so a
+      `setup-shell` reinstall no longer wipes them. setup-shell's own blocks
+      (markers prefixed `setup-shell-`) are always regenerated from enabled
+      blocks and never carried over. When `false`, `reinstall` performs a strict
+      whole-file replace and foreign managed blocks survive only in the backup.
+      Only affects `reinstall`; `update` and `skip` never modify non-managed
+      bytes regardless of this option.
+  managed_block_markers:
+    type: array
+    default: ""
+    description: |-
+      Allowlist of glob patterns (one per line) matched against a managed block's
+      marker to decide whether `reinstall` preserves that block. When empty (the
+      default), every foreign managed block is preserved. When non-empty, only
+      blocks whose marker matches at least one pattern are kept — e.g.
+      `* (install-*)` to preserve only DevFeats-written blocks. Ignored when
+      `preserve_managed_blocks` is `false`; setup-shell's own `setup-shell-*`
+      markers are never preserved regardless of this list.
   ? |
     *{{ #{{
       blocks = get("_internal.blocks") or {}

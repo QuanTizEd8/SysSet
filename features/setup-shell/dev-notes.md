@@ -45,7 +45,7 @@ Three knobs, each resolving `auto` (devcontainer→`reinstall`, standalone→
 |------|----------|
 | `skip` | Absent → assemble enabled blocks; exists → zero writes. |
 | `update` | Absent → assemble; exists → per block inject / sync-if-content-differs / remove-if-disabled. Non-managed bytes never touched. |
-| `reinstall` | Whole-file replace from enabled blocks; backs up any existing file first (`backup`/`backup_dir` options, via `file__backup_if_policy`). If every block of a target is disabled (empty assembly), the existing file is left untouched rather than emptied. |
+| `reinstall` | Whole-file replace from enabled blocks; backs up any existing file first (`backup`/`backup_dir` options, via `file__backup_if_policy`). Foreign guarded managed blocks (`# >>> M >>> … # <<< M <<<` where `M` is not `setup-shell-*`) are carried over into the fresh file unless `preserve_managed_blocks=false`; `managed_block_markers` optionally restricts which markers are carried over (glob allowlist). If every block of a target is disabled (empty assembly), the existing file is left untouched rather than emptied. |
 | `fail` | Probe pass first across every fail-scoped target (system/skel/user); a conflict in **any** scope aborts the whole run with zero writes. |
 | `uninstall` | Strip every block's marker; delete the file iff whitespace-only afterwards. |
 
@@ -136,6 +136,24 @@ case use ordinary declarative checks in `checks.yaml`.
   (`backup` policy, default `auto`: skip inside devcontainers/Codespaces).
   System/skel backups go to the first writable `backup_dir` candidate;
   per-user dotfile backups go to each target user's own share dir.
+- **`reinstall` preserves foreign managed blocks** (`preserve_managed_blocks`,
+  default `true`): a whole-file replace carries over any guarded
+  `# >>> M >>> … # <<< M <<<` block whose marker `M` is not `setup-shell-*`
+  (setup-shell's own blocks are always regenerated from enabled blocks, never
+  carried, so a stale copy can't be duplicated). This is required for correct
+  ordering: features that write shell activation yet must install **before**
+  setup-shell — most importantly **install-homebrew**, which provides the macOS
+  package manager the shells (`install-bash`/`install-zsh`) need and so must
+  precede them and, transitively, setup-shell — would otherwise have their
+  `brew shellenv` block wiped by the reinstall. The alternative (ordering
+  homebrew *after* setup-shell) is impossible: it forms a cycle
+  (homebrew → shells → setup-shell → homebrew). `managed_block_markers` is an
+  optional glob allowlist restricting which foreign markers are carried over;
+  empty (default) carries all non-`setup-shell-*` blocks. Only `reinstall` is
+  affected — `update`/`skip` never touch non-managed bytes. Carried blocks are
+  appended after the assembled setup-shell blocks; this is safe because the only
+  tools that legitimately precede setup-shell write position-independent
+  PATH/env exports.
 
 ## Deferred (v1 stubs / accepted gaps)
 

@@ -146,6 +146,102 @@ _ss__current_block_body() {
   ' "$_file"
 }
 
+# --- Foreign managed-block preservation (reinstall) ----------------------- #
+#
+# `reinstall` assembles a fresh file from setup-shell's own enabled blocks and
+# replaces the target wholesale. Without preservation this drops any guarded
+# block written by another feature or tool (Homebrew's `brew shellenv`, rustup,
+# nvm, or a user's own `# >>> … >>>` block) that shares a startup file with us —
+# most importantly Homebrew, which must install before the shells (macOS package
+# method) and therefore before setup-shell. These helpers carry such blocks over.
+
+_ss__list_managed_markers() {
+  # Print the marker of every complete `# >>> M >>> … # <<< M <<<` block in the
+  # file, one per line, in first-appearance order, de-duplicated. Marker lines
+  # are matched with the same BOM/CRLF/whitespace normalization as the rest of
+  # the engine so foreign files with odd line endings still parse.
+  local _file="$1"
+  [[ -f "$_file" ]] || return 0
+  awk "${_SHELL__AWK_NORM}"'
+    {
+      l = norm($0)
+      if (l ~ /^# >>> .+ >>>$/) {
+        m = substr(l, 7, length(l) - 10)
+        if (!(m in seen)) { seen[m] = 1; order[++n] = m }
+        begun[m] = 1
+      } else if (l ~ /^# <<< .+ <<<$/) {
+        m = substr(l, 7, length(l) - 10)
+        if (m in begun) complete[m] = 1
+      }
+    }
+    END { for (i = 1; i <= n; i++) if (complete[order[i]]) print order[i] }
+  ' "$_file"
+}
+
+_ss__marker_is_own() {
+  # True for setup-shell's own markers (regenerated from enabled blocks, so a
+  # stale on-disk copy must never be carried over). This prefix is the same
+  # discriminator __detect_existing_path_post uses.
+  [[ "$1" == setup-shell-* ]]
+}
+
+_ss__marker_allowed() {
+  # True when MANAGED_BLOCK_MARKERS is empty (allow all) or the marker matches at
+  # least one of its newline-separated glob patterns. Patterns may contain spaces
+  # (markers do), so lines are read verbatim and matched unquoted inside [[ ]].
+  local _m="$1" _pat _has=false
+  while IFS= read -r _pat; do
+    [[ -n "$_pat" ]] || continue
+    _has=true
+    # shellcheck disable=SC2053  # RHS is an intentional glob pattern.
+    [[ "$_m" == $_pat ]] && return 0
+  done <<< "${MANAGED_BLOCK_MARKERS:-}"
+  [[ "$_has" == true ]] && return 1
+  return 0
+}
+
+_ss__block_preserved() {
+  # Whether a foreign managed block with this marker should survive a reinstall.
+  local _m="$1"
+  [[ "${PRESERVE_MANAGED_BLOCKS:-true}" == true ]] || return 1
+  _ss__marker_is_own "$_m" && return 1
+  _ss__marker_allowed "$_m" || return 1
+  return 0
+}
+
+_ss__extract_block_region() {
+  # Print a marker's full block region — begin line, body, end line — verbatim
+  # (original bytes), so the carried-over block is byte-identical to the source.
+  local _file="$1" _marker="$2"
+  [[ -f "$_file" ]] || return 0
+  awk -v marker="$_marker" "${_SHELL__AWK_NORM}"'
+    BEGIN { b = "# >>> " marker " >>>"; e = "# <<< " marker " <<<" }
+    {
+      nl = norm($0)
+      if (nl == b) { inblock = 1; print; next }
+      if (inblock) { print; if (nl == e) inblock = 0; next }
+    }
+  ' "$_file"
+}
+
+_ss__collect_preserved_blocks() {
+  # Concatenate (blank-line separated) every preservable foreign block found in
+  # the file. Empty output when preservation is off or nothing qualifies. The
+  # caller's $() capture strips the trailing newlines.
+  local _file="$1"
+  [[ -f "$_file" ]] || return 0
+  [[ "${PRESERVE_MANAGED_BLOCKS:-true}" == true ]] || return 0
+  local _m _region _sep=""
+  while IFS= read -r _m; do
+    [[ -n "$_m" ]] || continue
+    _ss__block_preserved "$_m" || continue
+    _region="$(_ss__extract_block_region "$_file" "$_m")"
+    [[ -n "$_region" ]] || continue
+    printf '%s%s' "$_sep" "$_region"
+    _sep=$'\n\n'
+  done < <(_ss__list_managed_markers "$_file")
+}
+
 _ss__block_content() {
   # Render a block's content: dynamic → call the resolver fn; fixed → cat slice.
   local _bid="$1"
@@ -453,15 +549,25 @@ _ss__apply_target() {
     local _assembled
     _assembled="$(_ss__assemble_target "$_tid")"
     if [[ -n "$_assembled" ]]; then
-      # Back up foreign content before a destructive reinstall replace.
+      # Carry over + back up foreign managed blocks before the destructive
+      # reinstall replace. Only reinstall-on-existing reaches this: skip/update/
+      # fail assemble solely when the file is absent (nothing to preserve).
+      local _preserved=""
       if [[ "$_mode" == reinstall && "$_exists" == true ]]; then
         file__backup_if_policy "$_path" "${BACKUP:-auto}" "$(_ss__backup_dir_for_scope "$_scope")" > /dev/null || true
+        _preserved="$(_ss__collect_preserved_blocks "$_path")"
       fi
       file__mkdir "$(dirname "$_path")"
       # $(...) strips the assembler's trailing newlines; restore the end-marker
       # terminator plus the blank line so assembled files end exactly like
-      # marker blocks appended to existing files do.
-      printf '%s\n\n' "$_assembled" | file__tee "$_path"
+      # marker blocks appended to existing files do. Preserved foreign blocks (if
+      # any) follow, separated by a blank line, each already marker-wrapped.
+      if [[ -n "$_preserved" ]]; then
+        printf '%s\n\n%s\n' "$_assembled" "$_preserved" | file__tee "$_path"
+        logging__info "  Preserved foreign managed block(s) across reinstall of ${_path}."
+      else
+        printf '%s\n\n' "$_assembled" | file__tee "$_path"
+      fi
       file__chmod 644 "$_path" 2> /dev/null || true
       logging__success "  ${_path} (assembled)"
     fi

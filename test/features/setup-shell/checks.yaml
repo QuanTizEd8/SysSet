@@ -164,6 +164,36 @@ reinstall_backup:
     - title: a backup of the original bashrc exists
       cmd: bash -c 'ls /usr/local/share/*/*/setup-shell/backups/etc_bash.bashrc.* > /dev/null 2>&1'
 
+reinstall_preserves_managed_block:
+  description: reinstall preserves a foreign guarded managed block by default.
+  checks:
+    - title: foreign block marker preserved
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+    - title: foreign block content preserved
+      cmd: grep -qF 'HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew' /etc/bash.bashrc
+    - title: setup-shell own blocks (re)assembled alongside it
+      cmd: grep -q 'setup-shell-' /etc/bash.bashrc
+    - title: foreign block present exactly once (not duplicated)
+      cmd: bash -c 'test "$(grep -cF "# >>> prefix activation (install-homebrew) >>>" /etc/bash.bashrc)" = 1'
+
+reinstall_preserve_disabled_drops_block:
+  description: reinstall with preserve_managed_blocks=false drops foreign blocks from the live file (kept only in backup).
+  checks:
+    - title: foreign block removed from the live file
+      cmd: bash -c '! grep -qF "prefix activation (install-homebrew)" /etc/bash.bashrc'
+    - title: setup-shell own blocks still assembled
+      cmd: grep -q 'setup-shell-' /etc/bash.bashrc
+    - title: foreign block survives in a backup copy
+      cmd: bash -c 'grep -rqlF "prefix activation (install-homebrew)" /usr/local/share/*/*/setup-shell/backups'
+
+reinstall_managed_block_allowlist:
+  description: managed_block_markers preserves only markers matching the allowlist glob.
+  checks:
+    - title: allowlisted install-* block preserved
+      cmd: grep -qF '# >>> prefix activation (install-homebrew) >>>' /etc/bash.bashrc
+    - title: non-matching personal block dropped
+      cmd: bash -c '! grep -qF "my-personal-tweaks" /etc/bash.bashrc'
+
 system_files:
   description: Shared system files and the system bashrc are deployed and syntactically valid.
   checks:
