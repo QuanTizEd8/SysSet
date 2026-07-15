@@ -1510,6 +1510,74 @@ _seed_managed_context() {
 }
 
 # ---------------------------------------------------------------------------
+# command-guard promotion: a run dependency whose `command:` guard fires must
+# still be promoted out of the build-dep registry (regression: install-ohmybash
+# lost its bootstrapped `git` because the guard skipped the install — and thus
+# the promotion — leaving git tracked for end-of-install cleanup).
+
+_seed_git_guard_manifest_yq() {
+  # yq mock: emit a parsed manifest with a single `git` package carrying its
+  # command guard, so ospkg__run reaches the guard with _pkgcommand=git.
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/bash\necho '"'"'{"packages":[{"name":"git","command":"git"}]}'"'"'\n' \
+    > "${BATS_TEST_TMPDIR}/bin/yq"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
+  bootstrap__yq() {
+    _BOOTSTRAP__YQ_BIN="${BATS_TEST_TMPDIR}/bin/yq"
+    return 0
+  }
+  export -f bootstrap__yq
+}
+
+@test "ospkg__run: guarded run dep is promoted out of the build-dep registry" {
+  _require_ospkg_jq
+  _seed_apt_build_context
+  _seed_git_guard_manifest_yq
+  # git is already on PATH (as if bootstrapped / build-installed) → guard fires.
+  create_fake_bin "git"
+  prepend_fake_bin_path
+  # git + its dep closure are tracked for cleanup under a build group.
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::lib-git"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'git\ngit-man\n' > "$_sidecar"
+
+  # Run-dep install (no --build-group): the guard skips the redundant install
+  # but MUST still promote git so cleanup cannot remove it.
+  ospkg__run --manifest $'packages:\n  - name: git\n    command: git\n' > /dev/null 2>&1
+
+  # git is evicted from the sidecar (promoted) …
+  run grep -Fxq git "$_sidecar"
+  assert_failure
+  # … via a PM-native manual mark (apt-get autoremove then keeps git's closure) …
+  assert_file_exists "${BATS_TEST_TMPDIR}/apt-mark.log"
+  grep -q "manual git" "${BATS_TEST_TMPDIR}/apt-mark.log"
+  # … and only the named package is evicted; the dep is retained (autoremove keeps
+  # it because it is needed by the now-manual git).
+  grep -Fxq git-man "$_sidecar"
+}
+
+@test "ospkg__run: guarded BUILD dep is NOT promoted (stays removable)" {
+  _require_ospkg_jq
+  _seed_apt_build_context
+  _seed_git_guard_manifest_yq
+  _mock_snapshots "git" "git" # nothing newly installed under the build group
+  create_fake_bin "git"
+  prepend_fake_bin_path
+  local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::lib-git"
+  mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
+  printf 'git\n' > "$_sidecar"
+
+  # As a build dep (--build-group set), a guard-skipped tool must stay tracked.
+  ospkg__run --manifest $'packages:\n  - name: git\n    command: git\n' \
+    --build-group "ctx::somebuild" > /dev/null 2>&1
+
+  # git remains in the pre-seeded build sidecar (not promoted) …
+  grep -Fxq git "$_sidecar"
+  # … and no manual mark was issued for it.
+  [[ ! -f "${BATS_TEST_TMPDIR}/apt-mark.log" ]] || ! grep -q "manual git" "${BATS_TEST_TMPDIR}/apt-mark.log"
+}
+
+# ---------------------------------------------------------------------------
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   _require_ospkg_jq

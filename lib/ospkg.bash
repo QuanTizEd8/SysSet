@@ -3125,6 +3125,12 @@ ospkg__run() {
       # installs. Same non-`--update` gating, so `--update` runs still refresh it.
       if _ospkg__command_satisfied "$_do_pkg_update" "${_pkgcommand:-}" "${_runtime_path:-}"; then
         logging__skip "'${_pkgname}' satisfied by on-PATH command '${_pkgcommand}' (runtime PATH); skipping install."
+        # A run dependency must persist at runtime. If the satisfying tool was
+        # installed as a build dependency or bootstrapped (tracked for cleanup),
+        # promote it out of the build-dep registry — exactly as the PM-native
+        # already-installed skip below does — so end-of-install cleanup cannot
+        # remove it. Build deps keep `_build_group` set and stay removable.
+        [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         continue
       fi
 
