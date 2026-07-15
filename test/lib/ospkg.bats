@@ -1440,6 +1440,76 @@ _seed_managed_context() {
 }
 
 # ---------------------------------------------------------------------------
+# _ospkg__command_satisfied  (manifest `command:` PATH guard)
+# ---------------------------------------------------------------------------
+@test "_ospkg__command_satisfied: satisfied (skip) when command is on PATH" {
+  reload_lib
+  create_fake_bin "rg"
+  prepend_fake_bin_path
+  run _ospkg__command_satisfied false rg
+  assert_success
+}
+
+@test "_ospkg__command_satisfied: not satisfied (install) when command absent from PATH" {
+  reload_lib
+  begin_path_isolation # PATH with no rg
+  run _ospkg__command_satisfied false rg
+  end_path_isolation
+  assert_failure
+}
+
+@test "_ospkg__command_satisfied: no guard (empty command) is never satisfied" {
+  reload_lib
+  run _ospkg__command_satisfied false ""
+  assert_failure
+}
+
+@test "_ospkg__command_satisfied: --update bypasses the guard even when command is on PATH" {
+  reload_lib
+  create_fake_bin "rg"
+  prepend_fake_bin_path
+  # update-flag=true → guard disabled so the dependency is (re)installed/refreshed
+  run _ospkg__command_satisfied true rg
+  assert_failure
+}
+
+@test "_ospkg__command_satisfied: probes the supplied runtime PATH (rg only there)" {
+  reload_lib
+  local _rt="${BATS_TEST_TMPDIR}/runtime"
+  mkdir -p "$_rt"
+  printf '#!/bin/sh\n' > "$_rt/rg"
+  chmod +x "$_rt/rg"
+  begin_path_isolation # ambient PATH has no rg
+  run _ospkg__command_satisfied false rg "$_rt"
+  end_path_isolation
+  assert_success
+}
+
+@test "_ospkg__command_satisfied: rg on install PATH but NOT on runtime PATH → not satisfied" {
+  reload_lib
+  create_fake_bin "rg" # rg is on the ambient/install-time PATH …
+  prepend_fake_bin_path
+  # … but the runtime PATH points elsewhere (no rg), so the runtime dep is unmet.
+  run _ospkg__command_satisfied false rg "${BATS_TEST_TMPDIR}/no-such-runtime-dir"
+  assert_failure
+}
+
+# ---------------------------------------------------------------------------
+@test "ospkg__parse_manifest_yaml emits the command guard field on packages" {
+  _seed_apt_context
+  _require_ospkg_jq
+  local _json_file
+  _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
+  printf '{"packages":[{"name":"ripgrep","command":"rg"},"curl"]}' > "$_json_file"
+  local _output
+  _output="$(ospkg__parse_manifest_yaml "$_json_file")"
+  rm -f "$_json_file"
+  # ripgrep entry carries its guard; the bare curl entry has a null command.
+  [[ "$_output" == *'"name":"ripgrep"'*'"command":"rg"'* || "$_output" == *'"command":"rg"'*'"name":"ripgrep"'* ]]
+  [[ "$_output" == *'"name":"curl"'*'"command":null'* || "$_output" == *'"command":null'*'"name":"curl"'* ]]
+}
+
+# ---------------------------------------------------------------------------
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
   _require_ospkg_jq

@@ -21,7 +21,7 @@ def repo_content:
 def visit(k; gf):
   if type == "string" then
     if k == "package" then
-      {kind: "package", name: ., flags: gf, version: null}
+      {kind: "package", name: ., command: null, flags: gf, version: null}
     else empty end
   elif has("packages") then
     # group object
@@ -71,6 +71,7 @@ def visit(k; gf):
            ($e[$pm] // $e.name) as $n
            | if ($n | type) == "string" and ($n | length) > 0 then $n else null end
          ),
+         command: ($e.command // null),
          flags: merge_flags(gf; ($e.flags // null)),
          version: ($e.version // null)}
       elif k == "script" then

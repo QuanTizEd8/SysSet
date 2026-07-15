@@ -344,6 +344,11 @@
           "$ref": "#/$defs/WhenSpec",
           "description": "Condition filter. The package is skipped when the condition does not match."
         },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "PATH guard: if this command is already on PATH at install time, the package is skipped — the dependency is treated as satisfied regardless of how the command was installed (a binary/cargo/npm install by another feature, or an existing system tool). Unlike the package-manager presence check, this works on every platform and honours non-PM installs. Only consulted on install/skip runs, not under `--update` (which refreshes deps), mirroring the built-in already-installed skip. Use the command a user would actually invoke (e.g. `rg` for the `ripgrep` package)."
+        },
         "flags": {
           "$ref": "#/$defs/flagsValue",
           "description": "Extra flags for the PM's install command. Pair with a 'when' condition if the flags are PM-specific (e.g. --no-install-recommends for apt)."

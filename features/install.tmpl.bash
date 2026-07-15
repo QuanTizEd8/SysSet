@@ -2867,6 +2867,12 @@ __dep_install_from_env__() {
   logging__install "Installing '${_label}' (${_lifecycle}) dependencies from '${_var}'."
 
   local -a _args=(--manifest "$_manifest")
+  # A package `command:` guard probes a PATH to decide whether a dependency is
+  # already satisfied. RUN deps are needed at container runtime, so probe the
+  # resolved runtime_path (where the tool resolves when the user runs it). BUILD
+  # deps are needed for THIS install right now, so they probe the ambient install-
+  # time PATH instead — no --runtime-path is passed for them.
+  [[ "$_lifecycle" == run ]] && _args+=(--runtime-path "${_RESOLVED_RUNTIME_PATH:-}")
   [[ "$_lifecycle" == build ]] && _args+=(--build-group "${_SYSSET_BUILD_CONTEXT}::method-${METHOD:-unknown}")
   local -a _fetch_args=()
   __dep_fetch_extra_args__ _fetch_args

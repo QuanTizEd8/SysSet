@@ -1148,6 +1148,34 @@ ospkg__is_installed() {
   done
 }
 
+_ospkg__command_satisfied() {
+  # _ospkg__command_satisfied <update-flag> <command> [runtime-path] — Whether a
+  # manifest package's PATH guard (`command:`) is satisfied, so it can be skipped.
+  #
+  # A runtime dependency is treated as satisfied when the named command resolves
+  # on the *runtime* PATH, regardless of how it was installed (a binary/cargo/npm
+  # install by another feature, or an existing system tool). This is the cross-
+  # platform, method-agnostic complement to ospkg__is_installed (which only sees
+  # PM-registered packages). Gated off under --update so refresh runs still
+  # (re)install deps — matching the PM-native already-installed skip.
+  #
+  # Args:
+  #   <update-flag>   "true" when installing with --update (guard disabled); else "false".
+  #   <command>       Command to probe; empty/absent means no guard (returns 1).
+  #   [runtime-path]  PATH to probe against — the feature's resolved runtime_path,
+  #                   i.e. where the tool will resolve when the user runs it. Empty
+  #                   or absent falls back to the ambient install-time PATH.
+  #
+  # Returns: 0 when the guard is satisfied (skip the package); 1 otherwise.
+  local _update="${1:-false}" _cmd="${2:-}" _path="${3:-}"
+  [[ "$_update" == false && -n "$_cmd" ]] || return 1
+  if [[ -n "$_path" ]]; then
+    PATH="$_path" command -v "$_cmd" > /dev/null 2>&1
+  else
+    command -v "$_cmd" > /dev/null 2>&1
+  fi
+}
+
 _ospkg__snapshot_packages() {
   # _ospkg__snapshot_packages <dest-file> — writes a sorted list of installed
   # package names (one per line) to <dest-file>.
@@ -2529,6 +2557,10 @@ ospkg__run() {
   #                           resolving a URI manifest.
   #   --fetch-header <H>      Additional HTTP header passed to URI fetches when
   #                           resolving a URI manifest. Repeatable.
+  #   --runtime-path <p>      PATH the installed tools will resolve on at container
+  #                           runtime (the feature's resolved runtime_path). Per-package
+  #                           `command:` guards probe this to decide whether a runtime
+  #                           dependency is already satisfied. Empty → install-time PATH.
   #   --update                Also upgrade already-installed packages (brew uses `brew upgrade`;
   #                           all other PMs upgrade in place via their install command).
   #   --update-index <bool>   Refresh the package index before installing (default: true).
@@ -2549,7 +2581,7 @@ ospkg__run() {
   local _lists_max_age=300 _dry_run=false _interactive=false
   local _prefer_linuxbrew=false _build_group=''
   local _do_pkg_update=false _do_remove=false _fail_if_installed=false
-  local _fetch_netrc_file=''
+  local _fetch_netrc_file='' _runtime_path=''
   local -a _fetch_headers=()
 
   while [[ $# -gt 0 ]]; do
@@ -2567,6 +2599,11 @@ ospkg__run() {
       --fetch-header)
         shift
         _fetch_headers+=("$1")
+        shift
+        ;;
+      --runtime-path)
+        shift
+        _runtime_path="$1"
         shift
         ;;
       --update)
@@ -3071,14 +3108,25 @@ ospkg__run() {
       fi
     }
     local -a _pkgs_to_install=() _pkg_base_names=()
-    local _pkgitem _pkgname _pkgflags _pkgversion _pkginstall _resolved_ver
+    local _pkgitem _pkgname _pkgflags _pkgversion _pkginstall _resolved_ver _pkgcommand
     for _pkgitem in "${_Y_PACKAGES[@]}"; do
       _pkgname="$(printf '%s' "$_pkgitem" | json__query -r '.name')"
+      _pkgcommand="$(printf '%s' "$_pkgitem" | json__query -r '.command // empty')"
       _pkgflags="$(printf '%s' "$_pkgitem" | json__query -r '.flags // empty')"
       _pkgversion="$(printf '%s' "$_pkgitem" | json__query -r '.version // empty')"
       _pkgversion="$(ctx__expand_pattern "${_pkgversion}")"
       _pkgversion="$(_ospkg__normalize_pkg_version_spec "${_pkgversion}")"
       [[ -z "${_pkgname:-}" ]] && continue
+
+      # PATH guard: skip when the dependency is already satisfied by a command on
+      # PATH — regardless of how it was installed (a binary/cargo/npm install by
+      # another feature, or an existing system tool). Unlike ospkg__is_installed
+      # (PM-native, below), this works on every platform and honours non-PM
+      # installs. Same non-`--update` gating, so `--update` runs still refresh it.
+      if _ospkg__command_satisfied "$_do_pkg_update" "${_pkgcommand:-}" "${_runtime_path:-}"; then
+        logging__skip "'${_pkgname}' satisfied by on-PATH command '${_pkgcommand}' (runtime PATH); skipping install."
+        continue
+      fi
 
       # Apply version constraint (PM-native syntax).
       if [[ -n "${_pkgversion:-}" ]]; then
