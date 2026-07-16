@@ -1193,11 +1193,32 @@ __install_run_source__() {
     fi
   fi
 
+  local _have_fallback=false
+  if [[ -v SOURCE_FALLBACK_ASSET_URI && -n "${SOURCE_FALLBACK_ASSET_URI}" ]]; then
+    _have_fallback=true
+  fi
+
   logging__download "Fetching source asset '${_asset_uri}'."
   local _fetch_rc=0
-  uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || _fetch_rc=$?
+  if [[ "${_have_fallback}" == true ]]; then
+    # A fallback URI is configured, so a primary failure is an expected outcome
+    # (typically a 404 because the pinned version has been archived to a
+    # different path, e.g. zsh's /pub → /pub/old). Bound the primary's HTTP
+    # retry budget so it fails fast and the fallback is tried promptly, rather
+    # than retrying the primary URL ~60x first. The net layer reads
+    # DEVFEATS_NET_FETCH_RETRIES per call, and the env assignment is scoped to
+    # this invocation; the fallback keeps the full budget as the authoritative
+    # location.
+    local _primary_retries="${DEVFEATS_NET_FETCH_RETRIES:-60}"
+    [[ "${_primary_retries}" =~ ^[0-9]+$ ]] || _primary_retries=60
+    [[ "${_primary_retries}" -gt 3 ]] && _primary_retries=3
+    DEVFEATS_NET_FETCH_RETRIES="${_primary_retries}" \
+      uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || _fetch_rc=$?
+  else
+    uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || _fetch_rc=$?
+  fi
   if [[ ${_fetch_rc} -ne 0 ]]; then
-    if [[ -v SOURCE_FALLBACK_ASSET_URI && -n "${SOURCE_FALLBACK_ASSET_URI}" ]]; then
+    if [[ "${_have_fallback}" == true ]]; then
       local _fallback_uri
       _fallback_uri="$(ctx__expand_pattern "${SOURCE_FALLBACK_ASSET_URI}")"
       logging__warn "Primary source fetch failed (rc=${_fetch_rc}); trying fallback '${_fallback_uri}'."
