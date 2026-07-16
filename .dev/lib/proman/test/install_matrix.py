@@ -53,6 +53,12 @@ def _run_env(
         f"{host_root}/test/install:/repo/test/install:ro",
         "--bind",
         f"{host_root}/src/install-jq:/repo/src/install-jq:ro",
+        # texlive_mirror_probe.bats sources the install-texlive feature hook
+        # directly (self-contained unit test — the install-jq fixture is the
+        # only synced src/ this container binds), so mount that one source file.
+        "--bind",
+        f"{host_root}/features/install-texlive/install.bash"
+        ":/repo/features/install-texlive/install.bash:ro",
         "--bind",
         f"{host_root}/.dev/scripts/test:/repo/.dev/scripts/test:ro",
     ]

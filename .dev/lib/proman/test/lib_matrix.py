@@ -53,6 +53,11 @@ def _run_env(
         f"{host_root}/.dev/scripts/test:/repo/.dev/scripts/test:ro",
         "--bind",
         f"{host_root}/features/install-os-pkg/manifest.schema.json:/repo/features/install-os-pkg/manifest.schema.json:ro",
+        # git.bats' deferred-Git-LFS-hook test executes the real feature hook
+        # script, so it must be available inside the otherwise lib-only mount.
+        "--bind",
+        f"{host_root}/features/install-git-lfs/files/post-create--configure-and-pull.sh"
+        ":/repo/features/install-git-lfs/files/post-create--configure-and-pull.sh:ro",
     ]
     for k, v in env_vars.items():
         cmd += ["--env", f"{k}={v}"]
