@@ -4,9 +4,15 @@
 bats_require_minimum_version 1.5.0
 
 setup() {
-  export INSTALL_TEST_FIXTURE=install-texlive
-  load 'helpers/ensure_framework'
-  install_test__ensure_framework
+  load 'helpers/common'
+  # This is a self-contained unit test of the _tl_probe_year_mirror hook, so it
+  # sources the feature source directly (always present in a checkout) rather
+  # than a synced src/ fixture. The install framework only guarantees install-jq
+  # is synced in CI, so depending on a synced install-texlive fails there with
+  # "synced install.bash not found". The hook is pure function definitions and
+  # only calls net__probe_url (mocked below), so no lib/framework is needed.
+  # shellcheck source=/dev/null
+  source "${REPO_ROOT}/features/install-texlive/install.bash"
 
   _probe_log="${BATS_TEST_TMPDIR}/probe.log"
 }
