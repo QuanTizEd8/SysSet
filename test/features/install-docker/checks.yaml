@@ -1,0 +1,69 @@
+host_engine:
+  description: |
+    Host install via the package repo (upstream-package on apt). Verifies the
+    engine, CLI, containerd, the docker group, and the Buildx/Compose plugins.
+    No live-daemon assertion: the standalone runner has no systemd/privilege.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: dockerd on PATH
+      cmd: command -v dockerd
+    - title: containerd on PATH
+      cmd: command -v containerd
+    - title: docker group exists
+      cmd: getent group docker
+    - title: buildx plugin available
+      cmd: docker buildx version
+    - title: compose v2 plugin available
+      cmd: docker compose version
+    - title: compose-switch installed
+      cmd: command -v compose-switch
+    - title: docker-compose routes through compose-switch
+      cmd: bash -c '[ "$(readlink -f "$(command -v docker-compose)")" = /usr/local/bin/compose-switch ]'
+
+host_binary:
+  description: |
+    Host install via the static-binary method. Verifies the engine binaries are
+    installed from the tarball. Buildx/Compose are best-effort GitHub fetches
+    under this method, so they are not asserted here (compose-switch is disabled).
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: dockerd on PATH
+      cmd: command -v dockerd
+    - title: containerd on PATH
+      cmd: command -v containerd
+    - title: docker reports a version
+      cmd: bash -c 'docker --version | grep -Eq "Docker version [0-9]+\.[0-9]+"'
+    - title: docker group exists
+      cmd: getent group docker
+
+host_user:
+  description: |
+    add_users=vscode adds the vscode user to the docker group for non-root access.
+  checks:
+    - title: docker group exists
+      cmd: getent group docker
+    - title: vscode is in the docker group
+      cmd: bash -c 'id -nG vscode | tr " " "\n" | grep -qx docker'
+
+dind_run:
+  description: |
+    Docker-in-Docker in a privileged devcontainer. The feature entrypoint starts
+    the nested daemon at container start, so `docker run` works end to end and the
+    remoteUser (vscode) can reach the daemon via the docker group.
+  checks:
+    - title: docker info reaches the nested daemon
+      cmd: docker info
+    - title: docker run hello-world succeeds
+      cmd: docker run --rm hello-world
+    - title: storage driver is an overlay driver (overlay2 or containerd overlayfs)
+      cmd: bash -c "docker info --format '{{.Driver}}' | grep -Exq 'overlay2|overlayfs'"
+    - title: buildx plugin available
+      cmd: docker buildx version
+    - title: compose v2 plugin available
+      cmd: docker compose version
+    - title: vscode is in the docker group
+      cmd: bash -c 'id -nG vscode | tr " " "\n" | grep -qx docker'
+    - title: vscode can reach the daemon
+      cmd: su vscode -c 'docker version'

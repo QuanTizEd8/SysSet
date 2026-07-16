@@ -1,0 +1,37 @@
+# install-docker-dood test scenarios.
+#
+# The CLI-only install is verified in `standalone` mode. Socket forwarding is
+# inherently a devcontainer-runtime concern (the host socket is bind-mounted by
+# the CLI at container start), so the functional scenario runs in `devcontainer`
+# mode where the feature's static socket mount + entrypoint apply. In CI the
+# "host" socket forwarded is the outer test daemon's socket.
+
+# --- CLI install (standalone) ----------------------------------------------
+
+cli_apt:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+  tests: [cli_only]
+
+cli_user:
+  envs: [ubuntu-stable+vscode]
+  modes: [standalone]
+  options:
+    add_users: vscode
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+  tests: [cli_user]
+
+# --- DooD socket forwarding (devcontainer) ---------------------------------
+
+dood_default:
+  envs: [ubuntu-stable+vscode]
+  modes: [devcontainer]
+  devcontainer:
+    remoteUser: vscode
+  tests: [dood_socket]

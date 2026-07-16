@@ -58,6 +58,8 @@ rollout:
   - install-nvm
   - install-conda-env
   - install-podman
+  - install-docker
+  - install-docker-dood
 environments:
   primary: ubuntu-stable
   nonroot_env: ubuntu-stable+vscode

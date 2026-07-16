@@ -1,0 +1,288 @@
+version: 0.1.0
+name: Docker Installation
+description: Install the [Docker](https://www.docker.com/) engine and CLI on a host or as Docker-in-Docker inside a devcontainer.
+keywords:
+  - docker
+  - containers
+  - dind
+  - docker-in-docker
+  - engine
+  - buildx
+  - compose
+  - devcontainer
+_tool_name: Docker Engine
+_long_description: >-
+  Installs the Docker Engine (`dockerd`), CLI (`docker`), and `containerd`, plus
+  the Buildx and Compose plugins. On a bare host or VM the engine is installed
+  from Docker's official package repository (Debian, Ubuntu, Fedora, CentOS, RHEL,
+  Rocky) or the distro-native `docker` package (Arch, Alpine, openSUSE), with a
+  version-pinnable static-binary fallback; the systemd service is enabled by
+  default. Inside a privileged devcontainer the same install runs as
+  Docker-in-Docker: a nested `dockerd`/`containerd` pair is started by a container
+  entrypoint (cgroup-v2 delegation, shared mount propagation, iptables handling),
+  with dedicated volumes for `/var/lib/docker` and `/var/lib/containerd` to avoid
+  overlay-on-overlay failures. Resolved users are added to the `docker` group for
+  non-root access. To connect to a host's Docker daemon from inside a container
+  instead of running a nested one, use the companion `install-docker-dood` feature.
+
+# --- Static devcontainer configuration (applies only in devcontainer builds) ---
+# These fields are compiled into devcontainer-feature.json and cannot vary by
+# option value, so this feature commits to the Docker-in-Docker shape: privileged
+# mode for the nested daemon, an init process to reap its children, dedicated
+# volumes for daemon state, and an entrypoint that starts the daemon. The
+# Docker-outside-of-Docker shape (host-socket bind mount, no privilege) is
+# mutually exclusive and lives in the separate install-docker-dood feature.
+privileged: true
+init: true
+containerEnv:
+  DOCKER_BUILDKIT: "1"
+mounts:
+  # Named volumes keep daemon state off the container's overlayfs root (which
+  # would break overlay2 with an opaque "invalid argument"); ${devcontainerId}
+  # isolates each devcontainer's images/layers and preserves them across rebuilds.
+  # Block style is required: `${devcontainerId}` in a flow mapping breaks the YAML
+  # parser because `{` opens a nested mapping.
+  - source: dind-var-lib-docker-${devcontainerId}
+    target: /var/lib/docker
+    type: volume
+  - source: dind-var-lib-containerd-${devcontainerId}
+    target: /var/lib/containerd
+    type: volume
+entrypoint:
+  description: Start the nested containerd + dockerd and configure cgroup/mount/iptables for Docker-in-Docker.
+  _conf_vars:
+    - MODE
+    - DEFAULT_ADDRESS_POOL
+    - AZURE_DNS_AUTO_DETECTION
+    - DISABLE_IP6TABLES
+    - IPTABLES
+    - IPTABLES_SWITCH_AT_RUNTIME
+customizations:
+  vscode:
+    extensions:
+      - ms-azuretools.vscode-containers
+
+# Docker Engine is Linux-only (no native macOS/Windows daemon).
+_system_requirements:
+  platforms:
+    - {plat.kernel: linux}
+  root: true
+
+options:
+
+  mode:
+    type: string
+    default: auto
+    description: |-
+      Installation mode.
+      `auto` selects `dind` during a devcontainer build (the four devcontainer
+      spec env vars are present) and `host` otherwise (standalone / bare host).
+      `host` installs the engine and, when systemd is the active init and not in a
+      container, enables the service. `dind` additionally deploys the
+      Docker-in-Docker entrypoint that starts a nested daemon at container start.
+    enum:
+      - value: auto
+        description: Detect the environment — `dind` in a devcontainer build, else `host`.
+      - value: host
+        description: Install on a bare host/VM; manage the systemd service.
+      - value: dind
+        description: Force Docker-in-Docker (nested daemon started by the entrypoint).
+
+  enable_service:
+    type: boolean
+    default: true
+    description: |-
+      Host mode only: run `systemctl enable --now docker` after install when
+      systemd is the active system init and the install is not inside a container.
+      No-op in devcontainer/DinD mode (the entrypoint starts the daemon) and on
+      non-systemd or containerized hosts.
+
+  keep_repos:
+    type: boolean
+    default: true
+    description: >-
+      Keep Docker's package repository and signing key after installation (the
+      default, matching Docker's official setup) so the package manager can install
+      Docker updates later (e.g. `apt upgrade`) and so the option-installed Buildx
+      and Compose plugin packages resolve. Set false to remove the repo/key after
+      install; the plugin packages will then be unavailable unless already cached.
+
+  install_buildx:
+    type: boolean
+    default: true
+    description: |-
+      Install the Docker Buildx plugin (`docker buildx`), providing BuildKit-based
+      multi-platform builds. Installed from Docker's repo packages where available,
+      the distro package for `package`-method installs, or from GitHub releases for
+      the `binary` method.
+
+  install_compose:
+    type: boolean
+    default: true
+    description: |-
+      Install the Docker Compose v2 plugin (`docker compose`). Installed from
+      Docker's repo packages where available, the distro package for
+      `package`-method installs, or from GitHub releases for the `binary` method.
+
+  install_compose_switch:
+    type: boolean
+    default: true
+    description: |-
+      Install Compose Switch so the legacy hyphenated `docker-compose` command
+      transparently invokes Compose v2. Fetched from the docker/compose-switch
+      GitHub releases and registered as `docker-compose`.
+
+  default_address_pool:
+    type: string
+    default: ''
+    _applies_when:
+      - mode: [dind, auto]
+    description: |-
+      DinD only: default address pool(s) for Docker networks, passed to `dockerd`
+      as `--default-address-pool`. Example: `base=192.168.0.0/16,size=24`. Leave
+      empty to use Docker's defaults. Multiple pools may be comma-separated.
+
+  azure_dns_auto_detection:
+    type: boolean
+    default: true
+    _applies_when:
+      - mode: [dind, auto]
+    description: |-
+      DinD only: when the host appears to be on Azure, configure the nested daemon
+      to use Azure's DNS server (168.63.129.16) so image pulls resolve. No effect
+      off Azure.
+
+  disable_ip6tables:
+    type: boolean
+    default: false
+    _applies_when:
+      - mode: [dind, auto]
+    description: |-
+      DinD only: start `dockerd` with `--ip6tables=false`. Useful on Docker 27+
+      under kernels/containers without working ip6tables.
+
+  iptables:
+    type: string
+    default: auto
+    _applies_when:
+      - mode: [dind, auto]
+    description: |-
+      DinD only: which iptables backend the container should use for the nested
+      daemon. `auto` detects a sensible default at install (nft on newer systems,
+      legacy otherwise); `nft` / `legacy` force a backend via update-alternatives.
+    enum:
+      - value: auto
+        description: Detect a sensible backend at install time.
+      - value: nft
+        description: Force iptables-nft.
+      - value: legacy
+        description: Force iptables-legacy.
+
+  iptables_switch_at_runtime:
+    type: boolean
+    default: false
+    _applies_when:
+      - mode: [dind, auto]
+    description: |-
+      DinD only: select the iptables backend at container start (in the entrypoint)
+      based on runtime kernel detection, instead of at install time. Useful when
+      the build host and run host differ.
+
+  daemon_json:
+    type: string
+    default: ''
+    _content_or_uri: true
+    description: |-
+      Contents (inline JSON or a URI/path) for `/etc/docker/daemon.json`. In host
+      mode it is written before the service starts; in DinD mode it is applied and
+      honored by the nested daemon at container start. Leave empty to use Docker's
+      built-in defaults.
+
+_options:
+  installer_dir: false
+  configure_users: true
+  verify:
+    cmd: docker
+    args: "--version"
+    description: Verify the Docker client is installed.
+    functional:
+      description: docker runs a container end to end
+      cmd: '{bin} run --rm hello-world'
+  version:
+    resolution: sidecar
+    # Docker's static-binary index is the authoritative list of released engine
+    # versions; its version numbers match the docker-ce package versions, so one
+    # resolution serves both the binary asset URI and the package pin. The version
+    # URI is NOT context-expanded, so a fixed arch dir is used; Docker releases all
+    # architectures together, so x86_64's version list applies to every arch (the
+    # per-arch `{plat.machine}` is expanded later in the binary `asset_uri`).
+    uri: "https://download.docker.com/linux/static/stable/x86_64/"
+    pattern: "docker-[version].tgz"
+    description: |-
+      Docker Engine version to install. `stable`/`latest` install the newest
+      released version; an explicit `X.Y.Z` pins that version (via the package
+      manager where supported, or the matching static tarball).
+    test_pins:
+      pinned: ["28.3.2"]
+  method:
+    upstream-package:
+      registers_as: docker-ce
+      when: &upstream_when
+        - {plat.pm: apt, os.id: [debian, ubuntu]}
+        - {plat.pm: [dnf, yum], os.id: [fedora, centos, rhel, rocky, almalinux, ol]}
+    package:
+      registers_as: docker
+      when: &package_when
+        - {plat.pm: [pacman, apk, zypper]}
+    binary:
+      asset_uri: "https://download.docker.com/linux/static/stable/{plat.machine}/docker-{feat.version}.tgz"
+      binary_src:
+        - docker
+        - dockerd
+        - containerd
+        - containerd-shim-runc-v2
+        - ctr
+        - runc
+        - docker-init
+        - docker-proxy
+      when:
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, ppc64le, s390x]}
+  prefix:
+    bins: [docker, dockerd, containerd, containerd-shim-runc-v2, ctr, runc, docker-init, docker-proxy]
+    applies_when:
+      - method: [binary]
+
+_dependencies:
+  run:
+    base:
+      when: {plat.kernel: linux}
+      packages:
+        - ca-certificates
+        # iptables is required by the daemon for container networking; the
+        # package name/availability varies, so install best-effort per PM.
+        - name: iptables
+          when: {plat.pm: [apt, dnf, yum, zypper, pacman]}
+    method-upstream-package:
+      packages:
+        - name: docker-ce
+          version: "{feat.pm_version}"
+          when: *upstream_when
+        - name: docker-ce-cli
+          version: "{feat.pm_version}"
+          when: *upstream_when
+        - name: containerd.io
+          when: *upstream_when
+        # Shared Docker CE repo/key setup (no-package groups; apply per distro).
+        - ${{ _internal.docker_ce_repo.apt }}$
+        - ${{ _internal.docker_ce_repo.fedora }}$
+        - ${{ _internal.docker_ce_repo.rhel }}$
+    method-package:
+      packages:
+        # Distro-native engine package. Arch/openSUSE call it `docker`; Alpine
+        # ships `docker` (the engine) plus `docker-cli`.
+        - name: docker
+          version: "{feat.pm_version}"
+          when: *package_when
+    # NOTE: Buildx/Compose plugin packages are installed by install.bash's
+    # __install_finish_post (after the Docker repo is added), not via an
+    # option-gated manifest — those run BEFORE the method deps add the repo.

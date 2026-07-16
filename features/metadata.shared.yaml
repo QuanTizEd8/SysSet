@@ -157,6 +157,51 @@ _internal:
         gpgcheck=1
         gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-$releasever
 
+  # Docker CE upstream repository/key setup, shared by install-docker and
+  # install-docker-dood. Each entry is a no-package repo-setup group (label/when/
+  # keys/repos) spliced into a feature's `_dependencies.run.method-upstream-package`
+  # `packages:` list via `- ${{ _internal.docker_ce_repo.<distro> }}$`. The actual
+  # Docker packages (which differ per feature) are declared separately by each
+  # feature. Docker's official repos cover apt (Debian/Ubuntu) and dnf/yum
+  # (Fedora + RHEL family); other distros use the distro-native `docker` package
+  # via the `package` method instead.
+  docker_ce_repo:
+    apt:
+      label: Docker CE apt repository
+      when: {plat.pm: apt, os.id: [debian, ubuntu]}
+      keys:
+        # Docker ships an ASCII-armored key; store it as .asc (not dearmored) and
+        # reference it via signed-by, matching Docker's official instructions.
+        - url: https://download.docker.com/linux/{os.id}/gpg
+          dest: /etc/apt/keyrings/docker.asc
+          dearmor: false
+      repos:
+        - "deb [arch={plat.deb_arch} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{os.id} {os.version_codename} stable"
+    fedora:
+      label: Docker CE dnf repository (Fedora)
+      when: {plat.pm: dnf, os.id: fedora}
+      repos:
+        - |
+          [docker-ce-stable]
+          name=Docker CE Stable - $basearch
+          baseurl=https://download.docker.com/linux/fedora/$releasever/$basearch/stable
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://download.docker.com/linux/fedora/gpg
+    rhel:
+      label: Docker CE dnf/yum repository (RHEL family)
+      # Rocky/Alma/CentOS Stream/RHEL/Oracle all consume Docker's CentOS repo,
+      # which is keyed on $releasever (major version).
+      when: {plat.pm: [dnf, yum], os.id: [centos, rhel, rocky, almalinux, ol]}
+      repos:
+        - |
+          [docker-ce-stable]
+          name=Docker CE Stable - $basearch
+          baseurl=https://download.docker.com/linux/centos/$releasever/$basearch/stable
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://download.docker.com/linux/centos/gpg
+
 options:
 
   version:

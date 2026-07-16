@@ -1,0 +1,8 @@
+{
+   "features": {
+      "ghcr.io/quantized8/devfeats/install-docker:0.1.0": {}
+   },
+   "image": "ubuntu:latest",
+   "name": "Try install-docker",
+   "remoteUser": "ubuntu"
+}

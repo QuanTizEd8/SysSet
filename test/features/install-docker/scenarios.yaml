@@ -1,0 +1,55 @@
+# install-docker test scenarios.
+#
+# Host scenarios run in `standalone` mode (no privilege/systemd in the runner),
+# so they verify install state, not a live daemon. DinD scenarios run in
+# `devcontainer` mode, where the feature's static privileged/volumes/entrypoint
+# config applies and the nested daemon actually starts — those assert functional
+# `docker run`. DinD/DooD functional scenarios are devcontainer-only because the
+# standalone runner supports neither privileged mode nor mounts.
+
+# --- Host (standalone) -----------------------------------------------------
+
+host_apt:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    mode: host
+    enable_service: false
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+  tests: [host_engine]
+
+host_binary:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    mode: host
+    method: binary
+    enable_service: false
+    install_compose_switch: false
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+  tests: [host_binary]
+
+host_user:
+  envs: [ubuntu-stable+vscode]
+  modes: [standalone]
+  options:
+    mode: host
+    enable_service: false
+    add_users: vscode
+    add_current_user: false
+    add_remote_user: false
+    add_container_user: false
+  tests: [host_user]
+
+# --- Docker-in-Docker (devcontainer) ---------------------------------------
+
+dind_default:
+  envs: [ubuntu-stable+vscode]
+  modes: [devcontainer]
+  devcontainer:
+    remoteUser: vscode
+  tests: [dind_run]

@@ -1,0 +1,46 @@
+cli_only:
+  description: |
+    CLI-only install (upstream-package: docker-ce-cli). Verifies the client and
+    plugins are present and that the engine daemon is NOT installed (DooD relies
+    on the host daemon).
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: dockerd NOT installed (CLI only)
+      cmd: bash -c '! command -v dockerd'
+    - title: docker group exists
+      cmd: getent group docker
+    - title: buildx plugin available
+      cmd: docker buildx version
+    - title: compose v2 plugin available
+      cmd: docker compose version
+    - title: compose-switch installed
+      cmd: command -v compose-switch
+
+cli_user:
+  description: |
+    add_users=vscode adds the vscode user to the docker group.
+  checks:
+    - title: docker group exists
+      cmd: getent group docker
+    - title: vscode is in the docker group
+      cmd: bash -c 'id -nG vscode | tr " " "\n" | grep -qx docker'
+
+dood_socket:
+  description: |
+    Docker-outside-of-Docker: the entrypoint forwards the mounted host socket to
+    /var/run/docker.sock and the CLI reaches the host daemon. In CI the forwarded
+    daemon is the outer test daemon.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: dockerd NOT installed (CLI only)
+      cmd: bash -c '! command -v dockerd'
+    - title: docker socket present at target
+      cmd: test -S /var/run/docker.sock
+    - title: docker info reaches the host daemon
+      cmd: docker info
+    - title: vscode is in the docker group
+      cmd: bash -c 'id -nG vscode | tr " " "\n" | grep -qx docker'
+    - title: vscode can reach the daemon
+      cmd: su vscode -c 'docker version'

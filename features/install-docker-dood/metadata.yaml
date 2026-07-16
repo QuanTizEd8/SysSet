@@ -1,0 +1,174 @@
+version: 0.1.0
+name: Docker-outside-of-Docker Installation
+description: Install the [Docker](https://www.docker.com/) CLI and forward the host's Docker socket into the container.
+keywords:
+  - docker
+  - dood
+  - docker-outside-of-docker
+  - cli
+  - socket
+  - devcontainer
+_tool_name: Docker CLI
+_long_description: >-
+  Installs the Docker CLI (`docker`) plus the Buildx and Compose plugins, and
+  forwards the host's Docker daemon socket into the container so `docker` commands
+  run against the host's engine (Docker-outside-of-Docker). No nested daemon and
+  no privileged mode: the host socket (mounted at `/var/run/docker-host.sock` by
+  default) is exposed at `/var/run/docker.sock`, matching the socket's group GID
+  where possible and otherwise proxied with `socat` so a non-root user can reach
+  it. Resolved users are added to the `docker` group. To instead run a full nested
+  engine, use the companion `install-docker` feature.
+
+# --- Static devcontainer configuration -------------------------------------
+# DooD's static config is mutually exclusive with DinD's (that is why they are
+# separate features): a bind mount of the host socket and no privilege. The
+# host-socket mount source is /var/run/docker.sock by default; for rootless or
+# relocated host sockets the user overrides the mount in devcontainer.json.
+securityOpt:
+  - label=disable
+mounts:
+  - source: /var/run/docker.sock
+    target: /var/run/docker-host.sock
+    type: bind
+entrypoint:
+  description: Forward the host Docker socket into the container with correct permissions (symlink or socat).
+  _conf_vars:
+    - SOCKET_PATH
+    - TARGET_SOCKET
+    - ENABLE_NONROOT
+customizations:
+  vscode:
+    extensions:
+      - ms-azuretools.vscode-containers
+
+_system_requirements:
+  platforms:
+    - {plat.kernel: linux}
+  root: true
+
+options:
+
+  socket_path:
+    type: string
+    default: /var/run/docker-host.sock
+    description: |-
+      Path inside the container where the host's Docker socket is mounted. This
+      must match the `target` of the bind mount (default
+      `/var/run/docker-host.sock`). For a rootless host daemon, mount the host's
+      `/run/user/<uid>/docker.sock` here via devcontainer.json.
+
+  target_socket:
+    type: string
+    default: /var/run/docker.sock
+    description: |-
+      Path inside the container that the Docker CLI connects to. The entrypoint
+      links or proxies `socket_path` to this path at container start.
+
+  enable_nonroot:
+    type: boolean
+    default: true
+    description: |-
+      Give the non-root container user access to the forwarded socket: match the
+      container `docker` group GID to the socket's group where possible, otherwise
+      run a `socat` proxy that re-exposes the socket with group-readable
+      permissions. When false, only root can use the socket.
+
+  keep_repos:
+    type: boolean
+    default: true
+    description: >-
+      Keep Docker's package repository and signing key after installation (the
+      default) so the package manager can install Docker updates later and so the
+      option-installed Buildx/Compose plugin packages resolve. Set false to remove
+      the repo/key after install.
+
+  install_buildx:
+    type: boolean
+    default: true
+    description: Install the Docker Buildx plugin (`docker buildx`).
+
+  install_compose:
+    type: boolean
+    default: true
+    description: Install the Docker Compose v2 plugin (`docker compose`).
+
+  install_compose_switch:
+    type: boolean
+    default: true
+    description: |-
+      Install Compose Switch so the legacy hyphenated `docker-compose` command
+      invokes Compose v2. Registered as `docker-compose`.
+
+_options:
+  installer_dir: false
+  configure_users: true
+  verify:
+    cmd: docker
+    args: "--version"
+    description: Verify the Docker client is installed.
+    functional:
+      description: docker reaches the forwarded daemon
+      cmd: '{bin} info'
+  version:
+    resolution: sidecar
+    # See install-docker: the version URI is not context-expanded, so a fixed
+    # arch dir is used; Docker releases all arches together.
+    uri: "https://download.docker.com/linux/static/stable/x86_64/"
+    pattern: "docker-[version].tgz"
+    description: |-
+      Docker CLI version to install. `stable`/`latest` install the newest release;
+      an explicit `X.Y.Z` pins that version.
+    test_pins:
+      pinned: ["28.3.2"]
+  method:
+    upstream-package:
+      registers_as: docker-ce-cli
+      when: &upstream_when
+        - {plat.pm: apt, os.id: [debian, ubuntu]}
+        - {plat.pm: [dnf, yum], os.id: [fedora, centos, rhel, rocky, almalinux, ol]}
+    package:
+      registers_as: docker
+      when: &package_when
+        - {plat.pm: [pacman, apk, zypper]}
+    binary:
+      asset_uri: "https://download.docker.com/linux/static/stable/{plat.machine}/docker-{feat.version}.tgz"
+      # DooD needs only the client from the static tarball.
+      binary_src:
+        - docker
+      when:
+        - {plat.kernel: linux, plat.machine_release: [amd64, arm64, ppc64le, s390x]}
+  prefix:
+    bins: [docker]
+    applies_when:
+      - method: [binary]
+
+_dependencies:
+  run:
+    base:
+      when: {plat.kernel: linux}
+      packages:
+        - ca-certificates
+    method-upstream-package:
+      packages:
+        - name: docker-ce-cli
+          version: "{feat.pm_version}"
+          when: *upstream_when
+        - ${{ _internal.docker_ce_repo.apt }}$
+        - ${{ _internal.docker_ce_repo.fedora }}$
+        - ${{ _internal.docker_ce_repo.rhel }}$
+    method-package:
+      packages:
+        # CLI-only where the distro splits it out (Alpine); otherwise the distro's
+        # combined `docker` package (engine unused in DooD).
+        - name: docker
+          apk: docker-cli
+          version: "{feat.pm_version}"
+          when: *package_when
+    # NOTE: Buildx/Compose plugin packages are installed by install.bash's
+    # __install_finish_post (after the Docker repo is added), not via an
+    # option-gated manifest — those run BEFORE the method deps add the repo.
+    option-enable_nonroot:
+      packages:
+        # socat backs the non-root socket proxy fallback.
+        - name: socat
+          when: {plat.kernel: linux}

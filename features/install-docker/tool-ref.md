@@ -592,6 +592,8 @@ The installation script detects an existing rootless installation and exits with
 
 Setting up Docker in a Dev Container environment presents two distinct patterns, each with fundamentally different approaches, requirements, and trade-offs. This section documents both patterns comprehensively.
 
+> **Implementation note (DevFeats).** DinD and DooD are shipped as **two separate features** — `install-docker` (host + Docker-in-Docker) and `install-docker-dood` (Docker-outside-of-Docker) — because a `devcontainer-feature.json`'s static container config (`privileged`, `mounts`, `securityOpt`, `entrypoint`) is baked into the image metadata label before any install script runs and **cannot** vary by an option value (only `${devcontainerId}` substitution is supported, never option values or booleans). DinD's privileged + named-volume shape and DooD's host-socket bind mount are mutually exclusive and would corrupt each other's use cases if unioned into one feature. This mirrors the upstream `docker-in-docker` / `docker-outside-of-docker` split. See each feature's `notes.md`.
+
 ### Docker-in-Docker (DinD)
 
 Docker-in-Docker runs a full Docker daemon inside the container, creating a completely isolated Docker environment independent from the host's Docker instance. This is the standard approach when each dev container needs its own isolated Docker daemon.
@@ -844,13 +846,13 @@ To work around this for bind mounts within the dev container:
 
 ### Feature Options Design Considerations
 
-Based on the analysis of existing implementations[^ext-feature-dind][^ext-feature-dood], the following options should be considered for the Feature's metadata:
+Based on the analysis of existing implementations[^ext-feature-dind][^ext-feature-dood], the following options were considered. The list below is annotated with the **as-implemented** decisions for the DevFeats `install-docker` / `install-docker-dood` features.
 
 #### Installation Mode Options
 
-- **`mode`**: Controls installation mode: `host`, `dind`, or `dood` (or auto-detect based on environment)
-- **`moby`**: Boolean flag to install OSS Moby packages instead of Docker CE (default: `true` for dev container modes, as Moby avoids Docker's license terms)
-- **`version`**: Docker/Moby version to install (default: `latest`)
+- **`mode`** (`install-docker`): `auto` | `host` | `dind`. `auto` resolves to `dind` in a devcontainer build, else `host`. There is **no `dood` value** — DooD is the separate `install-docker-dood` feature (see the implementation note above).
+- **`moby`**: **Not implemented.** DevFeats installs Docker CE from Docker's official repo (with distro-native `docker` and static-binary fallbacks). Moby's licensing rationale (avoiding Docker Desktop terms) does not apply to the Apache-2.0 engine, and Moby's `packages.microsoft.com` distribution only covers a narrow apt-only matrix.
+- **`version`**: Docker version to install (default: `stable`), resolved from Docker's static-binary index (`resolution: sidecar`).
 
 #### DinD-Specific Options
 
@@ -858,19 +860,21 @@ Based on the analysis of existing implementations[^ext-feature-dind][^ext-featur
 - **`azureDnsAutoDetection`**: Automatically detect and configure DNS for Azure environments (default: `true`)
 - **`disableIp6tables`**: Disable ip6tables (useful for Docker 27+ on kernels without ip6tables support)
 - **`iptablesSwitchAtRuntime`**: If `true`, selects the iptables backend (legacy vs nft) at container start based on kernel detection, rather than at build time
-- **`installDockerBuildx`**: Install Docker Buildx plugin (default: `true`)
-- **`installDockerComposeSwitch`**: Install Compose Switch for `docker-compose` v1 command compatibility (default: `false` for DinD, `true` for DooD — the actual default varies by implementation[^ext-feature-dind-install][^ext-feature-dood-install])
-- **`dockerDashComposeVersion`**: Docker Compose version to install (`v1`, `v2`, `latest`, or `none`)
+- **`install_buildx`**: Install Docker Buildx plugin. **Implemented**, default `true`.
+- **`install_compose`**: Install Docker Compose v2 plugin. **Implemented**, default `true`.
+- **`install_compose_switch`**: Install Compose Switch so the legacy `docker-compose` command invokes v2. **Implemented**, default `true` (both features), fetched from the docker/compose-switch GitHub release (asset `docker-compose-linux-<GOARCH>`).
 
-#### DooD-Specific Options
+#### DooD-Specific Options (`install-docker-dood`)
 
-- **`socketPath`**: Path where the host Docker socket is mounted inside the container (default: `/var/run/docker-host.sock`)
-- **`enableNonrootDocker`**: Enable non-root user access to Docker (default: `true`)
+- **`socket_path`**: Path where the host Docker socket is mounted inside the container. **Implemented**, default `/var/run/docker-host.sock`.
+- **`target_socket`**: In-container socket path the CLI connects to. **Implemented**, default `/var/run/docker.sock`.
+- **`enable_nonroot`**: Non-root access via GID-match or socat proxy. **Implemented**, default `true`.
 
 #### Host Installation Options
 
-- **`channel`**: Installation channel: `stable` or `test`
-- **`mirror`**: Package mirror for restricted environments (e.g., `Aliyun`, `AzureChinaCloud`)
+- **`enable_service`**: Run `systemctl enable --now docker` on a systemd host. **Implemented**, default `true`.
+- **`daemon_json`**: Inline/URI contents for `/etc/docker/daemon.json`. **Implemented**.
+- **`channel`** / **`mirror`**: Not implemented (stable channel only; no package mirror override).
 
 ## Plugins and Extensions
 
