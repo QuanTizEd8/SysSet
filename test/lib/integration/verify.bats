@@ -59,6 +59,14 @@ EOF
     gpg --dearmor > "${BATS_FILE_TMPDIR}/wrong.pub.gpg"
 }
 
+teardown_file() {
+  # Shut gpg-agent (and dirmngr) down before bats removes GNUPGHOME. Otherwise
+  # the agent asynchronously deletes its own S.gpg-agent.* sockets while bats
+  # `rm`s BATS_FILE_TMPDIR, and BusyBox rm (Alpine) aborts the whole run on the
+  # vanished socket ("can't remove '.../gnupg/S.gpg-agent.extra': No such file").
+  gpgconf --kill all 2> /dev/null || true
+}
+
 setup() {
   load '../helpers/common'
   reload_lib
