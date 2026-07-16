@@ -53,17 +53,29 @@ _net__fetch__success_http_status() {
 }
 
 _net__fetch__persistent_curl_error() {
-  # @brief _net__fetch__persistent_curl_error <exit_code> <stderr_file> — Return success only for curl failures known to be local/configuration errors.
+  # @brief _net__fetch__persistent_curl_error <exit_code> <stderr_file> [<num_redirects>] — Return success only for curl failures known to be local/configuration errors.
   #
   # All other curl failures are retried. In particular, a generic TLS handshake
   # error is ambiguous and must be retried; only clear certificate diagnostics
-  # are excluded.
-  local _rc="$1" _stderr_file="$2"
+  # are excluded. Remote-peer certificate failures behind a redirect are treated
+  # as retryable: a redirect pool (e.g. mirror.ctan.org) resolves each request
+  # to a different backend, so retrying the original URL may reach a valid one.
+  local _rc="$1" _stderr_file="$2" _num_redirects="${3:-0}"
   case "$_rc" in
     # Unsupported/malformed options and URLs, local file/resource failures,
     # redirect loops, and fixed local TLS/authentication configuration errors.
-    1 | 2 | 3 | 4 | 23 | 26 | 27 | 37 | 42 | 43 | 45 | 47 | 48 | 49 | 53 | 54 | 58 | 59 | 60 | 63 | 65 | 66 | 67 | 89 | 90 | 91 | 93 | 94 | 98 | 99 | 100 | 101) return 0 ;;
+    1 | 2 | 3 | 4 | 23 | 26 | 27 | 37 | 42 | 43 | 45 | 47 | 48 | 49 | 53 | 54 | 58 | 59 | 63 | 65 | 66 | 67 | 89 | 90 | 91 | 93 | 94 | 98 | 99 | 100 | 101) return 0 ;;
+    60)
+      # Peer certificate could not be authenticated. Direct → the origin's own
+      # cert is genuinely untrusted (fail fast); behind a redirect → a varying
+      # mirror-pool backend, so retry.
+      [ "${_num_redirects:-0}" -gt 0 ] 2> /dev/null && return 1
+      return 0
+      ;;
     35)
+      # Generic TLS error: fail fast only on a clear certificate diagnostic, and
+      # only when not behind a redirect (pool backends vary per request).
+      [ "${_num_redirects:-0}" -gt 0 ] 2> /dev/null && return 1
       if grep -Eiq 'certificate problem|certificate verify failed|unable to get local issuer|self[ -]signed certificate|no alternative certificate subject name matches|peer certificate' "$_stderr_file"; then
         return 0
       fi
@@ -73,15 +85,22 @@ _net__fetch__persistent_curl_error() {
 }
 
 _net__fetch__persistent_wget_error() {
-  # @brief _net__fetch__persistent_wget_error <exit_code> <status> — Return success only for wget failures known to be local/configuration errors.
+  # @brief _net__fetch__persistent_wget_error <exit_code> <status> [<num_redirects>] — Return success only for wget failures known to be local/configuration errors.
   #
   # GNU wget uses exit 4 for network errors while BusyBox commonly collapses
   # failures to exit 1. Both, and every other unrecognised failure, are retried
   # by default. HTTP responses are handled via their final status.
-  _net__fetch__persistent_http_status "$2" && return 0
-  case "$1" in
-    # Command-line parse, local file I/O, certificate verification, and auth.
-    2 | 3 | 5 | 6) return 0 ;;
+  local _rc="$1" _status="$2" _num_redirects="${3:-0}"
+  _net__fetch__persistent_http_status "$_status" && return 0
+  case "$_rc" in
+    # Command-line parse, local file I/O, and authentication.
+    2 | 3 | 6) return 0 ;;
+    5)
+      # SSL verification failure. Direct → the origin's cert is untrusted (fail
+      # fast); behind a redirect → a varying mirror-pool backend, so retry.
+      [ "${_num_redirects:-0}" -gt 0 ] 2> /dev/null && return 1
+      return 0
+      ;;
   esac
   return 1
 }
@@ -89,6 +108,15 @@ _net__fetch__persistent_wget_error() {
 _net__fetch__http_status_from_headers() {
   # @brief _net__fetch__http_status_from_headers <headers_file> — Return the final HTTP status observed in a response trace.
   awk '$1 ~ /^HTTP\/[0-9.]+$/ && $2 ~ /^[0-9][0-9][0-9]$/ { status = $2 } END { print status + 0 }' "$1" 2> /dev/null
+}
+
+_net__fetch__num_redirects_from_headers() {
+  # @brief _net__fetch__num_redirects_from_headers <headers_file> — Count 3xx responses in a response trace (a proxy for redirects followed).
+  #
+  # curl exposes %{num_redirects} directly; wget does not, but its -S trace lists
+  # every response header including each 3xx redirect hop, so counting 3xx status
+  # lines yields the number of redirects followed.
+  awk '$1 ~ /^HTTP\/[0-9.]+$/ && $2 ~ /^3[0-9][0-9]$/ { n++ } END { print n + 0 }' "$1" 2> /dev/null
 }
 
 _net__fetch__retry_after_seconds() {
@@ -344,13 +372,14 @@ _net__fetch() {
     _attempt_file="${_tmpdir}/payload"
   fi
 
-  local _attempt=1 _rc=0 _status=000 _status_output _retry=false _retry_delay _retry_after _h
+  local _attempt=1 _rc=0 _status=000 _status_output _num_redirects=0 _retry=false _retry_delay _retry_after _h
   while [ "$_attempt" -le "$_max" ]; do
     : > "$_attempt_file"
     : > "$_headers_file"
     : > "$_stderr_file"
     _rc=0
     _status=000
+    _num_redirects=0
 
     if [ "$_NET__FETCH_TOOL" = "curl" ]; then
       local -a _curl_args=(-fsSL --http1.1 --compressed -D "$_headers_file")
@@ -362,10 +391,10 @@ _net__fetch() {
         [ -z "$_h" ] && continue
         _curl_args+=(-H "$_h")
       done <<< "$_hdrs"
-      _status_output="$(curl "${_curl_args[@]}" -w '%{http_code}' -o "$_attempt_file" "$_url" 2> "$_stderr_file")" || _rc=$?
-      if [[ "$_status_output" =~ ([0-9]{3})$ ]]; then
-        _status="${BASH_REMATCH[1]}"
-      fi
+      _status_output="$(curl "${_curl_args[@]}" -w '%{http_code} %{num_redirects}' -o "$_attempt_file" "$_url" 2> "$_stderr_file")" || _rc=$?
+      read -r _status _num_redirects _ <<< "$_status_output"
+      [[ "$_status" =~ ^[0-9]{3}$ ]] || _status=000
+      [[ "$_num_redirects" =~ ^[0-9]+$ ]] || _num_redirects=0
     elif [ "$_NET__FETCH_TOOL" = "wget" ]; then
       local -a _wget_args=(-q -S -O "$_attempt_file")
       [[ "$_head" == true ]] && _wget_args+=(--spider)
@@ -378,6 +407,8 @@ _net__fetch() {
       wget "${_wget_args[@]}" "$_url" 2> "$_stderr_file" || _rc=$?
       _status="$(_net__fetch__http_status_from_headers "$_stderr_file")"
       [[ "$_status" =~ ^[0-9]{3}$ ]] || _status=000
+      _num_redirects="$(_net__fetch__num_redirects_from_headers "$_stderr_file")"
+      [[ "$_num_redirects" =~ ^[0-9]+$ ]] || _num_redirects=0
     else
       _net__fetch_cleanup "$_tmpdir" "$_attempt_file"
       logging__error "no HTTP fetch tool available (curl/wget missing after bootstrap)."
@@ -412,9 +443,9 @@ _net__fetch() {
     _retry=true
     _net__fetch__persistent_http_status "$_status" && _retry=false
     if [ "$_NET__FETCH_TOOL" = "curl" ]; then
-      _net__fetch__persistent_curl_error "$_rc" "$_stderr_file" && _retry=false
+      _net__fetch__persistent_curl_error "$_rc" "$_stderr_file" "$_num_redirects" && _retry=false
     else
-      _net__fetch__persistent_wget_error "$_rc" "$_status" && _retry=false
+      _net__fetch__persistent_wget_error "$_rc" "$_status" "$_num_redirects" && _retry=false
     fi
 
     if [ "$_retry" = true ] && [ "$_attempt" -lt "$_max" ]; then

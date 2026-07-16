@@ -299,7 +299,7 @@ _net_test__curl_success() {
   done
   printf 'data' > "$_output"
   printf 'HTTP/1.1 200 OK\r\n\r\n' > "$_headers"
-  [ "$_write_out" = '%{http_code}' ] && printf '200'
+  [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '200'
 }
 
 _net_test__wget_success() {
@@ -440,12 +440,12 @@ _net_test__wget_success() {
     if [ "$_n" -eq 1 ]; then
       printf 'partial' > "$_output"
       printf 'curl: (35) SSL connect error: handshake failure\n' >&2
-      [ "$_write_out" = '%{http_code}' ] && printf '000'
+      [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '000'
       return 35
     fi
     printf 'recovered' > "$_output"
     printf 'HTTP/1.1 200 OK\r\n\r\n' > "$_headers"
-    [ "$_write_out" = '%{http_code}' ] && printf '200'
+    [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '200'
   }
   export -f curl
   local _dest="${BATS_TEST_TMPDIR}/download.bin"
@@ -486,12 +486,12 @@ _net_test__wget_success() {
     printf '%s' "$_n" > "$_counter"
     if [ "$_n" -eq 1 ]; then
       printf 'HTTP/1.1 520 Unknown Error\r\nRetry-After: 600\r\n\r\n' > "$_headers"
-      [ "$_write_out" = '%{http_code}' ] && printf '520'
+      [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '520'
       return 22
     fi
     printf 'available' > "$_output"
     printf 'HTTP/1.1 200 OK\r\n\r\n' > "$_headers"
-    [ "$_write_out" = '%{http_code}' ] && printf '200'
+    [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '200'
   }
   export -f curl
   export DEVFEATS_NET_FETCH_MAX_DELAY=1
@@ -532,7 +532,7 @@ _net_test__wget_success() {
     done
     printf '1' > "$_counter"
     printf 'HTTP/1.1 401 Unauthorized\r\n\r\n' > "$_headers"
-    [ "$_write_out" = '%{http_code}' ] && printf '401'
+    [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '401'
     return 22
   }
   export -f curl
@@ -573,7 +573,7 @@ _net_test__wget_success() {
     done
     printf '1' > "$_counter"
     printf 'curl: (35) SSL certificate problem: unable to get local issuer certificate\n' >&2
-    [ "$_write_out" = '%{http_code}' ] && printf '000'
+    [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '000'
     return 35
   }
   export -f curl
@@ -581,6 +581,121 @@ _net_test__wget_success() {
   assert_failure
   assert [ "$(cat "$_counter")" -eq 1 ]
   assert_output --partial 'exit 35'
+}
+
+@test "net__fetch_url_file retries a redirect-pool cert failure (curl exit 60 behind a redirect)" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  # mirror.ctan.org-style: each request 307-redirects to a different backend
+  # mirror; the first has an untrusted cert (exit 60, num_redirects>0), so the
+  # original URL must be retried — landing on a healthy mirror.
+  local _counter="${BATS_TEST_TMPDIR}/curl.attempts"
+  printf '0' > "$_counter"
+  curl() {
+    local _output='' _write_out='' _arg _n
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -o)
+          _output="$2"
+          shift 2
+          ;;
+        -w)
+          _write_out="$2"
+          shift 2
+          ;;
+        -D) shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [ "$_n" -eq 1 ]; then
+      printf 'curl: (60) SSL certificate problem: unable to get local issuer certificate\n' >&2
+      [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '307 1'
+      return 60
+    fi
+    printf 'installer' > "$_output"
+    [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '200 1'
+  }
+  export -f curl
+  local _dest="${BATS_TEST_TMPDIR}/install-tl.tar.gz"
+  run net__fetch_url_file "https://mirror.pool.example/install-tl-unx.tar.gz" "$_dest" --retries 3 --delay 0
+  assert_success
+  assert [ "$(cat "$_dest")" = installer ]
+  assert [ "$(cat "$_counter")" -eq 2 ]
+}
+
+@test "net__fetch_url_file does not retry a direct certificate failure (curl exit 60, no redirect)" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  # No redirect: the origin's own certificate is untrusted, so retrying the same
+  # request is futile — fail fast (a missing CA bundle or MITM must not spin 60x).
+  local _counter="${BATS_TEST_TMPDIR}/curl.attempts"
+  printf '0' > "$_counter"
+  curl() {
+    local _write_out='' _arg
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -w)
+          _write_out="$2"
+          shift 2
+          ;;
+        -o | -D) shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    printf '%s' "$(($(cat "$_counter") + 1))" > "$_counter"
+    printf 'curl: (60) SSL certificate problem: self-signed certificate\n' >&2
+    [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '000 0'
+    return 60
+  }
+  export -f curl
+  run net__fetch_url_file "https://selfsigned.example/x" "${BATS_TEST_TMPDIR}/x" --retries 5 --delay 0
+  assert_failure
+  assert [ "$(cat "$_counter")" -eq 1 ]
+  assert_output --partial 'exit 60'
+}
+
+@test "net__fetch_url_file retries a redirect-pool SSL failure with wget (exit 5 behind a redirect)" {
+  reload_lib
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
+  # wget has no %{num_redirects}; the redirect count is recovered from the -S
+  # trace (the 307 hop), so a backend SSL failure (exit 5) behind it is retried.
+  local _counter="${BATS_TEST_TMPDIR}/wget.attempts"
+  printf '0' > "$_counter"
+  wget() {
+    local _output='' _arg _n
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -O)
+          _output="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [ "$_n" -eq 1 ]; then
+      printf '  HTTP/1.1 307 Temporary Redirect\n  Location: https://backend.example/x\n' >&2
+      printf 'ERROR: cannot verify backend.example certificate\n' >&2
+      return 5
+    fi
+    printf 'installer' > "$_output"
+    printf '  HTTP/1.1 307 Temporary Redirect\n  Location: https://backend2.example/x\n  HTTP/1.1 200 OK\n' >&2
+  }
+  export -f wget
+  local _dest="${BATS_TEST_TMPDIR}/wget-install.tar.gz"
+  run net__fetch_url_file "https://mirror.pool.example/install-tl-unx.tar.gz" "$_dest" --retries 3 --delay 0
+  assert_success
+  assert [ "$(cat "$_dest")" = installer ]
+  assert [ "$(cat "$_counter")" -eq 2 ]
 }
 
 @test "net__fetch_url_file retries GNU and BusyBox wget failures, including an uncertain 404" {
@@ -671,7 +786,7 @@ _net_test__wget_success() {
       esac
     done
     printf 'HTTP/1.1 302 Found\r\n\r\n' > "$_headers"
-    [ "$_write_out" = '%{http_code}' ] && printf '302'
+    [ "$_write_out" = '%{http_code} %{num_redirects}' ] && printf '302'
   }
   export -f curl
   local _dest="${BATS_TEST_TMPDIR}/redirect"

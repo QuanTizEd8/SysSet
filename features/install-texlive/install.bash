@@ -270,7 +270,13 @@ _tl_download_extract_installer() {
   local _archive="${INSTALLER_DIR}/install-tl-unx.tar.gz"
 
   logging__download "Downloading TeX Live installer from '${_installer_url}'."
-  net__fetch_url_file "${_installer_url}" "${_archive}"
+  # Bound per-attempt time: the 'latest'/'stable' mirror is a redirect pool
+  # (mirror.ctan.org) that resolves each request to a different backend, some of
+  # which stall or present untrusted certs. --connect-timeout drops unreachable
+  # mirrors quickly and --max-time caps a stalled transfer of the small (~5 MB)
+  # installer, so the shared retry loop can cycle to a healthy mirror instead of
+  # hanging for minutes per attempt.
+  net__fetch_url_file "${_installer_url}" "${_archive}" --connect-timeout 15 --max-time 180
 
   if [[ "${VERIFY_DOWNLOADS}" == "true" ]]; then
     local _checksum_file="${_archive}.sha512"
