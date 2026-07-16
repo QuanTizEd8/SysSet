@@ -1,0 +1,8 @@
+{
+   "features": {
+      "ghcr.io/quantized8/devfeats/install-nix:0.1.0": {}
+   },
+   "image": "ubuntu:latest",
+   "name": "Try install-nix",
+   "remoteUser": "ubuntu"
+}

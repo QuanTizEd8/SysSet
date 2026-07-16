@@ -5,7 +5,9 @@ Nix is a purely functional package manager that treats packages like values in a
 - **Homepage**: https://nixos.org/
 - **Source Code**: https://github.com/NixOS/nix
 - **Documentation**: https://nix.dev/
-- **Latest Release**: 2.34.7 (as of 2026-07-03)
+- **Latest Release**: 2.35.1 (as of 2026-07-16)
+
+> **Distribution note**: Nix does **not** publish GitHub Releases with attached assets. The `NixOS/nix` repository is tagged with bare semver tags (e.g. `2.35.1`), and `https://api.github.com/repos/NixOS/nix/releases/latest` returns `404`. Pre-built binaries and the installer scripts are distributed exclusively via `https://releases.nixos.org/`. Version resolution for a feature must therefore query **git tags** (not the Releases API), and download artifacts from `releases.nixos.org`, not from GitHub.
 
 ## Tool Architecture
 
@@ -41,11 +43,14 @@ This is the recommended and most common installation method. It uses a two-stage
 #### Supported Platforms
 
 - **Linux**: x86_64, i686, aarch64, armv6l, armv7l, riscv64
-- **macOS**: x86_64 (Intel), aarch64 (Apple Silicon)
+- **macOS**: x86_64 (Intel), aarch64 (Apple Silicon) — requires macOS **14.0 or higher** (the installer exits with an error on older versions)[^install-script-source]
+- **FreeBSD**: x86_64 (the tarball installer includes a FreeBSD multi-user path; not a primary DevFeats target)[^install-script-source]
 - **Windows**: via WSL2
-- Multi-user installation is supported on Linux with systemd (SELinux disabled) and macOS
-- Single-user installation is supported on Linux without systemd or with SELinux
-- Single-user is **not** supported on macOS[^install-binary]
+- Multi-user (daemon) installation is supported on Linux (requires systemd to install and manage the daemon service) and macOS
+- Single-user (`--no-daemon`) installation is supported on Linux (and FreeBSD); it does not require systemd or a daemon
+- Single-user is **not** supported on macOS — the tarball installer explicitly refuses `--no-daemon` on Darwin ("`--no-daemon installs are no-longer supported on Darwin/macOS!`")[^install-script-source]
+
+> **Default mode (shell installer)**: Contrary to a common misconception, the official **shell** installer does **not** auto-detect systemd/SELinux to pick a mode. Its default is purely OS-based: `INSTALL_MODE=daemon` on Darwin, `INSTALL_MODE=no-daemon` on everything else (Linux/FreeBSD). On Linux it only prints "*a multi-user installation is possible*" as a hint and otherwise performs a **single-user** install unless `--daemon` is passed explicitly. The systemd/SELinux-aware auto-detection described in some docs is a property of the Rust `nix-installer`, not this script.[^install-script-source]
 
 #### Dependencies
 
@@ -99,9 +104,11 @@ The installer script performs the following steps[^install-script-source]:
    - Does **not** create system users, groups, or daemon service
     - Modifies `~/.profile` of the installing user to source the Nix initialization script (unless `--no-modify-profile` is passed)[^install-binary]
 
-6. **Default behavior**: When no flags are given, the installer auto-detects the appropriate mode:
-   - Multi-user on Linux with systemd (SELinux disabled) and macOS
-   - Single-user on Linux without systemd or with SELinux[^install-binary]
+6. **Default behavior**: When no `--daemon`/`--no-daemon` flag is given, the shell installer picks the mode by OS only (see the "Default mode" note above):
+   - `daemon` (multi-user) on macOS (Darwin) — and `--no-daemon` is refused there
+   - `no-daemon` (single-user) on Linux and FreeBSD[^install-script-source]
+
+   It does **not** probe for systemd or SELinux. A feature that wants a specific mode must pass the flag explicitly.
 
 To install a specific version:
 
@@ -116,7 +123,7 @@ Successful installation can be verified by:
 
 ```bash
 nix-env --version
-# Expected output: nix-env (Nix) 2.34.7
+# Expected output: nix-env (Nix) 2.35.1
 
 # Verify Nix can install and run a package
 nix-env -iA nixpkgs.hello
@@ -161,8 +168,8 @@ The installer supports the following environment variables and flags (second-sta
 
 | Variable / Flag | Description | Default |
 |---|---|---|
-| `NIX_USER_COUNT` | Number of build users to create | `32` |
-| `NIX_BUILD_GROUP_NAME` | Name of the Nix build group | `nixbld` |
+| `NIX_USER_COUNT` | Number of build users to create (equivalent to the `--daemon-user-count` flag) | `32` |
+| `NIX_BUILD_GROUP_NAME` | Name of the Nix build group | `nixbld` — **hardcoded** (`readonly NIX_BUILD_GROUP_NAME="nixbld"` in the current `install-multi-user.sh`; not overridable by env) |
 | `NIX_FIRST_BUILD_UID` | Starting UID for build users (platform-specific) | `30000` (Linux), `350` (macOS) |
 | `NIX_BUILD_GROUP_ID` | GID for the build group (platform-specific) | `30000` (Linux), `350` (macOS) |
 | `NIX_BUILD_USER_NAME_TEMPLATE` | Template for build user names | `nixbld%d` (Linux), `_nixbld%d` (macOS) |
@@ -351,7 +358,7 @@ The official installer script (`https://nixos.org/nix/install`) is a POSIX shell
 1. It wraps the entire script body in a `{ ... }` block to prevent execution if only partially downloaded.
 2. It detects the platform from `uname -s` and `uname -m`, mapping to specific system types like `x86_64-linux`, `aarch64-darwin`, etc.
 3. For each platform, it has hardcoded the expected SHA-256 hash of the binary tarball and the Cachix-accessible path.
-4. It constructs the tarball URL as `https://releases.nixos.org/nix/nix-2.34.7/nix-2.34.7-$system.tar.xz` (with version baked into the script).
+4. It constructs the tarball URL as `https://releases.nixos.org/nix/nix-2.35.1/nix-2.35.1-$system.tar.xz` (with version baked into the script).
 5. It supports a `--tarball-url-prefix` argument for using alternative tarball mirrors.
 6. It verifies integrity by computing the SHA-256 hash of the downloaded file and comparing it against the embedded expected hash.
 7. It then extracts the tarball and delegates to the second-stage `install` script with the `INVOKED_FROM_INSTALL_IN=1` environment variable.
@@ -450,9 +457,18 @@ Depends on the specific distribution's package management system but generally u
 - These are community-maintained and may lag behind the latest Nix release
 - The official installer script is the recommended installation method across all platforms[^install-binary]
 
-### Nix Installer (Rust-based Community Installer)
+### Nix Installer (Rust-based)
 
-The NixOS community maintains an alternative installer written in Rust, available as a single static binary[^nix-installer].
+An alternative installer written in Rust, distributed as a single static binary. It offers better container/no-systemd support (`--init none`), an installation receipt for clean uninstall, and non-interactive operation (`--no-confirm`).
+
+> **Important — two forks, and the "Determinate Nix" distinction (verified 2026-07-16):** the Rust installer now exists as **two divergent forks**, and they install *different things*:
+>
+> | Fork | Primary URL | What it installs by default | Notes |
+> |---|---|---|---|
+> | **`NixOS/nix-installer`** (NixOS-foundation fork, via the Nix Installer Working Group) | `https://artifacts.nixos.org/nix-installer` | **Upstream Nix** | Currently **beta**; LGPL-2.1; the neutral community option[^nix-installer] |
+> | **`DeterminateSystems/nix-installer`** (the original) | `https://install.determinate.systems/nix` | **Determinate Nix** — a *downstream, opinionated distribution* by Determinate Systems (flakes enabled by default) | The `--prefer-upstream-nix` opt-out is being sunset (documented as available only "until January 1, 2026"); GitHub Action equivalent is `determinate: false`[^determinate-installer] |
+>
+> For a **neutral** DevFeats feature that installs standard upstream Nix, only `NixOS/nix-installer` (or the official shell installer) is appropriate. The Determinate Systems endpoint installs a different product and should not be used as a drop-in "install Nix" method. Earlier revisions of this document conflated the two.
 
 #### Supported Platforms
 
@@ -586,7 +602,9 @@ Nix itself is a package manager and does not support plugins or extensions in th
 
 [^install-multi-user-source]: [NixOS/nix – scripts/install-multi-user.sh](https://github.com/NixOS/nix/blob/master/scripts/install-multi-user.sh). The second-stage multi-user installer script (~1100 lines) that performs the actual Nix installation.
 
-[^nix-installer]: [NixOS/nix-installer – README](https://github.com/NixOS/nix-installer/blob/main/README.md). Official community-maintained Rust-based Nix installer, with alternative installation method, configuration options, and platform support matrix.
+[^nix-installer]: [NixOS/nix-installer – README](https://github.com/NixOS/nix-installer/blob/main/README.md). NixOS-foundation fork of the Rust-based Nix installer (a fork of the Determinate Nix Installer), maintained by the Nix Installer Working Group; installs upstream Nix; currently beta. Distributed via `https://artifacts.nixos.org/nix-installer`.
+
+[^determinate-installer]: [DeterminateSystems/nix-installer – README](https://github.com/DeterminateSystems/nix-installer). The original Rust-based installer by Determinate Systems, served at `https://install.determinate.systems/nix`. By default it installs **Determinate Nix** (a downstream distribution with flakes enabled), not upstream Nix; the `--prefer-upstream-nix` opt-out is documented as available only until 2026-01-01.
 
 [^env-vars]: [Nix Reference Manual – Environment Variables](https://nix.dev/manual/nix/2.34/installation/env-variables). Official documentation for required and optional Nix environment variables.
 

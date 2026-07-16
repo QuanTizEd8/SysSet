@@ -1,0 +1,215 @@
+name: Nix Installation
+version: 0.1.0
+description: Install the [Nix](https://nixos.org/) purely functional package manager.
+keywords:
+- nix
+- nixos
+- package manager
+- functional
+- reproducible
+_tool_name: Nix
+_long_description: >-
+  [Nix](https://nixos.org/) is a purely functional package manager that builds
+  packages in isolation from each other into an immutable, content-addressed
+  store at the hardcoded path `/nix`. Because `/nix` is fixed and not a
+  configurable prefix, this feature is not a standard prefix/binary install: it
+  drives the official Nix installer script (or, optionally, the Rust
+  `nix-installer`) and then wires up shell activation itself.
+
+  Two installation modes are supported. **Single-user** (`--no-daemon`, the
+  default) makes the installing user the owner of `/nix`; it needs no daemon and
+  no root, which suits containers and non-root remote users. **Multi-user**
+  (`--daemon`) creates the `nixbld` build users and a Nix daemon; the daemon is
+  managed by systemd on a real host, and inside a systemd-less container it is
+  started by this feature's entrypoint. On macOS only multi-user is supported
+  (the installer refuses `--no-daemon` there).
+
+  After installation the feature writes an activation snippet that sources the
+  appropriate Nix profile script (`nix-daemon.sh` for multi-user, `nix.sh` for
+  single-user) into the configured users' shell startup files, so `nix` and any
+  installed packages are available in later shells. Packages, flakes, and a
+  declarative `.nix` manifest can be realized into the profile after install.
+
+# Nix runs on Linux (all PMs) and macOS. macOS is multi-user only.
+_system_requirements:
+  platforms:
+    - {plat.kernel: linux}
+    - {plat.kernel: darwin, plat.machine_release: [amd64, arm64]}
+
+# Multi-user installations need the Nix daemon running. On a systemd host the
+# installer registers a systemd service; inside a systemd-less container there
+# is nothing to start it, so this entrypoint launches nix-daemon in the
+# background at container start. It no-ops for single-user installs (MULTI_USER
+# is passed through _conf_vars so the deployed entrypoint knows the mode).
+entrypoint:
+  description: Start the Nix daemon for multi-user installations (systemd-less containers).
+  # NIX_MULTI_USER is the resolved boolean (true|false); the `multi_user` option
+  # itself occupies MULTI_USER (auto|single|multi), so a distinct name is used.
+  _conf_vars: [NIX_MULTI_USER]
+
+# Put the multi-user default-profile bin on PATH for container shells. Harmless
+# when the path does not exist (single-user uses the per-user ~/.nix-profile,
+# added via the activation snippet).
+containerEnv:
+  PATH: "/nix/var/nix/profiles/default/bin:/nix/var/nix/profiles/default/sbin:${PATH}"
+
+# Realize a workspace `manifest` that was not present at image-build time, once
+# the workspace is mounted. MANIFEST holds the (deferred) path; the hook no-ops
+# when it is empty or already realized at build.
+onCreateCommand:
+  nix-manifest:
+    description: Realize a deferred Nix manifest once the workspace is mounted.
+    _conf_vars: [MANIFEST]
+
+customizations:
+  vscode:
+    extensions:
+      - jnoortheen.nix-ide
+
+options:
+  installer:
+    type: string
+    default: auto
+    description: |-
+      Which installer to drive.
+      `shell` uses the official Nix installer script from `releases.nixos.org`
+      (supports both single- and multi-user).
+      `nix-installer` uses the Rust installer from `artifacts.nixos.org`
+      (multi-user only; provides a clean uninstall receipt and daemonless
+      container support via `--init none`).
+      `auto` selects `shell` (the stable, canonical installer) in every case.
+    enum:
+      - value: auto
+        description: Use the official shell installer (recommended).
+      - value: shell
+        description: Official Nix installer script (releases.nixos.org).
+      - value: nix-installer
+        description: |-
+          Rust nix-installer (artifacts.nixos.org); multi-user only. Installs its
+          own bundled Nix version (it has no version-pin flag) — use `shell` to
+          pin an exact `version`.
+  multi_user:
+    type: string
+    default: auto
+    description: |-
+      Installation mode.
+      `single` performs a single-user (`--no-daemon`) install owned by the
+      install user — no daemon, no root required.
+      `multi` performs a multi-user (`--daemon`) install with `nixbld` build
+      users and the Nix daemon.
+      `auto` selects `single` on Linux and `multi` on macOS (single-user is not
+      supported on macOS).
+    enum:
+      - value: auto
+        description: single-user on Linux, multi-user on macOS.
+      - value: single
+        description: Single-user (`--no-daemon`); no daemon, no root.
+      - value: multi
+        description: Multi-user (`--daemon`); build users + Nix daemon.
+  install_user:
+    type: string
+    default: ''
+    description: |-
+      For single-user installs, the account that owns `/nix` and runs the
+      installer. When empty, resolved from the invocation context
+      (`SUDO_USER` → `_REMOTE_USER` → current user). Ignored for multi-user
+      installs. Only root can install for a different user.
+  packages:
+    type: array
+    default: ''
+    description: |-
+      Nixpkgs packages to install into the profile after setup, one per line
+      (e.g. `hello`, `ripgrep`). Installed with `nix-env -iA nixpkgs.<name>`.
+  flakes:
+    type: array
+    default: ''
+    description: |-
+      Flake references to install into the profile after setup, one per line
+      (e.g. `github:nixos/nixpkgs#hello`). Installed with `nix profile install`.
+      Enables the `nix-command`/`flakes` experimental features automatically.
+  manifest:
+    type: string
+    default: ''
+    _content_or_uri:
+      allow_nonexistent: true
+    description: |-
+      A declarative Nix manifest — a `.nix` file evaluating to a list of
+      derivations (e.g. `with import <nixpkgs> {}; [ git ripgrep ]`) — realized
+      into the profile with `nix-env -if`.
+      Accepts inline content, a local path, or a `file://` / `http(s)://` /
+      `oci://` / `gh://owner/repo@ref:path` URI (resolved and realized at build
+      time), or a workspace-relative path that does not exist at build time
+      (realized at container-create time via an `onCreateCommand` hook, once the
+      workspace is mounted).
+  enable_flakes:
+    type: boolean
+    default: false
+    description: |-
+      Enable the `nix-command` and `flakes` experimental features by writing
+      `experimental-features = nix-command flakes` to `/etc/nix/nix.conf`.
+      Implied when the `flakes` option is non-empty.
+  extra_nix_config:
+    type: array
+    default: ''
+    description: |-
+      Extra lines to append to `/etc/nix/nix.conf`, one per line
+      (e.g. `sandbox = false`, `max-jobs = auto`).
+  add_channel:
+    type: boolean
+    default: true
+    description: |-
+      Add the default `nixpkgs-unstable` channel during installation. Set to
+      false to skip channel setup (passes `--no-channel-add`); useful for
+      flakes-only workflows or air-gapped environments.
+  build_user_count:
+    type: string
+    default: ''
+    description: |-
+      Number of `nixbld` build users to create for multi-user installs
+      (installer default: 32). Applies to `installer=shell`; ignored for
+      single-user installs and for `installer=nix-installer`.
+
+_options:
+  # /nix is a fixed path, so there is no prefix machinery. Activation and PATH
+  # are handled directly via configure_users + containerEnv.
+  configure_users: true
+  # Keep the fetched installer inspectable/persistent for debugging.
+  installer_dir: true
+  version:
+    # Nix publishes no GitHub Releases; versions are bare git tags (e.g. 2.35.1)
+    # and artifacts live on releases.nixos.org. Resolve against tags, then pin.
+    resolution: github_tag
+    test_pins:
+      pinned: ["2.35.0"]
+  gh_repo: NixOS/nix
+  method:
+    # Both installers are "fetch a script and run it"; the shell installer is the
+    # metadata default. __install_run_script_pre overrides SCRIPT_ASSET_URI/ARGS
+    # per installer + mode. The single declared method means the shared `method`
+    # option is not injected (the choice is the `installer` option instead).
+    script:
+      asset_uri: "https://releases.nixos.org/nix/nix-{feat.version}/install"
+  verify:
+    # nix-env is not on the default PATH (multi-user puts it on the default
+    # profile, single-user under the owner's ~/.nix-profile), so verify through a
+    # login shell to pick up the activation snippet in either mode.
+    cmd: sh
+    args: "-lc 'nix-env --version'"
+    description: "nix-env --version reports the installed Nix version."
+
+_dependencies:
+  run:
+    base:
+      # Runtime tools the installer needs. Linux only — macOS ships curl/tar and
+      # does not need xz (its tarball handling differs). bash is required for the
+      # multi-user installer but is provided by the environment, not installed.
+      when: {plat.kernel: linux}
+      packages:
+        - curl
+        - ca-certificates
+        - tar
+        # xz to decompress the .tar.xz binary tarball; package name varies by PM.
+        - when: {plat.pm: apt}
+          packages: [xz-utils]
+        - when: {plat.pm: [apk, dnf, yum, zypper, pacman]}
+          packages: [xz]

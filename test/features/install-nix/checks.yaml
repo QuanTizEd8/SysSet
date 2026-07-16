@@ -1,0 +1,83 @@
+single_user:
+  description: Single-user install owned by the remote user; usable via login shell.
+  checks:
+    - title: nix-env reports a version
+      cmd: bash -lc 'nix-env --version'
+    - title: nix-env version is 2.x
+      cmd: bash -lc 'nix-env --version | grep -qE "\(Nix\) 2\."'
+    - title: /nix is owned by the remote user
+      cmd: bash -c '[ "$(stat -c %U /nix)" = "vscode" ]'
+    - title: nix activation block present for the user
+      cmd: bash -c 'grep -Rql "nix (install-nix)" "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null'
+    - title: no daemon build users for a single-user install
+      cmd: bash -c '! getent passwd | grep -q "^nixbld"'
+
+multi_user:
+  description: Multi-user install with the Nix daemon build users and default profile.
+  checks:
+    - title: nix-env reports a version
+      cmd: /nix/var/nix/profiles/default/bin/nix-env --version
+    - title: nix-env version is 2.x
+      cmd: bash -c '/nix/var/nix/profiles/default/bin/nix-env --version | grep -qE "\(Nix\) 2\."'
+    - title: nixbld build users exist
+      cmd: bash -c 'getent passwd | grep -q "^nixbld1:"'
+    - title: nixbld build group exists
+      cmd: bash -c 'getent group nixbld >/dev/null'
+    - title: /nix is owned by root
+      cmd: bash -c '[ "$(stat -c %U /nix)" = "root" ]'
+
+packages:
+  description: Requested package installed and nix.conf augmented.
+  checks:
+    - title: hello package installed and runnable
+      cmd: bash -c '/nix/var/nix/profiles/default/bin/hello | grep -q "Hello, world!"'
+    - title: nix.conf enables flakes
+      cmd: grep -Fq 'experimental-features = nix-command flakes' /etc/nix/nix.conf
+    - title: nix.conf has the extra config line
+      cmd: grep -Fq 'max-jobs = 2' /etc/nix/nix.conf
+
+manifest_inline:
+  description: Inline declarative manifest realized into the profile.
+  checks:
+    - title: manifest package (hello) installed and runnable
+      cmd: bash -c '/nix/var/nix/profiles/default/bin/hello | grep -q "Hello, world!"'
+
+method_nix_installer:
+  description: Install via the Rust nix-installer, leaving an uninstall receipt.
+  checks:
+    - title: nix-env reports a version
+      cmd: /nix/var/nix/profiles/default/bin/nix-env --version
+    - title: nix-installer receipt present
+      cmd: test -f /nix/receipt.json
+    - title: nix-installer binary retained for uninstall
+      cmd: test -x /nix/nix-installer
+
+if_exists_skip:
+  description: An existing Nix is detected and the install is skipped.
+  checks:
+    - title: existing stub left untouched
+      cmd: bash -c 'nix-env --version | grep -q "9.9.9-stub"'
+    - title: no real Nix store was created
+      cmd: bash -c '! test -d /nix/store'
+
+if_exists_fail:
+  description: An existing Nix causes the install to abort.
+  checks:
+    - kind: install_failure
+      title: install fails when Nix already present
+      pattern: "if_exists=fail"
+
+invalid_nix_installer_single:
+  description: nix-installer + single-user is rejected before any install.
+  checks:
+    - kind: install_failure
+      title: nix-installer single-user combination rejected
+      pattern: "requires multi_user=multi"
+
+macos_default:
+  description: macOS multi-user install (installer manages the APFS volume + launchd).
+  checks:
+    - title: nix-env reports a version
+      cmd: /nix/var/nix/profiles/default/bin/nix-env --version
+    - title: nix-env version is 2.x
+      cmd: bash -c '/nix/var/nix/profiles/default/bin/nix-env --version | grep -qE "\(Nix\) 2\."'
