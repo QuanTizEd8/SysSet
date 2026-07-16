@@ -405,8 +405,8 @@ _net_test__wget_success() {
   assert [ "$(dirname "$(cat "$_opath")")" = "$_destdir" ]
   # The staging file comes from mktemp (0600); the download must still land with
   # the umask-derived mode a direct `curl -o` produced (0644 under umask 022),
-  # not silently tightened to 0600.
-  assert [ "$(stat -c '%a' "$_dest")" = 644 ]
+  # not silently tightened to 0600. GNU stat uses -c; BSD/macOS stat uses -f.
+  assert [ "$(stat -c '%a' "$_dest" 2> /dev/null || stat -f '%OLp' "$_dest")" = 644 ]
 }
 
 @test "net__fetch_url_file retries an ambiguous curl exit 35 TLS handshake failure" {
