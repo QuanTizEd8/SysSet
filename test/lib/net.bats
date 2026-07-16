@@ -103,6 +103,35 @@ EOF
   assert_output --partial "Failed after 2"
 }
 
+@test "net__fetch_with_retry --retry-if emits only the winning attempt's stdout" {
+  reload_lib
+  # A failed attempt that writes partial stdout before retrying must NOT leak
+  # that output into the caller's capture; only the successful (final) attempt's
+  # stdout may be emitted. Otherwise git__resolve_ref's `head -1` can pick a
+  # truncated SHA from a dropped connection.
+  local _counter="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_counter"
+  _retry_if() { [ "$1" -ne 0 ]; }
+  _partial_then_ok() {
+    local _n
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [[ "$_n" -eq 1 ]]; then
+      printf 'partialsha123\trefs/heads/main\n'
+      printf 'connection reset by peer\n' >&2
+      return 1
+    fi
+    printf 'GOODSHA456\trefs/heads/main\n'
+    return 0
+  }
+  export -f _retry_if _partial_then_ok
+  run --separate-stderr net__fetch_with_retry --retries 3 --delay 0 --retry-if _retry_if _partial_then_ok
+  assert_success
+  assert [ "$(cat "$_counter")" -eq 2 ]
+  assert_output --partial 'GOODSHA456'
+  refute_output --partial 'partialsha123'
+}
+
 @test "_net__fetch returns 1 when ensure fails under errexit-off caller (github API path)" {
   reload_lib
   _net__ensure_fetch_tool() { return 1; }
@@ -339,6 +368,45 @@ _net_test__wget_success() {
   assert_success
   assert [ -d "${BATS_TEST_TMPDIR}/new/nested/dir" ]
   assert [ "$(cat "$_dest")" = data ]
+}
+
+@test "net__fetch_url_file stages the payload beside the destination, not in TMPDIR" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  # Record the path curl is told to write to (-o). The staged payload must be a
+  # sibling of the destination so the final replace is a same-filesystem atomic
+  # rename and large downloads never transit a possibly-smaller $TMPDIR.
+  local _opath="${BATS_TEST_TMPDIR}/opath"
+  export _opath
+  curl() {
+    local _o=''
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -o)
+          _o="$2"
+          shift 2
+          ;;
+        -D | -w) shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    printf '%s' "$_o" > "$_opath"
+    printf 'data' > "$_o"
+    printf '200'
+  }
+  export -f curl
+  local _destdir="${BATS_TEST_TMPDIR}/dest"
+  local _dest="${_destdir}/out.bin"
+  umask 022
+  run net__fetch_url_file "https://example.com/a" "$_dest" --retries 1 --delay 0
+  assert_success
+  assert [ "$(cat "$_dest")" = data ]
+  assert [ "$(dirname "$(cat "$_opath")")" = "$_destdir" ]
+  # The staging file comes from mktemp (0600); the download must still land with
+  # the umask-derived mode a direct `curl -o` produced (0644 under umask 022),
+  # not silently tightened to 0600.
+  assert [ "$(stat -c '%a' "$_dest")" = 644 ]
 }
 
 @test "net__fetch_url_file retries an ambiguous curl exit 35 TLS handshake failure" {
@@ -614,6 +682,23 @@ _net_test__wget_success() {
   assert [ "$(cat "$_dest")" = existing ]
   assert_output --partial 'attempt 1/2'
   assert_output --partial 'status 302'
+}
+
+@test "_net__fetch__retry_after_seconds parses curl (-D) and wget (-S) headers" {
+  reload_lib
+  # curl dumps unindented headers via -D; wget prints them via -S indented with
+  # two leading spaces. Both must yield the Retry-After value, or the wget path
+  # silently ignores server backoff hints.
+  local _curl="${BATS_TEST_TMPDIR}/curl-headers"
+  local _wget="${BATS_TEST_TMPDIR}/wget-headers"
+  printf 'HTTP/1.1 503 Service Unavailable\r\nRetry-After: 30\r\nContent-Length: 0\r\n' > "$_curl"
+  printf '  HTTP/1.1 503 Service Unavailable\n  Retry-After: 42\n  Content-Length: 0\n' > "$_wget"
+  run _net__fetch__retry_after_seconds "$_curl"
+  assert_success
+  assert_output "30"
+  run _net__fetch__retry_after_seconds "$_wget"
+  assert_success
+  assert_output "42"
 }
 
 @test "net__fetch_url_stdout rejects unknown option" {

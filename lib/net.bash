@@ -94,7 +94,10 @@ _net__fetch__http_status_from_headers() {
 _net__fetch__retry_after_seconds() {
   # @brief _net__fetch__retry_after_seconds <headers_file> — Convert the last Retry-After header to seconds, when possible.
   local _headers_file="$1" _value _now _when
-  _value="$(awk 'tolower($0) ~ /^retry-after:/ { sub(/^[^:]*:[[:space:]]*/, ""); gsub(/\r/, ""); value = $0 } END { print value }' "$_headers_file" 2> /dev/null)"
+  # wget's -S trace indents every header line with leading whitespace, so the
+  # match must tolerate it (curl's -D dump is unindented). The value capture
+  # strips the leading label and any surrounding whitespace regardless.
+  _value="$(awk 'tolower($0) ~ /^[[:space:]]*retry-after:/ { sub(/^[[:space:]]*[^:]*:[[:space:]]*/, ""); gsub(/\r/, ""); sub(/[[:space:]]+$/, ""); value = $0 } END { print value }' "$_headers_file" 2> /dev/null)"
   [ -n "$_value" ] || return 1
   if [[ "$_value" =~ ^[0-9]+$ ]]; then
     printf '%s' "$_value"
@@ -158,11 +161,22 @@ net__fetch_with_retry() {
       *) break ;;
     esac
   done
-  local _i=1 _rc=0 _attempts_used=0 _stderr_file="" _retry_allowed=true
+  local _i=1 _rc=0 _attempts_used=0 _stderr_file="" _stdout_file="" _retry_allowed=true
   if [ -n "$_retry_if" ]; then
+    # Capture stdout per attempt as well as stderr: a failed attempt may emit
+    # partial stdout before the connection drops, and letting that flow straight
+    # to the caller's capture would concatenate it with the successful retry's
+    # output (e.g. git__resolve_ref's `head -1` picking a truncated SHA). Only
+    # the winning (or final) attempt's stdout is replayed.
     _stderr_file="$(mktemp "${TMPDIR:-/tmp}/devfeats-net-cmd.XXXXXX")" || {
       [[ "$_xt" == true ]] && set -x
       logging__error "failed to create temporary stderr file for retry classification."
+      return 1
+    }
+    _stdout_file="$(mktemp "${TMPDIR:-/tmp}/devfeats-net-out.XXXXXX")" || {
+      rm -f "$_stderr_file"
+      [[ "$_xt" == true ]] && set -x
+      logging__error "failed to create temporary stdout file for retry classification."
       return 1
     }
   fi
@@ -172,7 +186,8 @@ net__fetch_with_retry() {
     _retry_allowed=true
     if [ -n "$_retry_if" ]; then
       : > "$_stderr_file"
-      "$@" 2> "$_stderr_file" || _rc=$?
+      : > "$_stdout_file"
+      "$@" > "$_stdout_file" 2> "$_stderr_file" || _rc=$?
       cat "$_stderr_file" >&2
       if ! "$_retry_if" "$_rc" "$_stderr_file" > /dev/null 2>&1; then
         _retry_allowed=false
@@ -181,12 +196,14 @@ net__fetch_with_retry() {
       "$@" || _rc=$?
     fi
     [ "$_rc" -eq 0 ] && {
-      [ -n "$_stderr_file" ] && rm -f "$_stderr_file"
+      [ -n "$_stdout_file" ] && cat "$_stdout_file"
+      _net__fetch_with_retry_cleanup "$_stdout_file" "$_stderr_file"
       [[ "$_xt" == true ]] && set -x
       return 0
     }
     [ -n "$_bail_on" ] && [ "$_rc" -eq "$_bail_on" ] && {
-      [ -n "$_stderr_file" ] && rm -f "$_stderr_file"
+      [ -n "$_stdout_file" ] && cat "$_stdout_file"
+      _net__fetch_with_retry_cleanup "$_stdout_file" "$_stderr_file"
       [[ "$_xt" == true ]] && set -x
       return "$_rc"
     }
@@ -197,10 +214,35 @@ net__fetch_with_retry() {
     fi
     _i=$((_i + 1))
   done
-  [ -n "$_stderr_file" ] && rm -f "$_stderr_file"
+  # Replay the final attempt's stdout on failure so callers still see whatever
+  # the last run produced, without any accumulation across attempts.
+  [ -n "$_stdout_file" ] && cat "$_stdout_file"
+  _net__fetch_with_retry_cleanup "$_stdout_file" "$_stderr_file"
   logging__error "Failed after $_attempts_used attempt(s)."
   [[ "$_xt" == true ]] && set -x
   return 1
+}
+
+_net__fetch_with_retry_cleanup() {
+  # @brief _net__fetch_with_retry_cleanup <stdout_file> <stderr_file> — Remove per-attempt scratch files if set.
+  [ -n "${1:-}" ] && rm -f "$1"
+  [ -n "${2:-}" ] && rm -f "$2"
+  return 0
+}
+
+_net__umask_file_mode() {
+  # @brief _net__umask_file_mode — Print the octal mode a newly created regular file receives under the current umask (0666 & ~umask), e.g. `644` under umask 022.
+  printf '%o' "$((0666 & ~0$(umask)))"
+}
+
+_net__fetch_cleanup() {
+  # @brief _net__fetch_cleanup <tmpdir> <payload> — Remove HTTP-fetch scratch: the temp dir and any payload staged beside the destination.
+  #
+  # <payload> may live inside <tmpdir> (stdout path) or beside the destination
+  # (file path); removing both is safe and idempotent in either case.
+  [ -n "${1:-}" ] && rm -rf "$1"
+  [ -n "${2:-}" ] && rm -f "$2"
+  return 0
 }
 
 _net__fetch() {
@@ -281,9 +323,26 @@ _net__fetch() {
     logging__error "failed to create temporary directory for HTTP fetch."
     return 1
   }
-  _attempt_file="${_tmpdir}/payload"
   _headers_file="${_tmpdir}/headers"
   _stderr_file="${_tmpdir}/stderr"
+  if [ -n "$_dest" ]; then
+    # Stage the payload as a sibling of the destination (its parent was created
+    # above) so the successful replace is a same-filesystem atomic rename, and a
+    # large download never has to fit inside a possibly-smaller $TMPDIR before
+    # reaching its target volume.
+    _attempt_file="$(mktemp "${_dest}.df-net.XXXXXX")" || {
+      rm -rf "$_tmpdir"
+      logging__error "failed to create staging file for '${_dest}'."
+      return 1
+    }
+    # mktemp creates the staging file 0600; restore the umask-derived mode a
+    # direct `curl -o`/`wget -O` would have produced (0644 under umask 022) so
+    # the atomic-rename replace does not silently tighten the destination's
+    # permissions relative to the pre-staging behaviour.
+    chmod "$(_net__umask_file_mode)" "$_attempt_file" 2> /dev/null || true
+  else
+    _attempt_file="${_tmpdir}/payload"
+  fi
 
   local _attempt=1 _rc=0 _status=000 _status_output _retry=false _retry_delay _retry_after _h
   while [ "$_attempt" -le "$_max" ]; do
@@ -320,7 +379,7 @@ _net__fetch() {
       _status="$(_net__fetch__http_status_from_headers "$_stderr_file")"
       [[ "$_status" =~ ^[0-9]{3}$ ]] || _status=000
     else
-      rm -rf "$_tmpdir"
+      _net__fetch_cleanup "$_tmpdir" "$_attempt_file"
       logging__error "no HTTP fetch tool available (curl/wget missing after bootstrap)."
       return 1
     fi
@@ -331,7 +390,7 @@ _net__fetch() {
           :
         else
           _rc=$?
-          rm -rf "$_tmpdir"
+          _net__fetch_cleanup "$_tmpdir" "$_attempt_file"
           logging__error "failed to move fetched content to '${_dest}' (exit ${_rc})."
           return "$_rc"
         fi
@@ -340,12 +399,12 @@ _net__fetch() {
           :
         else
           _rc=$?
-          rm -rf "$_tmpdir"
+          _net__fetch_cleanup "$_tmpdir" "$_attempt_file"
           logging__error "failed to write fetched content for '${_url}' (exit ${_rc})."
           return "$_rc"
         fi
       fi
-      rm -rf "$_tmpdir"
+      _net__fetch_cleanup "$_tmpdir" "$_attempt_file"
       return 0
     fi
 
@@ -379,7 +438,7 @@ _net__fetch() {
   if [ "$_status" = 000 ] && [ -s "$_stderr_file" ]; then
     _error_summary="$(awk 'NF { line = $0 } END { gsub(/\r/, "", line); print line }' "$_stderr_file")"
   fi
-  rm -rf "$_tmpdir"
+  _net__fetch_cleanup "$_tmpdir" "$_attempt_file"
   if [ -n "$_dest" ]; then
     logging__error "failed to fetch '${_url}' to '${_dest}' with ${_NET__FETCH_TOOL} (exit ${_rc}, status ${_status})."
   else

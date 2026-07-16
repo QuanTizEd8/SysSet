@@ -13,8 +13,12 @@ __fetch_ruff_dist_version() {
   [[ -v _RUFF_DIST_VERSION ]] && return 0
   declare -g _RUFF_DIST_VERSION=""
   [[ -n "${_FEAT_RESOLVED_TAG:-}" ]] || return 0
+  # Capped retries: a specific, correct asset URL, so a 404 may be a brief
+  # propagation blip worth riding out (~15s), but must not stall the install on
+  # the default ~5-min budget if the asset is genuinely absent (older release).
   _RUFF_DIST_VERSION="$(net__fetch_url_stdout \
     "https://github.com/astral-sh/ruff/releases/download/${_FEAT_RESOLVED_TAG}/dist-manifest.json" \
+    --retries 4 --delay 5 \
     2> /dev/null | json__root_scalar_stdin dist_version 2> /dev/null)" || _RUFF_DIST_VERSION=""
   [[ -n "${_RUFF_DIST_VERSION}" ]] || logging__warn "Could not determine the cargo-dist version that built ruff ${_FEAT_RESOLVED_TAG}; 'provider.version' will be empty in the ruff receipt."
 }

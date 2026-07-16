@@ -449,8 +449,13 @@ github__latest_tag() {
     _slug="$_repo"
   fi
   if [[ "$_slug" != *://* ]]; then
+    # Capped retries: this URL is specific and correct, so a 404 can be a brief
+    # propagation blip worth riding out — but it can also mean the repo has no
+    # published "latest" release, which the default budget would turn into a
+    # ~5-min stall. ~15s (4 attempts / 5s) rides a typical transient while
+    # capping the worst case ~20x below the default; the API fallback follows.
     _tag="$(
-      net__fetch_url_stdout "https://github.com/${_slug}/releases/latest" |
+      net__fetch_url_stdout "https://github.com/${_slug}/releases/latest" --retries 4 --delay 5 |
         sed -n 's|.*href="/'"${_slug}"'/releases/tag/\([^"?#]*\)".*|\1|p' |
         head -1 || true
     )"

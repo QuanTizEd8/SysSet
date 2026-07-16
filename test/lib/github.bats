@@ -90,6 +90,35 @@ setup() {
   assert_output --partial "could not parse tag_name"
 }
 
+@test "github__latest_tag caps the retry budget on the releases/latest redirect" {
+  # The redirect probe must not inherit the default 60x/5s budget (a repo with
+  # no published "latest" release would stall ~5 min before the fallback runs),
+  # but the retry must still be able to ride a transient: a bounded attempt
+  # count AND a delay long enough to matter (not a 1s token pause).
+  github__fetch_release_json() { return 1; }
+  local _args="${BATS_TEST_TMPDIR}/latest.args"
+  export _args
+  net__fetch_url_stdout() {
+    printf '%s\n' "$@" > "$_args"
+    printf '%s\n' '<a href="/owner/repo/releases/tag/v9.8.7">latest</a>'
+    return 0
+  }
+  export -f github__fetch_release_json net__fetch_url_stdout
+  run github__latest_tag "owner/repo"
+  assert_success
+  assert_output "v9.8.7"
+  local _n _d
+  _n="$(awk '/^--retries$/ { getline; print; exit }' "$_args")"
+  _d="$(awk '/^--delay$/ { getline; print; exit }' "$_args")"
+  # Bounded (well below the 60 default) but a real retry (>= 2 attempts).
+  assert [ -n "$_n" ]
+  assert [ "$_n" -ge 2 ]
+  assert [ "$_n" -le 10 ]
+  # Delay long enough to ride a transient, not a token 1s pause.
+  assert [ -n "$_d" ]
+  assert [ "$_d" -ge 3 ]
+}
+
 # ---------------------------------------------------------------------------
 # github__release_tags  (parsing logic via fake curl)
 # ---------------------------------------------------------------------------
@@ -2103,7 +2132,7 @@ _stub_github_release_json_digest_for_asset() {
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
     --binary-src mybin --asset "mybin" --sidecar "$_sidecar_url"
   assert_failure
-  assert_output --partial "could not extract hash"
+  assert_output --partial "could not extract a valid SHA-256 hash"
 }
 
 @test "github__install_release: explicit --sidecar wrong-asset single-entry file hard-fails (not NR==1 false-positive)" {
@@ -2125,7 +2154,7 @@ _stub_github_release_json_digest_for_asset() {
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
     --binary-src mybin --asset "mybin" --sidecar "$_sidecar_url"
   assert_failure
-  assert_output --partial "could not extract hash"
+  assert_output --partial "could not extract a valid SHA-256 hash"
 }
 
 @test "github__install_release: explicit --sidecar with ./ path prefix in filename field succeeds" {
@@ -2822,9 +2851,9 @@ _stub_github_release_json_digest_for_asset() {
   assert_success
 }
 
-# --- Sidecar file:// reuse (no double-download) ---
+# --- Auto-probed sidecar: probe selects candidate, transaction refetches ---
 
-@test "github__install_release: auto-probed sidecar is fetched exactly once (file:// reuse)" {
+@test "github__install_release: auto-probed sidecar is refetched by the asset transaction (probe + authoritative fetch)" {
   _stub_install_release_common
   local _hash="cccc3333cccc3333cccc3333cccc3333cccc3333cccc3333cccc3333cccc3333"
   _SIDECAR_HASH="$_hash"
@@ -2855,9 +2884,12 @@ _stub_github_release_json_digest_for_asset() {
     --repo "o/r" --tag "v1.0" --binary-dest "${BATS_TEST_TMPDIR}/" \
     --binary-src mybin --asset "mybin"
   assert_success
-  # The *.sha256 candidate must be fetched exactly once (during probe, not re-downloaded by uri__fetch_asset)
+  # The probe passes the remote *.sha256 candidate URL (not a file:// reuse) to
+  # uri__fetch_asset, which owns the authoritative download and refetches it as
+  # part of the payload-integrity transaction: one probe fetch + one transaction
+  # fetch = 2.
   run cat "$_SC_FETCH_COUNT"
-  assert_output "1"
+  assert_output "2"
 }
 
 # ---------------------------------------------------------------------------
