@@ -12,10 +12,21 @@ setup() {
 setup_file() {
   load 'helpers/common'
   OSPKG_JQ_READY=0
-  if bash -c '. "$1/__init__.bash" && bootstrap__jq' _ "${LIB_ROOT}" > /dev/null 2>&1; then
+  OSPKG_JQ_BIN=""
+  # Resolve the jq path in the SAME subshell as bootstrap__jq (its PATH export
+  # never leaves that process), then keep a stable copy in BATS_FILE_TMPDIR so
+  # manifest tests can put jq on PATH without re-bootstrapping it — offline/flaky
+  # on bare images, and unavoidable once a test relocates _FILE__SESSION_ROOT
+  # (which moves the bootstrap cache lookup away from this one).
+  local _jq_path
+  _jq_path="$(bash -c '. "$1/__init__.bash" && bootstrap__jq >&2 && command -v jq' _ "${LIB_ROOT}" 2> /dev/null)" || true
+  if [[ -n "${_jq_path}" && -x "${_jq_path}" ]]; then
+    cp "${_jq_path}" "${BATS_FILE_TMPDIR}/jq"
+    chmod +x "${BATS_FILE_TMPDIR}/jq"
+    OSPKG_JQ_BIN="${BATS_FILE_TMPDIR}/jq"
     OSPKG_JQ_READY=1
   fi
-  export OSPKG_JQ_READY
+  export OSPKG_JQ_READY OSPKG_JQ_BIN
 }
 
 _require_ospkg_jq() {
@@ -1529,6 +1540,15 @@ _seed_git_guard_manifest_yq() {
   export -f bootstrap__yq
 }
 
+_prime_suite_jq_on_path() {
+  # Put the suite's stable jq copy on PATH so ospkg__run's manifest parse
+  # short-circuits bootstrap__jq (no network) even after _seed_apt_build_context
+  # relocated _FILE__SESSION_ROOT away from the bootstrap cache.
+  [[ -n "${OSPKG_JQ_BIN:-}" && -x "${OSPKG_JQ_BIN}" ]] || return 0
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  ln -sf "${OSPKG_JQ_BIN}" "${BATS_TEST_TMPDIR}/bin/jq"
+}
+
 @test "ospkg__run: guarded run dep is promoted out of the build-dep registry" {
   _require_ospkg_jq
   _seed_apt_build_context
@@ -1536,6 +1556,7 @@ _seed_git_guard_manifest_yq() {
   # git is already on PATH (as if bootstrapped / build-installed) → guard fires.
   create_fake_bin "git"
   prepend_fake_bin_path
+  _prime_suite_jq_on_path
   # git + its dep closure are tracked for cleanup under a build group.
   local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::lib-git"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
@@ -1563,6 +1584,7 @@ _seed_git_guard_manifest_yq() {
   _mock_snapshots "git" "git" # nothing newly installed under the build group
   create_fake_bin "git"
   prepend_fake_bin_path
+  _prime_suite_jq_on_path
   local _sidecar="${BATS_TEST_TMPDIR}/ospkg/build-deps/ctx::lib-git"
   mkdir -p "${BATS_TEST_TMPDIR}/ospkg/build-deps"
   printf 'git\n' > "$_sidecar"
