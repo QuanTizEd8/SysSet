@@ -5,6 +5,7 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   load 'helpers/common'
+  load 'helpers/stubs'
   reload_lib
 }
 
@@ -61,4 +62,117 @@ setup() {
   '
   assert_success
   assert_output "hello 'world'"
+}
+
+@test "_posix__fetch_url_file retries a transient curl failure atomically" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts" _dest="${BATS_TEST_TMPDIR}/payload"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/curl" << 'EOF'
+#!/bin/sh
+set -eu
+out=
+counter=${_attempts}
+n=$(cat "$counter")
+n=$((n + 1))
+printf '%s' "$n" > "$counter"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o) out=$2; shift 2 ;;
+    -D) shift 2 ;;
+    -w) shift 2 ;;
+    *) shift ;;
+  esac
+done
+if [ "$n" -eq 1 ]; then
+  printf '%s\n' 'Recv failure: Connection reset by peer' >&2
+  exit 35
+fi
+printf '%s\n' 'payload' > "$out"
+printf '200'
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/curl"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=2 DEVFEATS_NET_FETCH_DELAY=0
+
+  run _posix__fetch_url_file "https://example.com/bash.tar.gz" "$_dest"
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+  assert [ "$(cat "$_dest")" = payload ]
+}
+
+@test "_posix__fetch_url_file does not retry a certainly persistent HTTP failure" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts" _dest="${BATS_TEST_TMPDIR}/payload"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/curl" << 'EOF'
+#!/bin/sh
+set -eu
+printf '%s' "$(($(cat "${_attempts}") + 1))" > "${_attempts}"
+printf '401'
+exit 22
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/curl"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=3 DEVFEATS_NET_FETCH_DELAY=0
+
+  run _posix__fetch_url_file "https://example.com/unauthorized.tar.gz" "$_dest"
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 1 ]
+  [[ ! -e "$_dest" ]]
+}
+
+@test "_posix__fetch_retryable retries an unlisted HTTP failure but rejects 401" {
+  local _stderr="${BATS_TEST_TMPDIR}/stderr"
+  : > "$_stderr"
+
+  run _posix__fetch_retryable 22 520 curl "$_stderr"
+  assert_success
+
+  run _posix__fetch_retryable 35 000 curl "$_stderr"
+  assert_success
+
+  run _posix__fetch_retryable 22 401 curl "$_stderr"
+  assert_failure
+}
+
+@test "_posix__fetch_url_file retries a BusyBox wget network failure" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts" _dest="${BATS_TEST_TMPDIR}/payload"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  cat > "${BATS_TEST_TMPDIR}/bin/wget" << 'EOF'
+#!/bin/sh
+set -eu
+out=
+n=$(($(cat "${_attempts}") + 1))
+printf '%s' "$n" > "${_attempts}"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -O) out=$2; shift 2 ;;
+    *) shift ;;
+  esac
+done
+if [ "$n" -eq 1 ]; then
+  printf "%s\n" "wget: can't connect to remote host: Connection refused" >&2
+  exit 1
+fi
+printf '%s\n' 'payload' > "$out"
+printf '%s\n' '  HTTP/1.1 200 OK' >&2
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/wget"
+  prepend_fake_bin_path
+  command() {
+    if [ "${1-}" = -v ] && [ "${2-}" = curl ]; then
+      return 1
+    fi
+    builtin command "$@"
+  }
+  export _attempts
+  export -f command
+  export DEVFEATS_NET_FETCH_RETRIES=2 DEVFEATS_NET_FETCH_DELAY=0
+
+  run _posix__fetch_url_file "https://example.com/bash.tar.gz" "$_dest"
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+  assert [ "$(cat "$_dest")" = payload ]
 }

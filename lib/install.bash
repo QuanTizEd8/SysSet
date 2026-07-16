@@ -425,18 +425,18 @@ install__release_asset() {
       "${_release_base}/SHA256SUMS" \
       "${_release_base}/sha256sum.txt"; do
       _sc_file="${_sc_tmp}/$(basename "$_sc_candidate")"
-      # Short retry budget: unlike a confirmed-to-exist download, this loop
-      # deliberately tries multiple naming conventions where a 404 on any
-      # given candidate is an expected, permanent "wrong guess", not a
-      # transient failure. curl's --retry already skips retrying 404s, but
-      # wget (e.g. on Alpine) has no such distinction and falls back to
-      # net__fetch_with_retry's default 60 attempts / 5s delay — confirmed via
-      # a real run to turn a routine 404 into a 5+ minute stall per candidate.
+      # Short retry budget: this loop deliberately tries multiple naming
+      # conventions. A 404 is often a wrong guess, but can also occur briefly
+      # while a release/CDN is propagating, so retain two bounded attempts per
+      # candidate before trying the next convention.
       if net__fetch_url_file "$_sc_candidate" "$_sc_file" --retries 2 --delay 1 "${_probe_auth[@]}" 2> /dev/null; then
         _sc_hash="$(_uri__sidecar_hash "$_asset_name" "$_sc_file")"
         if [[ -n "$_sc_hash" ]]; then
           logging__info "auto-detected sidecar at '${_sc_candidate}'"
-          _sidecar_arg=(--sidecar "file://${_sc_file}")
+          # Keep the remote URI so uri__fetch_asset can refetch the sidecar as
+          # part of a later payload-integrity attempt. The probe only selects a
+          # candidate; the asset transaction owns the authoritative download.
+          _sidecar_arg=(--sidecar "${_sc_candidate}")
           break
         fi
       fi

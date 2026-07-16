@@ -6,6 +6,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   reload_lib
+  export DEVFEATS_NET_FETCH_RETRIES=1 DEVFEATS_NET_FETCH_DELAY=0
 }
 
 _test_sha256_file() {
@@ -89,6 +90,55 @@ EOF
   assert_failure
 
   run oci__is_feature_ref_key "foo:bar"
+  assert_failure
+}
+
+@test "_oci__oras_capture retries transient registry failures" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=2
+  oras() {
+    local _n
+    _n=$(($(cat "$_attempts") + 1))
+    printf '%s' "$_n" > "$_attempts"
+    if [[ "$_n" -eq 1 ]]; then
+      printf 'failed to fetch manifest: unexpected EOF\n' >&2
+      return 1
+    fi
+    printf '{"layers":[]}\n'
+  }
+  export -f oras
+
+  run _oci__oras_capture "ghcr.io/acme/feature" 0 oras manifest fetch
+  assert_success
+  assert_output '{"layers":[]}'
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
+@test "_oci__oras_capture does not retry permanent registry failures" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=3
+  oras() {
+    printf '%s' "$(($(cat "$_attempts") + 1))" > "$_attempts"
+    printf 'denied: authentication required\n' >&2
+    return 1
+  }
+  export -f oras
+
+  run _oci__oras_capture "ghcr.io/acme/feature" 0 oras manifest fetch
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 1 ]
+}
+
+@test "_oci__retryable_error retries unknown registry diagnostics and rejects credential failures" {
+  local _stderr="${BATS_TEST_TMPDIR}/oras.stderr"
+  printf '%s\n' 'server returned 404 Not Found' > "$_stderr"
+  run _oci__retryable_error 1 "$_stderr"
+  assert_success
+
+  printf '%s\n' 'denied: authentication required' > "$_stderr"
+  run _oci__retryable_error 1 "$_stderr"
   assert_failure
 }
 

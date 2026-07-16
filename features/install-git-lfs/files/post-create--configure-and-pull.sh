@@ -80,4 +80,30 @@ if ! git -C "${_repo_dir}" config --get filter.lfs.process > /dev/null 2>&1; the
 fi
 
 printf '[%s] Running git lfs pull in %s.\n' "$(basename "$0")" "${_repo_dir}" >&2
-git -C "${_repo_dir}" lfs pull || exit $?
+_pull_max="${DEVFEATS_NET_FETCH_RETRIES:-5}"
+_pull_delay="${DEVFEATS_NET_FETCH_DELAY:-5}"
+_pull_attempt=1
+while [ "${_pull_attempt}" -le "${_pull_max}" ]; do
+  _pull_err="$(mktemp "${TMPDIR:-/tmp}/devfeats-git-lfs.XXXXXX")" || exit 1
+  _pull_rc=0
+  git -C "${_repo_dir}" lfs pull 2> "${_pull_err}" || _pull_rc=$?
+  cat "${_pull_err}" >&2
+  if [ "${_pull_rc}" -eq 0 ]; then
+    rm -f "${_pull_err}"
+    exit 0
+  fi
+  # `git lfs pull` is an idempotent read. Git/LFS diagnostics vary across
+  # versions and transports, so retry every failure except clear local URL or
+  # credential configuration errors. In particular, Git often renders a 503 as
+  # "The requested URL returned error: 503", which a narrow HTTP regex misses.
+  if ! grep -Eiq 'authentication failed|authentication is required|terminal prompts disabled|could not read Username|invalid url|url using bad/illegal format|unsupported protocol|protocol .* not supported|not a git repository|x509: certificate signed by unknown authority|certificate verify failed' "${_pull_err}" && [ "${_pull_attempt}" -lt "${_pull_max}" ]; then
+    printf '[%s] Git LFS pull attempt %s/%s failed; retrying in %ss.\n' "$(basename "$0")" "${_pull_attempt}" "${_pull_max}" "${_pull_delay}" >&2
+    rm -f "${_pull_err}"
+    sleep "${_pull_delay}"
+    _pull_attempt=$((_pull_attempt + 1))
+    continue
+  fi
+  rm -f "${_pull_err}"
+  exit "${_pull_rc}"
+done
+exit 1

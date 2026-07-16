@@ -181,6 +181,6 @@ _stub_release_asset_happy_path() {
   assert_success
   run grep -qF -- "--sidecar" "$_URI_FETCH_CALLS"
   assert_success
-  run grep -qF "file://" "$_URI_FETCH_CALLS"
+  run grep -qF "https://example.com/releases/download/v1.0/tool.sha256" "$_URI_FETCH_CALLS"
   assert_success
 }

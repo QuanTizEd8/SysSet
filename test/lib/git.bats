@@ -10,6 +10,7 @@ setup() {
   # Stub bootstrap__git to succeed by default; individual tests override as needed.
   bootstrap__git() { return 0; }
   export -f bootstrap__git
+  export DEVFEATS_NET_FETCH_RETRIES=1 DEVFEATS_NET_FETCH_DELAY=0
 }
 
 # ---------------------------------------------------------------------------
@@ -156,14 +157,100 @@ _install_git_stub() {
   assert_output "abc123deadbeefabc123deadbeefabc123deadbee"
 }
 
-@test "git__resolve_ref: returns ref unchanged when ls-remote fails (network error)" {
+@test "git__resolve_ref: fails when ls-remote fails (network error)" {
   git() {
-    case "${1:-}" in ls-remote) return 1 ;; esac
+    case "${1:-}" in
+      ls-remote)
+        printf 'fatal: unable to access: authentication failed\n' >&2
+        return 1
+        ;;
+    esac
   }
   export -f git
   run git__resolve_ref "https://example.com/repo.git" "abc123sha"
+  assert_failure
+  assert_output --partial "failed to resolve ref"
+}
+
+@test "git__resolve_ref: retries a transient ls-remote failure" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=2
+  git() {
+    local _n
+    _n=$(($(cat "$_attempts") + 1))
+    printf '%s' "$_n" > "$_attempts"
+    if [[ "$_n" -eq 1 ]]; then
+      printf 'fatal: unable to access https://example.com/repo.git: The requested URL returned error: 503\n' >&2
+      return 1
+    fi
+    printf 'abc123def456abc123def456abc123def456abc123\trefs/heads/main\n'
+  }
+  export -f git
+  run --separate-stderr git__resolve_ref "https://example.com/repo.git" "main"
   assert_success
-  assert_output "abc123sha"
+  assert_output "abc123def456abc123def456abc123def456abc123"
+  assert_stderr --partial "requested URL returned error: 503"
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
+@test "git__resolve_ref: does not retry a certainly persistent authentication failure" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=3
+  git() {
+    printf '%s' "$(($(cat "$_attempts") + 1))" > "$_attempts"
+    printf 'fatal: Authentication failed for https://example.com/repo.git\n' >&2
+    return 128
+  }
+  export -f git
+
+  run git__resolve_ref "https://example.com/repo.git" "main"
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 1 ]
+}
+
+@test "deferred Git LFS hook retries Git's normal HTTP 503 diagnostic" {
+  local _root="${BATS_TEST_TMPDIR}/share" _repo="${BATS_TEST_TMPDIR}/repo"
+  local _bin="${BATS_TEST_TMPDIR}/bin" _attempts="${BATS_TEST_TMPDIR}/attempts"
+  local _hook="${BATS_TEST_DIRNAME}/../../features/install-git-lfs/files/post-create--configure-and-pull.sh"
+  mkdir -p "${_root}/state" "$_repo" "$_bin"
+  printf '0' > "$_attempts"
+  cat > "${_root}/state/config.env" << EOF
+GIT_LFS_STATE_REPO_DIR="$_repo"
+GIT_LFS_STATE_CONFIG_SCOPE="none"
+GIT_LFS_STATE_AUTO_PULL="true"
+EOF
+  cat > "${_bin}/git" << EOF
+#!/bin/sh
+if [ "\${1-}" = -C ]; then shift 2; fi
+case "\${1-}:\${2-}" in
+  rev-parse:*) exit 0 ;;
+  config:*) exit 0 ;;
+  lfs:ls-files) printf 'tracked.bin\n'; exit 0 ;;
+  lfs:pull)
+    _n=\$(cat "$_attempts")
+    _n=\$((\$_n + 1))
+    printf '%s' "\$_n" > "$_attempts"
+    if [ "\$_n" -eq 1 ]; then
+      printf 'fatal: unable to access https://example.com/repo.git: The requested URL returned error: 503\n' >&2
+      exit 1
+    fi
+    exit 0
+    ;;
+esac
+exit 1
+EOF
+  chmod +x "${_bin}/git"
+
+  run env \
+    _FEAT_SHARE_DIR_ROOT="$_root" \
+    DEVFEATS_NET_FETCH_RETRIES=2 DEVFEATS_NET_FETCH_DELAY=0 \
+    PATH="${_bin}:${PATH}" \
+    sh "$_hook" "$_repo"
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+  assert_output --partial 'retrying in 0s'
 }
 
 # ===========================================================================
@@ -279,6 +366,35 @@ EOF
   run git__clone --url "https://example.com/r.git" --dir "${_dst}" --ref "main"
   assert_failure
   [[ ! -d "${_dst}" ]]
+}
+
+@test "git__clone named-ref path: retries a transient clone failure" {
+  local _dst="${BATS_TEST_TMPDIR}/dst" _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  git__resolve_ref() { printf 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\n'; }
+  export -f git__resolve_ref
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=2
+  git() {
+    local _sub="${1:-}"
+    if [[ "$_sub" == clone ]]; then
+      local _n
+      _n=$(($(cat "$_attempts") + 1))
+      printf '%s' "$_n" > "$_attempts"
+      if [[ "$_n" -eq 1 ]]; then
+        printf 'fatal: unable to access: Connection reset by peer\n' >&2
+        return 1
+      fi
+      mkdir -p "${@: -1}/.git"
+      return 0
+    fi
+    return 0
+  }
+  export -f git
+
+  run git__clone --url "https://example.com/r.git" --dir "${_dst}" --ref "main"
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+  [[ -d "${_dst}/.git" ]]
 }
 
 @test "git__clone no-ref path: calls git clone without --branch" {

@@ -78,6 +78,99 @@ posix__quote() {
   printf "'%s'" "$_pq_out"
 }
 
+_posix__fetch_retryable() {
+  # _posix__fetch_retryable <exit-code> <status> <tool> <stderr-file> — Retry bootstrap download failures unless they are certainly persistent.
+  #
+  # Bootstrap downloads are idempotent. This mirrors lib/net.bash without
+  # Bash-only helpers: unknown statuses and client failures are retried rather
+  # than risking a failure during a temporary CDN, proxy, or registry incident.
+  local _rc="$1" _status="$2" _tool="$3" _stderr_file="$4"
+  case "$_status" in
+    400 | 401 | 405 | 406 | 407 | 410 | 411 | 413 | 414 | 415 | 416 | 422 | 426 | 428 | 431 | 451) return 1 ;;
+  esac
+  if [ "$_tool" = curl ]; then
+    case "$_rc" in
+      1 | 2 | 3 | 4 | 23 | 26 | 27 | 37 | 42 | 43 | 45 | 47 | 48 | 49 | 53 | 54 | 58 | 59 | 60 | 63 | 65 | 66 | 67 | 89 | 90 | 91 | 93 | 94 | 98 | 99 | 100 | 101) return 1 ;;
+      35)
+        grep -Eiq 'certificate problem|certificate verify failed|unable to get local issuer|self[ -]signed certificate|no alternative certificate subject name matches|peer certificate' "$_stderr_file" && return 1
+        ;;
+    esac
+  else
+    case "$_rc" in
+      # GNU wget command-line parse, local file I/O, certificate, or auth errors.
+      2 | 3 | 5 | 6) return 1 ;;
+    esac
+  fi
+  return 0
+}
+
+_posix__fetch_url_file() {
+  # _posix__fetch_url_file <url> <dest> — Fetch one URL atomically with retry-by-default classification during POSIX bootstrap.
+  local _url="$1" _dest="$2"
+  local _max="${DEVFEATS_NET_FETCH_RETRIES:-5}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}"
+  local _tmpdir _part _headers _stderr _tool _attempt _rc _status _status_output
+  if ! printf '%s\n' "$_max" | grep -Eq '^[0-9]+$' || ! printf '%s\n' "$_delay" | grep -Eq '^[0-9]+$'; then
+    logging__error "invalid bootstrap download retry configuration."
+    return 1
+  fi
+  [ "$_max" -gt 0 ] || _max=1
+  _tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/devfeats-posix-fetch.XXXXXX")" || return 1
+  _part="${_tmpdir}/payload"
+  _headers="${_tmpdir}/headers"
+  _stderr="${_tmpdir}/stderr"
+  _tool=""
+  if command -v curl > /dev/null 2>&1; then
+    _tool=curl
+  elif command -v wget > /dev/null 2>&1; then
+    _tool=wget
+  else
+    rm -rf "$_tmpdir"
+    logging__error "Neither curl nor wget found; cannot download '${_url}'."
+    return 1
+  fi
+
+  _attempt=1
+  while [ "$_attempt" -le "$_max" ]; do
+    : > "$_part"
+    : > "$_headers"
+    : > "$_stderr"
+    _rc=0
+    _status=000
+    if [ "$_tool" = curl ]; then
+      _status_output="$(curl -fsSL --compressed -D "$_headers" -w '%{http_code}' -o "$_part" \
+        -H 'User-Agent: devfeats' "$_url" 2> "$_stderr")" || _rc=$?
+      case "$_status_output" in
+        *[0-9][0-9][0-9]) _status="${_status_output##*[!0-9]}" ;;
+      esac
+    else
+      wget -q -S -O "$_part" --header='User-Agent: devfeats' "$_url" 2> "$_stderr" || _rc=$?
+      _status="$(awk '$1 ~ /^HTTP\/[0-9.]+$/ && $2 ~ /^[0-9][0-9][0-9]$/ { status = $2 } END { print status + 0 }' "$_stderr" 2> /dev/null)"
+      [ "$_status" -ge 100 ] 2> /dev/null || _status=000
+    fi
+    case "$_status" in
+      000 | 2[0-9][0-9])
+        if [ "$_rc" -eq 0 ] && mv -f "$_part" "$_dest"; then
+          rm -rf "$_tmpdir"
+          return 0
+        fi
+        ;;
+    esac
+    [ "$_rc" -eq 0 ] && _rc=22
+    if _posix__fetch_retryable "$_rc" "$_status" "$_tool" "$_stderr" && [ "$_attempt" -lt "$_max" ]; then
+      logging__warn "Bootstrap download attempt ${_attempt}/${_max} for '${_url}' failed; retrying in ${_delay}s."
+      sleep "$_delay"
+      _attempt=$((_attempt + 1))
+      continue
+    fi
+    cat "$_stderr" >&2
+    rm -rf "$_tmpdir"
+    logging__error "Failed to download '${_url}' with ${_tool} (exit ${_rc}, status ${_status})."
+    return "$_rc"
+  done
+  rm -rf "$_tmpdir"
+  return 1
+}
+
 posix__install_bash_from_source() {
   # @brief posix__install_bash_from_source <prefix> <version> — Download, compile, and install bash from GNU FTP.
   #
@@ -88,7 +181,7 @@ posix__install_bash_from_source() {
   #
   # Calls posix__bootstrap_xcode on macOS to ensure build tools are available.
   # Prints the installed binary path on stdout. Returns 1 on any failure.
-  local _pbifs_prefix _pbifs_version _pbifs_url _pbifs_tmpdir _pbifs_bin
+  local _pbifs_prefix _pbifs_version _pbifs_url _pbifs_tmpdir _pbifs_bin _pbifs_archive
   _pbifs_prefix="${1:?posix__install_bash_from_source: prefix required}"
   _pbifs_version="${2:?posix__install_bash_from_source: version required}"
   _pbifs_url="https://ftp.gnu.org/gnu/bash/bash-${_pbifs_version}.tar.gz"
@@ -96,22 +189,17 @@ posix__install_bash_from_source() {
   [ "$(uname -s)" = "Darwin" ] && posix__bootstrap_xcode
 
   _pbifs_tmpdir="$(mktemp -d /tmp/bash-src.XXXXXX)"
+  _pbifs_archive="${_pbifs_tmpdir}/bash-${_pbifs_version}.tar.gz"
 
   logging__download "Downloading bash ${_pbifs_version} source..."
-  if command -v curl > /dev/null 2>&1; then
-    curl -fsSL --compressed \
-      --retry 5 --retry-delay 5 --retry-connrefused \
-      -H "User-Agent: devfeats" \
-      "${_pbifs_url}" | tar xz -C "${_pbifs_tmpdir}"
-  elif command -v wget > /dev/null 2>&1; then
-    wget -qO- "${_pbifs_url}" | tar xz -C "${_pbifs_tmpdir}"
-  else
+  _posix__fetch_url_file "${_pbifs_url}" "${_pbifs_archive}" || {
     rm -rf "${_pbifs_tmpdir}"
-    logging__error "Neither curl nor wget found; cannot download bash source."
+    logging__error "Failed to download bash ${_pbifs_version} source."
     return 1
-  fi || {
+  }
+  tar xzf "${_pbifs_archive}" -C "${_pbifs_tmpdir}" || {
     rm -rf "${_pbifs_tmpdir}"
-    logging__error "Failed to download or extract bash ${_pbifs_version} source."
+    logging__error "Failed to extract bash ${_pbifs_version} source."
     return 1
   }
 

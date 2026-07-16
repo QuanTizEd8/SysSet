@@ -29,12 +29,93 @@ _net__hdrs_with_default_ua() {
   fi
 }
 
+_net__fetch__persistent_http_status() {
+  # @brief _net__fetch__persistent_http_status <status> — Return success only for responses that cannot be repaired by retrying an unchanged request.
+  #
+  # Fetches are idempotent. Unknown failures, including 404, redirects, and
+  # unlisted 4xx/5xx statuses, may result from CDN propagation, proxies, or
+  # registry publication and must therefore be retried.
+  case "$1" in
+    400 | 401 | 405 | 406 | 407 | 410 | 411 | 413 | 414 | 415 | 416 | 422 | 426 | 428 | 431 | 451) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_net__fetch__success_http_status() {
+  # @brief _net__fetch__success_http_status <status> — Return success for a completed transfer or a successful HTTP response.
+  case "$1" in
+    # 000 is curl's status for non-HTTP protocols such as FTP. A 3xx response
+    # is not a completed download: with -L, curl/wget follow redirects and a
+    # final 3xx has no usable target.
+    000 | 2[0-9][0-9]) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+_net__fetch__persistent_curl_error() {
+  # @brief _net__fetch__persistent_curl_error <exit_code> <stderr_file> — Return success only for curl failures known to be local/configuration errors.
+  #
+  # All other curl failures are retried. In particular, a generic TLS handshake
+  # error is ambiguous and must be retried; only clear certificate diagnostics
+  # are excluded.
+  local _rc="$1" _stderr_file="$2"
+  case "$_rc" in
+    # Unsupported/malformed options and URLs, local file/resource failures,
+    # redirect loops, and fixed local TLS/authentication configuration errors.
+    1 | 2 | 3 | 4 | 23 | 26 | 27 | 37 | 42 | 43 | 45 | 47 | 48 | 49 | 53 | 54 | 58 | 59 | 60 | 63 | 65 | 66 | 67 | 89 | 90 | 91 | 93 | 94 | 98 | 99 | 100 | 101) return 0 ;;
+    35)
+      if grep -Eiq 'certificate problem|certificate verify failed|unable to get local issuer|self[ -]signed certificate|no alternative certificate subject name matches|peer certificate' "$_stderr_file"; then
+        return 0
+      fi
+      ;;
+  esac
+  return 1
+}
+
+_net__fetch__persistent_wget_error() {
+  # @brief _net__fetch__persistent_wget_error <exit_code> <status> — Return success only for wget failures known to be local/configuration errors.
+  #
+  # GNU wget uses exit 4 for network errors while BusyBox commonly collapses
+  # failures to exit 1. Both, and every other unrecognised failure, are retried
+  # by default. HTTP responses are handled via their final status.
+  _net__fetch__persistent_http_status "$2" && return 0
+  case "$1" in
+    # Command-line parse, local file I/O, certificate verification, and auth.
+    2 | 3 | 5 | 6) return 0 ;;
+  esac
+  return 1
+}
+
+_net__fetch__http_status_from_headers() {
+  # @brief _net__fetch__http_status_from_headers <headers_file> — Return the final HTTP status observed in a response trace.
+  awk '$1 ~ /^HTTP\/[0-9.]+$/ && $2 ~ /^[0-9][0-9][0-9]$/ { status = $2 } END { print status + 0 }' "$1" 2> /dev/null
+}
+
+_net__fetch__retry_after_seconds() {
+  # @brief _net__fetch__retry_after_seconds <headers_file> — Convert the last Retry-After header to seconds, when possible.
+  local _headers_file="$1" _value _now _when
+  _value="$(awk 'tolower($0) ~ /^retry-after:/ { sub(/^[^:]*:[[:space:]]*/, ""); gsub(/\r/, ""); value = $0 } END { print value }' "$_headers_file" 2> /dev/null)"
+  [ -n "$_value" ] || return 1
+  if [[ "$_value" =~ ^[0-9]+$ ]]; then
+    printf '%s' "$_value"
+    return 0
+  fi
+  _now="$(date -u +%s 2> /dev/null)" || return 1
+  _when="$(date -u -d "$_value" +%s 2> /dev/null)" ||
+    _when="$(date -j -f '%a, %d %b %Y %H:%M:%S %Z' "$_value" +%s 2> /dev/null)" || return 1
+  if [ "$_when" -gt "$_now" ]; then
+    printf '%s' "$((_when - _now))"
+  else
+    printf '0'
+  fi
+}
+
 net__fetch_with_retry() {
-  # @brief net__fetch_with_retry [--retries N] [--delay N] [--bail-on CODE] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
+  # @brief net__fetch_with_retry [--retries N] [--delay N] [--bail-on CODE] [--retry-if FUNCTION] <cmd...> — Run `<cmd>` up to N times with a delay between failures (default: 60 retries, 5s delay).
   #
   # Does NOT require ospkg.bash. Prefer net__fetch_url_stdout / net__fetch_url_file
   # for curl/wget downloads; those handle tool detection, --compressed, and
-  # transient-only retries automatically. Use this function only for commands
+  # retry-by-default classification automatically. Use this function only for commands
   # that are not curl/wget.
   #
   # Args:
@@ -42,10 +123,14 @@ net__fetch_with_retry() {
   #   --delay N        Seconds to wait between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
   #   --bail-on CODE   If the command exits with CODE, stop immediately without
   #                    retrying (use for non-transient configuration errors).
+  #   --retry-if FUNCTION
+  #                    Retry only when FUNCTION <exit-code> <stderr-file>
+  #                    returns success. When supplied, command stderr is
+  #                    captured for classification and replayed unchanged.
   #   <cmd...>         Command and arguments to run.
   #
   # Returns: 0 on success, 1 after all retries exhausted.
-  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _bail_on="" _xt=false
+  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _bail_on="" _retry_if="" _xt=false
   case "$-" in *x*) _xt=true ;; esac
   { set +x; } 2> /dev/null
   while [ $# -gt 0 ]; do
@@ -62,6 +147,10 @@ net__fetch_with_retry() {
         _bail_on="$2"
         shift 2
         ;;
+      --retry-if)
+        _retry_if="$2"
+        shift 2
+        ;;
       --)
         shift
         break
@@ -69,25 +158,47 @@ net__fetch_with_retry() {
       *) break ;;
     esac
   done
-  local _i=1 _rc=0
+  local _i=1 _rc=0 _attempts_used=0 _stderr_file="" _retry_allowed=true
+  if [ -n "$_retry_if" ]; then
+    _stderr_file="$(mktemp "${TMPDIR:-/tmp}/devfeats-net-cmd.XXXXXX")" || {
+      [[ "$_xt" == true ]] && set -x
+      logging__error "failed to create temporary stderr file for retry classification."
+      return 1
+    }
+  fi
   while [ "$_i" -le "$_max" ]; do
+    _attempts_used="$_i"
     _rc=0
-    "$@" || _rc=$?
+    _retry_allowed=true
+    if [ -n "$_retry_if" ]; then
+      : > "$_stderr_file"
+      "$@" 2> "$_stderr_file" || _rc=$?
+      cat "$_stderr_file" >&2
+      if ! "$_retry_if" "$_rc" "$_stderr_file" > /dev/null 2>&1; then
+        _retry_allowed=false
+      fi
+    else
+      "$@" || _rc=$?
+    fi
     [ "$_rc" -eq 0 ] && {
+      [ -n "$_stderr_file" ] && rm -f "$_stderr_file"
       [[ "$_xt" == true ]] && set -x
       return 0
     }
     [ -n "$_bail_on" ] && [ "$_rc" -eq "$_bail_on" ] && {
+      [ -n "$_stderr_file" ] && rm -f "$_stderr_file"
       [[ "$_xt" == true ]] && set -x
       return "$_rc"
     }
+    [ "$_retry_allowed" = true ] || break
     if [ "$_i" -lt "$_max" ]; then
       logging__warn "Attempt $_i/$_max failed — retrying in ${_delay}s..."
       sleep "$_delay"
     fi
     _i=$((_i + 1))
   done
-  logging__error "Failed after $_max attempt(s)."
+  [ -n "$_stderr_file" ] && rm -f "$_stderr_file"
+  logging__error "Failed after $_attempts_used attempt(s)."
   [[ "$_xt" == true ]] && set -x
   return 1
 }
@@ -97,11 +208,11 @@ _net__fetch() {
   #
   # <dest> is the output file path (its parent directory is created if missing),
   # or empty string for stdout output.
-  # curl uses --retry (transient errors, including DNS failures, but not
-  # permanent failures like 404); wget falls back to net__fetch_with_retry.
+  # curl and wget are invoked once per attempt. The shared retry loop classifies
+  # transport errors and HTTP statuses so both clients have identical behavior.
   local _url="$1" _dest="$2"
   shift 2
-  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _hdrs='' _netrc=''
+  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _max_delay="${DEVFEATS_NET_FETCH_MAX_DELAY:-300}" _hdrs='' _netrc='' _head=false _connect_timeout='' _max_time=''
   while [ $# -gt 0 ]; do
     case "$1" in
       --retries)
@@ -119,6 +230,18 @@ _net__fetch() {
         ;;
       --netrc-file)
         _netrc="$2"
+        shift 2
+        ;;
+      --head)
+        _head=true
+        shift
+        ;;
+      --connect-timeout)
+        _connect_timeout="$2"
+        shift 2
+        ;;
+      --max-time)
+        _max_time="$2"
         shift 2
         ;;
       *)
@@ -147,78 +270,137 @@ _net__fetch() {
       return 1
     }
   fi
-  local _h
-  if [ "$_NET__FETCH_TOOL" = "curl" ]; then
-    # Force HTTP/1.1: under heavy CI network load GitHub (and other endpoints)
-    # intermittently return HTTP/2 stream/framing errors (curl exit 16/92) that
-    # curl's --retry does NOT treat as transient, so a single flake aborts the
-    # fetch. --retry-all-errors is not an option here — it would retry the
-    # deliberate 404s of the release-sidecar auto-probe 60× each. HTTP/1.1 has
-    # no framing layer to stall and is plenty fast for our small fetches.
-    set -- -fsSL --http1.1 --compressed --retry "$_max" --retry-delay "$_delay" --retry-connrefused
-    [ -n "$_netrc" ] && set -- "$@" --netrc-file "$_netrc"
-    while IFS= read -r _h; do
-      [ -z "$_h" ] && continue
-      set -- "$@" -H "$_h"
-    done << _NET_HDR_EOF_
-$_hdrs
-_NET_HDR_EOF_
-    if [ -n "$_dest" ]; then
-      curl "$@" -o "$_dest" "$_url"
-    else
-      curl "$@" "$_url"
-    fi
-    local _rc=$?
-    [ "${_rc}" -eq 0 ] && return 0
-    if [ -n "$_dest" ]; then
-      logging__error "failed to fetch '${_url}' to '${_dest}' with curl (exit ${_rc})."
-    else
-      logging__error "failed to fetch '${_url}' with curl (exit ${_rc})."
-    fi
-    return "${_rc}"
-  elif [ "$_NET__FETCH_TOOL" = "wget" ]; then
-    # -q (quiet): match curl's -s. Without it, wget (notably BusyBox wget on
-    # Alpine) streams "Connecting to …" / progress-bar lines to stderr, which
-    # pollutes command output captured by callers and test harnesses. Fetch
-    # errors are still surfaced via the exit code and logging__error below.
-    if [ -n "$_dest" ]; then
-      set -- -q -O "$_dest"
-    else
-      set -- -q -O-
-    fi
-    [ -n "$_netrc" ] && set -- "$@" "--netrc-file=${_netrc}"
-    while IFS= read -r _h; do
-      [ -z "$_h" ] && continue
-      set -- "$@" "--header=${_h}"
-    done << _NET_HDR_EOF_
-$_hdrs
-_NET_HDR_EOF_
-    net__fetch_with_retry --retries "$_max" --delay "$_delay" wget "$@" "$_url"
-    local _rc=$?
-    [ "${_rc}" -eq 0 ] && return 0
-    if [ -n "$_dest" ]; then
-      logging__error "failed to fetch '${_url}' to '${_dest}' with wget (exit ${_rc})."
-    else
-      logging__error "failed to fetch '${_url}' with wget (exit ${_rc})."
-    fi
-    return "${_rc}"
+  if ! [[ "$_max" =~ ^[0-9]+$ ]] || ! [[ "$_delay" =~ ^[0-9]+$ ]] || ! [[ "$_max_delay" =~ ^[0-9]+$ ]]; then
+    logging__error "invalid HTTP retry configuration (retries='${_max}', delay='${_delay}', max-delay='${_max_delay}')."
+    return 1
   fi
-  logging__error "no HTTP fetch tool available (curl/wget missing after bootstrap)."
-  return 1
+  [ "$_max" -gt 0 ] || _max=1
+
+  local _tmpdir _attempt_file _headers_file _stderr_file
+  _tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/devfeats-net.XXXXXX")" || {
+    logging__error "failed to create temporary directory for HTTP fetch."
+    return 1
+  }
+  _attempt_file="${_tmpdir}/payload"
+  _headers_file="${_tmpdir}/headers"
+  _stderr_file="${_tmpdir}/stderr"
+
+  local _attempt=1 _rc=0 _status=000 _status_output _retry=false _retry_delay _retry_after _h
+  while [ "$_attempt" -le "$_max" ]; do
+    : > "$_attempt_file"
+    : > "$_headers_file"
+    : > "$_stderr_file"
+    _rc=0
+    _status=000
+
+    if [ "$_NET__FETCH_TOOL" = "curl" ]; then
+      local -a _curl_args=(-fsSL --http1.1 --compressed -D "$_headers_file")
+      [[ "$_head" == true ]] && _curl_args+=(-I)
+      [ -n "$_connect_timeout" ] && _curl_args+=(--connect-timeout "$_connect_timeout")
+      [ -n "$_max_time" ] && _curl_args+=(--max-time "$_max_time")
+      [ -n "$_netrc" ] && _curl_args+=(--netrc-file "$_netrc")
+      while IFS= read -r _h; do
+        [ -z "$_h" ] && continue
+        _curl_args+=(-H "$_h")
+      done <<< "$_hdrs"
+      _status_output="$(curl "${_curl_args[@]}" -w '%{http_code}' -o "$_attempt_file" "$_url" 2> "$_stderr_file")" || _rc=$?
+      if [[ "$_status_output" =~ ([0-9]{3})$ ]]; then
+        _status="${BASH_REMATCH[1]}"
+      fi
+    elif [ "$_NET__FETCH_TOOL" = "wget" ]; then
+      local -a _wget_args=(-q -S -O "$_attempt_file")
+      [[ "$_head" == true ]] && _wget_args+=(--spider)
+      [ -n "${_max_time:-$_connect_timeout}" ] && _wget_args+=("--timeout=${_max_time:-$_connect_timeout}")
+      [ -n "$_netrc" ] && _wget_args+=("--netrc-file=${_netrc}")
+      while IFS= read -r _h; do
+        [ -z "$_h" ] && continue
+        _wget_args+=("--header=${_h}")
+      done <<< "$_hdrs"
+      wget "${_wget_args[@]}" "$_url" 2> "$_stderr_file" || _rc=$?
+      _status="$(_net__fetch__http_status_from_headers "$_stderr_file")"
+      [[ "$_status" =~ ^[0-9]{3}$ ]] || _status=000
+    else
+      rm -rf "$_tmpdir"
+      logging__error "no HTTP fetch tool available (curl/wget missing after bootstrap)."
+      return 1
+    fi
+
+    if [ "$_rc" -eq 0 ] && _net__fetch__success_http_status "$_status"; then
+      if [ -n "$_dest" ]; then
+        if mv -f "$_attempt_file" "$_dest"; then
+          :
+        else
+          _rc=$?
+          rm -rf "$_tmpdir"
+          logging__error "failed to move fetched content to '${_dest}' (exit ${_rc})."
+          return "$_rc"
+        fi
+      else
+        if cat "$_attempt_file"; then
+          :
+        else
+          _rc=$?
+          rm -rf "$_tmpdir"
+          logging__error "failed to write fetched content for '${_url}' (exit ${_rc})."
+          return "$_rc"
+        fi
+      fi
+      rm -rf "$_tmpdir"
+      return 0
+    fi
+
+    [ "$_rc" -eq 0 ] && _rc=22
+    _retry=true
+    _net__fetch__persistent_http_status "$_status" && _retry=false
+    if [ "$_NET__FETCH_TOOL" = "curl" ]; then
+      _net__fetch__persistent_curl_error "$_rc" "$_stderr_file" && _retry=false
+    else
+      _net__fetch__persistent_wget_error "$_rc" "$_status" && _retry=false
+    fi
+
+    if [ "$_retry" = true ] && [ "$_attempt" -lt "$_max" ]; then
+      _retry_delay="$_delay"
+      if [ "$_NET__FETCH_TOOL" = "curl" ]; then
+        _retry_after="$(_net__fetch__retry_after_seconds "$_headers_file" 2> /dev/null)" || _retry_after=''
+      else
+        _retry_after="$(_net__fetch__retry_after_seconds "$_stderr_file" 2> /dev/null)" || _retry_after=''
+      fi
+      [ -n "$_retry_after" ] && _retry_delay="$_retry_after"
+      [ "$_retry_delay" -gt "$_max_delay" ] && _retry_delay="$_max_delay"
+      logging__warn "HTTP fetch attempt ${_attempt}/${_max} for '${_url}' failed (exit ${_rc}, status ${_status}); retrying in ${_retry_delay}s."
+      sleep "$_retry_delay"
+      _attempt=$((_attempt + 1))
+      continue
+    fi
+    break
+  done
+
+  local _error_summary=''
+  if [ "$_status" = 000 ] && [ -s "$_stderr_file" ]; then
+    _error_summary="$(awk 'NF { line = $0 } END { gsub(/\r/, "", line); print line }' "$_stderr_file")"
+  fi
+  rm -rf "$_tmpdir"
+  if [ -n "$_dest" ]; then
+    logging__error "failed to fetch '${_url}' to '${_dest}' with ${_NET__FETCH_TOOL} (exit ${_rc}, status ${_status})."
+  else
+    logging__error "failed to fetch '${_url}' with ${_NET__FETCH_TOOL} (exit ${_rc}, status ${_status})."
+  fi
+  [ -n "$_error_summary" ] && logging__error "${_NET__FETCH_TOOL} error: ${_error_summary}"
+  return "$_rc"
 }
 
 net__fetch_url_stdout() {
   # @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
   #
-  # curl uses --retry (transient errors: 5xx, 408, 429, connection failures,
-  # timeouts, and DNS resolution failures — not permanent failures like 404);
-  # wget falls back to net__fetch_with_retry. Calls
+  # Both curl and wget retry by default, excluding only certainly persistent
+  # local/request failures. Calls
   # _net__ensure_fetch_tool automatically if not already initialised.
   #
   # Args:
   #   <url>                URL to download.
   #   --retries N          Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
   #   --delay N            Seconds between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
+  #   DEVFEATS_NET_FETCH_MAX_DELAY caps server-provided Retry-After delays (default: 300).
   #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
   #   --netrc-file <path>  Optional netrc file for HTTP authentication.
   #
@@ -234,9 +416,8 @@ net__fetch_url_stdout() {
 net__fetch_url_file() {
   # @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
   #
-  # curl uses --retry (transient errors: 5xx, 408, 429, connection failures,
-  # timeouts, and DNS resolution failures — not permanent failures like 404);
-  # wget falls back to net__fetch_with_retry. Calls
+  # Both curl and wget retry by default, excluding only certainly persistent
+  # local/request failures. Calls
   # _net__ensure_fetch_tool automatically if not already initialised.
   #
   # Args:
@@ -244,6 +425,7 @@ net__fetch_url_file() {
   #   <dest>               Destination file path; its parent directory is created if missing.
   #   --retries N          Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
   #   --delay N            Seconds between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
+  #   DEVFEATS_NET_FETCH_MAX_DELAY caps server-provided Retry-After delays (default: 300).
   #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
   #   --netrc-file <path>  Optional netrc file for HTTP authentication.
   #
@@ -252,6 +434,19 @@ net__fetch_url_file() {
   shift 2
   logging__download "Fetching '${_url}' to '${_dest}'."
   _net__fetch "$_url" "$_dest" "$@"
+}
+
+net__probe_url() {
+  # @brief net__probe_url <url> [--retries N] [--delay N] [--connect-timeout N] [--max-time N] [--header <H>]... [--netrc-file <path>] — Probe `<url>` with a HEAD request and retry-by-default classification.
+  #
+  # Uses the same curl/wget selection, HTTP status classification, Retry-After
+  # handling, and retry configuration as file downloads without fetching the
+  # response body. Returns non-zero for permanent HTTP errors or exhausted
+  # transient failures.
+  local _url="$1"
+  shift
+  logging__download "Probing '${_url}'."
+  _net__fetch "$_url" "" --head "$@" > /dev/null
 }
 
 _net__ensure_fetch_tool() {

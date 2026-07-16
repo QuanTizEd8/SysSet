@@ -541,9 +541,12 @@ _stub_fa_common() {
   local _src="${BATS_TEST_TMPDIR}/payload"
   printf 'data\n' > "$_src"
   local _dst="${BATS_TEST_TMPDIR}/out"
+  printf 'existing\n' > "$_dst"
   local _zerohex="0000000000000000000000000000000000000000000000000000000000000000"
   run uri__fetch_asset "${_src}#sha256=${_zerohex}" --file-dest "$_dst"
   assert_failure
+  run cat "$_dst"
+  assert_output "existing"
 }
 
 @test "uri__fetch_asset: --sha256 hex is verified via verify__sha" {
@@ -608,7 +611,103 @@ _stub_fa_common() {
   run uri__fetch_asset \
     "$_src" --sidecar "file://${_sc}" --file-dest "${BATS_TEST_TMPDIR}/out.bin"
   assert_failure
-  assert_output --partial "could not extract hash"
+  assert_output --partial "could not extract a valid SHA-256 hash"
+}
+
+@test "uri__fetch_asset: refetches an empty or HTML sidecar once" {
+  _stub_fa_common
+  local _sidecar_attempts="${BATS_TEST_TMPDIR}/sidecar.attempts"
+  printf '0' > "$_sidecar_attempts"
+  local _hash="aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd"
+  export _sidecar_attempts _hash
+  net__fetch_url_file() {
+    local _n
+    case "$1" in
+      *.sha256)
+        _n=$(($(cat "$_sidecar_attempts") + 1))
+        printf '%s' "$_n" > "$_sidecar_attempts"
+        if [[ "$_n" -eq 1 ]]; then
+          printf '<html><body>temporary proxy response</body></html>\n' > "$2"
+        else
+          printf '%s  asset.bin\n' "$_hash" > "$2"
+        fi
+        ;;
+      *) printf 'payload\n' > "$2" ;;
+    esac
+  }
+  export -f net__fetch_url_file
+  file__detect_type() { printf 'elf'; }
+  export -f file__detect_type
+
+  run --separate-stderr uri__fetch_asset \
+    "https://example.com/asset.bin" --sidecar "https://example.com/asset.bin.sha256" \
+    --file-dest "${BATS_TEST_TMPDIR}/out.bin"
+  assert_success
+  assert [ "$(cat "$_sidecar_attempts")" -eq 2 ]
+}
+
+@test "uri__fetch_asset: fails immediately on a structurally malformed sidecar" {
+  _stub_fa_common
+  local _sidecar_attempts="${BATS_TEST_TMPDIR}/sidecar.attempts"
+  printf '0' > "$_sidecar_attempts"
+  export _sidecar_attempts
+  net__fetch_url_file() {
+    case "$1" in
+      *.sha256)
+        printf 'not a checksum file\n' > "$2"
+        printf '%s' "$(($(cat "$_sidecar_attempts") + 1))" > "$_sidecar_attempts"
+        ;;
+      *) printf 'payload\n' > "$2" ;;
+    esac
+  }
+  export -f net__fetch_url_file
+  run uri__fetch_asset \
+    "https://example.com/asset.bin" --sidecar "https://example.com/asset.bin.sha256" \
+    --file-dest "${BATS_TEST_TMPDIR}/out.bin"
+  assert_failure
+  assert [ "$(cat "$_sidecar_attempts")" -eq 1 ]
+  assert_output --partial "valid SHA-256 hash"
+}
+
+@test "uri__fetch_asset: refetches a remote sidecar with each payload integrity attempt" {
+  _stub_fa_common
+  local _sidecar_attempts="${BATS_TEST_TMPDIR}/sidecar.attempts" _payload_attempts="${BATS_TEST_TMPDIR}/payload.attempts"
+  printf '0' > "$_sidecar_attempts"
+  printf '0' > "$_payload_attempts"
+  local _hash="aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd"
+  export _sidecar_attempts _payload_attempts _hash
+  net__fetch_url_file() {
+    case "$1" in
+      *.sha256)
+        printf '%s' "$(($(cat "$_sidecar_attempts") + 1))" > "$_sidecar_attempts"
+        printf '%s  asset.bin\n' "$_hash" > "$2"
+        ;;
+      *)
+        local _n=$(($(cat "$_payload_attempts") + 1))
+        printf '%s' "$_n" > "$_payload_attempts"
+        printf 'payload-%s\n' "$_n" > "$2"
+        ;;
+    esac
+  }
+  export -f net__fetch_url_file
+  verify__sha() {
+    case "$1" in
+      */archive/*)
+        if [[ "$(cat "$_payload_attempts")" -eq 1 ]]; then return 1; fi
+        ;;
+    esac
+    return 0
+  }
+  export -f verify__sha
+  file__detect_type() { printf 'elf'; }
+  export -f file__detect_type
+
+  run --separate-stderr uri__fetch_asset \
+    "https://example.com/asset.bin" --sidecar "https://example.com/asset.bin.sha256" \
+    --file-dest "${BATS_TEST_TMPDIR}/out.bin" --retry 2
+  assert_success
+  assert [ "$(cat "$_sidecar_attempts")" -eq 2 ]
+  assert [ "$(cat "$_payload_attempts")" -eq 2 ]
 }
 
 # ── uri__fetch_asset: retry on hash mismatch ─────────────────────────────────

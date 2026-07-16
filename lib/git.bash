@@ -26,17 +26,14 @@ git__resolve_ref() {
   #   <url>  Repository URL.
   #   <ref>  Branch name, tag name, or commit SHA.
   #
-  # Returns: 0 always. A failed probe (network/TLS error) falls back to
-  # treating <ref> as a commit SHA, but is logged loudly — a silent fallback
-  # here once masked a missing CA bundle and degraded every pinned tag/branch
-  # to the SHA fetch path.
-  local _raw _rc=0 _remote_sha _err
-  _err="$(mktemp)"
-  _raw="$(git ls-remote "$1" "$2" 2> "$_err")" || _rc=$?
-  if [ "$_rc" -ne 0 ]; then
-    logging__warn "ls-remote probe of '$1' failed (exit ${_rc}): $(head -1 "$_err" 2> /dev/null). Treating '$2' as a commit SHA."
-  fi
-  rm -f "$_err"
+  # Returns: 0 on success, 1 when the remote probe fails after retrying. An
+  # empty successful response still means that <ref> is not a named ref and
+  # is returned unchanged so callers can try the commit-SHA path.
+  local _raw _remote_sha
+  _raw="$(net__fetch_with_retry --retry-if _git__retryable_error git ls-remote "$1" "$2")" || {
+    logging__error "failed to resolve ref '$2' from '$1'."
+    return 1
+  }
   # Prefer the peeled (^{}) entry for annotated tags: it holds the commit SHA,
   # which matches git__head_sha after checkout. Branches and lightweight tags
   # produce no ^{} line, so the grep returns empty and we fall back to head -1.
@@ -47,6 +44,43 @@ git__resolve_ref() {
   printf '%s\n' "${_remote_sha:-$2}"
 }
 
+_git__retryable_error() {
+  # @brief _git__retryable_error <exit-code> <stderr-file> — Return success unless a Git failure is certainly persistent for an unchanged read operation.
+  #
+  # Clone/fetch/ls-remote are idempotent at this layer. Git has many transport
+  # backends and diagnostic formats, so an allowlist of transient messages is
+  # unsafe: Git's normal "requested URL returned error: 503" wording does not
+  # resemble a literal "HTTP 503". Only clear malformed URL/protocol and
+  # credential failures stop retries.
+  local _rc="$1" _stderr_file="$2"
+  [ "$_rc" -ne 0 ] || return 1
+  if grep -Eiq \
+    'authentication failed|authentication is required|terminal prompts disabled|could not read Username|invalid url|url using bad/illegal format|unsupported protocol|protocol .* not supported|not a git repository' \
+    "$_stderr_file"; then
+    return 1
+  fi
+  return 0
+}
+
+_git__fetch_sha_attempt() {
+  local _dir="$1" _sha="$2"
+  git -C "${_dir}" "${_GIT__CONF[@]}" -c protocol.version=2 \
+    fetch --depth=1 origin "${_sha}" && return 0
+  git -C "${_dir}" "${_GIT__CONF[@]}" fetch origin "${_sha}"
+}
+
+_git__clone_named_attempt() {
+  local _url="$1" _dir="$2" _ref="$3"
+  rm -rf "${_dir}" 2> /dev/null || true
+  git clone --depth=1 "${_GIT__CONF[@]}" --branch "${_ref}" "${_url}" "${_dir}"
+}
+
+_git__clone_default_attempt() {
+  local _url="$1" _dir="$2"
+  rm -rf "${_dir}" 2> /dev/null || true
+  git clone --depth=1 "${_GIT__CONF[@]}" "${_url}" "${_dir}"
+}
+
 _git__fetch_sha() {
   # _git__fetch_sha <dir> <sha> — Fetch a specific commit SHA into an existing repo.
   #
@@ -55,15 +89,11 @@ _git__fetch_sha() {
   # The repo at <dir> must already have `origin` configured.
   #
   # Returns: 0 on success, 1 on failure.
-  local _dir="$1" _sha="$2" _fetch_ok=false
-  git -C "${_dir}" "${_GIT__CONF[@]}" -c protocol.version=2 \
-    fetch --depth=1 origin "${_sha}" 2>&1 && _fetch_ok=true
-  if [[ "${_fetch_ok}" == false ]]; then
-    git -C "${_dir}" "${_GIT__CONF[@]}" fetch origin "${_sha}" 2>&1 || {
-      logging__error "full fetch of SHA '${_sha}' failed in '${_dir}'."
-      return 1
-    }
-  fi
+  local _dir="$1" _sha="$2"
+  net__fetch_with_retry --retry-if _git__retryable_error _git__fetch_sha_attempt "${_dir}" "${_sha}" || {
+    logging__error "fetch of SHA '${_sha}' failed in '${_dir}'."
+    return 1
+  }
   git -C "${_dir}" checkout FETCH_HEAD 2>&1 || {
     logging__error "checkout of FETCH_HEAD failed in '${_dir}'."
     return 1
@@ -162,12 +192,17 @@ git__clone() {
     if [[ -n "${resolved_sha}" ]]; then
       _probed_sha="${resolved_sha}"
     else
-      _probed_sha="$(git__resolve_ref "${url}" "${ref}")"
+      if ! _probed_sha="$(git__resolve_ref "${url}" "${ref}")"; then
+        umask "${_prev_umask}"
+        rm -rf "${dir}" 2> /dev/null || true
+        logging__error "could not resolve ref '${ref}' from '${url}'."
+        return 1
+      fi
     fi
 
     if [[ "${_probed_sha}" != "${ref}" ]]; then
       # Named ref (branch or tag) — _probed_sha is its remote SHA.
-      if ! git clone --depth=1 "${_GIT__CONF[@]}" --branch "${ref}" "${url}" "${dir}" 2>&1; then
+      if ! net__fetch_with_retry --retry-if _git__retryable_error _git__clone_named_attempt "${url}" "${dir}" "${ref}"; then
         umask "${_prev_umask}"
         rm -rf "${dir}" 2> /dev/null || true
         logging__error "git clone of '${url}' (ref '${ref}') failed."
@@ -199,7 +234,7 @@ git__clone() {
     fi
   else
     # No ref → clone the remote's default branch.
-    if ! git clone --depth=1 "${_GIT__CONF[@]}" "${url}" "${dir}" 2>&1; then
+    if ! net__fetch_with_retry --retry-if _git__retryable_error _git__clone_default_attempt "${url}" "${dir}"; then
       umask "${_prev_umask}"
       rm -rf "${dir}" 2> /dev/null || true
       logging__error "git clone of '${url}' failed."
@@ -302,12 +337,15 @@ git__update() {
     else
       local _origin_url
       _origin_url="$(git -C "${_dir}" remote get-url origin 2> /dev/null || true)"
-      _probed_sha="$(git__resolve_ref "${_origin_url}" "${_ref}")"
+      if ! _probed_sha="$(git__resolve_ref "${_origin_url}" "${_ref}")"; then
+        logging__error "could not resolve ref '${_ref}' from '${_origin_url}'."
+        return 1
+      fi
     fi
 
     if [[ "${_probed_sha}" != "${_ref}" ]]; then
       # Named ref — fetch via the repo's configured refspecs, checkout, merge.
-      if ! git -C "${_dir}" "${_GIT__CONF[@]}" fetch --depth=1 origin 2>&1; then
+      if ! net__fetch_with_retry --retry-if _git__retryable_error git -C "${_dir}" "${_GIT__CONF[@]}" fetch --depth=1 origin; then
         logging__error "fetch failed in '${_dir}'."
         return 1
       fi
@@ -330,7 +368,7 @@ git__update() {
     fi
   else
     # No ref — refresh the current branch using the configured refspecs.
-    if ! git -C "${_dir}" "${_GIT__CONF[@]}" fetch --depth=1 origin 2>&1; then
+    if ! net__fetch_with_retry --retry-if _git__retryable_error git -C "${_dir}" "${_GIT__CONF[@]}" fetch --depth=1 origin; then
       logging__error "fetch failed in '${_dir}'."
       return 1
     fi

@@ -49,6 +49,43 @@ EOF
   assert_success
 }
 
+@test "net__fetch_with_retry retries only when --retry-if classifies the failure" {
+  reload_lib
+  local _counter="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_counter"
+  _retry_if() { grep -qi transient "$2"; }
+  _transient_cmd() {
+    local _n
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [[ "$_n" -eq 1 ]]; then
+      printf 'transient connection reset\n' >&2
+      return 1
+    fi
+    return 0
+  }
+  export -f _retry_if _transient_cmd
+  run net__fetch_with_retry --retries 2 --delay 0 --retry-if _retry_if _transient_cmd
+  assert_success
+  assert [ "$(cat "$_counter")" -eq 2 ]
+}
+
+@test "net__fetch_with_retry stops immediately when --retry-if rejects the failure" {
+  reload_lib
+  local _counter="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_counter"
+  _retry_if() { grep -qi transient "$2"; }
+  _permanent_cmd() {
+    printf '%s' "$(($(cat "$_counter") + 1))" > "$_counter"
+    printf 'authentication failed\n' >&2
+    return 1
+  }
+  export -f _retry_if _permanent_cmd
+  run net__fetch_with_retry --retries 3 --delay 0 --retry-if _retry_if _permanent_cmd
+  assert_failure
+  assert [ "$(cat "$_counter")" -eq 1 ]
+}
+
 @test "net__fetch_with_retry exhausts all attempts and fails" {
   reload_lib
   create_fake_bin "_always_fail" ""
@@ -203,421 +240,380 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
-# net__fetch_url_stdout  /  net__fetch_url_file  (routing tests)
+# net__fetch_url_stdout / net__fetch_url_file (deterministic fetch tests)
 # ---------------------------------------------------------------------------
 
-@test "net__fetch_url_stdout routes to curl when _NET__FETCH_TOOL=curl" {
+_net_test__curl_success() {
+  local _output='' _headers='' _write_out='' _arg
+  : > "${BATS_TEST_TMPDIR}/curl.args"
+  while [ $# -gt 0 ]; do
+    _arg="$1"
+    printf '%s\n' "$_arg" >> "${BATS_TEST_TMPDIR}/curl.args"
+    case "$_arg" in
+      -o)
+        _output="$2"
+        printf '%s\n' "$2" >> "${BATS_TEST_TMPDIR}/curl.args"
+        shift 2
+        ;;
+      -D)
+        _headers="$2"
+        printf '%s\n' "$2" >> "${BATS_TEST_TMPDIR}/curl.args"
+        shift 2
+        ;;
+      -w)
+        _write_out="$2"
+        printf '%s\n' "$2" >> "${BATS_TEST_TMPDIR}/curl.args"
+        shift 2
+        ;;
+      *) shift ;;
+    esac
+  done
+  printf 'data' > "$_output"
+  printf 'HTTP/1.1 200 OK\r\n\r\n' > "$_headers"
+  [ "$_write_out" = '%{http_code}' ] && printf '200'
+}
+
+_net_test__wget_success() {
+  local _output='' _arg
+  : > "${BATS_TEST_TMPDIR}/wget.args"
+  while [ $# -gt 0 ]; do
+    _arg="$1"
+    printf '%s\n' "$_arg" >> "${BATS_TEST_TMPDIR}/wget.args"
+    case "$_arg" in
+      -O)
+        _output="$2"
+        printf '%s\n' "$2" >> "${BATS_TEST_TMPDIR}/wget.args"
+        shift 2
+        ;;
+      *) shift ;;
+    esac
+  done
+  printf 'data' > "$_output"
+  printf '  HTTP/1.1 200 OK\n' >&2
+}
+
+@test "net__fetch_url_stdout fetches through curl with shared retry arguments" {
   reload_lib
   _NET__FETCH_TOOL=curl
   _NET__CA_CERTS_OK=true
-  curl() {
-    echo "curl $*"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_stdout "https://example.com"
-  assert_output --partial "curl"
-  assert_output --partial "--retry 60"
-  assert_output --partial "--compressed"
-  assert_output --partial "User-Agent: devfeats"
+  curl() { _net_test__curl_success "$@"; }
+  export -f curl _net_test__curl_success
+  run net__fetch_url_stdout "https://example.com" \
+    --retries 3 --delay 10 \
+    --header "Accept: application/json" \
+    --header "User-Agent: other/1"
+  assert_success
+  assert_output --partial 'data'
+  grep -Fx -- '--http1.1' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '--compressed' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- 'Accept: application/json' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- 'User-Agent: other/1' "${BATS_TEST_TMPDIR}/curl.args"
+  run grep -F -- '--retry' "${BATS_TEST_TMPDIR}/curl.args"
+  assert_failure
 }
 
-@test "net__fetch_url_stdout routes to wget when _NET__FETCH_TOOL=wget" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    local _r _d
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        --retries)
-          _r="$2"
-          shift 2
-          ;;
-        --delay)
-          _d="$2"
-          shift 2
-          ;;
-        *) break ;;
-      esac
-    done
-    echo "retry=${_r} delay=${_d} tool=$1"
-    return 0
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_stdout "https://example.com"
-  assert_output --partial "tool=wget"
-  assert_output --partial "retry=60"
-  assert_output --partial "delay=5"
-}
-
-@test "net__fetch_url_file routes to curl when _NET__FETCH_TOOL=curl" {
+@test "net__probe_url uses a HEAD request through the shared transport" {
   reload_lib
   _NET__FETCH_TOOL=curl
   _NET__CA_CERTS_OK=true
-  curl() {
-    echo "curl $*"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_file "https://example.com" "/tmp/out"
-  assert_output --partial "curl"
-  assert_output --partial "--retry 60"
-  assert_output --partial "--compressed"
-  assert_output --partial "User-Agent: devfeats"
+  curl() { _net_test__curl_success "$@"; }
+  export -f curl _net_test__curl_success
+  run net__probe_url "https://example.com/asset" --retries 2 --delay 0 --connect-timeout 10 --max-time 15
+  assert_success
+  grep -Fx -- '-I' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '--connect-timeout' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '10' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '--max-time' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '15' "${BATS_TEST_TMPDIR}/curl.args"
+  assert_output --partial "Probing 'https://example.com/asset'"
 }
 
-@test "net__fetch_url_file creates the destination's missing parent directory" {
+@test "net__fetch_url_file atomically creates the destination parent and file" {
   reload_lib
   _NET__FETCH_TOOL=curl
   _NET__CA_CERTS_OK=true
-  # Emulate real `curl -o <dest>`: fail (exit 23) if the parent dir is missing,
-  # else write the file. So this passes only if net__fetch_url_file mkdir -p's
-  # the parent first (the install-texlive installer_dir class of bug).
-  curl() {
-    local _o=""
-    while [ $# -gt 0 ]; do
-      [ "$1" = "-o" ] && {
-        _o="$2"
-        shift
-      }
-      shift
-    done
-    [ -n "$_o" ] || return 0
-    printf 'data' > "$_o" 2> /dev/null || return 23
-    return 0
-  }
-  export -f curl
+  curl() { _net_test__curl_success "$@"; }
+  export -f curl _net_test__curl_success
   local _dest="${BATS_TEST_TMPDIR}/new/nested/dir/out.bin"
-  run net__fetch_url_file "https://example.com" "${_dest}"
+  run net__fetch_url_file "https://example.com" "$_dest"
   assert_success
   assert [ -d "${BATS_TEST_TMPDIR}/new/nested/dir" ]
-  assert [ -f "${_dest}" ]
+  assert [ "$(cat "$_dest")" = data ]
 }
 
-@test "net__fetch_url_stdout returns failure when curl fails" {
+@test "net__fetch_url_file retries an ambiguous curl exit 35 TLS handshake failure" {
   reload_lib
   _NET__FETCH_TOOL=curl
   _NET__CA_CERTS_OK=true
+  local _counter="${BATS_TEST_TMPDIR}/curl.attempts"
+  printf '0' > "$_counter"
   curl() {
+    local _output='' _headers='' _write_out='' _arg _n
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -o)
+          _output="$2"
+          shift 2
+          ;;
+        -D)
+          _headers="$2"
+          shift 2
+          ;;
+        -w)
+          _write_out="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [ "$_n" -eq 1 ]; then
+      printf 'partial' > "$_output"
+      printf 'curl: (35) SSL connect error: handshake failure\n' >&2
+      [ "$_write_out" = '%{http_code}' ] && printf '000'
+      return 35
+    fi
+    printf 'recovered' > "$_output"
+    printf 'HTTP/1.1 200 OK\r\n\r\n' > "$_headers"
+    [ "$_write_out" = '%{http_code}' ] && printf '200'
+  }
+  export -f curl
+  local _dest="${BATS_TEST_TMPDIR}/download.bin"
+  run net__fetch_url_file "https://example.com/asset" "$_dest" --retries 2 --delay 0
+  assert_success
+  assert [ "$(cat "$_dest")" = recovered ]
+  assert [ "$(cat "$_counter")" -eq 2 ]
+  assert_output --partial "retrying in 0s"
+}
+
+@test "net__fetch_url_stdout retries an unlisted transient HTTP 520 using capped Retry-After" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  local _counter="${BATS_TEST_TMPDIR}/curl.attempts"
+  printf '0' > "$_counter"
+  curl() {
+    local _output='' _headers='' _write_out='' _arg _n
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -o)
+          _output="$2"
+          shift 2
+          ;;
+        -D)
+          _headers="$2"
+          shift 2
+          ;;
+        -w)
+          _write_out="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [ "$_n" -eq 1 ]; then
+      printf 'HTTP/1.1 520 Unknown Error\r\nRetry-After: 600\r\n\r\n' > "$_headers"
+      [ "$_write_out" = '%{http_code}' ] && printf '520'
+      return 22
+    fi
+    printf 'available' > "$_output"
+    printf 'HTTP/1.1 200 OK\r\n\r\n' > "$_headers"
+    [ "$_write_out" = '%{http_code}' ] && printf '200'
+  }
+  export -f curl
+  export DEVFEATS_NET_FETCH_MAX_DELAY=1
+  sleep() { printf '%s' "$1" > "${BATS_TEST_TMPDIR}/sleep"; }
+  export -f sleep
+  run net__fetch_url_stdout "https://example.com/api" --retries 2 --delay 60
+  assert_success
+  assert_output --partial 'available'
+  assert [ "$(cat "$_counter")" -eq 2 ]
+  assert [ "$(cat "${BATS_TEST_TMPDIR}/sleep")" -eq 1 ]
+}
+
+@test "net__fetch_url_file does not retry a certainly persistent curl 401" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  local _counter="${BATS_TEST_TMPDIR}/curl.attempts"
+  printf '0' > "$_counter"
+  curl() {
+    local _output='' _headers='' _write_out='' _arg
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -o)
+          _output="$2"
+          shift 2
+          ;;
+        -D)
+          _headers="$2"
+          shift 2
+          ;;
+        -w)
+          _write_out="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    printf '1' > "$_counter"
+    printf 'HTTP/1.1 401 Unauthorized\r\n\r\n' > "$_headers"
+    [ "$_write_out" = '%{http_code}' ] && printf '401'
     return 22
   }
   export -f curl
-  run net__fetch_url_stdout "https://example.com/missing"
+  local _dest="${BATS_TEST_TMPDIR}/unauthorized"
+  printf 'existing' > "$_dest"
+  run net__fetch_url_file "https://example.com/unauthorized" "$_dest" --retries 3 --delay 0
   assert_failure
-  assert_output --partial "failed to fetch"
-  assert_output --partial "exit 22"
+  assert [ "$(cat "$_counter")" -eq 1 ]
+  assert [ "$(cat "$_dest")" = existing ]
+  assert_output --partial 'status 401'
 }
 
-@test "net__fetch_url_file returns failure when curl fails" {
+@test "net__fetch_url_file does not retry a certificate failure with curl exit 35" {
   reload_lib
   _NET__FETCH_TOOL=curl
   _NET__CA_CERTS_OK=true
+  local _counter="${BATS_TEST_TMPDIR}/curl.attempts"
+  printf '0' > "$_counter"
   curl() {
-    return 22
+    local _output='' _headers='' _write_out='' _arg
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -o)
+          _output="$2"
+          shift 2
+          ;;
+        -D)
+          _headers="$2"
+          shift 2
+          ;;
+        -w)
+          _write_out="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    printf '1' > "$_counter"
+    printf 'curl: (35) SSL certificate problem: unable to get local issuer certificate\n' >&2
+    [ "$_write_out" = '%{http_code}' ] && printf '000'
+    return 35
   }
   export -f curl
-  run net__fetch_url_file "https://example.com/missing" "/tmp/out"
+  run net__fetch_url_file "https://example.com/cert" "${BATS_TEST_TMPDIR}/cert" --retries 3 --delay 0
   assert_failure
-  assert_output --partial "failed to fetch"
-  assert_output --partial "exit 22"
+  assert [ "$(cat "$_counter")" -eq 1 ]
+  assert_output --partial 'exit 35'
 }
 
-@test "net__fetch_url_stdout does not override an explicit User-Agent header" {
+@test "net__fetch_url_file retries GNU and BusyBox wget failures, including an uncertain 404" {
+  reload_lib
+  _NET__FETCH_TOOL=wget
+  _NET__CA_CERTS_OK=true
+  local _counter="${BATS_TEST_TMPDIR}/wget.attempts"
+  printf '0' > "$_counter"
+  wget() {
+    local _output='' _arg _n
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -O)
+          _output="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [ "$_n" -eq 1 ]; then
+      # BusyBox wget reports network failures as generic exit 1 (unlike GNU
+      # wget's documented exit 4). The lack of an HTTP status is the only
+      # portable signal available to distinguish it from a permanent response.
+      printf "wget: can't connect to remote host: Connection refused\n" >&2
+      return 1
+    fi
+    printf 'recovered' > "$_output"
+    printf '  HTTP/1.1 200 OK\n' >&2
+  }
+  export -f wget
+  local _dest="${BATS_TEST_TMPDIR}/wget.bin"
+  run net__fetch_url_file "https://example.com/wget" "$_dest" --retries 2 --delay 0
+  assert_success
+  assert [ "$(cat "$_dest")" = recovered ]
+  assert [ "$(cat "$_counter")" -eq 2 ]
+
+  printf '0' > "$_counter"
+  wget() {
+    local _output='' _arg _n
+    while [ $# -gt 0 ]; do
+      _arg="$1"
+      case "$_arg" in
+        -O)
+          _output="$2"
+          shift 2
+          ;;
+        *) shift ;;
+      esac
+    done
+    _n=$(($(cat "$_counter") + 1))
+    printf '%s' "$_n" > "$_counter"
+    if [ "$_n" -eq 1 ]; then
+      printf '  HTTP/1.1 404 Not Found\n' >&2
+      return 8
+    fi
+    printf 'published' > "$_output"
+    printf '  HTTP/1.1 200 OK\n' >&2
+  }
+  export -f wget
+  local _missing_dest="${BATS_TEST_TMPDIR}/wget-missing"
+  run net__fetch_url_file "https://example.com/wget-missing" "$_missing_dest" --retries 3 --delay 0
+  assert_success
+  assert [ "$(cat "$_counter")" -eq 2 ]
+  assert [ "$(cat "$_missing_dest")" = published ]
+}
+
+@test "net__fetch_url_file rejects a terminal HTTP redirect and preserves its destination" {
   reload_lib
   _NET__FETCH_TOOL=curl
   _NET__CA_CERTS_OK=true
   curl() {
-    printf '%s\n' "$@"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_stdout "https://example.com" --header "User-Agent: other/1"
-  assert_output --partial "User-Agent: other/1"
-  refute_output --partial "User-Agent: devfeats"
-}
-
-@test "net__fetch_url_file routes to wget when _NET__FETCH_TOOL=wget" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    local _r _d
+    local _headers='' _write_out='' _arg
     while [ $# -gt 0 ]; do
-      case "$1" in
-        --retries)
-          _r="$2"
+      _arg="$1"
+      case "$_arg" in
+        -D)
+          _headers="$2"
           shift 2
           ;;
-        --delay)
-          _d="$2"
+        -w)
+          _write_out="$2"
           shift 2
           ;;
-        *) break ;;
+        *) shift ;;
       esac
     done
-    echo "retry=${_r} delay=${_d} tool=$1"
-    return 0
+    printf 'HTTP/1.1 302 Found\r\n\r\n' > "$_headers"
+    [ "$_write_out" = '%{http_code}' ] && printf '302'
   }
-  export -f net__fetch_with_retry
-  run net__fetch_url_file "https://example.com" "/tmp/out"
-  assert_output --partial "tool=wget"
-  assert_output --partial "retry=60"
-  assert_output --partial "delay=5"
-}
+  export -f curl
+  local _dest="${BATS_TEST_TMPDIR}/redirect"
+  printf 'existing' > "$_dest"
 
-@test "net__fetch_url_stdout returns failure when wget retry helper fails" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    return 1
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_stdout "https://example.com/missing"
+  run net__fetch_url_file "https://example.com/redirect" "$_dest" --retries 2 --delay 0
   assert_failure
-  assert_output --partial "failed to fetch"
-  assert_output --partial "with wget"
-}
-
-@test "net__fetch_url_stdout passes --retries to curl" {
-  reload_lib
-  _NET__FETCH_TOOL=curl
-  _NET__CA_CERTS_OK=true
-  curl() {
-    echo "curl $*"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_stdout "https://example.com" --retries 3
-  assert_output --partial "--retry 3"
-}
-
-@test "net__fetch_url_stdout passes --retries to wget" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    local _r _d
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        --retries)
-          _r="$2"
-          shift 2
-          ;;
-        --delay)
-          _d="$2"
-          shift 2
-          ;;
-        *) break ;;
-      esac
-    done
-    echo "retry=${_r} delay=${_d} tool=$1"
-    return 0
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_stdout "https://example.com" --retries 3
-  assert_output --partial "retry=3"
-}
-
-@test "net__fetch_url_file passes --retries to curl" {
-  reload_lib
-  _NET__FETCH_TOOL=curl
-  _NET__CA_CERTS_OK=true
-  curl() {
-    echo "curl $*"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_file "https://example.com" "/tmp/out" --retries 3
-  assert_output --partial "--retry 3"
-}
-
-@test "net__fetch_url_file passes --retries to wget" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    local _r _d
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        --retries)
-          _r="$2"
-          shift 2
-          ;;
-        --delay)
-          _d="$2"
-          shift 2
-          ;;
-        *) break ;;
-      esac
-    done
-    echo "retry=${_r} delay=${_d} tool=$1"
-    return 0
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_file "https://example.com" "/tmp/out" --retries 3
-  assert_output --partial "retry=3"
-}
-
-@test "net__fetch_url_file returns failure when wget retry helper fails" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    return 1
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_file "https://example.com/missing" "/tmp/out"
-  assert_failure
-  assert_output --partial "failed to fetch"
-  assert_output --partial "with wget"
-}
-
-@test "net__fetch_url_stdout passes --delay to curl" {
-  reload_lib
-  _NET__FETCH_TOOL=curl
-  _NET__CA_CERTS_OK=true
-  curl() {
-    echo "curl $*"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_stdout "https://example.com" --delay 10
-  assert_output --partial "--retry-delay 10"
-}
-
-@test "net__fetch_url_stdout passes --delay to wget" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    local _r _d
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        --retries)
-          _r="$2"
-          shift 2
-          ;;
-        --delay)
-          _d="$2"
-          shift 2
-          ;;
-        *) break ;;
-      esac
-    done
-    echo "retry=${_r} delay=${_d} tool=$1"
-    return 0
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_stdout "https://example.com" --delay 10
-  assert_output --partial "delay=10"
-}
-
-@test "net__fetch_url_file passes --delay to curl" {
-  reload_lib
-  _NET__FETCH_TOOL=curl
-  _NET__CA_CERTS_OK=true
-  curl() {
-    echo "curl $*"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_file "https://example.com" "/tmp/out" --delay 10
-  assert_output --partial "--retry-delay 10"
-}
-
-@test "net__fetch_url_file passes --delay to wget" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    local _r _d
-    while [ $# -gt 0 ]; do
-      case "$1" in
-        --retries)
-          _r="$2"
-          shift 2
-          ;;
-        --delay)
-          _d="$2"
-          shift 2
-          ;;
-        *) break ;;
-      esac
-    done
-    echo "retry=${_r} delay=${_d} tool=$1"
-    return 0
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_file "https://example.com" "/tmp/out" --delay 10
-  assert_output --partial "delay=10"
-}
-
-@test "net__fetch_url_stdout passes --header to curl as -H pairs" {
-  reload_lib
-  _NET__FETCH_TOOL=curl
-  _NET__CA_CERTS_OK=true
-  curl() {
-    printf '%s\n' "$@"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_stdout "https://example.com" \
-    --header "Accept: application/json" \
-    --header "Authorization: Bearer mytoken"
-  assert_output --partial "-H"
-  assert_output --partial "Accept: application/json"
-  assert_output --partial "Authorization: Bearer mytoken"
-}
-
-@test "net__fetch_url_stdout passes --header to wget as --header=K: V" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    printf '%s\n' "$@"
-    return 0
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_stdout "https://example.com" \
-    --header "Accept: application/json" \
-    --header "Authorization: Bearer mytoken"
-  assert_output --partial "--header=Accept: application/json"
-  assert_output --partial "--header=Authorization: Bearer mytoken"
-}
-
-@test "net__fetch_url_file passes --header to curl as -H pairs" {
-  reload_lib
-  _NET__FETCH_TOOL=curl
-  _NET__CA_CERTS_OK=true
-  curl() {
-    printf '%s\n' "$@"
-    return 0
-  }
-  export -f curl
-  run net__fetch_url_file "https://example.com" "/tmp/out" \
-    --header "Accept: application/json" \
-    --header "Authorization: Bearer mytoken"
-  assert_output --partial "-H"
-  assert_output --partial "Accept: application/json"
-  assert_output --partial "Authorization: Bearer mytoken"
-}
-
-@test "net__fetch_url_file passes --header to wget as --header=K: V" {
-  reload_lib
-  _NET__FETCH_TOOL=wget
-  _NET__CA_CERTS_OK=true
-  net__fetch_with_retry() {
-    printf '%s\n' "$@"
-    return 0
-  }
-  export -f net__fetch_with_retry
-  run net__fetch_url_file "https://example.com" "/tmp/out" \
-    --header "Accept: application/json" \
-    --header "Authorization: Bearer mytoken"
-  assert_output --partial "--header=Accept: application/json"
-  assert_output --partial "--header=Authorization: Bearer mytoken"
+  assert [ "$(cat "$_dest")" = existing ]
+  assert_output --partial 'attempt 1/2'
+  assert_output --partial 'status 302'
 }
 
 @test "net__fetch_url_stdout rejects unknown option" {

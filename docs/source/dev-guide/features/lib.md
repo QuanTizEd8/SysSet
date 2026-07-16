@@ -23,6 +23,39 @@ Every module contains **only function definitions and inert module-global declar
 
 **Multi-value conventions.** Many helpers return multiple logical items as one stdout line per item (empty list → no output). This composes naturally with pipes, `while read -r`, and `mapfile`.
 
+## Network retry contract
+
+Network operations owned by the shared library use `lib/net.bash` as their
+transport boundary. Use `net__fetch_url_stdout` or `net__fetch_url_file` for
+HTTP downloads rather than invoking `curl` or `wget` directly. Because a fetch
+is idempotent, they retry by default—including unknown statuses such as `404`
+that can result from CDN or registry propagation—and honor `Retry-After`. They
+only fail fast for clear local/request failures such as malformed URLs,
+authentication failures, and certificate-validation errors. File
+downloads use a temporary payload and replace the destination only after a
+successful fetch.
+
+Use `net__fetch_with_retry --retry-if <classifier>` for idempotent commands
+whose client is not `curl` or `wget`, such as Git and ORAS. The classifier
+receives the exit code and a file containing stderr; it should return success
+only for errors that are safe to retry. Package-manager installation and
+repository operations go through the shared package-manager wrapper for the
+same reason.
+
+The retry budget can be adjusted for constrained environments with
+`DEVFEATS_NET_FETCH_RETRIES`, `DEVFEATS_NET_FETCH_DELAY`, and
+`DEVFEATS_NET_FETCH_MAX_DELAY`. Tests that intentionally exercise unreachable
+network paths should set the retry count to `1` and the delay to `0` so they
+remain deterministic and fast.
+
+Feature-specific installers may invoke clients that perform their own network
+operations, such as npm, Cargo, nvm, conda, rustup, or `gh extension install`.
+Those calls require client-specific retry handling and are not safe to wrap
+blindly in the generic command helper: a client may leave partial installation
+state or use an exit status that does not distinguish transport from
+configuration errors. Such paths must either use the client's native retry
+controls or receive a dedicated, idempotent adapter.
+
 ## Documentation
 
 Each shell module in `lib/` (`*.bash` plus the small POSIX `*.sh` subset) is automatically parsed and rendered into an API reference page under `docs/source/library/<module-filename>.md`. The generator reads structured comments — no external tools required. This section explains what to write so that the output renders correctly.

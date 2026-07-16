@@ -173,7 +173,9 @@ _uri__resolve_oci_to() {
     return "$_rc"
   }
   _pull_dir="$(file__mktmpdir "uri-oci-pull")"
-  if ! oras pull "$_ref_part" -o "$_pull_dir" > /dev/null; then
+  local _oci_target _oci_plain
+  IFS=$'\t' read -r _oci_target _oci_plain <<< "$(_oci__normalize_target "$_ref_part")"
+  if ! _oci__oras_capture "$_oci_target" "$_oci_plain" oras pull -o "$_pull_dir" > /dev/null; then
     logging__error "oras pull failed for '${_ref_part}'."
     return 1
   fi
@@ -230,6 +232,13 @@ _uri__sidecar_hash() {
     fn == a { print hash; _f = 1; exit }
     END { if (!_f && NR == 1 && NF == 1) print $1 }' \
     "$_file"
+}
+
+_uri__sidecar_content_may_be_transient() {
+  # @brief _uri__sidecar_content_may_be_transient <sidecar-file> — Return success for empty or obvious HTML/proxy responses that merit one refetch.
+  local _file="$1"
+  [ ! -s "$_file" ] && return 0
+  grep -Eiq '<[[:space:]]*!?doctype|<[[:space:]]*(html|head|body|title)([[:space:]>]|$)' "$_file"
 }
 
 _uri__match_binary_src() {
@@ -651,27 +660,14 @@ uri__fetch_asset() {
   mkdir -p "$_archive_dir" "$_asset_dir"
   local _dl_path="${_archive_dir}/${_asset_name}"
 
-  # ── Download sidecar once before retry loop ───────────────────────────────
-  local _sidecar_hash=""
+  # ── Sidecar transaction state ─────────────────────────────────────────────
+  local _sidecar_hash="" _sidecar_file="" _sc_base="" _sc_name=""
   if [[ -n "$_sidecar_uri" ]] && ! "$_sha256_none"; then
     local _sidecar_dir="${_work_dir}/sidecar"
     mkdir -p "$_sidecar_dir"
-    local _sc_base _sc_name _sidecar_file
     _sc_base="$(printf '%s\n' "$(_uri__split_frag "$_sidecar_uri")" | head -n1)"
     _sc_name="$(_uri__safe_basename "$_sc_base")"
     _sidecar_file="${_sidecar_dir}/${_sc_name}"
-    logging__download "Fetching checksum sidecar from '${_sc_base}'"
-    _uri__download_to "$_sidecar_uri" "$_sidecar_file" "${_auth_args[@]}"
-    local _rc=$?
-    [[ $_rc == 0 ]] || {
-      logging__error "failed to download sidecar from '${_sc_base}'."
-      return "$_rc"
-    }
-    _sidecar_hash="$(_uri__sidecar_hash "$_asset_name" "$_sidecar_file")"
-    [[ -n "$_sidecar_hash" ]] || {
-      logging__error "could not extract hash for '${_asset_name}' from sidecar '${_sc_base}'."
-      return 1
-    }
   fi
 
   local _frag_sha=""
@@ -682,13 +678,49 @@ uri__fetch_asset() {
   # ── Retry loop: re-download on sha256 mismatch ────────────────────────────
   if "$_sha256_none"; then
     logging__warn "sha256 verification skipped for '${_asset_name}'."
-  elif [[ -z "$_frag_sha" && -z "$_sha256_hex" && -z "$_sidecar_hash" && -z "$_gpg_key_uri" ]]; then
+  elif [[ -z "$_frag_sha" && -z "$_sha256_hex" && -z "$_sidecar_uri" && -z "$_gpg_key_uri" ]]; then
     logging__debug "no integrity verification configured for '${_asset_name}'."
   fi
 
   local _attempt=0
   while true; do
     _attempt=$((_attempt + 1))
+
+    if [[ -n "$_sidecar_uri" ]] && ! "$_sha256_none"; then
+      local _sidecar_attempt=0 _sidecar_refetch=false
+      while true; do
+        _sidecar_attempt=$((_sidecar_attempt + 1))
+        rm -f "$_sidecar_file"
+        logging__download "Fetching checksum sidecar from '${_sc_base}'"
+        _uri__download_to "$_sidecar_uri" "$_sidecar_file" "${_auth_args[@]}"
+        local _rc=$?
+        [[ $_rc == 0 ]] || {
+          logging__error "failed to download sidecar from '${_sc_base}'."
+          return "$_rc"
+        }
+        _sidecar_hash="$(_uri__sidecar_hash "$_asset_name" "$_sidecar_file")"
+        if [[ "$_sidecar_hash" =~ ^[0-9a-fA-F]{64}$ ]]; then
+          break
+        fi
+        _sidecar_refetch=false
+        if [[ "$_sidecar_attempt" -eq 1 ]] && _uri__sidecar_content_may_be_transient "$_sidecar_file"; then
+          _sidecar_refetch=true
+        fi
+        if [ "$_sidecar_refetch" = true ]; then
+          logging__warn "checksum sidecar '${_sc_base}' was empty or looked like an HTML response; refetching once."
+          continue
+        fi
+        logging__error "could not extract a valid SHA-256 hash for '${_asset_name}' from sidecar '${_sc_base}'."
+        return 1
+      done
+
+      if [[ -n "$_sidecar_gpg_key_uri" ]]; then
+        local _sc_sig_uri="${_sidecar_gpg_sig_uri:-${_sidecar_uri}.asc}"
+        _uri__gpg_verify "$_sidecar_file" "$_sidecar_gpg_key_uri" "$_sc_sig_uri" \
+          "${_work_dir}/sidecar-gpg-sig" "${_work_dir}/sidecar-gpg-key" "sidecar GPG" "${_auth_args[@]}" || return $?
+      fi
+    fi
+
     logging__download "Fetching '${_asset_name}' from '${_base_uri}'"
     _uri__download_to "$_uri" "$_dl_path" "${_auth_args[@]}"
     local _rc=$?
@@ -728,13 +760,6 @@ uri__fetch_asset() {
     local _sig_uri="${_gpg_sig_uri:-${_base_uri}.asc}"
     _uri__gpg_verify "$_dl_path" "$_gpg_key_uri" "$_sig_uri" \
       "${_work_dir}/gpg-sig" "${_work_dir}/gpg-key" "GPG" "${_auth_args[@]}" || return $?
-  fi
-
-  # ── Sidecar GPG verification ──────────────────────────────────────────────
-  if [[ -n "$_sidecar_gpg_key_uri" ]]; then
-    local _sc_sig_uri="${_sidecar_gpg_sig_uri:-${_sidecar_uri}.asc}"
-    _uri__gpg_verify "$_sidecar_file" "$_sidecar_gpg_key_uri" "$_sc_sig_uri" \
-      "${_work_dir}/sidecar-gpg-sig" "${_work_dir}/sidecar-gpg-key" "sidecar GPG" "${_auth_args[@]}" || return $?
   fi
 
   # ── Archive detection and extraction ──────────────────────────────────────

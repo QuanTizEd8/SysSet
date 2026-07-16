@@ -80,13 +80,36 @@ _oci__normalize_target() {
   printf '%s\t%s\n' "$_in" "$_plain"
 }
 
+_oci__retryable_error() {
+  # @brief _oci__retryable_error <exit-code> <stderr-file> — Return success unless an ORAS failure is certainly persistent for an unchanged read operation.
+  #
+  # Registry response wording is client- and version-specific. OCI reads are
+  # idempotent, so retry unknown failures (including unknown manifest/tag
+  # responses that may be caused by publication or replication lag) and reject
+  # only clear reference, credential, authorisation, or local TLS errors.
+  local _rc="$1" _stderr_file="$2"
+  [ "$_rc" -ne 0 ] || return 1
+  if grep -Eiq \
+    'denied: requested access|requested access to the resource is denied|unauthorized|authentication required|authentication failed|invalid (reference|repository|image name)|invalid reference format|unsupported protocol|x509: certificate signed by unknown authority|certificate verify failed' \
+    "$_stderr_file"; then
+    return 1
+  fi
+  return 0
+}
+
+_oci__oras_retry() {
+  # @brief _oci__oras_retry <oras-args>... — Run one read-only ORAS operation with retry-by-default classification.
+  net__fetch_with_retry --retry-if _oci__retryable_error "$@"
+}
+
 _oci__oras_capture() {
   # @brief _oci__oras_capture <target> <plain> [<prefix-args> -- <suffix-args>] — Run an oras command against `<target>`, retrying with plain-HTTP variants if `<plain>` is 1.
   #
   # Arguments before `--` are the command prefix (e.g. `oras repo tags`); arguments
   # after `--` are appended after `<target>`. When `<plain>` is `1`, tries three
   # strategies in order: `ORAS_PLAIN_HTTP=1`, `oras --plain-http <sub> <target>`,
-  # then `<prefix> --plain-http <target>`. Stderr is suppressed in all cases.
+  # then `<prefix> --plain-http <target>`. Each strategy uses retry-by-default
+  # retries; stderr is suppressed in all cases.
   #
   # Args:
   #   <target>      Scheme-free OCI reference or repository (from _oci__normalize_target).
@@ -121,18 +144,18 @@ _oci__oras_capture() {
   }
   if [[ "$_plain" == "1" ]]; then
     # Some oras subcommands honor plain-http only via env or global flag.
-    ORAS_PLAIN_HTTP=1 "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
+    ORAS_PLAIN_HTTP=1 _oci__oras_retry "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
     if [[ "${_prefix[0]}" == "oras" ]]; then
       _global_plain=("oras" --plain-http)
       if [[ "${#_prefix[@]}" -gt 1 ]]; then
         _global_plain+=("${_prefix[@]:1}")
       fi
-      "${_global_plain[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
+      _oci__oras_retry "${_global_plain[@]}" "$_target" "${_suffix[@]}" 2> /dev/null && return 0
     fi
-    "${_prefix[@]}" --plain-http "$_target" "${_suffix[@]}" 2> /dev/null && return 0
+    _oci__oras_retry "${_prefix[@]}" --plain-http "$_target" "${_suffix[@]}" 2> /dev/null && return 0
     return 1
   fi
-  "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null
+  _oci__oras_retry "${_prefix[@]}" "$_target" "${_suffix[@]}" 2> /dev/null
 }
 
 _oci__load_auth_map() {
