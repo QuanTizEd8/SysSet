@@ -1,55 +1,126 @@
-# install-docker test scenarios.
+# install-docker test matrix.
 #
-# Host scenarios run in `standalone` mode (no privilege/systemd in the runner),
-# so they verify install state, not a live daemon. DinD scenarios run in
-# `devcontainer` mode, where the feature's static privileged/volumes/entrypoint
-# config applies and the nested daemon actually starts — those assert functional
-# `docker run`. DinD/DooD functional scenarios are devcontainer-only because the
-# standalone runner supports neither privileged mode nor mounts.
+# Standalone scenarios verify the host install across every supported platform
+# and option set (config-only: the standalone runner has no systemd/privilege,
+# so no live daemon). The devcontainer scenarios verify Docker-in-Docker, where
+# the feature's static privileged/volumes/entrypoint config applies and the
+# nested daemon actually runs; checks wait for the daemon and run as the non-root
+# remoteUser.
 
-# --- Host (standalone) -----------------------------------------------------
-
-host_apt:
-  envs: [ubuntu-stable]
+defaults:
   modes: [standalone]
   options:
-    mode: host
     enable_service: false
     add_current_user: false
     add_remote_user: false
     add_container_user: false
+
+# --- Host install across platforms (auto method) -------------------------------
+# apt (Debian/Ubuntu) and dnf/yum (Fedora/RHEL family) → Docker CE repo
+# (upstream-package); pacman/apk/zypper → distro `docker` package (package).
+host_ubuntu:
+  envs: [ubuntu-stable]
+  tests: [host_engine]
+host_ubuntu_current:
+  envs: [ubuntu-current]
+  tests: [host_engine]
+host_debian:
+  envs: [debian-stable+bash]
+  tests: [host_engine]
+host_debian_current:
+  envs: [debian-current+bash]
+  tests: [host_engine]
+host_fedora:
+  envs: [fedora-current+bash]
+  tests: [host_engine]
+host_rocky:
+  envs: [rockylinux-current+bash]
+  tests: [host_engine]
+host_arch:
+  envs: [archlinux-current]
+  tests: [host_engine]
+host_alpine:
+  envs: [alpine-current+bash]
+  tests: [host_engine]
+host_opensuse:
+  envs: [opensuse-leap-current+bash]
   tests: [host_engine]
 
-host_binary:
+# --- Method variations ---------------------------------------------------------
+binary:
   envs: [ubuntu-stable]
-  modes: [standalone]
   options:
-    mode: host
     method: binary
-    enable_service: false
     install_compose_switch: false
-    add_current_user: false
-    add_remote_user: false
-    add_container_user: false
   tests: [host_binary]
+binary_arch:
+  envs: [archlinux-current]
+  options:
+    method: binary
+    install_compose_switch: false
+  tests: [host_binary]
+explicit_upstream_package:
+  envs: [ubuntu-stable]
+  options:
+    method: upstream-package
+  tests: [host_engine]
 
+# --- Option variations (apt is fastest) ----------------------------------------
+version_pinned:
+  envs: [ubuntu-stable]
+  options:
+    version: "28.3.2"
+  tests: [version_pinned]
+no_plugins:
+  envs: [ubuntu-stable]
+  options:
+    install_buildx: false
+    install_compose: false
+    install_compose_switch: false
+  tests: [no_plugins]
+daemon_json:
+  envs: [ubuntu-stable]
+  options:
+    daemon_json: '{"log-driver": "json-file"}'
+  tests: [daemon_json]
+keep_repos_false:
+  envs: [ubuntu-stable]
+  options:
+    keep_repos: false
+    install_buildx: false
+    install_compose: false
+    install_compose_switch: false
+  tests: [repo_removed]
 host_user:
   envs: [ubuntu-stable+vscode]
-  modes: [standalone]
   options:
-    mode: host
-    enable_service: false
     add_users: vscode
-    add_current_user: false
-    add_remote_user: false
-    add_container_user: false
   tests: [host_user]
 
-# --- Docker-in-Docker (devcontainer) ---------------------------------------
-
+# --- Docker-in-Docker (devcontainer) -------------------------------------------
 dind_default:
   envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
+  options:
+    add_remote_user: true
   devcontainer:
     remoteUser: vscode
   tests: [dind_run]
+dind_debian:
+  envs: [debian-stable+vscode]
+  modes: [devcontainer]
+  options:
+    add_remote_user: true
+  devcontainer:
+    remoteUser: vscode
+  tests: [dind_run]
+dind_no_plugins:
+  envs: [ubuntu-stable+vscode]
+  modes: [devcontainer]
+  options:
+    install_buildx: false
+    install_compose: false
+    install_compose_switch: false
+  devcontainer:
+    remoteUser: vscode
+  tests: [dind_run_core]

@@ -1,11 +1,12 @@
 cli_only:
   description: |
-    CLI-only install (upstream-package: docker-ce-cli). Verifies the client and
-    plugins are present and that the engine daemon is NOT installed (DooD relies
-    on the host daemon).
+    CLI-only install: verifies the client and plugins are present and the engine
+    daemon is NOT installed (DooD uses the host daemon).
   checks:
     - title: docker client on PATH
       cmd: command -v docker
+    - title: docker reports a version
+      cmd: bash -c 'docker --version | grep -Eq "Docker version [0-9]+\.[0-9]+"'
     - title: dockerd NOT installed (CLI only)
       cmd: bash -c '! command -v dockerd'
     - title: docker group exists
@@ -16,10 +17,35 @@ cli_only:
       cmd: docker compose version
     - title: compose-switch installed
       cmd: command -v compose-switch
+    - title: docker-compose routes through compose-switch
+      cmd: bash -c '[ "$(readlink -f "$(command -v docker-compose)")" = /usr/local/bin/compose-switch ]'
+
+cli_core:
+  description: |
+    CLI-only install without the GitHub-fetched plugins/switch (for distros or
+    option sets where those are disabled). Verifies the client and no daemon.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: dockerd NOT installed (CLI only)
+      cmd: bash -c '! command -v dockerd'
+    - title: docker group exists
+      cmd: getent group docker
+
+cli_no_plugins:
+  description: install_buildx/compose/compose_switch=false — the client installs but no plugins.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: buildx plugin NOT installed
+      cmd: bash -c '! docker buildx version >/dev/null 2>&1'
+    - title: compose plugin NOT installed
+      cmd: bash -c '! docker compose version >/dev/null 2>&1'
+    - title: compose-switch NOT installed
+      cmd: bash -c '! command -v compose-switch'
 
 cli_user:
-  description: |
-    add_users=vscode adds the vscode user to the docker group.
+  description: add_users=vscode adds the vscode user to the docker group.
   checks:
     - title: docker group exists
       cmd: getent group docker
@@ -29,8 +55,9 @@ cli_user:
 dood_socket:
   description: |
     Docker-outside-of-Docker: the entrypoint forwards the mounted host socket to
-    /var/run/docker.sock and the CLI reaches the host daemon. In CI the forwarded
-    daemon is the outer test daemon.
+    the target path and the CLI reaches the host daemon. Checks run as the
+    non-root remoteUser (vscode), so `docker info` proves group access via the
+    forwarded socket. In CI the forwarded daemon is the outer test daemon.
   checks:
     - title: docker client on PATH
       cmd: command -v docker
@@ -40,7 +67,7 @@ dood_socket:
       cmd: test -S /var/run/docker.sock
     - title: docker info reaches the host daemon
       cmd: docker info
-    - title: vscode is in the docker group
-      cmd: bash -c 'id -nG vscode | tr " " "\n" | grep -qx docker'
-    - title: vscode can reach the daemon
-      cmd: su vscode -c 'docker version'
+    - title: current (non-root) user is in the docker group
+      cmd: bash -c 'test "$(id -u)" -ne 0 && id -nG | tr " " "\n" | grep -qx docker'
+    - title: non-root user reaches the daemon via the forwarded socket
+      cmd: docker version

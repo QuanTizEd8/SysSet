@@ -1,8 +1,9 @@
 host_engine:
   description: |
-    Host install via the package repo (upstream-package on apt). Verifies the
-    engine, CLI, containerd, the docker group, and the Buildx/Compose plugins.
-    No live-daemon assertion: the standalone runner has no systemd/privilege.
+    Host install of the engine (package repo or distro package). Verifies the
+    engine, CLI, containerd, the docker group, and the Buildx/Compose/Compose
+    Switch plugins. No live-daemon assertion: the standalone runner has no
+    systemd/privilege.
   checks:
     - title: docker client on PATH
       cmd: command -v docker
@@ -25,7 +26,7 @@ host_binary:
   description: |
     Host install via the static-binary method. Verifies the engine binaries are
     installed from the tarball. Buildx/Compose are best-effort GitHub fetches
-    under this method, so they are not asserted here (compose-switch is disabled).
+    under this method (compose-switch disabled), so only the engine is asserted.
   checks:
     - title: docker client on PATH
       cmd: command -v docker
@@ -39,19 +40,64 @@ host_binary:
       cmd: getent group docker
 
 host_user:
-  description: |
-    add_users=vscode adds the vscode user to the docker group for non-root access.
+  description: add_users=vscode adds the vscode user to the docker group for non-root access.
   checks:
     - title: docker group exists
       cmd: getent group docker
     - title: vscode is in the docker group
       cmd: bash -c 'id -nG vscode | tr " " "\n" | grep -qx docker'
 
+no_plugins:
+  description: install_buildx/compose/compose_switch=false — engine installs but no plugins.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: dockerd on PATH
+      cmd: command -v dockerd
+    - title: buildx plugin NOT installed
+      cmd: bash -c '! docker buildx version >/dev/null 2>&1'
+    - title: compose plugin NOT installed
+      cmd: bash -c '! docker compose version >/dev/null 2>&1'
+    - title: compose-switch NOT installed
+      cmd: bash -c '! command -v compose-switch'
+
+version_pinned:
+  description: An explicit version pin installs that exact Docker version.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: docker version matches the pin
+      cmd: bash -c 'docker --version | grep -Fq "28.3.2"'
+
+daemon_json:
+  description: The daemon_json option writes /etc/docker/daemon.json with the given contents.
+  checks:
+    - title: /etc/docker/daemon.json exists
+      cmd: test -f /etc/docker/daemon.json
+    - title: daemon.json has the configured content
+      cmd: grep -q 'json-file' /etc/docker/daemon.json
+
+repo_removed:
+  description: |
+    keep_repos=false removes Docker's package repository after install (plugins
+    disabled so their install does not need the repo). The engine is still present.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: Docker apt/dnf repo removed after install
+      cmd: bash -c '! ls /etc/apt/sources.list.d/syspkg-installer.list /etc/yum.repos.d/syspkg-installer.repo 2>/dev/null | grep -q .'
+
 dind_run:
   description: |
     Docker-in-Docker in a privileged devcontainer. The feature entrypoint starts
-    the nested daemon at container start, so `docker run` works end to end and the
-    remoteUser (vscode) can reach the daemon via the docker group.
+    the nested daemon at container start (in the background); checks run as the
+    non-root remoteUser (vscode) and wait for the daemon to become ready, then
+    assert `docker run` works end to end and the user reaches the daemon via the
+    docker group.
+  pre: |
+    # The nested daemon starts in the background at container start and can take
+    # ~30s to be ready in a deeply-nested CI environment; wait for it.
+    for i in $(seq 1 120); do docker info >/dev/null 2>&1 && break; sleep 1; done
   checks:
     - title: docker info reaches the nested daemon
       cmd: docker info
@@ -63,7 +109,21 @@ dind_run:
       cmd: docker buildx version
     - title: compose v2 plugin available
       cmd: docker compose version
-    - title: vscode is in the docker group
-      cmd: bash -c 'id -nG vscode | tr " " "\n" | grep -qx docker'
-    - title: vscode can reach the daemon
-      cmd: su vscode -c 'docker version'
+    - title: current (non-root) user is in the docker group
+      cmd: bash -c 'test "$(id -u)" -ne 0 && id -nG | tr " " "\n" | grep -qx docker'
+    - title: non-root user reaches the daemon via the docker group
+      cmd: docker version
+
+dind_run_core:
+  description: |
+    Docker-in-Docker with plugins disabled: the nested daemon still runs
+    containers. Waits for the daemon, then asserts the core runtime.
+  pre: |
+    for i in $(seq 1 120); do docker info >/dev/null 2>&1 && break; sleep 1; done
+  checks:
+    - title: docker info reaches the nested daemon
+      cmd: docker info
+    - title: docker run hello-world succeeds
+      cmd: docker run --rm hello-world
+    - title: buildx plugin NOT installed
+      cmd: bash -c '! docker buildx version >/dev/null 2>&1'
