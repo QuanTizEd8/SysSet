@@ -188,19 +188,10 @@ _tl_probe_year_mirror() {
   )
   local _url
   for _url in "${_candidates[@]}"; do
-    if command -v curl > /dev/null 2>&1; then
-      if curl -fsSL --connect-timeout 10 --max-time 15 -I \
-        "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
-        printf '%s\n' "${_url}"
-        return 0
-      fi
-    elif command -v wget > /dev/null 2>&1; then
-      if wget -q --spider --timeout=15 \
-        "${_url}/install-tl-unx.tar.gz" > /dev/null 2>&1; then
-        printf '%s\n' "${_url}"
-        return 0
-      fi
-    else
+    if net__probe_url "${_url}/install-tl-unx.tar.gz" --retries 2 --delay 1 --connect-timeout 10 --max-time 15; then
+      printf '%s\n' "${_url}"
+      return 0
+    elif ! command -v curl > /dev/null 2>&1 && ! command -v wget > /dev/null 2>&1; then
       printf '%s\n' "${_candidates[0]}"
       return 0
     fi
