@@ -242,6 +242,26 @@ _stub_ospkg_privilege_ok() {
   assert_success
 }
 
+@test "ospkg__update retries an uncertain repository failure" {
+  _seed_apt_context
+  _stub_ospkg_privilege_ok
+  local _attempts="${BATS_TEST_TMPDIR}/apt-update.attempts"
+  printf '0' > "$_attempts"
+  cat > "${BATS_TEST_TMPDIR}/bin/apt-get" << 'EOF'
+#!/bin/sh
+n=$(($(cat "${_attempts}") + 1))
+printf '%s' "$n" > "${_attempts}"
+printf '%s\n' '401 Unauthorized' >&2
+exit 100
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  export _attempts DEVFEATS_OSPKG_RETRIES=2 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run ospkg__update --force
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
 @test "_ospkg__detect configures non-interactive dnf check-update" {
   reload_lib
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
@@ -342,6 +362,31 @@ _stub_ospkg_privilege_ok() {
   _stub_ospkg_privilege_ok
   run ospkg__install curl
   assert_success
+}
+
+@test "ospkg__install retries an uncertain package failure" {
+  _seed_apt_context
+  _stub_ospkg_privilege_ok
+  local _attempts="${BATS_TEST_TMPDIR}/apt-install.attempts"
+  printf '0' > "$_attempts"
+  cat > "${BATS_TEST_TMPDIR}/bin/apt-get" << 'EOF'
+#!/bin/sh
+case " $* " in
+  *' update '*) exit 0 ;;
+esac
+n=$(($(cat "${_attempts}") + 1))
+printf '%s' "$n" > "${_attempts}"
+printf '%s\n' 'E: Unable to locate package definitely-not-a-package' >&2
+exit 100
+EOF
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  export _attempts DEVFEATS_OSPKG_RETRIES=3 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run ospkg__install definitely-not-a-package
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 3 ]
 }
 
 @test "ospkg__install skips when apt packages are already installed" {
@@ -651,6 +696,135 @@ _seed_apt_context_with_yq() {
     }
 }
 
+@test "ospkg__run: manifest package flags use the package-manager retry path" {
+  _seed_apt_context_with_yq
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  # Make the manifest package appear absent and have the fake yq emit a
+  # per-package flag, which uses the one-at-a-time install branch.
+  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/dpkg"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
+  printf '#!/bin/bash\nprintf '\''{"packages":[{"name":"flagpkg","flags":"--download-only"}]}\\n'\''\n' \
+    > "${BATS_TEST_TMPDIR}/bin/yq"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
+  prepend_fake_bin_path
+
+  local _retry_log="${BATS_TEST_TMPDIR}/retry.log"
+  printf '#!/bin/sh\nprintf "%s\\n" "$*" >> "${_retry_log}"\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/apt-get"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
+  export _retry_log
+
+  run ospkg__run --manifest $'packages:\n  - name: flagpkg\n    flags: --download-only'
+  assert_success
+  grep -q -- '-y install.*--download-only flagpkg' "$_retry_log"
+}
+
+@test "_ospkg__run_network retries transient package-manager failures" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'if [ "$n" -eq 1 ]; then' \
+    '  printf "%s\\n" "Could not resolve host: packages.example.com" >&2' \
+    '  exit 1' \
+    'fi' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_OSPKG_RETRIES=2 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run _ospkg__run_network --operation install pm
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
+@test "_ospkg__run_network retries an uncertain package-manager failure" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'printf "%s\\n" "E: Unable to locate package definitely-not-a-package" >&2' \
+    'exit 100' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_OSPKG_RETRIES=3 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run _ospkg__run_network --operation install pm
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 3 ]
+}
+
+@test "_ospkg__run_network retries an exit-zero DNF metadata failure reported on stderr" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'if [ "$n" -eq 1 ]; then' \
+    '  printf "%s\n" "Metadata cache created"' \
+    '  printf "%s\n" "Curl error (7): Could not connect to server" >&2' \
+    '  printf "%s\n" "Usable URL not found" >&2' \
+    'fi' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  _OSPKG__PKG_MNGR=dnf
+  export _attempts DEVFEATS_OSPKG_RETRIES=2 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run _ospkg__run_network --operation update pm
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
+@test "_ospkg__run_network accepts DNF check-update exit 100" {
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '#!/bin/sh\nexit 100\n' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  _OSPKG__PKG_MNGR=dnf
+  export DEVFEATS_OSPKG_RETRIES=2 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run _ospkg__run_network --operation update pm
+  assert_success
+}
+
+@test "_ospkg__run_network fails fast for a proven local source configuration error" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'printf "%s\n" "E: Malformed line 1 in source list /etc/apt/sources.list" >&2' \
+    'exit 100' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_OSPKG_RETRIES=3 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run _ospkg__run_network --operation update pm
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 1 ]
+}
+
+@test "_ospkg__zypper_install returns repos-skipped failures unless packages are verified installed" {
+  reload_lib
+  users__run_privileged() { return 106; }
+  ospkg__is_installed() { return 1; }
+
+  run _ospkg__zypper_install example-package
+  assert_failure 106
+
+  ospkg__is_installed() { return 0; }
+  run _ospkg__zypper_install example-package
+  assert_success
+}
+
 @test "ospkg__run regression: YAML conversion failure propagates under set -e" {
   # Old code: yq+parse block wrapped in `if ! {}`, which disables set -e so a
   # failing yq was swallowed — ospkg__run returned 0 with nothing installed.
@@ -830,7 +1004,8 @@ YQ
 #   · fake dpkg             (exit 1 — "not installed" so ospkg__install always proceeds)
 #   · fake apt-mark         (logs every invocation to ${BATS_TEST_TMPDIR}/apt-mark.log)
 #   · users__run_privileged → "$@" directly (inherited from _seed_apt_context)
-#   · net__fetch_with_retry → passthrough so the fake apt-get is actually invoked
+#   · package-manager retry budget → one attempt (these tests exercise tracking,
+#     not retry timing)
 # After this, call _mock_snapshots to control the before/after package lists.
 _seed_apt_build_context() {
   _seed_apt_context
@@ -848,8 +1023,7 @@ _seed_apt_build_context() {
     "${BATS_TEST_TMPDIR}" > "${BATS_TEST_TMPDIR}/bin/apt-mark"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apt-mark"
   prepend_fake_bin_path
-  # Passthrough: avoids the real retry loop and simply invokes the fake apt-get.
-  net__fetch_with_retry() { "$@" > /dev/null 2>&1 || true; }
+  export DEVFEATS_OSPKG_RETRIES=1 DEVFEATS_OSPKG_RETRY_DELAY=0
 }
 
 # _mock_snapshots <before_pkgs_space_sep> <after_pkgs_space_sep>
@@ -2094,6 +2268,7 @@ _seed_apk_build_context() {
   printf 'fi\n' >> "${BATS_TEST_TMPDIR}/bin/apk"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apk"
   prepend_fake_bin_path
+  export DEVFEATS_OSPKG_RETRIES=1 DEVFEATS_OSPKG_RETRY_DELAY=0
 }
 
 # _seed_pacman_build_context — Pacman context + smart pacman fake.
@@ -2805,9 +2980,6 @@ _create_smart_rpm() {
   _mock_snapshots "curl" "curl newpkg"
   printf '#!/bin/bash\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/apt-get"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
-  # Propagate apt-get exit status (default _seed stub uses || true).
-  net__fetch_with_retry() { "$@" > /dev/null 2>&1; }
-
   run ospkg__install_tracked "test-group" newpkg
   assert_failure
 }

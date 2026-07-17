@@ -53,6 +53,11 @@ def _run_env(
         f"{host_root}/test/install:/repo/test/install:ro",
         "--bind",
         f"{host_root}/src/install-jq:/repo/src/install-jq:ro",
+        # homebrew_update_retry.bats sources the rendered install-homebrew
+        # fixture, so make that complete synced feature available alongside
+        # the default install-jq fixture.
+        "--bind",
+        f"{host_root}/src/install-homebrew:/repo/src/install-homebrew:ro",
         # texlive_mirror_probe.bats sources the install-texlive feature hook
         # directly (self-contained unit test — the install-jq fixture is the
         # only synced src/ this container binds), so mount that one source file.

@@ -307,7 +307,7 @@ __install_finish_post() {
   enforce_options
   if [[ "$UPDATE" == true ]]; then
     logging__info "Running 'brew update'."
-    _brew_run_as_install_user "${_RESOLVED_PREFIX}/bin/brew" update
+    _ospkg__run_network --operation update _brew_run_as_install_user "${_RESOLVED_PREFIX}/bin/brew" update
     local _update_rc=$?
     [[ $_update_rc == 0 ]] || {
       logging__error "brew update failed after installation."

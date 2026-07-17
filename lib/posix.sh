@@ -104,6 +104,77 @@ _posix__fetch_retryable() {
   return 0
 }
 
+_posix__pm_output_has_failure() {
+  # _posix__pm_output_has_failure <transcript> — Detect a transport/repository error reported with exit 0.
+  grep -Eiq 'could not resolve|couldn.t resolve|temporary failure|failed to fetch|failed retrieving file|failed to download metadata|download \(curl\) error|curl error|connection (timed out|reset|refused|closed|aborted)|network is unreachable|no route to host|unexpected eof|tls.*(error|failed)|ssl.*(error|failed)|certificate.*(error|failed)|http[^[:alnum:]]*(408|425|429|5[0-9][0-9])|hash sum mismatch|checksum mismatch|some index files failed to download|usable url not found|repository.*(unavailable|unreachable)|repomd\.xml.*(failed|unavailable)' "$1"
+}
+
+_posix__pm_certainly_local_failure() {
+  # _posix__pm_certainly_local_failure <transcript> — Identify only retry-proof local failures.
+  grep -Eiq 'Malformed line [0-9]+ in source list|The list of sources could not be read|Type .+ is not known on line|Error in configuration file|^([Ee]rror: )?(unknown|invalid) (command|option|argument)' "$1"
+}
+
+posix__run_with_retry() {
+  # @brief posix__run_with_retry <pm> <operation> <command>... — Run a bootstrap PM operation with retry-by-default semantics.
+  #
+  # Both output streams are captured because APT and DNF can return success
+  # after emitting repository-fetch errors. All nonzero outcomes retry unless
+  # their diagnostic proves a local configuration or invocation error.
+  local _pm="$1" _operation="$2"
+  shift 2
+  local _max="${DEVFEATS_OSPKG_RETRIES:-5}" _delay="${DEVFEATS_OSPKG_RETRY_DELAY:-10}"
+  local _tmpdir _stdout _stderr _transcript _attempt _rc
+  case "$_operation" in update | install | repo) ;; *)
+    logging__error "invalid bootstrap package-manager operation."
+    return 1
+    ;;
+  esac
+  [ "$#" -gt 0 ] || {
+    logging__error "bootstrap package-manager command is required."
+    return 1
+  }
+  if ! printf '%s\n' "$_max" | grep -Eq '^[0-9]+$' ||
+    ! printf '%s\n' "$_delay" | grep -Eq '^[0-9]+$'; then
+    logging__error "invalid bootstrap package-manager retry configuration."
+    return 1
+  fi
+  [ "$_max" -gt 0 ] || _max=1
+  _tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/devfeats-posix-pm.XXXXXX")" || return 1
+  _stdout="${_tmpdir}/stdout"
+  _stderr="${_tmpdir}/stderr"
+  _transcript="${_tmpdir}/transcript"
+  _attempt=1
+  while [ "$_attempt" -le "$_max" ]; do
+    : > "$_stdout"
+    : > "$_stderr"
+    _rc=0
+    "$@" < /dev/null > "$_stdout" 2> "$_stderr" || _rc=$?
+    cat "$_stdout"
+    cat "$_stderr" >&2
+    cat "$_stdout" "$_stderr" > "$_transcript"
+    if [ "$_rc" -eq 0 ] && ! _posix__pm_output_has_failure "$_transcript"; then
+      rm -rf "$_tmpdir"
+      return 0
+    fi
+    if [ "$_rc" -eq 0 ]; then
+      _rc=1
+      logging__warn "Bootstrap package manager reported a repository/transport failure despite exit 0."
+    fi
+    if _posix__pm_certainly_local_failure "$_transcript"; then
+      logging__error "Bootstrap package-manager operation failed due to a local configuration or invocation error — not retrying."
+      rm -rf "$_tmpdir"
+      return "$_rc"
+    fi
+    if [ "$_attempt" -lt "$_max" ]; then
+      logging__warn "Bootstrap ${_pm} ${_operation} attempt ${_attempt}/${_max} failed (exit ${_rc}); retrying in ${_delay}s."
+      sleep "$_delay"
+    fi
+    _attempt=$((_attempt + 1))
+  done
+  rm -rf "$_tmpdir"
+  return "$_rc"
+}
+
 _posix__fetch_url_file() {
   # _posix__fetch_url_file <url> <dest> — Fetch one URL atomically with retry-by-default classification during POSIX bootstrap.
   local _url="$1" _dest="$2"

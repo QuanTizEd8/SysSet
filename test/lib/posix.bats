@@ -10,6 +10,90 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# posix__run_with_retry
+# ---------------------------------------------------------------------------
+
+@test "posix__run_with_retry retries a transient package-manager failure" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'if [ "$n" -eq 1 ]; then' \
+    '  printf "%s\n" "Could not resolve host: packages.example.com" >&2' \
+    '  exit 1' \
+    'fi' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_OSPKG_RETRIES=2 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run posix__run_with_retry apt-get install pm
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
+@test "posix__run_with_retry retries an uncertain package-manager failure" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'printf "%s\n" "E: Unable to locate package definitely-not-a-package" >&2' \
+    'exit 100' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_OSPKG_RETRIES=3 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run posix__run_with_retry apt-get install pm
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 3 ]
+}
+
+@test "posix__run_with_retry retries an exit-zero repository failure reported on stdout" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'if [ "$n" -eq 1 ]; then' \
+    '  printf "%s\n" "Err:1 http://repo.example.invalid stable InRelease"' \
+    '  printf "%s\n" "W: Failed to fetch http://repo.example.invalid/InRelease: Connection refused" >&2' \
+    'fi' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_OSPKG_RETRIES=2 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run posix__run_with_retry apt-get update pm
+  assert_success
+  assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
+@test "posix__run_with_retry fails fast only for a proven local source configuration error" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  printf '0' > "$_attempts"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    'n=$(($(cat "${_attempts}") + 1))' \
+    'printf "%s" "$n" > "${_attempts}"' \
+    'printf "%s\n" "E: Malformed line 1 in source list /etc/apt/sources.list" >&2' \
+    'exit 100' > "${BATS_TEST_TMPDIR}/bin/pm"
+  chmod +x "${BATS_TEST_TMPDIR}/bin/pm"
+  prepend_fake_bin_path
+  export _attempts DEVFEATS_OSPKG_RETRIES=3 DEVFEATS_OSPKG_RETRY_DELAY=0
+
+  run posix__run_with_retry apt-get update pm
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 1 ]
+}
+
+# ---------------------------------------------------------------------------
 # posix__quote
 # ---------------------------------------------------------------------------
 

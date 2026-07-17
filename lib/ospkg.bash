@@ -81,30 +81,17 @@ _ospkg__clean_zypper() {
 }
 
 _ospkg__zypper_install() {
-  # @brief _ospkg__zypper_install <pkg>... — Run `zypper install` and normalise non-fatal exit codes.
+  # @brief _ospkg__zypper_install <pkg>... — Run `zypper install` and verify partial success.
   #
-  # Wraps `zypper --non-interactive --no-refresh install` for use as `_OSPKG__INSTALL` on zypper
-  # systems. When zypper exits with a code other than 0 or the repos-skipped info code but every
-  # requested package is already present on disk, the error is non-fatal: it results from
-  # CDN/metadata problems on secondary repos (backports, SLE update) that are irrelevant to
-  # packages successfully resolved from the main repository. In that case the function returns 6
-  # so the caller's `net__fetch_with_retry --bail-on 6` stops retrying immediately instead of
-  # looping 60 times (each attempt ≈ 1+ minute of CDN timeouts).
-  #
-  # Note: ZYPPER_EXIT_INF_REPOS_SKIPPED is 106 on openSUSE Leap 15.x (not 6); both are
-  # treated as non-fatal here.
-  #
-  # Exit 0/6/106 → forwarded as-is (success or non-fatal repos-skipped).
-  # Other        → if all <pkg> args are now installed: return 6 (non-fatal, bail).
-  #                Otherwise: return the original code so the caller retries.
+  # Wraps `zypper --non-interactive --no-refresh install` for use as
+  # `_OSPKG__INSTALL` on zypper systems. A nonzero exit is considered successful
+  # only when every requested package is verified present afterwards. In
+  # particular, zypper's repos-skipped statuses (6 and 106) are retried when
+  # their requested package was not installed.
   local _rc=0
   users__run_privileged zypper --non-interactive --no-refresh install "$@" || _rc=$?
   [[ "$_rc" -eq 0 ]] && return 0
-  # 106 = ZYPPER_EXIT_INF_REPOS_SKIPPED on openSUSE Leap 15.x (empirically verified);
-  # older docs cite 6, which may appear on other zypper versions. Both are non-fatal.
-  # Return 6 in both cases so the caller's --bail-on 6 fires immediately.
-  [[ "$_rc" -eq 6 || "$_rc" -eq 106 ]] && return 6
-  # Non-zero, non-repos-skipped: check whether packages landed despite the zypper error.
+  # Check whether packages landed despite the zypper error.
   # Skip flag-style args (starting with -) — they are zypper options, not package names.
   local _pkg _has_pkg=false
   for _pkg in "$@"; do
@@ -113,76 +100,14 @@ _ospkg__zypper_install() {
     ospkg__is_installed "${_pkg%%=*}" || return "$_rc"
   done
   [[ "$_has_pkg" == false ]] && return "$_rc"
-  logging__warn "zypper install exited $_rc but all packages are present — treating as repos-skipped (6)."
-  return 6
+  logging__warn "zypper install exited $_rc but all packages are present — treating the operation as successful."
+  return 0
 }
 
 _ospkg__clean_brew() {
   # @brief _ospkg__clean_brew — Run `brew cleanup --prune=all` to remove stale Homebrew downloads.
   _ospkg__brew_run cleanup --prune=all >&2 2> /dev/null || true
   return 0
-}
-
-_ospkg__update_cmd() {
-  # @brief _ospkg__update_cmd — Run the package-manager index update command (`_OSPKG__UPDATE`), normalising non-fatal exit codes to 0.
-  #
-  # Wraps `_OSPKG__UPDATE` for use with `net__fetch_with_retry`. Non-fatal PM
-  # codes normalised to 0:
-  #   - dnf/yum exit 100  — "updates available" (informational, not a failure).
-  #   - zypper exit 4     — ZYPPER_EXIT_ERR_ZYPP: empirically returned by
-  #                         `zypper refresh` when CDN repos are unreachable
-  #                         (verified on openSUSE Leap 15.6 via Docker test).
-  #   - zypper exit 6     — ZYPPER_EXIT_INF_REPOS_SKIPPED (older zypper).
-  #   - zypper exit 106   — ZYPPER_EXIT_INF_REPOS_SKIPPED (openSUSE Leap 15.x;
-  #                         empirically verified; also documented in environments.yaml).
-  # APT index-corruption error strings (Hash Sum mismatch, Failed to fetch, etc.)
-  # are detected and force-retried even when APT itself exits 0.
-  #
-  # Returns: 0 on success; 2 for non-transient configuration errors (malformed
-  # source lists, parse errors) so `net__fetch_with_retry --bail-on 2` skips
-  # pointless retries; other non-zero codes pass through unchanged for retry.
-  [[ ${#_OSPKG__UPDATE[@]} -eq 0 ]] && return 0
-  local _rc=0 _err_tmp
-  _err_tmp="$(mktemp)"
-  # Keep interactive mode possible on TTY, but prevent PMs from draining
-  # caller-provided stdin in piped/non-interactive contexts.
-  # Use || _rc=$? on each branch so set -e callers do not abort before we can
-  # normalise non-fatal exit codes (e.g. dnf check-update exits 100 when
-  # updates are available; zypper refresh exits 6 for skipped repos).
-  if [[ -t 0 ]]; then
-    "${_OSPKG__UPDATE[@]}" >&2 2> "$_err_tmp" || _rc=$?
-  elif [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive "${_OSPKG__UPDATE[@]}" < /dev/null >&2 2> "$_err_tmp" || _rc=$?
-  else
-    "${_OSPKG__UPDATE[@]}" < /dev/null >&2 2> "$_err_tmp" || _rc=$?
-  fi
-  cat "$_err_tmp" >&2
-  # APT can occasionally report index corruption/partial fetch failures while
-  # still exiting successfully; force retry when those signatures appear.
-  if [[ "$_OSPKG__PKG_MNGR" == "apt-get" ]] && grep -qiE \
-    'Hash Sum mismatch|Failed to fetch|Some index files failed to download' \
-    "$_err_tmp" 2> /dev/null; then
-    _rc=100
-    users__run_privileged apt-get clean > /dev/null 2>&1 || true
-    users__run_privileged apt-get dist-clean 2> /dev/null || users__run_privileged rm -rf /var/lib/apt/lists/* 2> /dev/null || true
-  fi
-  [[ "$_OSPKG__PKG_MNGR" == "dnf" || "$_OSPKG__PKG_MNGR" == "yum" ]] &&
-    [[ $_rc -eq 100 ]] && rm -f "$_err_tmp" && return 0
-  if [[ "$_OSPKG__PKG_MNGR" == "zypper" ]] && [[ "$_rc" -eq 4 || "$_rc" -eq 6 || "$_rc" -eq 106 ]]; then
-    rm -f "$_err_tmp"
-    return 0
-  fi
-  if [[ $_rc -ne 0 ]]; then
-    # Detect non-transient configuration errors — retrying will never fix these.
-    if grep -qiE 'Malformed line|source list could not be read|parse error|invalid source' \
-      "$_err_tmp" 2> /dev/null; then
-      logging__error "Package list update failed due to a configuration error — not retrying."
-      rm -f "$_err_tmp"
-      return 2
-    fi
-  fi
-  rm -f "$_err_tmp"
-  return "$_rc"
 }
 
 _ospkg__dnf_bin() {
@@ -637,6 +562,131 @@ _ospkg__lists_index_present() {
   return 1
 }
 
+_ospkg__network_output_has_failure() {
+  # _ospkg__network_output_has_failure <transcript> — Detect a transport/repository failure reported despite exit 0.
+  #
+  # APT and DNF may preserve an older usable metadata cache and return success
+  # after reporting a failed repository fetch. This deliberately recognises
+  # only conclusive transport/repository diagnostics: a successful operation
+  # with an unrelated warning must remain successful.
+  local _transcript="$1"
+  grep -Eiq \
+    'could not resolve|couldn.t resolve|temporary failure|failed to fetch|failed retrieving file|failed to download metadata|download \(curl\) error|curl error|connection (timed out|reset|refused|closed|aborted)|network is unreachable|no route to host|unexpected eof|tls.*(error|failed)|ssl.*(error|failed)|certificate.*(error|failed)|http[^[:alnum:]]*(408|425|429|5[0-9][0-9])|hash sum mismatch|checksum mismatch|some index files failed to download|usable url not found|repository.*(unavailable|unreachable)|repomd\.xml.*(failed|unavailable)' \
+    "$_transcript"
+}
+
+_ospkg__network_is_certainly_local_failure() {
+  # _ospkg__network_is_certainly_local_failure <transcript> — Detect failures a retry cannot change.
+  #
+  # The negative classifier is intentionally narrow. Repository contents can
+  # change while a build is running, so missing packages, dependency conflicts,
+  # and unknown PM diagnostics remain retryable by default.
+  local _transcript="$1"
+  grep -Eiq \
+    'Malformed line [0-9]+ in source list|The list of sources could not be read|Type .+ is not known on line|Error in configuration file|^([Ee]rror: )?(unknown|invalid) (command|option|argument)' \
+    "$_transcript"
+}
+
+_ospkg__network_success_status() {
+  # _ospkg__network_success_status <operation> <exit-code> — Recognise documented successful nonzero PM statuses.
+  local _operation="$1" _rc="$2"
+  # dnf/yum check-update returns 100 when updates are available. It is the
+  # configured update command for these PMs, not an operation failure.
+  [[ "$_operation" == update && "$_rc" -eq 100 ]] &&
+    [[ "$_OSPKG__PKG_MNGR" == dnf || "$_OSPKG__PKG_MNGR" == yum ]]
+}
+
+_ospkg__recover_network_update() {
+  # _ospkg__recover_network_update <transcript> — Clear corrupt APT indexes before the next attempt.
+  local _transcript="$1"
+  [[ "$_OSPKG__PKG_MNGR" == apt-get ]] || return 0
+  grep -Eiq 'hash sum mismatch|checksum mismatch' "$_transcript" || return 0
+  users__run_privileged apt-get clean > /dev/null 2>&1 || true
+  users__run_privileged apt-get dist-clean > /dev/null 2>&1 ||
+    users__run_privileged rm -rf /var/lib/apt/lists/* > /dev/null 2>&1 || true
+}
+
+_ospkg__run_network() {
+  # @brief _ospkg__run_network [--operation update|install|repo] <command>... — Run a remote package-manager operation with retry-by-default semantics.
+  #
+  # Package managers have incompatible exit codes and some report repository
+  # failures on stdout while returning 0. Capture both streams for every
+  # attempt, then retry all failures except the small set known to be local and
+  # immutable. `DEVFEATS_OSPKG_RETRIES` (default 5) and
+  # `DEVFEATS_OSPKG_RETRY_DELAY` (default 10 seconds) are independent from the
+  # direct-download retry budget because PMs often have their own inner retry.
+  local _operation=install _max="${DEVFEATS_OSPKG_RETRIES:-5}" _delay="${DEVFEATS_OSPKG_RETRY_DELAY:-10}"
+  local _tmpdir _stdout _stderr _transcript _attempt _rc
+  while [[ "${1-}" == --* ]]; do
+    case "$1" in
+      --operation)
+        _operation="${2-}"
+        shift 2
+        ;;
+      *)
+        logging__error "unknown package-manager retry option: $1"
+        return 1
+        ;;
+    esac
+  done
+  [[ $# -gt 0 ]] || {
+    logging__error "package-manager retry command is required."
+    return 1
+  }
+  [[ "$_operation" =~ ^(update|install|repo)$ ]] || {
+    logging__error "unknown package-manager retry operation: $_operation"
+    return 1
+  }
+  [[ "$_max" =~ ^[0-9]+$ && "$_delay" =~ ^[0-9]+$ ]] || {
+    logging__error "invalid package-manager retry configuration."
+    return 1
+  }
+  ((_max > 0)) || _max=1
+  _tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/devfeats-ospkg.XXXXXX")" || return 1
+  _stdout="${_tmpdir}/stdout"
+  _stderr="${_tmpdir}/stderr"
+  _transcript="${_tmpdir}/transcript"
+
+  for ((_attempt = 1; _attempt <= _max; _attempt++)); do
+    : > "$_stdout"
+    : > "$_stderr"
+    _rc=0
+    if [[ -t 0 ]]; then
+      "$@" > "$_stdout" 2> "$_stderr" || _rc=$?
+    else
+      "$@" < /dev/null > "$_stdout" 2> "$_stderr" || _rc=$?
+    fi
+    cat "$_stdout"
+    cat "$_stderr" >&2
+    cat "$_stdout" "$_stderr" > "$_transcript"
+
+    if _ospkg__network_success_status "$_operation" "$_rc"; then
+      rm -rf "$_tmpdir"
+      return 0
+    fi
+    if [[ "$_rc" -eq 0 ]] && ! _ospkg__network_output_has_failure "$_transcript"; then
+      rm -rf "$_tmpdir"
+      return 0
+    fi
+    if [[ "$_rc" -eq 0 ]]; then
+      _rc=1
+      logging__warn "Package manager reported a repository/transport failure despite exit 0."
+    fi
+    if _ospkg__network_is_certainly_local_failure "$_transcript"; then
+      logging__error "Package-manager operation failed due to a local configuration or invocation error — not retrying."
+      rm -rf "$_tmpdir"
+      return "$_rc"
+    fi
+    if ((_attempt < _max)); then
+      [[ "$_operation" == update ]] && _ospkg__recover_network_update "$_transcript"
+      logging__warn "Package-manager ${_operation} attempt ${_attempt}/${_max} failed (exit ${_rc}); retrying in ${_delay}s."
+      sleep "$_delay"
+    fi
+  done
+  rm -rf "$_tmpdir"
+  return "$_rc"
+}
+
 ospkg__update() {
   # @brief ospkg__update [--force] [--lists_max_age N] [--repo_added] — Refresh the package index. Skips when lists are fresh (within `--lists_max_age` seconds).
   #
@@ -707,7 +757,7 @@ ospkg__update() {
       return "$_rc"
     }
     logging__info "Updating package lists."
-    net__fetch_with_retry --bail-on 2 --retries 10 _ospkg__update_cmd
+    _ospkg__run_network --operation update "${_OSPKG__UPDATE[@]}" >&2
     local _rc=$?
     [[ $_rc == 0 ]] || {
       logging__error "package list update failed."
@@ -796,12 +846,12 @@ ospkg__install() {
     if [[ ${#_new[@]} -gt 0 ]]; then
       logging__info "Installing packages:"
       printf '  - %s\n' "${_new[@]}" >&2
-      _ospkg__brew_run install "${_new[@]}" >&2
+      _ospkg__run_network _ospkg__brew_run install "${_new[@]}" >&2
     fi
     if [[ ${#_existing[@]} -gt 0 ]]; then
       logging__info "Upgrading packages:"
       printf '  - %s\n' "${_existing[@]}" >&2
-      _ospkg__brew_run upgrade "${_existing[@]}" >&2
+      _ospkg__run_network _ospkg__brew_run upgrade "${_existing[@]}" >&2
     fi
     return 0
   fi
@@ -821,27 +871,13 @@ ospkg__install() {
   logging__info "Installing packages:"
   printf '  - %s\n' "$@" >&2
   # Keep interactive mode possible on TTY, but prevent PMs from draining
-  # caller-provided stdin in piped/non-interactive contexts.
-  # zypper: _OSPKG__INSTALL is _ospkg__zypper_install, which runs zypper with
-  # --no-refresh and normalises exit codes so that a successful install from
-  # available repos is always treated as exit 6 (repos-skipped) even when zypper
-  # returns a different non-zero code due to CDN failures on secondary repos.
-  # --bail-on 6 stops net__fetch_with_retry immediately (no 60-attempt loop),
-  # and [[ _rc -eq 6 ]] below converts that to a clean 0 return.
+  # caller-provided stdin in piped/non-interactive contexts. The zypper wrapper
+  # returns success only after verifying all requested packages are present.
   local _rc=0
-  if [[ "$_OSPKG__PKG_MNGR" == "zypper" ]]; then
-    if [[ -t 0 ]]; then
-      net__fetch_with_retry --bail-on 6 "${_OSPKG__INSTALL[@]}" "$@" >&2 || _rc=$?
-    else
-      net__fetch_with_retry --bail-on 6 "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2 || _rc=$?
-    fi
-    [[ "$_rc" -eq 6 ]] && return 0
-  elif [[ -t 0 ]]; then
-    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" >&2 || _rc=$?
-  elif [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
-    DEBIAN_FRONTEND=noninteractive net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2 || _rc=$?
+  if [[ "$_OSPKG__PKG_MNGR" == "apt-get" && -z "${DEBIAN_FRONTEND-}" ]]; then
+    DEBIAN_FRONTEND=noninteractive _ospkg__run_network --operation install "${_OSPKG__INSTALL[@]}" "$@" >&2 || _rc=$?
   else
-    net__fetch_with_retry "${_OSPKG__INSTALL[@]}" "$@" < /dev/null >&2 || _rc=$?
+    _ospkg__run_network --operation install "${_OSPKG__INSTALL[@]}" "$@" >&2 || _rc=$?
   fi
   if ((_rc != 0)); then
     logging__error "failed to install packages: $*."
@@ -1826,7 +1862,7 @@ ospkg__install_tracked() {
       [[ -f "$_virts_file" ]] && mapfile -t _existing_virts < "$_virts_file"
       _count="${#_existing_virts[@]}"
       _virt_name="$(_ospkg__apk_virtual_name "$_group_id")-${_count}"
-      users__run_privileged apk add --no-cache --virtual "$_virt_name" "${_apk_to_install[@]}" >&2 || {
+      _ospkg__run_network users__run_privileged apk add --no-cache --virtual "$_virt_name" "${_apk_to_install[@]}" >&2 || {
         logging__error "failed to install tracked APK packages: ${_apk_to_install[*]}."
         return 1
       }
@@ -2953,7 +2989,7 @@ ospkg__run() {
             logging__inspect "[dry-run] ppa: would run: add-apt-repository -y '${_ppa}'"
           else
             logging__info "Adding PPA: ${_ppa}"
-            users__run_privileged add-apt-repository -y "$_ppa" >&2
+            _ospkg__run_network users__run_privileged add-apt-repository -y "$_ppa" >&2
             _yaml_repo_added=true
             logging__success "PPA added: ${_ppa}"
           fi
@@ -2983,9 +3019,9 @@ ospkg__run() {
           else
             logging__info "Tapping: ${_tap_name}"
             if [[ -n "${_tap_url:-}" ]]; then
-              _ospkg__brew_run tap "$_tap_name" "$_tap_url" >&2
+              _ospkg__run_network _ospkg__brew_run tap "$_tap_name" "$_tap_url" >&2
             else
-              _ospkg__brew_run tap "$_tap_name" >&2
+              _ospkg__run_network _ospkg__brew_run tap "$_tap_name" >&2
             fi
             logging__success "Tap added: ${_tap_name}"
           fi
@@ -3010,7 +3046,7 @@ ospkg__run() {
               logging__inspect "[dry-run] copr: would run: ${_copr_dnf_bin} copr enable -y '${_copr}'"
             else
               logging__info "Enabling COPR: ${_copr}"
-              users__run_privileged "$_copr_dnf_bin" copr enable -y "$_copr" >&2
+              _ospkg__run_network users__run_privileged "$_copr_dnf_bin" copr enable -y "$_copr" >&2
               _yaml_repo_added=true
             fi
           done
@@ -3035,7 +3071,7 @@ ospkg__run() {
               logging__inspect "[dry-run] module: would run: ${_mod_dnf_bin} module enable -y '${_mod}'"
             else
               logging__info "Enabling module: ${_mod}"
-              users__run_privileged "$_mod_dnf_bin" module enable -y "$_mod" >&2
+              _ospkg__run_network users__run_privileged "$_mod_dnf_bin" module enable -y "$_mod" >&2
               logging__success "Module enabled: ${_mod}"
             fi
           done
@@ -3056,7 +3092,7 @@ ospkg__run() {
               logging__inspect "[dry-run] group: would run: ${_OSPKG__PKG_MNGR} group install -y '${_grp}'"
             else
               logging__install "Installing group '${_grp}' (dnf)."
-              users__run_privileged "$_OSPKG__PKG_MNGR" group install -y "$_grp" >&2
+              _ospkg__run_network users__run_privileged "$_OSPKG__PKG_MNGR" group install -y "$_grp" >&2
               logging__success "Group '${_grp}' installed."
             fi
             ;;
@@ -3065,7 +3101,7 @@ ospkg__run() {
               logging__inspect "[dry-run] group: would run: zypper --non-interactive install -t pattern '${_grp}'"
             else
               logging__install "Installing pattern '${_grp}' (zypper)."
-              users__run_privileged zypper --non-interactive install -t pattern "$_grp" >&2
+              _ospkg__run_network users__run_privileged zypper --non-interactive install -t pattern "$_grp" >&2
             fi
             ;;
           pacman)
@@ -3191,7 +3227,7 @@ ospkg__run() {
         else
           logging__info "Installing: ${_pkginstall} (flags: ${_pkgflags})"
           # shellcheck disable=SC2086
-          "${_OSPKG__INSTALL[@]}" $_pkgflags "$_pkginstall" >&2
+          _ospkg__run_network "${_OSPKG__INSTALL[@]}" $_pkgflags "$_pkginstall" >&2
           [[ -z "${_build_group:-}" ]] && _ospkg__protect_user_pkgs "$_pkgname"
         fi
       else
@@ -3241,7 +3277,7 @@ ospkg__run() {
             logging__inspect "[dry-run] cask: would run: brew install --cask '${_cask}'"
           else
             logging__info "Installing cask: ${_cask}"
-            _ospkg__brew_run install --cask "$_cask" >&2
+            _ospkg__run_network _ospkg__brew_run install --cask "$_cask" >&2
             logging__success "Cask installed: ${_cask}"
           fi
         done

@@ -148,50 +148,50 @@ _install_bash_pkg() {
   _ipm="$1"
   logging__install "Installing bash via ${_ipm}..."
   case "$_ipm" in
-    apk) _run_privileged apk add --no-cache bash >&2 || {
+    apk) posix__run_with_retry apk install _run_privileged apk add --no-cache bash >&2 || {
       logging__error "Failed to install bash via apk."
       return 1
     } ;;
     apt-get)
       export DEBIAN_FRONTEND=noninteractive
-      _run_privileged apt-get update >&2 || {
+      posix__run_with_retry apt-get update _run_privileged apt-get update >&2 || {
         logging__error "Failed to update package index via apt-get."
         return 1
       }
-      _run_privileged apt-get install -y --no-install-recommends bash >&2 || {
+      posix__run_with_retry apt-get install _run_privileged apt-get install -y --no-install-recommends bash >&2 || {
         logging__error "Failed to install bash via apt-get."
         return 1
       }
       ;;
-    dnf) _run_privileged dnf install -y bash >&2 || {
+    dnf) posix__run_with_retry dnf install _run_privileged dnf install -y bash >&2 || {
       logging__error "Failed to install bash via dnf."
       return 1
     } ;;
-    microdnf) _run_privileged microdnf install -y bash >&2 || {
+    microdnf) posix__run_with_retry microdnf install _run_privileged microdnf install -y bash >&2 || {
       logging__error "Failed to install bash via microdnf."
       return 1
     } ;;
-    yum) _run_privileged yum install -y bash >&2 || {
+    yum) posix__run_with_retry yum install _run_privileged yum install -y bash >&2 || {
       logging__error "Failed to install bash via yum."
       return 1
     } ;;
-    zypper) _run_privileged zypper --non-interactive install bash >&2 || {
+    zypper) posix__run_with_retry zypper install _run_privileged zypper --non-interactive install bash >&2 || {
       logging__error "Failed to install bash via zypper."
       return 1
     } ;;
-    pacman) _run_privileged pacman -S --noconfirm --needed bash >&2 || {
+    pacman) posix__run_with_retry pacman install _run_privileged pacman -S --noconfirm --needed bash >&2 || {
       logging__error "Failed to install bash via pacman."
       return 1
     } ;;
-    brew) brew install bash >&2 || {
+    brew) posix__run_with_retry brew install brew install bash >&2 || {
       logging__error "Failed to install bash via brew."
       return 1
     } ;;
-    nix-env) nix-env -iA nixpkgs.bash >&2 || {
+    nix-env) posix__run_with_retry nix-env install nix-env -iA nixpkgs.bash >&2 || {
       logging__error "Failed to install bash via nix-env."
       return 1
     } ;;
-    port) _run_privileged port install bash >&2 || {
+    port) posix__run_with_retry port install _run_privileged port install bash >&2 || {
       logging__error "Failed to install bash via port."
       return 1
     } ;;
