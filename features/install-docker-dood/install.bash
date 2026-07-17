@@ -12,6 +12,16 @@
 # ---------------------------------------------------------------------------
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  # A specific version pin (not stable/latest) can only be satisfied exactly by
+  # the static-binary method: the OS package repos reliably expose only their
+  # current candidate. Route explicit version pins to the binary method.
+  case "${VERSION_INPUT:-stable}" in
+    "" | stable | latest) ;;
+    *)
+      printf 'binary\n'
+      return 0
+      ;;
+  esac
   if users__is_privileged 2> /dev/null; then
     if [[ " ${_FEAT_CONTRACT_METHODS} " == *" upstream-package "* ]] &&
       ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN}"; then

@@ -31,13 +31,13 @@ cli_rocky:
   tests: [cli_only]
 cli_arch:
   envs: [archlinux-current]
-  tests: [cli_only]
+  tests: [cli_bundled]
 cli_alpine:
   envs: [alpine-current+bash]
   tests: [cli_only]
 cli_opensuse:
   envs: [opensuse-leap-current+bash]
-  tests: [cli_only]
+  tests: [cli_bundled]
 
 # --- Method / option variations ------------------------------------------------
 cli_binary:

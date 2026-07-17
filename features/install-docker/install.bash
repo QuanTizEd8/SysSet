@@ -43,6 +43,18 @@ _docker_systemd_active() {
 # ---------------------------------------------------------------------------
 # shellcheck disable=SC2329,SC2317
 __resolve_method() {
+  # A specific version pin (not stable/latest) can only be satisfied exactly by
+  # the static-binary method: the OS package repos reliably expose only their
+  # current candidate (and docker-ce's apt version carries an epoch prefix), so
+  # an older pin cannot be resolved via the package managers. Route explicit
+  # version pins to the binary method, which fetches the exact version.
+  case "${VERSION_INPUT:-stable}" in
+    "" | stable | latest) ;;
+    *)
+      printf 'binary\n'
+      return 0
+      ;;
+  esac
   if users__is_privileged 2> /dev/null; then
     if [[ " ${_FEAT_CONTRACT_METHODS} " == *" upstream-package "* ]] &&
       ctx__match_when --quiet "${_FEAT_CONTRACT_UPSTREAM_PKG_WHEN}"; then
@@ -116,13 +128,13 @@ __install_finish_post() {
 # to a local path by the _content_or_uri machinery), if any.
 # ---------------------------------------------------------------------------
 _docker_write_daemon_json() {
-  [[ -n "${DAEMON_JSON:-}" && -f "${DAEMON_JSON}" ]] || {
+  [[ -n "${DAEMON_JSON:-}" ]] || {
     logging__skip "No daemon.json provided; using Docker defaults."
     return 0
   }
   logging__install "Writing /etc/docker/daemon.json."
   file__mkdir /etc/docker
-  file__tee /etc/docker/daemon.json < "${DAEMON_JSON}" > /dev/null
+  printf '%s\n' "${DAEMON_JSON}" | file__tee /etc/docker/daemon.json > /dev/null
   file__chmod 0644 /etc/docker/daemon.json
 }
 

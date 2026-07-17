@@ -191,12 +191,11 @@ options:
   daemon_json:
     type: string
     default: ''
-    _content_or_uri: true
     description: |-
-      Contents (inline JSON or a URI/path) for `/etc/docker/daemon.json`. In host
-      mode it is written before the service starts; in DinD mode it is applied and
-      honored by the nested daemon at container start. Leave empty to use Docker's
-      built-in defaults.
+      Inline JSON contents for `/etc/docker/daemon.json`, written verbatim. In
+      host mode it is written before the service starts; in DinD mode the nested
+      daemon reads it at container start. Leave empty to use Docker's built-in
+      defaults. Example: `{"log-driver": "json-file", "storage-driver": "overlay2"}`.
 
 _options:
   installer_dir: false

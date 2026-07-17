@@ -96,8 +96,10 @@ dind_run:
     docker group.
   pre: |
     # The nested daemon starts in the background at container start and can take
-    # ~30s to be ready in a deeply-nested CI environment; wait for it.
-    for i in $(seq 1 120); do docker info >/dev/null 2>&1 && break; sleep 1; done
+    # well over a minute to be ready in a deeply-nested CI environment; wait for
+    # it, and dump the daemon logs if it never comes up (for diagnosis).
+    for i in $(seq 1 180); do docker info >/dev/null 2>&1 && break; sleep 1; done
+    docker info >/dev/null 2>&1 || { echo "=== daemon not ready after ${i}s ==="; tail -25 /tmp/containerd.log 2>&1; tail -40 /tmp/dockerd.log 2>&1; }
   checks:
     - title: docker info reaches the nested daemon
       cmd: docker info
@@ -119,7 +121,8 @@ dind_run_core:
     Docker-in-Docker with plugins disabled: the nested daemon still runs
     containers. Waits for the daemon, then asserts the core runtime.
   pre: |
-    for i in $(seq 1 120); do docker info >/dev/null 2>&1 && break; sleep 1; done
+    for i in $(seq 1 180); do docker info >/dev/null 2>&1 && break; sleep 1; done
+    docker info >/dev/null 2>&1 || { echo "=== daemon not ready after ${i}s ==="; tail -25 /tmp/containerd.log 2>&1; tail -40 /tmp/dockerd.log 2>&1; }
   checks:
     - title: docker info reaches the nested daemon
       cmd: docker info

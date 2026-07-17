@@ -20,6 +20,26 @@ cli_only:
     - title: docker-compose routes through compose-switch
       cmd: bash -c '[ "$(readlink -f "$(command -v docker-compose)")" = /usr/local/bin/compose-switch ]'
 
+cli_bundled:
+  description: |
+    CLI install on distros whose only Docker package bundles the engine (Arch's
+    `docker`, openSUSE's `docker`): the client and plugins are present, but the
+    daemon binary comes along unavoidably (unused in DooD), so no "dockerd
+    absent" assertion.
+  checks:
+    - title: docker client on PATH
+      cmd: command -v docker
+    - title: docker reports a version
+      cmd: bash -c 'docker --version | grep -Eq "Docker version [0-9]+\.[0-9]+"'
+    - title: docker group exists
+      cmd: getent group docker
+    - title: buildx plugin available
+      cmd: docker buildx version
+    - title: compose v2 plugin available
+      cmd: docker compose version
+    - title: compose-switch installed
+      cmd: command -v compose-switch
+
 cli_core:
   description: |
     CLI-only install without the GitHub-fetched plugins/switch (for distros or
