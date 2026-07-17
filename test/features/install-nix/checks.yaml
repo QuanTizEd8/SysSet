@@ -1,5 +1,5 @@
 single_user:
-  description: Single-user install owned by the remote user; usable via login shell.
+  description: Single-user install owned by the remote user, usable via login shell.
   checks:
     - title: nix-env reports a version
       cmd: bash -lc 'nix-env --version'
@@ -7,34 +7,64 @@ single_user:
       cmd: bash -lc 'nix-env --version | grep -qE "\(Nix\) 2\."'
     - title: /nix is owned by the remote user
       cmd: bash -c '[ "$(stat -c %U /nix)" = "vscode" ]'
-    - title: nix activation block present for the user
-      cmd: bash -c 'grep -Rql "nix (install-nix)" "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null'
+    - title: the owner has a Nix profile
+      cmd: bash -c 'test -e /home/vscode/.nix-profile'
+    - title: activation block written to the owner login files
+      cmd: bash -c 'grep -Rql "nix (install-nix)" /home/vscode/.bashrc /home/vscode/.profile'
+    - title: activation sources the single-user profile script
+      cmd: bash -c 'grep -Rq "nix-profile/etc/profile.d/nix.sh" /home/vscode/.bashrc /home/vscode/.profile'
+    - title: activation does not source the multi-user daemon script
+      cmd: bash -c '! grep -Rq "nix-daemon.sh" /home/vscode/.bashrc /home/vscode/.profile'
     - title: no daemon build users for a single-user install
       cmd: bash -c '! getent passwd | grep -q "^nixbld"'
+    - title: requested package is installed and runnable
+      cmd: bash -lc 'hello | grep -q "Hello, world!"'
 
 multi_user:
-  description: Multi-user install with the Nix daemon build users and default profile.
+  description: Multi-user install with the Nix daemon, build users, and default profile.
   checks:
     - title: nix-env reports a version
       cmd: /nix/var/nix/profiles/default/bin/nix-env --version
     - title: nix-env version is 2.x
       cmd: bash -c '/nix/var/nix/profiles/default/bin/nix-env --version | grep -qE "\(Nix\) 2\."'
-    - title: nixbld build users exist
+    - title: build users exist
       cmd: bash -c 'getent passwd | grep -q "^nixbld1:"'
-    - title: nixbld build group exists
+    - title: build group exists
       cmd: bash -c 'getent group nixbld >/dev/null'
     - title: /nix is owned by root
       cmd: bash -c '[ "$(stat -c %U /nix)" = "root" ]'
+    - title: the nix-daemon binary is present
+      cmd: test -x /nix/var/nix/profiles/default/bin/nix-daemon
+    - title: activation sources the multi-user daemon script
+      cmd: bash -c 'grep -Rq "nix-daemon.sh" "$HOME/.bashrc" "$HOME/.profile" 2>/dev/null'
+
+method_nix_installer:
+  description: Install via the Rust nix-installer, leaving an uninstall receipt.
+  checks:
+    - title: nix-env reports a version
+      cmd: /nix/var/nix/profiles/default/bin/nix-env --version
+    - title: nix-env version is 2.x
+      cmd: bash -c '/nix/var/nix/profiles/default/bin/nix-env --version | grep -qE "\(Nix\) 2\."'
+    - title: nix-installer receipt present
+      cmd: test -f /nix/receipt.json
+    - title: nix-installer binary retained for uninstall
+      cmd: test -x /nix/nix-installer
+    - title: build users exist
+      cmd: bash -c 'getent passwd | grep -q "^nixbld1:"'
 
 packages:
-  description: Requested package installed and nix.conf augmented.
+  description: Requested nixpkgs package installed into the default profile.
   checks:
     - title: hello package installed and runnable
       cmd: bash -c '/nix/var/nix/profiles/default/bin/hello | grep -q "Hello, world!"'
-    - title: nix.conf enables flakes
+
+flakes:
+  description: Flake reference installed via nix profile install; flakes enabled.
+  checks:
+    - title: flake package (hello) installed and runnable
+      cmd: bash -c '/nix/var/nix/profiles/default/bin/hello | grep -q "Hello, world!"'
+    - title: nix.conf enables the flakes experimental features
       cmd: grep -Fq 'experimental-features = nix-command flakes' /etc/nix/nix.conf
-    - title: nix.conf has the extra config line
-      cmd: grep -Fq 'max-jobs = 2' /etc/nix/nix.conf
 
 manifest_inline:
   description: Inline declarative manifest realized into the profile.
@@ -42,15 +72,31 @@ manifest_inline:
     - title: manifest package (hello) installed and runnable
       cmd: bash -c '/nix/var/nix/profiles/default/bin/hello | grep -q "Hello, world!"'
 
-method_nix_installer:
-  description: Install via the Rust nix-installer, leaving an uninstall receipt.
+nix_config:
+  description: enable_flakes and extra_nix_config written to /etc/nix/nix.conf.
+  checks:
+    - title: nix.conf enables the flakes experimental features
+      cmd: grep -Fq 'experimental-features = nix-command flakes' /etc/nix/nix.conf
+    - title: nix.conf has the first extra config line
+      cmd: grep -Fq 'max-jobs = 2' /etc/nix/nix.conf
+    - title: nix.conf has the second extra config line
+      cmd: grep -Fq 'cores = 1' /etc/nix/nix.conf
+
+channel_disabled:
+  description: add_channel=false skips the nixpkgs channel but still installs Nix.
   checks:
     - title: nix-env reports a version
       cmd: /nix/var/nix/profiles/default/bin/nix-env --version
-    - title: nix-installer receipt present
-      cmd: test -f /nix/receipt.json
-    - title: nix-installer binary retained for uninstall
-      cmd: test -x /nix/nix-installer
+    - title: no nixpkgs channel was added
+      cmd: bash -c '! grep -q nixpkgs /root/.nix-channels 2>/dev/null'
+
+build_user_count:
+  description: Exactly the requested number of build users is created.
+  checks:
+    - title: the fourth build user exists
+      cmd: bash -c 'getent passwd nixbld4 >/dev/null'
+    - title: no fifth build user exists
+      cmd: bash -c '! getent passwd nixbld5 >/dev/null'
 
 if_exists_skip:
   description: An existing Nix is detected and the install is skipped.
@@ -66,6 +112,16 @@ if_exists_fail:
     - kind: install_failure
       title: install fails when Nix already present
       pattern: "if_exists=fail"
+
+if_exists_reinstall:
+  description: An existing Nix is removed and a real Nix is installed in its place.
+  checks:
+    - title: a real Nix store now exists
+      cmd: test -d /nix/store
+    - title: real nix-env reports a version
+      cmd: /nix/var/nix/profiles/default/bin/nix-env --version
+    - title: real nix-env version is 2.x
+      cmd: bash -c '/nix/var/nix/profiles/default/bin/nix-env --version | grep -qE "\(Nix\) 2\."'
 
 invalid_nix_installer_single:
   description: nix-installer + single-user is rejected before any install.

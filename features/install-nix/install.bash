@@ -293,7 +293,9 @@ __nix_conf_append() {
   return 0
 }
 
-# Realize manifest, packages, and flakes into the profile.
+# Realize manifest, packages, and flakes into the profile. For multi-user this
+# starts a transient build-time daemon and always stops it afterwards, so the
+# backgrounded daemon can never keep the installer process alive.
 __nix_realize() {
   local _have_work=false
   { [ -n "${MANIFEST:-}" ] || [ "${#PACKAGES[@]}" -gt 0 ] || [ "${#FLAKES[@]}" -gt 0 ]; } && _have_work=true
@@ -302,6 +304,17 @@ __nix_realize() {
   # Multi-user realization at build needs the daemon (no systemd here).
   [ "${NIX_MULTI_USER}" = "true" ] && __nix_ensure_daemon
 
+  local _rc=0
+  __nix_realize_all || _rc=$?
+
+  # Stop the transient daemon we started (if any) so the installer can exit.
+  __nix_stop_build_daemon
+  return "${_rc}"
+}
+
+# The actual realization work (kept separate so __nix_realize can guarantee
+# daemon teardown regardless of outcome).
+__nix_realize_all() {
   # Declarative manifest.
   if [ -n "${MANIFEST:-}" ]; then
     if [ -e "${MANIFEST}" ]; then
@@ -376,29 +389,43 @@ __nix_as_owner() {
   ' _ "${_home}/.nix-profile/etc/profile.d/nix.sh" "$@"
 }
 
-# Start nix-daemon at build time (multi-user) and wait for its socket.
+# Start a transient nix-daemon at build time (multi-user) and wait for its
+# socket. The daemon is launched directly (not via a subshell, and without
+# sourcing the client profile — which would set NIX_REMOTE=daemon) with stdin
+# detached and disowned, so it never blocks the installer's exit; its PID is
+# recorded so __nix_stop_build_daemon can stop it once realization is done.
 __nix_ensure_daemon() {
   # macOS: the daemon is managed by launchd and started during installation
   # (and `pidof` is not available there).
   [ "$(ctx__get plat.kernel)" = "Darwin" ] && return 0
+  # Already running (e.g. a systemd host started it) — leave it alone.
   pidof nix-daemon > /dev/null 2>&1 && return 0
   local _daemon=/nix/var/nix/profiles/default/bin/nix-daemon
   [ -x "${_daemon}" ] || {
     logging__warn "nix-daemon not found; cannot realize packages at build time."
     return 0
   }
-  logging__info "Starting nix-daemon for build-time realization."
-  # shellcheck disable=SC1091
-  (
-    . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh 2> /dev/null || true
-    "${_daemon}" > /tmp/nix-daemon-build.log 2>&1
-  ) &
+  logging__info "Starting a transient nix-daemon for build-time realization."
+  "${_daemon}" > /tmp/nix-daemon-build.log 2>&1 < /dev/null &
+  declare -g _NIX_BUILD_DAEMON_PID=$!
+  disown 2> /dev/null || true
   local _i
   for _i in $(seq 1 40); do
     [ -S /nix/var/nix/daemon-socket/socket ] && return 0
     sleep 0.5
   done
   logging__warn "nix-daemon socket did not appear in time; realization may fail."
+  return 0
+}
+
+# Stop the transient build-time daemon (if we started one) so the installer
+# process can exit cleanly. A daemon already running before we started (systemd
+# host) has no recorded PID and is left untouched.
+__nix_stop_build_daemon() {
+  [ -n "${_NIX_BUILD_DAEMON_PID:-}" ] || return 0
+  logging__info "Stopping the transient build-time nix-daemon (pid ${_NIX_BUILD_DAEMON_PID})."
+  kill "${_NIX_BUILD_DAEMON_PID}" 2> /dev/null || true
+  _NIX_BUILD_DAEMON_PID=""
   return 0
 }
 

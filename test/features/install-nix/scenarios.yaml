@@ -1,58 +1,50 @@
-# install-nix is not in the test-generation pool (it is not a standard prefix
-# feature), so every scenario here is hand-authored.
+# install-nix is deliberately denylisted from test generation (see
+# test/features/generation.yaml): it has no _options.prefix and its behaviour is
+# mode-/installer-dependent, so the generator's standard prefix/binary contract
+# does not apply. Every scenario here is therefore hand-authored.
 #
-# Install modes and how they map to the two Nix modes:
-#   • devcontainer mode installs at image-build time as root with a remoteUser,
-#     so `multi_user=auto` resolves to SINGLE-user owned by that remote user.
-#   • standalone mode runs as root with no remote user, so `multi_user=auto`
-#     resolves to MULTI-user; single/multi can also be forced via the option.
+# Install-mode mapping:
+#   • devcontainer mode installs at image build as root; with a remoteUser,
+#     multi_user=auto resolves to SINGLE-user owned by that user.
+#   • standalone mode runs as root with no remote user, so multi_user=auto
+#     resolves to MULTI-user (or force it via the option).
 #
-# Nix's binary tarball is glibc-linked, so install scenarios target glibc
-# distros (Alpine/musl is out of scope for v1).
+# Nix's binary tarball is glibc-linked, so scenarios target glibc distros;
+# Alpine/musl is out of scope for v1.
 
 defaults:
   options:
     log_level: debug
 
-# ── Single-user (the container-first default) ─────────────────────────────────
-# Installed at build as root; owned by the remote user via auto-resolution.
+# ── Per-platform devcontainer coverage: single-user (the container-first default)
+# Installed at build as root, owned by the remote user via auto-resolution.
+# Also exercises single-user package realization (into the owner's profile).
 single_user:
-  envs: [ubuntu-stable+vscode]
+  envs: [ubuntu-stable+vscode, debian-stable+vscode]
   modes: [devcontainer]
   devcontainer:
     remoteUser: vscode
+  options:
+    packages: hello
   tests: [single_user]
 
-# ── Multi-user ────────────────────────────────────────────────────────────────
+# ── Per-platform devcontainer coverage: multi-user (daemon + build users)
+# Root install; exercises the per-package-manager runtime deps and build-user
+# creation on every supported glibc distro.
 multi_user:
-  envs: [ubuntu-stable, fedora-current]
-  modes: [standalone]
+  envs:
+    - ubuntu-stable
+    - debian-stable+bash
+    - fedora-current+bash
+    - rockylinux-current+bash
+    - opensuse-leap-current+bash
+    - archlinux-current
+  modes: [devcontainer]
   options:
     multi_user: multi
   tests: [multi_user]
 
-# ── Post-install: packages + nix.conf (enable_flakes, extra_nix_config) ───────
-packages:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  options:
-    multi_user: multi
-    packages: hello
-    enable_flakes: true
-    extra_nix_config: "max-jobs = 2"
-  tests: [packages]
-
-# ── Post-install: inline declarative manifest ─────────────────────────────────
-manifest_inline:
-  envs: [ubuntu-stable]
-  modes: [standalone]
-  options:
-    multi_user: multi
-    manifest: |
-      with import <nixpkgs> { }; [ hello ]
-  tests: [manifest_inline]
-
-# ── Alternate installer: the Rust nix-installer (multi-user only) ─────────────
+# ── Installer selector (main path): the Rust nix-installer (multi-user only) ──
 method_nix_installer:
   envs: [ubuntu-stable]
   modes: [standalone]
@@ -61,7 +53,68 @@ method_nix_installer:
     multi_user: multi
   tests: [method_nix_installer]
 
-# ── if_exists: skip / fail over a pre-existing stub ───────────────────────────
+# ── Option: packages (multi-user → system default profile) ────────────────────
+packages:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    multi_user: multi
+    packages: hello
+  tests: [packages]
+
+# ── Option: flakes (nix profile install; flakes auto-enabled) ─────────────────
+flakes:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    multi_user: multi
+    flakes: nixpkgs#hello
+  tests: [flakes]
+
+# ── Option: inline declarative manifest (nix-env -if) ─────────────────────────
+manifest_inline:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    multi_user: multi
+    # Multi-line so the framework treats it as inline content (realized at build)
+    # rather than a path.
+    manifest: |
+      with import <nixpkgs> { };
+      [ hello ]
+  tests: [manifest_inline]
+
+# ── Option: nix.conf (enable_flakes + extra_nix_config) ───────────────────────
+nix_config:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    multi_user: multi
+    enable_flakes: true
+    extra_nix_config: |
+      max-jobs = 2
+      cores = 1
+  tests: [nix_config]
+
+# ── Option: channel control (add_channel=false → --no-channel-add) ────────────
+channel_disabled:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    multi_user: multi
+    add_channel: false
+  tests: [channel_disabled]
+
+# ── Option: build_user_count (multi-user) ─────────────────────────────────────
+build_user_count:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    multi_user: multi
+    build_user_count: "4"
+  tests: [build_user_count]
+
+# ── if_exists: skip / fail / reinstall over a pre-existing Nix ────────────────
 if_exists_skip:
   envs: [ubuntu-stable]
   modes: [standalone]
@@ -85,7 +138,18 @@ if_exists_fail:
     chmod +x /usr/local/bin/nix-env
   tests: [if_exists_fail]
 
-# ── Invalid option combinations (must fail fast, before any install) ──────────
+if_exists_reinstall:
+  envs: [ubuntu-stable]
+  modes: [standalone]
+  options:
+    if_exists: reinstall
+    multi_user: multi
+  setup: |
+    printf '#!/bin/sh\necho "nix-env (Nix) 9.9.9-stub"\n' > /usr/local/bin/nix-env
+    chmod +x /usr/local/bin/nix-env
+  tests: [if_exists_reinstall]
+
+# ── Invalid option combinations (must fail before any install) ────────────────
 invalid_nix_installer_single:
   expect_install_failure: true
   envs: [ubuntu-stable]

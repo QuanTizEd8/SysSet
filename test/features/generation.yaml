@@ -57,6 +57,7 @@ rollout:
   - install-zsh-completion
   - install-nvm
   - install-conda-env
+  - install-nix
   - install-podman
   - install-docker
   - install-docker-dood
