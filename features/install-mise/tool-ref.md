@@ -288,25 +288,32 @@ The installer is a ~370-line POSIX `sh` script (`set -eu`).[^install-script] Sal
 
 ### Bootstrap Script (`mise generate bootstrap`)
 
-`mise generate bootstrap` emits a self-contained script that **downloads and executes a pinned mise** on first use — designed for projects whose contributors may not have mise installed. It is the officially recommended way to vendor a version-pinned `./bin/mise` into a repo (and is referenced by the CI guide).[^bootstrap][^ci]
+`mise generate bootstrap` emits a self-contained bash wrapper that **downloads and executes a pinned mise** on first use — designed for projects whose contributors may not have mise installed. It is the officially recommended way to vendor a version-pinned `./bin/mise` into a repo (and is referenced by the CI guide).[^bootstrap][^ci] The generated wrapper **embeds the installer script (`install.sh`) verbatim** as its internal `install()` function, sets `MISE_INSTALL_HELP=0`, and its body is `test -f "$MISE_INSTALL_PATH" || install` followed by `exec -a "$0" "$MISE_INSTALL_PATH" "$@"`. At *generation* time, `mise generate bootstrap` fetches `install.sh` from `https://mise.jdx.dev/v<version>/install.sh` (or the unversioned URL) and **minisign-verifies it** with mise's public key before embedding — a supply-chain improvement over a raw `curl … | sh`.[^bootstrap-src]
 
 #### Supported Platforms
 
-Same matrix as the Installer Script (it downloads the same release artifacts).[^bootstrap]
+Same matrix as the Installer Script — the embedded `install.sh` performs identical OS/arch/libc detection and downloads the same release artifacts.[^bootstrap-src][^install-script]
 
 #### Dependencies
 
-Requires an existing `mise` binary to *generate* the script; the generated script itself needs the same runtime deps as the installer (`sh`, `curl`/`wget`, `tar`, `shasum`/`sha256sum`).[^bootstrap][^install-script]
+##### Common Dependencies
+
+- To **generate** the wrapper: an existing `mise` binary (plus network access to fetch and minisign-verify `install.sh`).[^bootstrap-src]
+- To **run** the wrapper: exactly the installer script's dependencies, because `install.sh` is embedded verbatim — `bash`, `curl`/`wget`, `tar`, and `shasum`/`sha256sum`.[^bootstrap-src][^install-script]
+
+##### Platform-Specific Dependencies
+
+Same as the Installer Script (e.g. `zstd` only when a `.tar.zst` tarball is selected).[^install-script]
 
 #### Installation Steps
 
 ```sh
-mise generate bootstrap --version v2026.7.7 --write ./bin/mise
-chmod +x ./bin/mise
-./bin/mise install     # downloads the pinned mise into the data dir if absent, then runs
+mise generate bootstrap --version v2026.7.7 --write ./bin/mise   # -w default target is ./bin/mise
+chmod +x ./bin/mise                                              # (mise also makes it executable)
+./bin/mise install     # on first run, downloads the pinned mise if absent, then runs it
 ```
 
-Flags: `-V/--version <VERSION>` (pin the mise version), `-w/--write <FILE>` (write + chmod +x instead of stdout), `-l/--localize` (sandbox `MISE_DATA_DIR`/`MISE_CACHE_DIR` into a project `.mise` dir), `--localized-dir <DIR>` (default `.mise`).[^bootstrap]
+Flags: `-V/--version <VERSION>` (pin the mise version), `-w/--write <FILE>` (write + `chmod +x` instead of stdout; default target `./bin/mise`), `-l/--localize` (sandbox `MISE_DATA_DIR`/`MISE_CONFIG_DIR`/`MISE_CACHE_DIR`/`MISE_STATE_DIR` into a project dir), `--localized-dir <DIR>` (default `.mise`).[^bootstrap-src]
 
 #### Installation Verification
 
@@ -314,7 +321,27 @@ Flags: `-V/--version <VERSION>` (pin the mise version), `-w/--write <FILE>` (wri
 
 #### Configuration Options
 
-- **Version Selection:** `-V/--version`. **Installation Path:** the generated wrapper path (`-w`); the actual binary lands in the data dir (or the localized `.mise` dir). **User Targeting / Required Privileges:** user-local; no root. **Tool-Specific Configurations:** honors the same runtime `MISE_*` variables as any mise install; `--localize` isolates data/cache per-project.[^bootstrap]
+##### Version Selection
+
+`-V/--version`; the wrapper hard-codes the resolved version into its `MISE_INSTALL_PATH`.[^bootstrap-src]
+
+##### Installation Path
+
+The **wrapper** path is chosen with `-w` (default `./bin/mise`). The **downloaded mise binary** location is set by the wrapper, per source (`src/cli/generate/bootstrap.rs`):[^bootstrap-src]
+- **Default (non-localized):** `${XDG_CACHE_HOME:-$HOME/.cache}/mise/mise-<version>` — i.e. the **cache** directory, *not* the data dir. (The CLI help's phrase "downloads mise to `.mise`" describes only the `--localize` case.)
+- **`--localize`:** `<project>/.mise/mise-<version>` (with `--localized-dir` overriding `.mise`), and it also redirects `MISE_DATA_DIR`/`MISE_CONFIG_DIR`/`MISE_CACHE_DIR`/`MISE_STATE_DIR` into that dir, sets `MISE_TRUSTED_CONFIG_PATHS` to the project dir, and `MISE_IGNORED_CONFIG_PATHS` to `$HOME/.config/mise` (so a globally-installed mise's config is ignored).
+
+##### User Targeting
+
+User-local (the invoking user's cache or the project dir). No system-wide mode.[^bootstrap-src]
+
+##### Required Privileges
+
+None — writes only under the user's cache dir or the project directory.[^bootstrap-src]
+
+##### Tool-Specific Configurations
+
+Honors the same runtime `MISE_*` variables as any mise install; `--localize` is the built-in way to fully isolate mise's state per-project (useful when contributors also run a different global mise).[^bootstrap-src]
 
 #### Post-Installation Steps and Cleanup
 
@@ -322,15 +349,15 @@ Same activation/shims/completions/config considerations as the Installer Script;
 
 #### Changing Versions and Uninstallation
 
-Re-generate with a new `--version`, or edit the pinned version in the committed wrapper. Remove the wrapper (and, if `--localize` was used, the `.mise` dir) to uninstall.[^bootstrap]
+Re-generate with a new `--version`, or edit the pinned version in the committed wrapper. Remove the wrapper (and, if `--localize` was used, the localized dir; otherwise the cached `mise-<version>` binary) to uninstall.[^bootstrap-src]
 
 #### Idempotency
 
-The generated wrapper is a no-op once the pinned mise is present; `./bin/mise install` only downloads when the binary is absent.[^bootstrap]
+The wrapper is a no-op once the pinned mise is present: its `test -f "$MISE_INSTALL_PATH" || install` guard downloads only when the pinned binary is absent.[^bootstrap-src]
 
 #### Notes and Best Practices
 
-Best for reproducible, contributor-friendly project setups where mise itself should be pinned alongside the toolset. Not primarily a system-install mechanism.[^bootstrap][^ci]
+Best for reproducible, contributor-friendly project setups where mise itself should be pinned alongside the toolset. Not primarily a system-install mechanism. The generation-time minisign check makes it a stronger supply-chain choice than a bare `curl https://mise.run | sh`.[^bootstrap-src][^ci]
 
 ### Standalone Binary Download (GitHub Releases)
 
@@ -626,6 +653,8 @@ mise is itself an extensibility platform; "plugins/extensions" here means the **
 [^run-shell-endpoints]: [mise — `https://mise.run/bash` (and `/zsh`, `/fish`)](https://mise.run/bash) (fetched and read 2026-07-17). These endpoints run the standard install and then call `setup_bash_activation`, which appends `eval "$(<install_path> activate bash)" # added by https://mise.run/bash` to `~/.bashrc` (creating it if absent), guarded by a `grep -qF "# added by https://mise.run/bash"` idempotency marker.
 
 [^bootstrap]: [mise — `mise generate bootstrap` (CLI)](https://mise.jdx.dev/cli/generate/bootstrap.html) (raw: `docs/cli/generate/bootstrap.md`, read 2026-07-17). Generates a script that downloads+executes a pinned mise; flags `-l/--localize`, `-V/--version`, `-w/--write`, `--localized-dir` (default `.mise`); canonical usage `mise generate bootstrap >./bin/mise && chmod +x ./bin/mise && ./bin/mise install`.
+
+[^bootstrap-src]: [jdx/mise — `src/cli/generate/bootstrap.rs`](https://github.com/jdx/mise/blob/main/src/cli/generate/bootstrap.rs) (read 2026-07-17). Authoritative source for the generated wrapper: embeds `install.sh` verbatim as `install()`; fetches `install.sh` from `https://mise.jdx.dev/v<version>/install.sh` and **minisign-verifies** it at generation time; `-w` default target `./bin/mise`; non-localized `MISE_INSTALL_PATH="${XDG_CACHE_HOME:-$HOME/.cache}/mise/mise-<version>"`; `--localize` sets `MISE_DATA_DIR`/`CONFIG_DIR`/`CACHE_DIR`/`STATE_DIR` under the project dir, `MISE_INSTALL_PATH="<localized_dir>/mise-<version>"`, `MISE_TRUSTED_CONFIG_PATHS=<project>`, `MISE_IGNORED_CONFIG_PATHS=$HOME/.config/mise`; wrapper guard `test -f "$MISE_INSTALL_PATH" || install` then `exec -a "$0" "$MISE_INSTALL_PATH" "$@"`.
 
 [^getting-started]: [mise — Getting Started](https://mise.jdx.dev/getting-started.html). Shell-activation lines for bash/zsh/fish, the fact that `~/.local/bin` need not be on `PATH` (activation self-adds it), and verification via `mise --version` / `mise doctor`.
 
