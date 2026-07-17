@@ -501,16 +501,16 @@ _int_wait_for() {
   local _iter
   for _iter in $(seq 1 12); do
     rm -f "$_held" "$_overlap" "$_done"
-    mkdir -p "${_root}/mutex"
-    # Seed the mutex as owned by a now-dead process (token guards PID reuse). Use a
-    # fixed, unreachable PID instead of spawning a throwaway to reap: a persistent
-    # fork EAGAIN makes bash abort non-locally (fork failure -> throw_to_top_level),
-    # which cannot be caught or retried in shell, so a real `sleep 30 &` here flakes
-    # under CI process pressure — the failure this fixes. A PID above any
-    # /proc/sys/kernel/pid_max is guaranteed dead, so _ospkg__registrant_alive
-    # returns via the fast kill -0 (ESRCH) path with no start-time lookup, keeping
-    # the takeover window as narrow as a real reaped PID would.
-    printf '%s.deadtoken\n' 999999999 > "${_root}/mutex/owner"
+    # Seed the mutex as owned by a now-dead process: create the lock dir together
+    # with its owner subdir (owner-as-dir; see _ospkg__mutex_acquire) in a single
+    # mkdir -p, so this adds no fork. Use a fixed, unreachable PID rather than
+    # reaping a throwaway process: a persistent fork EAGAIN makes bash abort
+    # non-locally (fork failure -> throw_to_top_level), which cannot be caught or
+    # retried in shell, so a real `sleep 30 &` here flakes under CI process
+    # pressure. A PID above any /proc/sys/kernel/pid_max is guaranteed dead, so
+    # _ospkg__registrant_alive returns via the fast kill -0 (ESRCH) path with no
+    # start-time lookup, keeping the takeover window as narrow as a real reaped PID.
+    mkdir -p "${_root}/mutex/owner.999999999.deadtoken"
 
     # Several waiters race to take over the dead lock at once.
     _spawn_mutex_racer
