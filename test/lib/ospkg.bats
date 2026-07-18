@@ -3765,17 +3765,18 @@ _reg_make_group() {
 
 @test "registry: mutex acquire takes over a stale (dead-owner) lock" {
   _seed_registry_apt
-  mkdir -p "${_OSPKG__REGISTRY_ROOT}/mutex"
-  sleep 60 3>&- < /dev/null > /dev/null 2>&1 &
-  local _dp=$!
-  local _dtok
-  _dtok="$(_ospkg__proc_token "$_dp")"
-  kill "$_dp" 2> /dev/null || true
-  wait "$_dp" 2> /dev/null || true
-  printf '%s.%s\n' "$_dp" "$_dtok" > "${_OSPKG__REGISTRY_ROOT}/mutex/owner"
+  # Seed a dead-owner directory (ownership is a subdir owner.<pid>.<token>; see
+  # _ospkg__mutex_acquire) with a fixed, unreachable PID: guaranteed dead via
+  # kill -0 (ESRCH), with no throwaway process to reap — avoiding a fork that can
+  # flake under CI process pressure.
+  mkdir -p "${_OSPKG__REGISTRY_ROOT}/mutex/owner.999999999.deadtoken"
 
   _ospkg__mutex_acquire "${_OSPKG__REGISTRY_ROOT}"
-  grep -q "^$$\." "${_OSPKG__REGISTRY_ROOT}/mutex/owner"
+  # The dead owner is taken over: its dir is gone and the sole owner dir is ours.
+  [[ ! -d "${_OSPKG__REGISTRY_ROOT}/mutex/owner.999999999.deadtoken" ]]
+  local _entry
+  _entry="$(_ospkg__mutex_owner_entry "${_OSPKG__REGISTRY_ROOT}/mutex")"
+  [[ "$_entry" == "owner.$$."* ]]
   _ospkg__mutex_release "${_OSPKG__REGISTRY_ROOT}"
   [[ ! -d "${_OSPKG__REGISTRY_ROOT}/mutex" ]]
 }
