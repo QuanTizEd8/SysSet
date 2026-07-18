@@ -118,6 +118,7 @@ dind_no_plugins:
   envs: [ubuntu-stable+vscode]
   modes: [devcontainer]
   options:
+    add_remote_user: true
     install_buildx: false
     install_compose: false
     install_compose_switch: false
