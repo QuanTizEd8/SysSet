@@ -192,7 +192,9 @@ _options:
   verify:
     # nix-env is not on the default PATH (multi-user puts it on the default
     # profile, single-user under the owner's ~/.nix-profile), so verify through a
-    # login shell to pick up the activation snippet in either mode.
+    # login shell to pick up the activation snippet: nix-daemon.sh system-wide
+    # for multi-user, or the owner's per-user ~/.profile block for single-user
+    # (the CLI runs the verify as the owner, so their login files are sourced).
     cmd: sh
     args: "-lc 'nix-env --version'"
     description: "nix-env --version reports the installed Nix version."

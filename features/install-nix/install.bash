@@ -243,8 +243,14 @@ __configure_user() {
       logging__skip "Single-user Nix is owned by '${INSTALL_USER}'; skipping activation for '${_user}'."
       return 0
     fi
-    # shellcheck disable=SC2016  # $HOME must expand in the user's shell, not now.
-    _snippet='if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then . "$HOME/.nix-profile/etc/profile.d/nix.sh"; fi'
+    # nix.sh guards its whole body (the PATH export included) on
+    # `[ -n "$HOME" ] && [ -n "$USER" ]`. Devcontainer lifecycle hooks — the
+    # post-create verification among them — run as this owner with $HOME set but
+    # $USER/$LOGNAME EMPTY, so without setting $USER nix.sh silently no-ops and
+    # nix-env never lands on PATH. $HOME is always correct here (this is the
+    # owner's own login file), so seeding $USER is enough for full activation.
+    # shellcheck disable=SC2016  # $HOME/$USER must expand in the user's shell, not now.
+    _snippet='if [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ]; then export USER="${USER:-$(id -un)}"; . "$HOME/.nix-profile/etc/profile.d/nix.sh"; fi'
   fi
 
   _home="$(users__resolve_home "${_user}")"
