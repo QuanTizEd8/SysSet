@@ -568,10 +568,13 @@ _ospkg__network_output_has_failure() {
   # APT and DNF may preserve an older usable metadata cache and return success
   # after reporting a failed repository fetch. This deliberately recognises
   # only conclusive transport/repository diagnostics: a successful operation
-  # with an unrelated warning must remain successful.
+  # with an unrelated warning must remain successful. In particular, match
+  # TLS/SSL and certificate diagnostics as words and diagnostic phrases, not
+  # arbitrary substrings: APT commonly lists packages such as
+  # libcurl*-gnutls and liberror-perl in normal successful output.
   local _transcript="$1"
   grep -Eiq \
-    'could not resolve|couldn.t resolve|temporary failure|failed to fetch|failed retrieving file|failed to download metadata|download \(curl\) error|curl error|connection (timed out|reset|refused|closed|aborted)|network is unreachable|no route to host|unexpected eof|tls.*(error|failed)|ssl.*(error|failed)|certificate.*(error|failed)|http[^[:alnum:]]*(408|425|429|5[0-9][0-9])|hash sum mismatch|checksum mismatch|some index files failed to download|usable url not found|repository.*(unavailable|unreachable)|repomd\.xml.*(failed|unavailable)' \
+    'could not resolve|couldn.t resolve|temporary failure|failed to fetch|failed retrieving file|failed to download metadata|download \(curl\) error|curl error|connection (timed out|reset|refused|closed|aborted)|network is unreachable|no route to host|unexpected eof|(^|[^[:alnum:]])(gnutls|tls|ssl)[^[:alnum:]]+(connection|handshake|certificate|alert|recv|receive|error|failed)|(^|[^[:alnum:]])certificate[^[:alnum:]]+(verification|verify|validation|problem|error|failed)|http[^[:alnum:]]*(408|425|429|5[0-9][0-9])|hash sum mismatch|checksum mismatch|some index files failed to download|usable url not found|repository.*(unavailable|unreachable)|repomd\.xml.*(failed|unavailable)' \
     "$_transcript"
 }
 

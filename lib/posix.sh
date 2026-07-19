@@ -106,7 +106,10 @@ _posix__fetch_retryable() {
 
 _posix__pm_output_has_failure() {
   # _posix__pm_output_has_failure <transcript> — Detect a transport/repository error reported with exit 0.
-  grep -Eiq 'could not resolve|couldn.t resolve|temporary failure|failed to fetch|failed retrieving file|failed to download metadata|download \(curl\) error|curl error|connection (timed out|reset|refused|closed|aborted)|network is unreachable|no route to host|unexpected eof|tls.*(error|failed)|ssl.*(error|failed)|certificate.*(error|failed)|http[^[:alnum:]]*(408|425|429|5[0-9][0-9])|hash sum mismatch|checksum mismatch|some index files failed to download|usable url not found|repository.*(unavailable|unreachable)|repomd\.xml.*(failed|unavailable)' "$1"
+  # Match TLS/SSL and certificate diagnostics as words and diagnostic phrases,
+  # rather than arbitrary substrings in successful package lists such as
+  # libcurl*-gnutls and liberror-perl.
+  grep -Eiq 'could not resolve|couldn.t resolve|temporary failure|failed to fetch|failed retrieving file|failed to download metadata|download \(curl\) error|curl error|connection (timed out|reset|refused|closed|aborted)|network is unreachable|no route to host|unexpected eof|(^|[^[:alnum:]])(gnutls|tls|ssl)[^[:alnum:]]+(connection|handshake|certificate|alert|recv|receive|error|failed)|(^|[^[:alnum:]])certificate[^[:alnum:]]+(verification|verify|validation|problem|error|failed)|http[^[:alnum:]]*(408|425|429|5[0-9][0-9])|hash sum mismatch|checksum mismatch|some index files failed to download|usable url not found|repository.*(unavailable|unreachable)|repomd\.xml.*(failed|unavailable)' "$1"
 }
 
 _posix__pm_certainly_local_failure() {

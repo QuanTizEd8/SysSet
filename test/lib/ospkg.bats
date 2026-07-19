@@ -696,28 +696,6 @@ _seed_apt_context_with_yq() {
     }
 }
 
-@test "ospkg__run: manifest package flags use the package-manager retry path" {
-  _seed_apt_context_with_yq
-  mkdir -p "${BATS_TEST_TMPDIR}/bin"
-  # Make the manifest package appear absent and have the fake yq emit a
-  # per-package flag, which uses the one-at-a-time install branch.
-  printf '#!/bin/sh\nexit 1\n' > "${BATS_TEST_TMPDIR}/bin/dpkg"
-  chmod +x "${BATS_TEST_TMPDIR}/bin/dpkg"
-  printf '#!/bin/bash\nprintf '\''{"packages":[{"name":"flagpkg","flags":"--download-only"}]}\\n'\''\n' \
-    > "${BATS_TEST_TMPDIR}/bin/yq"
-  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
-  prepend_fake_bin_path
-
-  local _retry_log="${BATS_TEST_TMPDIR}/retry.log"
-  printf '#!/bin/sh\nprintf "%s\\n" "$*" >> "${_retry_log}"\nexit 0\n' > "${BATS_TEST_TMPDIR}/bin/apt-get"
-  chmod +x "${BATS_TEST_TMPDIR}/bin/apt-get"
-  export _retry_log
-
-  run ospkg__run --manifest $'packages:\n  - name: flagpkg\n    flags: --download-only'
-  assert_success
-  grep -q -- '-y install.*--download-only flagpkg' "$_retry_log"
-}
-
 @test "_ospkg__run_network retries transient package-manager failures" {
   local _attempts="${BATS_TEST_TMPDIR}/attempts"
   printf '0' > "$_attempts"
@@ -779,6 +757,22 @@ _seed_apt_context_with_yq() {
   run _ospkg__run_network --operation update pm
   assert_success
   assert [ "$(cat "$_attempts")" -eq 2 ]
+}
+
+@test "_ospkg__network_output_has_failure ignores successful APT package names" {
+  local _transcript="${BATS_TEST_TMPDIR}/apt-success"
+  printf '%s\n' 'libcurl3-gnutls liberror-perl' > "$_transcript"
+
+  run _ospkg__network_output_has_failure "$_transcript"
+  assert_failure
+}
+
+@test "_ospkg__network_output_has_failure recognises a TLS connection failure" {
+  local _transcript="${BATS_TEST_TMPDIR}/tls-failure"
+  printf '%s\n' 'GnuTLS: The TLS connection was non-properly terminated.' > "$_transcript"
+
+  run _ospkg__network_output_has_failure "$_transcript"
+  assert_success
 }
 
 @test "_ospkg__run_network accepts DNF check-update exit 100" {

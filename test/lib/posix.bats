@@ -74,6 +74,22 @@ setup() {
   assert [ "$(cat "$_attempts")" -eq 2 ]
 }
 
+@test "_posix__pm_output_has_failure ignores successful APT package names" {
+  local _transcript="${BATS_TEST_TMPDIR}/apt-success"
+  printf '%s\n' 'libcurl3-gnutls liberror-perl' > "$_transcript"
+
+  run _posix__pm_output_has_failure "$_transcript"
+  assert_failure
+}
+
+@test "_posix__pm_output_has_failure recognises a TLS connection failure" {
+  local _transcript="${BATS_TEST_TMPDIR}/tls-failure"
+  printf '%s\n' 'GnuTLS: The TLS connection was non-properly terminated.' > "$_transcript"
+
+  run _posix__pm_output_has_failure "$_transcript"
+  assert_success
+}
+
 @test "posix__run_with_retry fails fast only for a proven local source configuration error" {
   local _attempts="${BATS_TEST_TMPDIR}/attempts"
   printf '0' > "$_attempts"
