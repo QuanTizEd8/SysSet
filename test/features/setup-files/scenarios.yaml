@@ -471,6 +471,10 @@ uninstall_reversal:
     printf 'ORIGINAL DELETED CONTENT BACKUP' > "$DELETE_CAPSULE/item"
     printf '%s' /opt/sf-existing/deleted-file.txt > "$DELETE_CAPSULE/source-path"
     chmod 600 "$DELETE_CAPSULE/source-path"
+    # Match the state left by a real delete operation: the original is in the
+    # capsule and the destination no longer exists. Leaving it present would
+    # correctly trigger the uninstall restore's no-clobber safety check.
+    rm -f /opt/sf-existing/deleted-file.txt
 
     touch /opt/sf-existing/chmod-target.txt
     chmod 600 /opt/sf-existing/chmod-target.txt

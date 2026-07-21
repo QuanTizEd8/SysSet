@@ -5,12 +5,14 @@
 
 from __future__ import annotations
 
+import io
 import os
 import shlex
 import signal
 import subprocess
 import threading
 import time
+from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -96,6 +98,24 @@ def _result(
 
 def _context(root: str = "/workspace") -> lm.RunnerContext:
     return lm.RunnerContext(root, f"{root}/run-in-container.sh", None, None)
+
+
+def _assert_process_stopped(pid: int, timeout: float = 3) -> None:
+    """Wait for process disappearance; a zombie is already non-running."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        stat_path = Path(f"/proc/{pid}/stat")
+        try:
+            if stat_path.read_text(encoding="utf-8").split()[2] == "Z":
+                return
+        except (FileNotFoundError, IndexError):
+            return
+        time.sleep(0.02)
+    pytest.fail(f"process {pid} remained live after {timeout}s")
 
 
 def test_cli_resolves_github_token_before_running_matrix(
@@ -317,7 +337,6 @@ def test_bootstrap_runs_all_seven_bare_profiles(
 
 def test_complete_runs_bootstrap_after_ordinary_failure_and_aggregates(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     _wire(monkeypatch, _platforms(1))
     calls: list[str] = []
@@ -330,9 +349,11 @@ def test_complete_runs_bootstrap_after_ordinary_failure_and_aggregates(
         return _result(platform, profile_name, profile["env"], rc)
 
     monkeypatch.setattr(lm, "_run_profile", fake_run)
-    assert lm.run(None, "complete", "all", 1, []) == 1
+    output_buffer = io.StringIO()
+    with redirect_stdout(output_buffer):
+        assert lm.run(None, "complete", "all", 1, []) == 1
     assert calls == ["ordinary", "bootstrap"]
-    output = capsys.readouterr().out
+    output = output_buffer.getvalue()
     assert output.index("platform-0/ordinary") < output.index("platform-0/bootstrap")
 
 
@@ -499,7 +520,6 @@ def test_ordinary_forwarding_allowlist_keeps_supported_selection_options() -> No
 def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     _wire(monkeypatch, _platforms(1), root=tmp_path)
     runner = tmp_path / "runner.sh"
@@ -560,7 +580,9 @@ def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
     interrupter = threading.Thread(target=interrupt_after_launch)
     interrupter.start()
     started = time.monotonic()
-    assert lm.run(None, "complete", "lean", 1, []) == 130
+    output_buffer = io.StringIO()
+    with redirect_stdout(output_buffer):
+        assert lm.run(None, "complete", "lean", 1, []) == 130
     interrupter.join(timeout=1)
     assert not interrupter.is_alive()
     assert marker.exists()
@@ -575,13 +597,12 @@ def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
     assert len(launch_lines) == 1
     assert "-platform-0-ordinary" in launch_lines[0]
     assert "-platform-0-bootstrap" not in launch_lines[0]
-    output = capsys.readouterr().out
+    output = output_buffer.getvalue()
     assert "platform-0/ordinary: CANCELLED (130)" in output
     assert "platform-0/bootstrap: CANCELLED (130)" in output
     assert output.index("platform-0/ordinary:") < output.index("platform-0/bootstrap:")
     child_pid = int(child_pid_path.read_text(encoding="utf-8"))
-    with pytest.raises(ProcessLookupError):
-        os.kill(child_pid, 0)
+    _assert_process_stopped(child_pid)
 
 
 def test_container_wrapper_removes_named_container_after_interrupt(
@@ -636,33 +657,36 @@ def test_container_wrapper_removes_named_container_after_interrupt(
 
 
 def test_worker_crash_synthesizes_both_complete_profile_results(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _wire(monkeypatch, _platforms(1))
     monkeypatch.setattr(
         lm, "_run_platform", lambda *_: (_ for _ in ()).throw(RuntimeError("boom"))
     )
-    assert lm.run(None, "complete", "all", 1, []) == 1
-    output = capsys.readouterr().out
+    output_buffer = io.StringIO()
+    with redirect_stdout(output_buffer):
+        assert lm.run(None, "complete", "all", 1, []) == 1
+    output = output_buffer.getvalue()
     assert "platform-0/ordinary: FAIL" in output
     assert "platform-0/bootstrap: FAIL" in output
 
 
 def test_worker_system_exit_is_aggregated_instead_of_aborting_matrix(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _wire(monkeypatch, _platforms(1))
     monkeypatch.setattr(
         lm, "_run_platform", lambda *_: (_ for _ in ()).throw(SystemExit(9))
     )
-    assert lm.run(None, "ordinary", "lean", 1, []) == 1
-    assert "platform-0/ordinary: FAIL" in capsys.readouterr().out
+    output_buffer = io.StringIO()
+    with redirect_stdout(output_buffer):
+        assert lm.run(None, "ordinary", "lean", 1, []) == 1
+    assert "platform-0/ordinary: FAIL" in output_buffer.getvalue()
 
 
 def test_non_utf8_profile_log_is_replayed_without_losing_matrix_results(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
 ) -> None:
     profiles = {"ordinary": {"env": "test-env"}}
 
@@ -674,21 +698,23 @@ def test_non_utf8_profile_log_is_replayed_without_losing_matrix_results(
         return [lm.ProfileResult("platform", "ordinary", "test-env", 0, log)]
 
     monkeypatch.setattr(lm, "_run_platform", fake_run_platform)
-    assert (
-        lm._execute_matrix(
-            [("platform", profiles)],
-            "ordinary",
-            "lean",
-            1,
-            [],
-            _context(),
-            {},
-            tmp_path,
+    output_buffer = io.StringIO()
+    with redirect_stdout(output_buffer):
+        assert (
+            lm._execute_matrix(
+                [("platform", profiles)],
+                "ordinary",
+                "lean",
+                1,
+                [],
+                _context(),
+                {},
+                tmp_path,
+            )
+            == 0
         )
-        == 0
-    )
 
-    output = capsys.readouterr().out
+    output = output_buffer.getvalue()
     assert "passing output\n\\xff\n" in output
     assert "platform/ordinary: PASS" in output
     assert "Matrix: 1 passed, 0 failed" in output
@@ -915,5 +941,4 @@ def test_profile_cancellation_terminates_child_process_group(
     thread.join(timeout=2)
     assert not thread.is_alive()
     assert time.monotonic() - started < 2
-    with pytest.raises(ProcessLookupError):
-        os.kill(pid, 0)
+    _assert_process_stopped(pid)

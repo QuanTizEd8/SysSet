@@ -33,13 +33,17 @@ if [[ ! "$batch" =~ ^[0-9]+$ || "$batch" -lt 1 ]]; then
 fi
 
 if [[ $# -gt 0 ]]; then
-  echo "$@" | xargs -P"${jobs}" -n"${batch}" shellcheck
+  printf '%s\0' "$@" | xargs -0 -P"${jobs}" -n"${batch}" shellcheck
 else
-  {
-    # All tracked .sh/.bash files except features/*/install.bash and *.tmpl.*
-    git ls-files -- '*.sh' '*.bash' |
-      grep -vE '^features/[^/]*/install\.bash$|\.tmpl\.(bash|sh)$'
-    # Plus all src/*/install.bash files
-    find src -maxdepth 2 -name 'install.bash' 2> /dev/null
-  } | sort -u | xargs -P"${jobs}" -n"${batch}" shellcheck
+  declare -a files=()
+  while IFS= read -r -d '' path; do
+    # git ls-files includes tracked paths deleted in the working tree.
+    [[ -f "$path" ]] || continue
+    [[ "$path" =~ ^features/[^/]+/install\.bash$|\.tmpl\.(bash|sh)$ ]] && continue
+    files+=("$path")
+  done < <(git ls-files -z -- '*.sh' '*.bash')
+  while IFS= read -r -d '' path; do
+    files+=("$path")
+  done < <(find src -maxdepth 2 -name 'install.bash' -print0 2> /dev/null)
+  ((${#files[@]} == 0)) || printf '%s\0' "${files[@]}" | xargs -0 -P"${jobs}" -n"${batch}" shellcheck
 fi

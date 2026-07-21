@@ -1,2 +1,5 @@
 ubuntu-stable:
-  env: ubuntu-stable
+  env: ubuntu-stable+lib-test-tools
+  env_vars:
+    DEVFEATS_TEST_TOOL_CACHE: required
+    DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin

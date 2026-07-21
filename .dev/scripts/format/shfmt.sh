@@ -29,8 +29,12 @@ fi
 if [[ $# -gt 0 ]]; then
   "${cmd[@]}" "$@"
 else
-  {
-    # All tracked .sh/.bash/.bats files
-    git ls-files -- '*.sh' '*.bash' '*.bats'
-  } | sort -u | xargs "${cmd[@]}"
+  # git ls-files includes tracked paths deleted in the working tree. Filter
+  # those before invoking shfmt so renames/deletions do not make `just format`
+  # fail with lstat errors. NUL separation also preserves unusual filenames.
+  declare -a files=()
+  while IFS= read -r -d '' path; do
+    [[ -f "$path" ]] && files+=("$path")
+  done < <(git ls-files -z -- '*.sh' '*.bash' '*.bats')
+  ((${#files[@]} == 0)) || "${cmd[@]}" "${files[@]}"
 fi

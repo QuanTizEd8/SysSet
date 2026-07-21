@@ -4,17 +4,11 @@
 
 bats_require_minimum_version 1.5.0
 
-setup_file() {
-  load 'helpers/bootstrap_tools'
-  test_bootstrap__setup_file_jq_yq
-}
-
 setup() {
   load 'helpers/ensure_framework'
   install_test__ensure_framework
-  load 'helpers/bootstrap_tools'
-  test_bootstrap__require_jq_yq
-  test_bootstrap__wire_tools_for_run
+  load 'helpers/test_tools'
+  test_tools__wire_jq_yq
   load 'helpers/stubs'
   load 'helpers/ctx'
   load 'helpers/capture'

@@ -2,11 +2,11 @@
 # shellcheck disable=SC2329  # stubs are invoked indirectly by __install_run_source__ via `run`
 # Tests __install_run_source__'s primary→fallback source-asset fetch.
 #
-# When a feature configures source.fallback_asset_uri (only install-zsh today),
-# a primary failure is an expected outcome (e.g. a 404 because a pinned older
-# version has been archived to a different path — zsh's /pub → /pub/old). The
-# template must bound the primary fetch's HTTP retry budget so it fails fast and
-# the fallback runs promptly, instead of retrying the primary URL ~60x first.
+# When a feature configures paired version/source fallbacks (only install-zsh
+# today), the source fetch must retain the location that resolved the version.
+# Current versions belong at the primary URL; archived versions belong at the
+# fallback URL. A transient fetch failure must not permanently switch a newly
+# resolved current version to an archive that cannot contain it.
 
 bats_require_minimum_version 1.5.0
 
@@ -42,10 +42,48 @@ setup() {
   export -f uri__fetch_asset
 }
 
-@test "__install_run_source__ bounds the primary retry budget when a fallback exists" {
+@test "sidecar resolution records that an archived version used the fallback index" {
+  VERSION_RESOLUTION=sidecar
+  VERSION_URI="https://primary.example/"
+  VERSION_FALLBACK_URI="https://fallback.example/old/"
+  VERSION_PATTERN='zsh-[version].tar.xz'
+  export VERSION_RESOLUTION VERSION_URI VERSION_FALLBACK_URI VERSION_PATTERN
+
+  # shellcheck disable=SC2329
+  ver__resolve_from_sidecar() {
+    [[ "$1" == "$VERSION_FALLBACK_URI" ]] || return 1
+    printf '5.9.1\n'
+  }
+  export -f ver__resolve_from_sidecar
+
+  __feat_resolve_version_spec__ 5.9.1 --update-globals > /dev/null
+
+  assert [ "$_FEAT_RESOLVE_VERSION_RESULT" = 5.9.1 ]
+  assert [ "$_FEAT_VERSION_SOURCE_AFFINITY" = fallback ]
+}
+
+@test "sidecar resolution records that a current version used the primary index" {
+  VERSION_RESOLUTION=sidecar
+  VERSION_URI="https://primary.example/"
+  VERSION_FALLBACK_URI="https://fallback.example/old/"
+  VERSION_PATTERN='zsh-[version].tar.xz'
+  export VERSION_RESOLUTION VERSION_URI VERSION_FALLBACK_URI VERSION_PATTERN
+
+  # shellcheck disable=SC2329
+  ver__resolve_from_sidecar() { printf '5.9.2\n'; }
+  export -f ver__resolve_from_sidecar
+
+  __feat_resolve_version_spec__ stable --update-globals > /dev/null
+
+  assert [ "$_FEAT_RESOLVE_VERSION_RESULT" = 5.9.2 ]
+  assert [ "$_FEAT_VERSION_SOURCE_AFFINITY" = primary ]
+}
+
+@test "__install_run_source__ gives a primary-resolved release the full primary retry budget" {
   SOURCE_ASSET_URI="https://primary.example/zsh-5.9.1.tar.xz"
   SOURCE_FALLBACK_ASSET_URI="https://fallback.example/old/zsh-5.9.1.tar.xz"
-  export SOURCE_ASSET_URI SOURCE_FALLBACK_ASSET_URI
+  _FEAT_VERSION_SOURCE_AFFINITY=primary
+  export SOURCE_ASSET_URI SOURCE_FALLBACK_ASSET_URI _FEAT_VERSION_SOURCE_AFFINITY
 
   run __install_run_source__
 
@@ -53,10 +91,37 @@ setup() {
   _primary="$(grep -F "$SOURCE_ASSET_URI" "$_FETCH_LOG" | head -1 | awk '{print $1}')"
   _fallback="$(grep -F "$SOURCE_FALLBACK_ASSET_URI" "$_FETCH_LOG" | head -1 | awk '{print $1}')"
 
-  # Primary fetch capped (fails fast); fallback tried with the full budget.
+  # A current release stays on the current-release URL for the full budget.
   assert [ -n "$_primary" ]
-  assert [ "$_primary" -le 3 ]
+  assert [ "$_primary" -eq 60 ]
   assert [ -n "$_fallback" ]
+  assert [ "$_fallback" -eq 60 ]
+}
+
+@test "__install_run_source__ fetches a fallback-resolved release from the archive first" {
+  SOURCE_ASSET_URI="https://primary.example/zsh-5.9.1.tar.xz"
+  SOURCE_FALLBACK_ASSET_URI="https://fallback.example/old/zsh-5.9.1.tar.xz"
+  _FEAT_VERSION_SOURCE_AFFINITY=fallback
+  export SOURCE_ASSET_URI SOURCE_FALLBACK_ASSET_URI _FEAT_VERSION_SOURCE_AFFINITY
+
+  run __install_run_source__
+
+  assert [ "$(wc -l < "$_FETCH_LOG")" -eq 1 ]
+  assert grep -Fq "60 ${SOURCE_FALLBACK_ASSET_URI}" "$_FETCH_LOG"
+}
+
+@test "__install_run_source__ retains fail-fast probing when resolution has no location affinity" {
+  SOURCE_ASSET_URI="https://primary.example/zsh-5.9.1.tar.xz"
+  SOURCE_FALLBACK_ASSET_URI="https://fallback.example/old/zsh-5.9.1.tar.xz"
+  unset _FEAT_VERSION_SOURCE_AFFINITY
+  export SOURCE_ASSET_URI SOURCE_FALLBACK_ASSET_URI
+
+  run __install_run_source__
+
+  local _primary _fallback
+  _primary="$(grep -F "$SOURCE_ASSET_URI" "$_FETCH_LOG" | head -1 | awk '{print $1}')"
+  _fallback="$(grep -F "$SOURCE_FALLBACK_ASSET_URI" "$_FETCH_LOG" | head -1 | awk '{print $1}')"
+  assert [ "$_primary" -le 3 ]
   assert [ "$_fallback" -eq 60 ]
 }
 

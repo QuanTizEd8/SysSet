@@ -111,7 +111,6 @@ setup_suite() {
 
   local _tools_dir="${BATS_SUITE_TMPDIR}/tools" _name _source _dest
   local _required_tools="${DEVFEATS_TEST_REQUIRED_TOOLS:-jq yq}"
-  [[ -n "$_canonical_source" ]] && _required_tools="jq yq jsonschema oras"
   mkdir -p "$_tools_dir" || {
     _test_suite__fail "could not create suite tool cache: ${_tools_dir}"
     return

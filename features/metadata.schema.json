@@ -151,7 +151,7 @@
               "type": "string"
             },
             "fallback_uri": {
-              "description": "Secondary sidecar URI (parsed with the same `pattern`) consulted only when `uri` does not resolve the requested spec, for `resolution=sidecar`. Use for upstreams that keep only the current release on the main index and move older releases to a separate archive listing (e.g. zsh's `pub/old/`), so an explicitly pinned older version still resolves.",
+              "description": "Secondary sidecar URI (parsed with the same `pattern`) consulted only when `uri` does not resolve the requested spec, for `resolution=sidecar`. Use for upstreams that keep only the current release on the main index and move older releases to a separate archive listing (e.g. zsh's `pub/old/`), so an explicitly pinned older version still resolves. When paired with `method.source.fallback_asset_uri`, the index that resolved the version is preferred for the corresponding source asset.",
               "type": "string"
             },
             "test_pins": {
@@ -434,7 +434,7 @@
                   "minItems": 1
                 },
                 "fallback_asset_uri": {
-                  "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same qualified context tokens as `binary.asset_uri`. Checksum-sidecar verification is skipped for the fallback, but GPG verification (via `gpg_key_uri`) still applies. Sets the default for the auto-generated `source_fallback_asset_uri` option.",
+                  "description": "Fallback URI for the source tarball when the primary `asset_uri` fetch fails. Supports the same qualified context tokens as `binary.asset_uri`. When version resolution used `version.fallback_uri`, this URI is tried first so archived releases do not probe the current-release location. Checksum-sidecar verification is skipped for the fallback, but GPG verification (via `gpg_key_uri`) still applies. Sets the default for the auto-generated `source_fallback_asset_uri` option.",
                   "type": "string"
                 },
                 "gpg_key_uri": {

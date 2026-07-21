@@ -2,7 +2,35 @@
 
 from __future__ import annotations
 
-from proman.test.run import _standalone_install_block
+from pathlib import Path
+
+from proman.test.run import (
+    _option_env_value,
+    _options_exports,
+    _standalone_install_block,
+)
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_option_environment_serialization_matches_feature_contract() -> None:
+    """Booleans and array options reach installers in their documented forms."""
+    for value, expected in ((True, "true"), (False, "false")):
+        assert _option_env_value(value) == expected
+    assert _option_env_value(["/first path", "/second"]) == "/first path\n/second"
+    assert _options_exports({"backup-dir": ["/first path", "/second"]}) == (
+        "export BACKUP_DIR='/first path\n/second'"
+    )
+
+
+def test_install_runner_declares_its_required_suite_tools() -> None:
+    """The standard local command satisfies install setup_suite's cache contract."""
+    source = (REPO_ROOT / ".dev/scripts/test/run-install.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "DEVFEATS_TEST_TOOL_CACHE=required" in source
+    assert 'DEVFEATS_TEST_REQUIRED_TOOLS="jq yq"' in source
+    assert "export DEVFEATS_TEST_TOOL_CACHE DEVFEATS_TEST_REQUIRED_TOOLS" in source
 
 
 def test_standalone_install_streams_without_log_file() -> None:

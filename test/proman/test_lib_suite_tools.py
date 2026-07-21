@@ -60,7 +60,7 @@ def _run_setup(
     *,
     mode: str,
     source: Path | None = None,
-    required: str = "jq yq",
+    required: str = "jq yq jsonschema oras",
     path: str | None = None,
     after: str = "env",
 ) -> subprocess.CompletedProcess[str]:

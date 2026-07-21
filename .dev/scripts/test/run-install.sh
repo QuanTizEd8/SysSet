@@ -128,6 +128,19 @@ if [[ ${#_test_files[@]} -eq 0 ]]; then
   exit 0
 fi
 
+# Install-framework tests are an ordinary (non-bootstrap) BATS suite and need
+# only jq/yq. Container scenarios may provide immutable prepared binaries;
+# local runs resolve the same tools from PATH in setup_suite.bash.
+case "${DEVFEATS_TEST_TOOL_CACHE:-}" in
+  '' | required) DEVFEATS_TEST_TOOL_CACHE=required ;;
+  *)
+    echo "⛔ Install framework tests require DEVFEATS_TEST_TOOL_CACHE=required." >&2
+    exit 2
+    ;;
+esac
+DEVFEATS_TEST_REQUIRED_TOOLS="jq yq"
+export DEVFEATS_TEST_TOOL_CACHE DEVFEATS_TEST_REQUIRED_TOOLS
+
 declare -a _bats_args=(--print-output-on-failure)
 [[ "$_jobs" -gt 0 ]] && _bats_args+=(--jobs "$_jobs")
 [[ -n "$_filter" ]] && _bats_args+=(--filter "$_filter")

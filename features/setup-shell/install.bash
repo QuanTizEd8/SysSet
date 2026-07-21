@@ -609,7 +609,7 @@ __configure_user() {
     _path="$(_ss__resolve_target_path "$_tid")" || continue
     [[ -n "$_path" ]] || continue
     _mode="$(_ss__target_mode_for user)"
-    _ss__apply_target "$_tid" "$_path" "$_mode"
+    _ss__apply_target "$_tid" "$_path" "$_mode" || return $?
     if [[ "$_mode" != uninstall ]]; then
       _cu_chown_paths+=("$_path")
       local _parent
@@ -671,12 +671,12 @@ __install_run__() {
   # Fail-mode: probe every fail-scoped target (system/skel + users) before any
   # write, then report all collected conflicts at once. A conflict in ANY scope
   # aborts the whole run with zero writes.
-  _ss__probe_pass
-  _ss__probe_users
+  _ss__probe_pass || return $?
+  _ss__probe_users || return $?
   _ss__report_fail_conflicts || exit 1
 
   logging__info "Applying setup-shell registry targets..."
-  _ss__apply_pass
+  _ss__apply_pass || return $?
   return 0
 }
 
@@ -687,7 +687,7 @@ __uninstall_run__() {
   IF_EXISTS_SKEL=uninstall
   IF_EXISTS_USER=uninstall
   logging__info "Removing setup-shell managed content..."
-  _ss__apply_pass
-  __feat_do_configure_users__
+  _ss__apply_pass || return $?
+  __feat_do_configure_users__ || return $?
   __run_feature_hook__ __uninstall_run_post
 }

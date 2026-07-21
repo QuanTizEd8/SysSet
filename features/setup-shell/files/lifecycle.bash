@@ -719,7 +719,7 @@ _ss__each_sys_skel_target() {
     _path="$(_ss__resolve_target_path "$_tid")" || continue
     [[ -n "$_path" ]] || continue
     _mode="$(_ss__target_mode_for "$_scope")"
-    "$_cb" "$_tid" "$_path" "$_mode"
+    "$_cb" "$_tid" "$_path" "$_mode" || return $?
   done
 }
 

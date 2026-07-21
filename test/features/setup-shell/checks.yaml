@@ -171,7 +171,7 @@ reinstall_backup_failure:
   checks:
     - kind: install_failure
       title: backup failure is reported
-      pattern: "no configured backup_dir candidate is writable"
+      pattern: "failed to create backup directory '/proc/devfeats-backup-must-fail'"
     - title: original bashrc content survives the failed reinstall
       cmd: grep -qF 'BACKUP FAILURE MUST PRESERVE THIS LINE' /etc/bash.bashrc
 

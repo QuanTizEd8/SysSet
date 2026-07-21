@@ -268,11 +268,20 @@ def _run_subprocess_streaming(
     return proc.wait(), "".join(chunks)
 
 
+def _option_env_value(value: object) -> str:
+    """Serialize one feature option using the installer environment contract."""
+    if isinstance(value, bool):
+        return str(value).lower()
+    if isinstance(value, list):
+        return "\n".join(str(item) for item in value)
+    return str(value)
+
+
 def _options_exports(options: dict) -> str:
     lines = []
     for k, v in options.items():
         env_key = k.upper().replace("-", "_")
-        val = str(v).lower() if isinstance(v, bool) else str(v)
+        val = _option_env_value(v)
         lines.append(f"export {env_key}={shlex.quote(val)}")
     return "\n".join(lines)
 
@@ -725,7 +734,7 @@ def _run_macos(
                 run_env.update(merge_scenario_env_vars(scenario))
                 for k, v in options.items():
                     env_key = k.upper().replace("-", "_")
-                    run_env[env_key] = str(v).lower() if isinstance(v, bool) else str(v)
+                    run_env[env_key] = _option_env_value(v)
 
                 print(f"\n══ macos: {key} ══", flush=True)
 

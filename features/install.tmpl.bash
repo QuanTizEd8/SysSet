@@ -1193,36 +1193,52 @@ __install_run_source__() {
     fi
   fi
 
-  local _have_fallback=false
+  local _have_fallback=false _fallback_uri=""
   if [[ -v SOURCE_FALLBACK_ASSET_URI && -n "${SOURCE_FALLBACK_ASSET_URI}" ]]; then
     _have_fallback=true
+    _fallback_uri="$(ctx__expand_pattern "${SOURCE_FALLBACK_ASSET_URI}")"
   fi
 
-  logging__download "Fetching source asset '${_asset_uri}'."
-  local _fetch_rc=0
+  # VERSION_FALLBACK_URI and SOURCE_FALLBACK_ASSET_URI describe the same
+  # release archive. Preserve which version index resolved the release so an
+  # archived version is fetched from the archive first, while a current version
+  # keeps retrying the current-release URL. Without this affinity, a transient
+  # failure fetching a newly resolved current release switched permanently to
+  # an archive URL that could not contain it.
+  local _preferred_uri="${_asset_uri}" _alternate_uri=""
+  local -a _preferred_fetch_args=("${_fetch_args[@]}") _alternate_fetch_args=()
+  local _cap_preferred_retries=false
   if [[ "${_have_fallback}" == true ]]; then
-    # A fallback URI is configured, so a primary failure is an expected outcome
-    # (typically a 404 because the pinned version has been archived to a
-    # different path, e.g. zsh's /pub → /pub/old). Bound the primary's HTTP
-    # retry budget so it fails fast and the fallback is tried promptly, rather
-    # than retrying the primary URL ~60x first. The net layer reads
-    # DEVFEATS_NET_FETCH_RETRIES per call, and the env assignment is scoped to
-    # this invocation; the fallback keeps the full budget as the authoritative
-    # location.
-    local _primary_retries="${DEVFEATS_NET_FETCH_RETRIES:-60}"
-    [[ "${_primary_retries}" =~ ^[0-9]+$ ]] || _primary_retries=60
-    [[ "${_primary_retries}" -gt 3 ]] && _primary_retries=3
-    DEVFEATS_NET_FETCH_RETRIES="${_primary_retries}" \
-      uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || _fetch_rc=$?
+    if [[ "${_FEAT_VERSION_SOURCE_AFFINITY:-}" == fallback ]]; then
+      _preferred_uri="${_fallback_uri}"
+      _preferred_fetch_args=(--installer-dir "${INSTALLER_DIR}" --sha256 none "${_fallback_gpg_args[@]+"${_fallback_gpg_args[@]}"}")
+      _alternate_uri="${_asset_uri}"
+      _alternate_fetch_args=("${_fetch_args[@]}")
+    else
+      _alternate_uri="${_fallback_uri}"
+      _alternate_fetch_args=(--installer-dir "${INSTALLER_DIR}" --sha256 none "${_fallback_gpg_args[@]+"${_fallback_gpg_args[@]}"}")
+      [[ "${_FEAT_VERSION_SOURCE_AFFINITY:-}" == primary ]] || _cap_preferred_retries=true
+    fi
+  fi
+
+  logging__download "Fetching source asset '${_preferred_uri}'."
+  local _fetch_rc=0
+  if [[ "${_cap_preferred_retries}" == true ]]; then
+    # With no resolution affinity, retain the generic fail-fast fallback
+    # behavior: probe the primary briefly, then give the alternate the full
+    # retry budget.
+    local _preferred_retries="${DEVFEATS_NET_FETCH_RETRIES:-60}"
+    [[ "${_preferred_retries}" =~ ^[0-9]+$ ]] || _preferred_retries=60
+    [[ "${_preferred_retries}" -gt 3 ]] && _preferred_retries=3
+    DEVFEATS_NET_FETCH_RETRIES="${_preferred_retries}" \
+      uri__fetch_asset "${_preferred_uri}" "${_preferred_fetch_args[@]}" || _fetch_rc=$?
   else
-    uri__fetch_asset "${_asset_uri}" "${_fetch_args[@]}" || _fetch_rc=$?
+    uri__fetch_asset "${_preferred_uri}" "${_preferred_fetch_args[@]}" || _fetch_rc=$?
   fi
   if [[ ${_fetch_rc} -ne 0 ]]; then
     if [[ "${_have_fallback}" == true ]]; then
-      local _fallback_uri
-      _fallback_uri="$(ctx__expand_pattern "${SOURCE_FALLBACK_ASSET_URI}")"
-      logging__warn "Primary source fetch failed (rc=${_fetch_rc}); trying fallback '${_fallback_uri}'."
-      uri__fetch_asset "${_fallback_uri}" --installer-dir "${INSTALLER_DIR}" --sha256 none "${_fallback_gpg_args[@]+"${_fallback_gpg_args[@]}"}"
+      logging__warn "Preferred source fetch failed (rc=${_fetch_rc}); trying alternate '${_alternate_uri}'."
+      uri__fetch_asset "${_alternate_uri}" "${_alternate_fetch_args[@]}"
     else
       return "${_fetch_rc}"
     fi
@@ -2347,6 +2363,9 @@ __feat_resolve_version_spec__() {
     esac
   done
   declare -g _FEAT_RESOLVE_VERSION_RESULT=""
+  if [[ "${_update_globals}" == true ]]; then
+    declare -g _FEAT_VERSION_SOURCE_AFFINITY=""
+  fi
   [[ -n "${_spec}" ]] || return 1
 
   if declare -f __resolve_version > /dev/null; then
@@ -2444,12 +2463,18 @@ __feat_resolve_version_spec__() {
       # aborts the function before the fallback is reached.
       local _rc=0
       _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_URI}" "${VERSION_PATTERN}" "${_spec}")" || _rc=$?
+      if [[ $_rc == 0 && "${_update_globals}" == true ]]; then
+        _FEAT_VERSION_SOURCE_AFFINITY=primary
+      fi
       if [[ $_rc != 0 && -n "${VERSION_FALLBACK_URI:-}" ]]; then
         # Primary index lists only the current release (e.g. zsh's pub/); retry
         # against the archive listing so explicitly pinned older versions resolve.
         logging__info "Primary sidecar did not resolve '${_spec}'; trying fallback sidecar (URI='${VERSION_FALLBACK_URI}')."
         _rc=0
         _FEAT_RESOLVE_VERSION_RESULT="$(ver__resolve_from_sidecar "${VERSION_FALLBACK_URI}" "${VERSION_PATTERN}" "${_spec}")" || _rc=$?
+        if [[ $_rc == 0 && "${_update_globals}" == true ]]; then
+          _FEAT_VERSION_SOURCE_AFFINITY=fallback
+        fi
       fi
       [[ $_rc == 0 ]] || {
         logging__error "failed to resolve sidecar version (URI='${VERSION_URI}', spec='${_spec}')."
