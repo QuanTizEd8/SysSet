@@ -167,6 +167,17 @@ def load(path: Path | str) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
 
+def _validated_image(env_name: str, env: dict) -> str | None:
+    """Return an optional non-empty image string, rejecting explicit nulls."""
+    if "image" not in env:
+        return None
+    image = env["image"]
+    if not isinstance(image, str) or not image:
+        message = f"Environment {env_name!r} image must be a non-empty string."
+        raise ValueError(message)
+    return image
+
+
 def is_macos(env_name: str, envs: dict) -> bool:
     """Return whether the nearest image in an environment chain is macOS."""
     seen: set[str] = set()
@@ -180,15 +191,16 @@ def is_macos(env_name: str, envs: dict) -> bool:
         if not isinstance(env, dict):
             message = f"Environment {cursor!r} is missing or is not a mapping."
             raise ValueError(message)  # noqa: TRY004 - invalid config value
-        image = env.get("image")
+        image = _validated_image(cursor, env)
         if image is not None:
-            return isinstance(image, str) and bool(re.match(r"^macos", image))
+            return bool(re.match(r"^macos", image))
         parent = env.get("from")
         if parent is not None and (not isinstance(parent, str) or not parent):
             message = f"Environment {cursor!r} from must be a non-empty string."
             raise ValueError(message)
         cursor = parent
-    return False
+    message = f"Environment {env_name!r} does not resolve to an image."
+    raise ValueError(message)
 
 
 def resolve_attributes(env_name: str, envs: dict) -> dict:
@@ -278,6 +290,7 @@ def validate_environment_chain(
         if not isinstance(env, dict):
             message = f"Environment {cursor!r} is missing or is not a mapping."
             raise ValueError(message)  # noqa: TRY004 - invalid config value
+        _validated_image(cursor, env)
         _validate_build(cursor, env, native_macos=native_macos)
         chain.append(cursor)
         parent = env.get("from")
@@ -457,8 +470,8 @@ def resolve(
     """Resolve an environment name to a Docker image tag, building if needed."""
     env = envs.get(env_name)
     if env is None:
-        print(f"⛔ Unknown environment: {env_name!r}", file=sys.stderr)
-        sys.exit(1)
+        message = f"Unknown environment: {env_name!r}"
+        raise ValueError(message)
 
     native_macos = is_macos(env_name, envs)
     chain = validate_environment_chain(env_name, envs, native_macos=native_macos)

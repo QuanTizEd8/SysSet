@@ -150,7 +150,7 @@ case "$asset_os/$asset_arch$jsonschema_libc" in
     oras_sha=2621f6b252b222f6fbf4e114d2fcaa0cec6b632624ffaf73143f66e4e0994f86
     ;;
   darwin/arm64)
-    jq_sha=2d75340ba57a4b4c8708a21c2dc8e958a48aaa8bba13b27f77f6e4c0eca07e
+    jq_sha=2d75340ba57a4b4b4c8708a21c2dc8e958a48aaa8bba13b27f77f6e4c0eca07e
     yq_sha=541ba2287560df70f561955e2d7f7e1cd00cf2a15a884f6b5c87a4bfa887bc07
     jsonschema_sha=95574d8ad36a30fb91967b056441a2b68c24d2441741b271544c3fb48a6c8f97
     oras_sha=7929f792cf272268412375ecad6f0fb3c20f164368d5b57966e67ad6d36eca53

@@ -245,6 +245,36 @@ file__rm() {
   fi
 }
 
+file__rmdir() {
+  # @brief file__rmdir <dir>... — Remove empty directories, escalating privilege only if needed.
+  #
+  # Uses the portable `rmdir` utility rather than the non-POSIX `rm -d` option.
+  # Escalates to `users__run_privileged` if any directory's parent is not
+  # writable by the current process. Refuses non-empty directories.
+  #
+  # Args:
+  #   <dir>...  One or more empty directory paths to remove.
+  #
+  # Returns: 0 on success, non-zero on failure.
+  (($# > 0)) || {
+    logging__error "no directories specified"
+    return 1
+  }
+  logging__remove "Removing empty directories: $*."
+  local _needs_priv=false _dir
+  for _dir in "$@"; do
+    if [[ -d "$_dir" && ! -L "$_dir" && ! -w "$(dirname "$_dir")" ]]; then
+      _needs_priv=true
+      break
+    fi
+  done
+  if $_needs_priv; then
+    users__run_privileged rmdir "$@"
+  else
+    rmdir "$@"
+  fi
+}
+
 file__ln() {
   # @brief file__ln [flags] <target> <link_name> — Create a symlink (ln), escalating privilege only if needed.
   #

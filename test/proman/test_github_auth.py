@@ -45,6 +45,22 @@ def test_gh_token_is_normalized_without_invoking_cli(
     assert github_auth.os.environ["GITHUB_TOKEN"] == "alternate-token"
 
 
+def test_whitespace_bearing_environment_tokens_are_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "invalid token")
+    monkeypatch.setenv("GH_TOKEN", "alternate-token\n")
+    monkeypatch.setattr(github_auth.shutil, "which", lambda _name: "/usr/bin/gh")
+    monkeypatch.setattr(
+        github_auth.subprocess,
+        "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError),
+    )
+
+    assert not github_auth.ensure_github_token()
+    assert "GITHUB_TOKEN" not in github_auth.os.environ
+
+
 def test_gh_cli_token_is_normalized_without_printing_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

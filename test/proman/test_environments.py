@@ -345,6 +345,19 @@ def test_native_macos_resolver_rejects_run_fragment_instead_of_ignoring_it() -> 
         env_module.resolve("mac", _macos_fragment_envs())
 
 
+def test_explicit_null_image_is_rejected_consistently() -> None:
+    envs = {"base": {"image": None}, "child": {"from": "base"}}
+    with pytest.raises(ValueError, match="image must be a non-empty string"):
+        env_module.is_macos("child", envs)
+    with pytest.raises(ValueError, match="image must be a non-empty string"):
+        env_module.resolve("child", envs)
+
+
+def test_resolve_unknown_environment_raises_value_error() -> None:
+    with pytest.raises(ValueError, match="Unknown environment"):
+        env_module.resolve("missing", {})
+
+
 def test_devcontainer_generator_validates_macos_before_skipping(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

@@ -9,6 +9,21 @@ setup() {
   reload_lib
 }
 
+@test "file__rmdir: removes only empty directories with portable rmdir" {
+  local _empty="${BATS_TEST_TMPDIR}/empty"
+  local _nonempty="${BATS_TEST_TMPDIR}/nonempty"
+  mkdir -p "$_empty" "$_nonempty"
+  touch "${_nonempty}/item"
+
+  run file__rmdir "$_empty"
+  assert_success
+  refute [ -e "$_empty" ]
+
+  run file__rmdir "$_nonempty"
+  assert_failure
+  assert [ -d "$_nonempty" ]
+}
+
 # ---------------------------------------------------------------------------
 # _file__ensure_extract_tool
 # ---------------------------------------------------------------------------

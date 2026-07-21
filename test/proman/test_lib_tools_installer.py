@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import re
 import signal
 import stat
 import subprocess
@@ -32,6 +33,16 @@ def _run_installer(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
 def _script(path: Path, content: str) -> None:
     path.write_text(f"#!/bin/sh\n{content}", encoding="utf-8")
     path.chmod(0o755)
+
+
+def test_every_pinned_checksum_is_exactly_one_sha256_digest() -> None:
+    assignments = re.findall(
+        r"^\s*[a-z]+_sha=([^\s]+)$",
+        INSTALLER.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    assert len(assignments) == 24
+    assert all(re.fullmatch(r"[0-9a-f]{64}", value) for value in assignments)
 
 
 def _tool_script(name: str) -> str:
@@ -466,7 +477,7 @@ def test_failing_curl_has_one_shell_invocation_per_reached_asset(
             "jsonschema-16.2.0-darwin-arm64.zip",
             "oras_1.3.2_darwin_arm64.tar.gz",
             (
-                "2d75340ba57a4b4c8708a21c2dc8e958a48aaa8bba13b27f77f6e4c0eca07e",
+                "2d75340ba57a4b4b4c8708a21c2dc8e958a48aaa8bba13b27f77f6e4c0eca07e",
                 "541ba2287560df70f561955e2d7f7e1cd00cf2a15a884f6b5c87a4bfa887bc07",
                 "95574d8ad36a30fb91967b056441a2b68c24d2441741b271544c3fb48a6c8f97",
                 "7929f792cf272268412375ecad6f0fb3c20f164368d5b57966e67ad6d36eca53",

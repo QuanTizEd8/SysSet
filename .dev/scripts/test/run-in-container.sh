@@ -57,6 +57,21 @@ done
 _NAME_ARGS=()
 [[ -n "$_NAME" ]] && _NAME_ARGS=("--name" "$_NAME")
 
+# If this wrapper is interrupted while Docker is creating a named container,
+# wait for the docker client to return and then remove that exact name. The
+# matrix supervisor also performs cleanup, but this local trap closes the race
+# where creation reaches the daemon just after the supervisor's final attempt.
+_INTERRUPTED=false
+_cleanup_interrupted_container() {
+  if $_INTERRUPTED && [[ -n "$_NAME" ]]; then
+    docker container rm -f "$_NAME" > /dev/null 2>&1 || true
+  fi
+}
+trap _cleanup_interrupted_container EXIT
+trap '_INTERRUPTED=true; exit 129' HUP
+trap '_INTERRUPTED=true; exit 130' INT
+trap '_INTERRUPTED=true; exit 143' TERM
+
 _LOG_VOL_ARGS=()
 if [[ -n "$_LOG_BIND_DIR" ]]; then
   mkdir -p "$_LOG_BIND_DIR"

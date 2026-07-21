@@ -618,7 +618,7 @@ _sf_restore_backup() {
   # from persisted state. Cleanup failure leaves harmless metadata (or an
   # unexpectedly non-empty capsule) behind and must not make a later uninstall
   # retry treat the already-restored item as a failed restoration.
-  if ! file__rm -f "${_capsule}/source-path" || ! file__rm -d "$_capsule"; then
+  if ! file__rm -f "${_capsule}/source-path" || ! file__rmdir "$_capsule"; then
     logging__warn "Uninstall: restored ${_dest}, but could not completely remove backup capsule ${_capsule}."
   fi
   return 0
@@ -1272,7 +1272,7 @@ _uninstall_state_file() {
         ;;
       mkdir)
         if [[ "$_created" == "true" ]]; then
-          file__rm -d "$_dest" 2> /dev/null || logging__warn "Uninstall: ${_dest} is not empty; skipping rmdir."
+          file__rmdir "$_dest" 2> /dev/null || logging__warn "Uninstall: ${_dest} is not empty; skipping rmdir."
         fi
         ;;
       move)

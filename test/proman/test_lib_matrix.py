@@ -8,20 +8,17 @@ from __future__ import annotations
 import os
 import shlex
 import signal
+import subprocess
 import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 
 import pytest
 import yaml
 from proman.cli import test_lib_matrix as cli
 from proman.test import lib_matrix as lm
 from proman.test.lib_scenarios import LibScenarioError, load_and_validate, validate
-
-if TYPE_CHECKING:
-    import subprocess
 
 REPO_ROOT = Path(__file__).parents[2]
 PLATFORMS = (
@@ -587,6 +584,57 @@ def test_top_level_interrupt_stops_process_tree_and_cleans_exact_resources(
         os.kill(child_pid, 0)
 
 
+def test_container_wrapper_removes_named_container_after_interrupt(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    marker = tmp_path / "docker-started"
+    cleanup = tmp_path / "docker-cleanup"
+    docker = fake_bin / "docker"
+    docker.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = run ]; then\n'
+        '  : > "$DOCKER_STARTED"\n'
+        "  sleep 60\n"
+        "else\n"
+        '  printf \'%s\\n\' "$*" > "$DOCKER_CLEANUP"\n'
+        "fi\n",
+        encoding="utf-8",
+    )
+    docker.chmod(0o755)
+    proc = subprocess.Popen(
+        [
+            "bash",
+            str(REPO_ROOT / ".dev/scripts/test/run-in-container.sh"),
+            "--image",
+            "example:test",
+            "--name",
+            "exact-test-name",
+            "--run",
+            "true",
+        ],
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "DOCKER_STARTED": str(marker),
+            "DOCKER_CLEANUP": str(cleanup),
+        },
+        start_new_session=True,
+    )
+    deadline = time.monotonic() + 2
+    while not marker.exists() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert marker.exists()
+
+    os.killpg(proc.pid, signal.SIGTERM)
+
+    assert proc.wait(timeout=2) == 143
+    assert cleanup.read_text(encoding="utf-8").strip() == (
+        "container rm -f exact-test-name"
+    )
+
+
 def test_worker_crash_synthesizes_both_complete_profile_results(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -598,6 +646,66 @@ def test_worker_crash_synthesizes_both_complete_profile_results(
     output = capsys.readouterr().out
     assert "platform-0/ordinary: FAIL" in output
     assert "platform-0/bootstrap: FAIL" in output
+
+
+def test_worker_system_exit_is_aggregated_instead_of_aborting_matrix(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _wire(monkeypatch, _platforms(1))
+    monkeypatch.setattr(
+        lm, "_run_platform", lambda *_: (_ for _ in ()).throw(SystemExit(9))
+    )
+    assert lm.run(None, "ordinary", "lean", 1, []) == 1
+    assert "platform-0/ordinary: FAIL" in capsys.readouterr().out
+
+
+def test_non_utf8_profile_log_is_replayed_without_losing_matrix_results(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    profiles = {"ordinary": {"env": "test-env"}}
+
+    def fake_run_platform(*args: object) -> list[lm.ProfileResult]:
+        logs_dir = args[8]
+        assert isinstance(logs_dir, Path)
+        log = logs_dir / "platform--ordinary.log"
+        log.write_bytes(b"passing output\n\xff\n")
+        return [lm.ProfileResult("platform", "ordinary", "test-env", 0, log)]
+
+    monkeypatch.setattr(lm, "_run_platform", fake_run_platform)
+    assert (
+        lm._execute_matrix(
+            [("platform", profiles)],
+            "ordinary",
+            "lean",
+            1,
+            [],
+            _context(),
+            {},
+            tmp_path,
+        )
+        == 0
+    )
+
+    output = capsys.readouterr().out
+    assert "passing output\n\\xff\n" in output
+    assert "platform/ordinary: PASS" in output
+    assert "Matrix: 1 passed, 0 failed" in output
+
+
+def test_empty_lib_root_is_equivalent_to_unset(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _wire(monkeypatch, _platforms(1), root=tmp_path)
+    monkeypatch.setenv("LIB_ROOT", "")
+
+    context, error = lm._runner_context()
+
+    assert error == ""
+    assert context is not None
+    assert context.lib_root is None
+    assert context.lib_bind is None
 
 
 def test_resolution_does_not_swallow_keyboard_interrupt(

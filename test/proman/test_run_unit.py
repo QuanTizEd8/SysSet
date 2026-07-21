@@ -12,6 +12,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUNNER = REPO_ROOT / ".dev/scripts/test/run-unit.sh"
+FORMATTER = REPO_ROOT / ".dev/scripts/test/format-unit-tap.bash"
 
 
 def _run(
@@ -448,7 +449,7 @@ def test_jobs_filter_forwarding_and_bats_exit_preservation(
     assert args[:10] == [
         "--print-output-on-failure",
         "--formatter",
-        "tap",
+        str(runner_repo / ".dev/scripts/test/format-unit-tap.bash"),
         "--setup-suite-file",
         str(runner_repo / "test/lib/setup_suite.bash"),
         "--jobs",
@@ -960,6 +961,74 @@ not ok 3 future behavior # ToDo expected for now
         "3/3 completed, 1 passed, 0 failed, 1 skipped, 1 TODO, 0 incomplete"
     ) in result.stdout
     assert "Failing tests:" not in result.stdout
+
+
+def test_bats_formatter_disambiguates_directive_tokens_in_names_and_reasons() -> None:
+    """Separate begin events make raw names and skip reasons unambiguous."""
+    extended_tap = """1..4
+begin 1 pass # TODO in name
+ok 1 pass # TODO in name
+begin 2 skipped case
+ok 2 skipped case # skip revisit # TODO later
+begin 3 pass # skip in name
+ok 3 pass # skip in name
+begin 4 failed # TODO in name
+not ok 4 failed # TODO in name
+"""
+    result = subprocess.run(
+        [str(FORMATTER)],
+        input=extended_tap,
+        env={
+            **os.environ,
+            "BATS_ROOT": str(REPO_ROOT / "test/lib/bats/bats-core"),
+            "BATS_LIBDIR": "lib",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (
+        result.stdout
+        == """1..4
+# devfeats-test-name 1 pass # TODO in name
+ok 1
+# devfeats-test-name 2 skipped case
+ok 2 # SKIP
+# devfeats-test-name 3 pass # skip in name
+ok 3
+# devfeats-test-name 4 failed # TODO in name
+not ok 4
+"""
+    )
+
+
+def test_canonical_formatter_names_do_not_change_result_classification(
+    runner_repo: Path, tmp_path: Path
+) -> None:
+    """Machine-generated name comments cannot masquerade as directives."""
+    result = _run_with_tap(
+        runner_repo,
+        tmp_path,
+        """1..3
+# devfeats-test-name 1 pass # TODO in name
+ok 1
+# devfeats-test-name 2 skipped
+ok 2 # SKIP
+# devfeats-test-name 3 failed # TODO in name
+not ok 3
+""",
+        bats_rc=1,
+    )
+    assert result.returncode == 1
+    assert "1 passed, 1 failed, 1 skipped, 0 TODO" in result.stdout
+    assert "Failing tests:\n  - failed # TODO in name\n" in result.stdout
+
+
+def test_zero_plan_uses_bash_4_nounset_safe_empty_array_expansion() -> None:
+    """Empty result arrays use the Bash 4.0-safe conditional expansion idiom."""
+    source = RUNNER.read_text(encoding="utf-8")
+    assert '${_tap_result_ids[@]+"${_tap_result_ids[@]}"}' in source
 
 
 def test_conflicting_tap_directives_are_invalid(

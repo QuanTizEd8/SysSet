@@ -37,6 +37,7 @@ fi
 _REPO_ROOT="$(cd "$_REPO_ROOT" && pwd -P)"
 export REPO_ROOT="$_REPO_ROOT"
 _BATS="${_REPO_ROOT}/test/lib/bats/bats-core/bin/bats"
+_BATS_FORMATTER="${_REPO_ROOT}/.dev/scripts/test/format-unit-tap.bash"
 _UNIT_DIR="${_REPO_ROOT}/test/lib"
 
 # ── Argument parsing ─────────────────────────────────────────────────────────
@@ -303,17 +304,16 @@ if [[ $_jobs_num -gt 1 ]] && ! command -v flock > /dev/null 2>&1 && ! command -v
 fi
 
 # ── Run ──────────────────────────────────────────────────────────────────────
-# Force tap: bats' own summary (the `pretty` formatter) needs a real TTY and
+# Force TAP: bats' own summary (the `pretty` formatter) needs a real TTY and
 # relies on cursor-repositioning escape codes that only render correctly when
 # interpreted live by a terminal — once `just capture` strips ANSI for the
 # plain-text log file, those codes leave overlapping/garbled lines instead of
-# a summary. Plain `tap` (bats' own fallback without a TTY) has no summary at
-# all by TAP protocol design — summarizing is meant to be the consumer's job.
-# So: always request tap (deterministic regardless of TTY), tee it to a temp
-# file, and print our own summary from it below.
+# a summary. Our formatter also keeps names separate from result directives so
+# raw `# SKIP`/`# TODO` text cannot change classification. Tee that stable TAP
+# to a temporary file and print our own summary from it below.
 declare -a _bats_args=(
   --print-output-on-failure
-  --formatter tap
+  --formatter "$_BATS_FORMATTER"
   --setup-suite-file "${_UNIT_DIR}/setup_suite.bash"
 )
 
@@ -351,6 +351,7 @@ declare -a _tap_errors=()
 declare -a _tap_result_ids=()
 declare -A _tap_result_kinds=()
 declare -A _tap_result_names=()
+declare -A _tap_report_names=()
 _tap_plan_re='^1\.\.([0-9]+)([[:space:]]+(.*))?$'
 _tap_plan_skip_re='^#[[:space:]]*([Ss][Kk][Ii][Pp]([[:space:]]+.*)?|[Ss][Kk][Ii][Pp][Pp][Ee][Dd]:([[:space:]]*.*)?)$'
 _tap_result_re='^(ok|not ok)[[:space:]]+([0-9]+)([[:space:]]+(.*))?$'
@@ -358,6 +359,7 @@ _tap_bailout_re='^Bail[[:space:]]out!([[:space:]].*)?$'
 _tap_directive_re='^(.*)[[:space:]]#[[:space:]]*([Ss][Kk][Ii][Pp]|[Tt][Oo][Dd][Oo])([[:space:]]+.*)?$'
 _tap_skip_marker_re='(^|[[:space:]])#[[:space:]]*[Ss][Kk][Ii][Pp]([[:space:]]|$)'
 _tap_todo_marker_re='(^|[[:space:]])#[[:space:]]*[Tt][Oo][Dd][Oo]([[:space:]]|$)'
+_tap_name_comment_re='^#[[:space:]]devfeats-test-name[[:space:]]+([0-9]+)[[:space:]](.*)$'
 
 _tap_error() {
   _tap_errors+=("$1")
@@ -386,6 +388,10 @@ while IFS= read -r _tap_line || [[ -n "$_tap_line" ]]; do
   if [[ "$_tap_line" =~ $_tap_bailout_re ]]; then
     _tap_bailed_out=true
     _tap_error "Bail out! was reported"
+    continue
+  fi
+  if [[ "$_tap_line" =~ $_tap_name_comment_re ]]; then
+    _tap_report_names["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
     continue
   fi
   if [[ -z "$_tap_line" || "$_tap_line" == [[:space:]]* || "$_tap_line" == \#* ]]; then
@@ -481,6 +487,9 @@ while IFS= read -r _tap_line || [[ -n "$_tap_line" ]]; do
           ;;
       esac
     fi
+    if [[ -n "${_tap_report_names[$_tap_number]+present}" ]]; then
+      _tap_display_name="${_tap_report_names[$_tap_number]}"
+    fi
 
     _tap_result_ids+=("$_tap_number")
     _tap_result_kinds["$_tap_number"]="$_tap_kind"
@@ -502,7 +511,7 @@ _failed_count=0
 _skipped_count=0
 _todo_count=0
 declare -a _failed_names=()
-for _tap_number in "${_tap_result_ids[@]}"; do
+for _tap_number in "${_tap_result_ids[@]+"${_tap_result_ids[@]}"}"; do
   if [[ -n "$_planned_total" ]] && ((_tap_number > _planned_total)); then
     _tap_error "TAP result number ${_tap_number} is outside plan 1..${_planned_total}"
     continue

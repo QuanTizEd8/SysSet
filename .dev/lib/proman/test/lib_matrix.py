@@ -161,7 +161,7 @@ def _runner_context() -> tuple[RunnerContext | None, str]:
         lib_bind=None,
     )
     ambient_lib_root = os.environ.get("LIB_ROOT")
-    if ambient_lib_root is None:
+    if not ambient_lib_root:
         return context, ""
 
     raw_lib_root = Path(ambient_lib_root)
@@ -359,7 +359,9 @@ def _run_profile(  # noqa: PLR0913
     if cancel_event.is_set():
         message = "Profile launch cancelled."
         raise InterruptedError(message)
-    with log_path.open("a", encoding="utf-8") as output:
+    # A subprocess writes bytes directly to this descriptor; opening it as
+    # binary makes that contract explicit and avoids implying Python encoding.
+    with log_path.open("ab") as output:
         proc = subprocess.Popen(
             cmd,
             stdout=output,
@@ -418,7 +420,7 @@ def _run_platform(  # noqa: PLR0913
                 )
         except InterruptedError:
             break
-        except Exception as exc:  # noqa: BLE001 - aggregate profile resolution
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 - aggregate resolution
             with log_path.open("a", encoding="utf-8") as output:
                 output.write(f"Environment resolution failed for {env_name!r}: {exc}\n")
             results.append(ProfileResult(platform, profile_name, env_name, 1, log_path))
@@ -441,12 +443,18 @@ def _run_platform(  # noqa: PLR0913
             )
         except InterruptedError:
             break
-        except Exception as exc:  # noqa: BLE001 - aggregate worker failures
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 - aggregate worker failures
             with log_path.open("a", encoding="utf-8") as output:
                 output.write(f"Profile runner failed: {exc}\n")
             result = ProfileResult(platform, profile_name, env_name, 1, log_path)
         results.append(result)
     return results
+
+
+def _replay_log(log_path: Path) -> None:
+    """Replay arbitrary subprocess bytes without letting decoding abort a matrix."""
+    with log_path.open(encoding="utf-8", errors="backslashreplace") as output:
+        shutil.copyfileobj(output, sys.stdout)
 
 
 def _execute_matrix(
@@ -490,7 +498,7 @@ def _execute_matrix(
         for platform, _profiles in selected:
             try:
                 results[platform] = futures[platform].result()
-            except Exception as exc:  # noqa: BLE001, PERF203
+            except (Exception, SystemExit) as exc:  # noqa: BLE001, PERF203
                 results[platform] = [
                     ProfileResult(
                         platform,
@@ -514,7 +522,7 @@ def _execute_matrix(
             if not completed and future.done() and not future.cancelled():
                 try:
                     completed = future.result()
-                except Exception:  # noqa: BLE001 - cancellation summary below
+                except (Exception, SystemExit):  # noqa: BLE001 - cancellation summary
                     completed = []
             completed = [
                 result
@@ -560,8 +568,7 @@ def _execute_matrix(
     for result in ordered_results:
         print(f"\n══ {result.platform}/{result.profile} [{result.env_name}] ══")
         if result.log_path.is_file():
-            with result.log_path.open(encoding="utf-8") as output:
-                shutil.copyfileobj(output, sys.stdout)
+            _replay_log(result.log_path)
 
     failed = sum(result.returncode != 0 for result in ordered_results)
     print("\nMatrix results:")
