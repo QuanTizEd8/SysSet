@@ -83,6 +83,7 @@ set -- --manifest "$MANIFEST" \
   --add_remote_user "$ADD_REMOTE_USER" \
   --add_container_user "$ADD_CONTAINER_USER"
 [ -n "${BACKUP:-}" ] && set -- "$@" --backup "$BACKUP"
+[ -n "${BACKUP_DIR:-}" ] && set -- "$@" --backup_dir "$BACKUP_DIR"
 [ -n "${ADD_USERS:-}" ] && set -- "$@" --add_users "$ADD_USERS"
 exec sh "$INSTALLER" "$@"
 EOF
@@ -123,6 +124,7 @@ EOF
       # and abort the script under `set -e` — even though nothing went wrong.
       [[ -n "${ADD_USERS:-}" ]] && printf 'ADD_USERS=%s\n' "$(posix__quote "$ADD_USERS")"
       [[ -n "${BACKUP:-}" ]] && printf 'BACKUP=%s\n' "$(posix__quote "$BACKUP")"
+      [[ -n "${BACKUP_DIR:-}" ]] && printf 'BACKUP_DIR=%s\n' "$(posix__quote "$BACKUP_DIR")"
       true
     } | file__tee "${_dest%.sh}.conf"
 
@@ -147,9 +149,9 @@ __uninstall_run__() {
   done <<< "${BACKUP_DIR:-}"
   _SF_BACKUP_DIR="$(users__first_writeable_path -- "${_bd_args[@]}" 2> /dev/null || true)"
 
-  _do_uninstall
+  _do_uninstall || return 1
 
-  file__rm -rf "${_FEAT_SHARE_DIR_ROOT}"
+  file__rm -rf "${_FEAT_SHARE_DIR_ROOT}" || return 1
 }
 
 # ============================================================================
@@ -496,8 +498,10 @@ _sf_state_upsert() {
   # by (op, dest) still gives idempotent re-application its intended effect:
   # re-running the SAME op against the SAME dest (e.g. a lifecycle hook that
   # re-applies the same manifest on every container start) updates the
-  # existing entry in place rather than accumulating duplicates, preserving
-  # the true original_hash/original_perms/timestamp_first from the first run.
+  # existing entry in place rather than accumulating duplicates. Everything
+  # describing the pre-feature state is immutable after the first run,
+  # including an intentional JSON null: a later run must never reinterpret a
+  # file created by this feature as the pre-existing original.
   local _state_file="$1" _new_entry="$2"
   local _tmp
   _tmp="$(file__mktmpdir sf-state)/state.json"
@@ -507,17 +511,47 @@ _sf_state_upsert() {
       if any(.dest == $e.dest and .op == $e.op)
       then map(if .dest == $e.dest and .op == $e.op then
         . as $old | $e
-        | .original_hash  = ($old.original_hash  // $e.original_hash)
-        | .original_perms = ($old.original_perms // $e.original_perms)
-        | .timestamp_first = ($old.timestamp_first // $e.timestamp_first)
+        | .created         = $old.created
+        | .original_hash   = $old.original_hash
+        | .original_perms  = $old.original_perms
+        | .backup_path     = $old.backup_path
+        | .timestamp_first = $old.timestamp_first
       else . end)
       else . + [$e]
       end
-    )' > "$_tmp"
+    )' > "$_tmp" || return 1
   local _state_dir
   _state_dir="$(dirname "$_state_file")"
-  file__mkdir "$_state_dir"
-  file__mv "$_tmp" "$_state_file"
+  file__mkdir "$_state_dir" || return 1
+  file__mv "$_tmp" "$_state_file" || return 1
+}
+
+# Load the first-run backup state for an existing (op, dest) record into the
+# globals below. A present record with backup_path:null is deliberately
+# distinct from no record: null means the first run intentionally took no
+# backup, so a later lifecycle re-application must not back up managed content
+# and mistake it for the original.
+_sf_load_existing_backup() {
+  local _user="$1" _op="$2" _dest="$3" _state _rc=0
+  _SF_EXISTING_BACKUP_FOUND=false
+  _SF_EXISTING_BACKUP_PATH=""
+  _state="$(_sf_state_read "$(_sf_state_file "$_user")")" || return 1
+
+  # shellcheck disable=SC2016
+  json__query -e --arg op "$_op" --arg dest "$_dest" \
+    'any(.entries[]; .op == $op and .dest == $dest)' \
+    <<< "$_state" > /dev/null || _rc=$?
+  if [[ $_rc -eq 1 ]]; then
+    return 0
+  elif [[ $_rc -ne 0 ]]; then
+    return "$_rc"
+  fi
+
+  _SF_EXISTING_BACKUP_FOUND=true
+  # shellcheck disable=SC2016
+  _SF_EXISTING_BACKUP_PATH="$(json__query -r --arg op "$_op" --arg dest "$_dest" \
+    'first(.entries[] | select(.op == $op and .dest == $dest)) | .backup_path // ""' \
+    <<< "$_state")" || return 1
 }
 
 _sf_hash() {
@@ -531,6 +565,65 @@ _sf_maybe_backup() {
   file__backup_if_policy "$_dest" "${_entry_backup:-$BACKUP}" "${_SF_BACKUP_DIR:-}"
 }
 
+# Restore one backup item only when it is demonstrably the capsule created for
+# this exact destination. State is persisted data and must not be trusted as a
+# broad recursive-removal target.
+_sf_restore_backup() {
+  local _bp="$1" _dest="$2" _replace="${3:-false}"
+  local _capsule _capsule_name _source_path="" _backup_root
+  [[ "$(basename "$_bp")" == item ]] || {
+    logging__warn "Uninstall: invalid backup item path for ${_dest}; refusing to restore it."
+    return 1
+  }
+  _capsule="$(dirname "$_bp")"
+  _capsule_name="$(basename "$_capsule")"
+  [[ "$_capsule_name" =~ ^backup\.[0-9]{8}T[0-9]{6}Z\.[A-Za-z0-9]{6}$ ]] || {
+    logging__warn "Uninstall: invalid backup capsule name for ${_dest}; refusing to restore it."
+    return 1
+  }
+  _backup_root="${_SF_BACKUP_DIR%/}"
+  [[ -n "$_backup_root" ]] || _backup_root=/
+  [[ -n "$_backup_root" && "$(dirname "$_capsule")" == "$_backup_root" && -d "$_capsule" && ! -L "$_capsule" ]] || {
+    logging__warn "Uninstall: backup capsule for ${_dest} is outside the configured backup directory or unsafe."
+    return 1
+  }
+  [[ -e "$_bp" || -L "$_bp" ]] || {
+    logging__warn "Uninstall: backup item for ${_dest} is missing."
+    return 1
+  }
+  [[ -f "${_capsule}/source-path" && ! -L "${_capsule}/source-path" ]] || {
+    logging__warn "Uninstall: backup capsule metadata for ${_dest} is missing or unsafe."
+    return 1
+  }
+  # Bash variables cannot contain NUL, while POSIX paths can contain every
+  # other byte. Reading to a NUL delimiter therefore preserves even trailing
+  # newlines; EOF is the expected terminator for this exact-byte sidecar.
+  IFS= read -r -d '' _source_path < "${_capsule}/source-path" || true
+  [[ "$_source_path" == "$_dest" ]] || {
+    logging__warn "Uninstall: backup capsule source does not match ${_dest}; refusing to restore it."
+    return 1
+  }
+  if [[ -e "$_dest" || -L "$_dest" ]]; then
+    [[ "$_replace" == true ]] || {
+      logging__warn "Uninstall: ${_dest} now exists; refusing to overwrite it with a backup."
+      return 1
+    }
+    file__rm -rf "$_dest" || return 1
+  fi
+
+  file__mv "$_bp" "$_dest" || return 1
+
+  # The data is restored once item has moved. Clean up only the known sidecar
+  # and then rmdir the now-empty capsule; never recursively delete a path read
+  # from persisted state. Cleanup failure leaves harmless metadata (or an
+  # unexpectedly non-empty capsule) behind and must not make a later uninstall
+  # retry treat the already-restored item as a failed restoration.
+  if ! file__rm -f "${_capsule}/source-path" || ! file__rm -d "$_capsule"; then
+    logging__warn "Uninstall: restored ${_dest}, but could not completely remove backup capsule ${_capsule}."
+  fi
+  return 0
+}
+
 # _sf_apply_attrs <dest> <entry> — read chmod/owner/group from entry, apply to
 # dest if set. Used by create/inject/touch (the single-path, no-special-
 # casing ops). mkdir has its own inline version (loops over newly-created
@@ -541,8 +634,13 @@ _sf_apply_attrs() {
   local _dest="$1" _entry="$2"
   local -a _f
   mapfile -d '' -t _f < <(json__query_multi "$_entry" '.chmod // ""' '.owner // ""' '.group // ""')
-  [[ -n "${_f[0]}" ]] && file__chmod "${_f[0]}" "$_dest"
-  [[ -n "${_f[1]}" || -n "${_f[2]}" ]] && file__chown "${_f[1]}:${_f[2]}" "$_dest"
+  if [[ -n "${_f[0]}" ]]; then
+    file__chmod "${_f[0]}" "$_dest" || return 1
+  fi
+  if [[ -n "${_f[1]}" || -n "${_f[2]}" ]]; then
+    file__chown "${_f[1]}:${_f[2]}" "$_dest" || return 1
+  fi
+  return 0
 }
 
 # _sf_record_state <user> <op> <dest> <created:true|false> [<original_hash>] \
@@ -602,7 +700,7 @@ _op_create() {
     return
   fi
 
-  if [[ -e "$_dest" ]]; then
+  if [[ -e "$_dest" || -L "$_dest" ]]; then
     case "$_if_exists" in
       skip)
         logging__skip "${_dest} already exists; skipping."
@@ -612,14 +710,24 @@ _op_create() {
         logging__error "${_dest} already exists (if_exists:fail)."
         return 1
         ;;
-      overwrite) _bp="$(_sf_maybe_backup "$_dest" "$_backup_val")" ;;
+      overwrite)
+        _sf_load_existing_backup "$_user" create "$_dest" || return 1
+        if [[ "$_SF_EXISTING_BACKUP_FOUND" == true ]]; then
+          _bp="$_SF_EXISTING_BACKUP_PATH"
+        else
+          _bp="$(_sf_maybe_backup "$_dest" "$_backup_val")" || return 1
+        fi
+        if [[ -L "$_dest" ]]; then
+          file__rm -f "$_dest" || return 1
+        fi
+        ;;
     esac
   fi
 
   local _orig_hash
   _orig_hash="$(_sf_hash "$_dest")"
   local _created=false
-  [[ ! -e "$_dest" ]] && _created=true
+  [[ ! -e "$_dest" && ! -L "$_dest" ]] && _created=true
 
   if [[ -n "$_src" ]]; then
     local _tmp
@@ -842,7 +950,7 @@ _op_delete() {
     '.if_not_exists // "skip"' '.backup // ""')
   local _recursive="${_f[0]}" _if_not_exists="${_f[1]}" _backup_val="${_f[2]}"
 
-  if [[ ! -e "$_dest" ]]; then
+  if [[ ! -e "$_dest" && ! -L "$_dest" ]]; then
     [[ "$_if_not_exists" == "fail" ]] && {
       logging__error "delete: ${_dest} not found."
       return 1
@@ -858,10 +966,15 @@ _op_delete() {
   fi
 
   local _bp
-  _bp="$(_sf_maybe_backup "$_dest" "$_backup_val")"
-  file__rm -rf "$_dest"
+  _sf_load_existing_backup "$_user" delete "$_dest" || return 1
+  if [[ "$_SF_EXISTING_BACKUP_FOUND" == true ]]; then
+    _bp="$_SF_EXISTING_BACKUP_PATH"
+  else
+    _bp="$(_sf_maybe_backup "$_dest" "$_backup_val")" || return 1
+  fi
+  file__rm -rf "$_dest" || return 1
 
-  _sf_record_state "$_user" delete "$_dest" false "" "" "" "$_bp"
+  _sf_record_state "$_user" delete "$_dest" false "" "" "" "$_bp" || return 1
 }
 
 _op_symlink() {
@@ -1061,10 +1174,14 @@ _op_touch() {
 # ============================================================================
 
 _do_uninstall() {
+  local _any_failed=0
   local _sys_state="${_FEAT_SHARE_DIR_ROOT}/state.json"
   if [[ -f "$_sys_state" ]]; then
-    _uninstall_state_file "$_sys_state" ""
-    file__rm -f "$_sys_state"
+    if _uninstall_state_file "$_sys_state" ""; then
+      file__rm -f "$_sys_state" || _any_failed=1
+    else
+      _any_failed=1
+    fi
   fi
 
   local _user
@@ -1073,10 +1190,14 @@ _do_uninstall() {
     local _state
     _state="$(_sf_state_file "$_user")"
     if [[ -f "$_state" ]]; then
-      _uninstall_state_file "$_state" "$_user"
-      file__rm -f "$_state"
+      if _uninstall_state_file "$_state" "$_user"; then
+        file__rm -f "$_state" || _any_failed=1
+      else
+        _any_failed=1
+      fi
     fi
   done
+  [[ $_any_failed -eq 0 ]]
 }
 
 _uninstall_state_file() {
@@ -1088,7 +1209,7 @@ _uninstall_state_file() {
   local _ndjson
   _ndjson="$(json__query -c '.entries | reverse | .[]' <<< "$_state")"
 
-  local _entry
+  local _entry _any_failed=0
   while IFS= read -r _entry; do
     [[ -z "$_entry" ]] && continue
     local -a _f
@@ -1106,10 +1227,15 @@ _uninstall_state_file() {
         if [[ "$_actual_hash" != "$_cur_hash" ]]; then
           logging__warn "Uninstall: ${_dest} was externally modified; leaving in place."
         else
-          file__rm -f "$_dest"
-          if [[ -n "$_bp" && -f "$_bp" ]]; then
-            file__mv "$_bp" "$_dest"
+          if [[ -n "$_bp" ]]; then
+            if ! _sf_restore_backup "$_bp" "$_dest" true; then
+              logging__warn "Uninstall: original of ${_dest} could not be restored."
+              _any_failed=1
+            fi
+          elif [[ "$_created" == "true" ]]; then
+            file__rm -rf "$_dest" || _any_failed=1
           elif [[ "$_created" != "true" ]]; then
+            file__rm -rf "$_dest" || _any_failed=1
             logging__warn "Uninstall: original of ${_dest} cannot be restored (no backup taken)."
           fi
         fi
@@ -1132,8 +1258,11 @@ _uninstall_state_file() {
         fi
         ;;
       delete)
-        if [[ -n "$_bp" && -f "$_bp" ]]; then
-          file__mv "$_bp" "$_dest"
+        if [[ -n "$_bp" ]]; then
+          if ! _sf_restore_backup "$_bp" "$_dest"; then
+            logging__warn "Uninstall: ${_dest} could not be restored from its backup."
+            _any_failed=1
+          fi
         else
           logging__warn "Uninstall: ${_dest} was deleted; no backup to restore."
         fi
@@ -1163,4 +1292,5 @@ _uninstall_state_file() {
         ;;
     esac
   done <<< "$_ndjson"
+  [[ $_any_failed -eq 0 ]]
 }

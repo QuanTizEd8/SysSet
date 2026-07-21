@@ -14,6 +14,7 @@ jobs:
       fromJSON(inputs.config).enabled == true &&
       fromJSON(inputs.config).linux_enabled == true
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -45,7 +46,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Run unit tests in ${{ matrix.env.name }}"
+      - name: "Run ordinary and bootstrap profiles for ${{ matrix.env.name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -57,7 +58,7 @@ jobs:
             -e "HOST_REPO_ROOT=${GITHUB_WORKSPACE}" \
             -e "LIB_ROOT=/repo/dist/lib-test" \
             "${{ fromJSON(inputs.config).ci_image }}" \
-            just test-lib "${{ matrix.env.name }}"
+            just test-lib-complete "${{ matrix.env.name }}"
 
   test-lib-macos:
     name: ${{ matrix.os.env }}
@@ -67,6 +68,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: ${{ matrix.os.runner }}
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -94,17 +96,21 @@ jobs:
       - name: "Install bash ≥4"
         run: brew install bash
 
+      - name: "Prepare immutable library-test tools"
+        env:
+          DEVFEATS_LIB_TEST_TOOL_DIR: ${{ runner.temp }}/devfeats-lib-test-tools/bin
+        run: /bin/sh test/envs/install-lib-test-tools.sh
+
       - name: "Run unit and integration tests"
         env:
           LIB_ROOT: ${{ github.workspace }}/dist/lib-test
+          DEVFEATS_TEST_TOOL_CACHE: required
+          DEVFEATS_TEST_TOOL_SOURCE_DIR: ${{ runner.temp }}/devfeats-lib-test-tools/bin
         run: |
           args=()
           [[ "${{ matrix.os.clean_path }}" == "true" ]] && args+=(--clean-path)
           [[ -n "${{ matrix.os.path_prepend }}" ]] && args+=(--path-prepend "${{ matrix.os.path_prepend }}")
           if [[ "${{ matrix.os.integration }}" == "true" ]]; then
-            # Unit tests (top-level *.bats) and integration tests (integration/*.bats).
-            # Use explicit patterns to avoid recursing into the bats/ submodule.
-            args+=(--paths "${GITHUB_WORKSPACE}/test/lib/*.bats")
-            args+=(--paths "${GITHUB_WORKSPACE}/test/lib/integration")
+            args+=(--tier all)
           fi
           bash .dev/scripts/test/run-unit.sh "${args[@]}"

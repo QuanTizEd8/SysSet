@@ -9,6 +9,9 @@
 
 bats_require_minimum_version 1.5.0
 
+# Tests form an ordered account lifecycle and mutate the host passwd/group databases.
+export BATS_NO_PARALLELIZE_WITHIN_FILE=true
+
 # Unique names derived from the tmpdir suffix to avoid collision with real
 # system accounts across parallel or repeated runs.
 _IG_NAMES_FILE=""
@@ -19,7 +22,13 @@ setup_file() {
     return 0 # individual tests will skip on non-Linux
   fi
 
-  bootstrap__shadow_utils
+  local _tool
+  for _tool in groupadd useradd userdel groupdel chsh; do
+    command -v "$_tool" > /dev/null 2>&1 || {
+      echo "prepared integration environment is missing required ${_tool}" >&2
+      return 1
+    }
+  done
 
   local _suffix="${BATS_FILE_TMPDIR##*/}"
   local _g="df-ig-grp-${_suffix}"
@@ -29,6 +38,7 @@ setup_file() {
 }
 
 teardown_file() {
+  [[ "$(uname)" == Linux ]] || return 0
   load '../helpers/common'
   reload_lib
   local _g _u _s
@@ -94,7 +104,6 @@ setup() {
 }
 
 @test "users__set_login_shell: changes the login shell" {
-  command -v chsh > /dev/null 2>&1 || skip "chsh not available"
   run users__set_login_shell /bin/sh "$_IG_USER"
   assert_success
   getent passwd "$_IG_USER" | grep -q ':/bin/sh$'

@@ -15,7 +15,9 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   load '../helpers/common'
+  load '../helpers/test_tools'
   reload_lib
+  test_tools__wire_jq_yq
 }
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
@@ -503,7 +505,6 @@ _expected_version_id_mm() {
 
 @test "ctx_real: ctx__match_when with qualified key matches real system" {
   [[ -f /etc/os-release ]] || skip "no /etc/os-release"
-  bootstrap__yq > /dev/null || skip "yq unavailable"
   local _kernel
   _kernel="$(ctx__get plat.kernel)"
   run ctx__match_when "plat.kernel: ${_kernel}"

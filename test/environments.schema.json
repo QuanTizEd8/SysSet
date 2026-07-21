@@ -37,10 +37,27 @@
     "dockerBuild": {
       "type": "object",
       "additionalProperties": false,
+      "oneOf": [
+        {"required": ["dockerfile"]},
+        {"required": ["runFragmentPath"]}
+      ],
       "properties": {
         "dockerfile": {
-          "description": "Shell/Dockerfile RUN body layered on top of the base/parent image (retry() helper already in scope).",
-          "type": "string"
+          "description": "Shell commands layered on top of the base/parent image in a generated RUN heredoc (retry() helper already in scope).",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "runFragmentPath": {
+          "description": "Normalized POSIX path, relative to test/envs, to a regular non-symlink file containing LF-only UTF-8 shell commands and no NUL bytes. Supported content is embedded without newline normalization in a generated RUN heredoc.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$"
+        },
+        "resolveAttempts": {
+          "description": "Outer Docker build attempt budget. Use 1 when the build fragment already owns bounded retries; otherwise omit for the default of 3.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
         }
       }
     },
@@ -68,6 +85,10 @@
         "path_prepend": {
           "description": "macOS only: colon-separated PATH entries prepended after `clean_path` stripping.",
           "type": "string"
+        },
+        "lib_test_profile": {
+          "description": "Explicit capability role when this environment is used by the isolated library-test matrix.",
+          "enum": ["prepared", "bare"]
         }
       }
     },
@@ -89,6 +110,10 @@
         "env_vars": {
           "type": "object",
           "additionalProperties": {"type": "string"}
+        },
+        "lib_test_profile": {
+          "description": "Explicit capability role when this environment is used by the isolated library-test matrix.",
+          "enum": ["prepared", "bare"]
         }
       }
     }

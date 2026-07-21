@@ -2,14 +2,16 @@
 # Unified context registry tests (unit layer — stubs/fakes, host-agnostic).
 #
 # Platform-specific registry population against the real OS is covered by
-# test/lib/integration/ctx_real.bats (runs on the lib matrix integration scenarios).
+# test/lib/integration/ctx_real.bats (runs in the integration tier across all library matrix environments).
 
 bats_require_minimum_version 1.5.0
 
 setup() {
   load 'helpers/common'
   load 'helpers/ctx'
+  load 'helpers/test_tools'
   reload_lib
+  test_tools__wire_jq_yq
   ctx_test__reset
 }
 
@@ -144,12 +146,24 @@ setup() {
 }
 
 @test "ctx: id_like matrix bash/jq parity" {
-  bootstrap__yq > /dev/null || skip "yq unavailable"
   local _log="${BATS_TEST_TMPDIR}/id_like_matrix.log"
   ctx_test__run_id_like_matrix > "${_log}" 2>&1 || {
     cat "${_log}" >&2
     return 1
   }
+}
+
+@test "ctx: id_like first-token match drains tokenization output without SIGPIPE" {
+  local _long_token="x" _id_like _i
+  for ((_i = 0; _i < 17; _i++)); do
+    _long_token+="${_long_token}"
+  done
+  _id_like="RHEL ${_long_token}"
+
+  run _ctx__id_like_has rhel "${_id_like}"
+
+  assert_success
+  assert_output ""
 }
 
 @test "ctx: id_like pattern conditional" {
@@ -264,7 +278,6 @@ setup() {
 }
 
 @test "ctx: when_vectors bash/jq parity from fixture" {
-  bootstrap__yq > /dev/null || skip "yq unavailable"
   local _log="${BATS_TEST_TMPDIR}/when_vectors.log"
   ctx_test__run_when_vectors > "${_log}" 2>&1 || {
     cat "${_log}" >&2

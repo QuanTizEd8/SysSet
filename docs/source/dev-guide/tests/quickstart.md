@@ -47,10 +47,17 @@ test/
 ## Running Tests
 
 ```bash
-# Library unit tests (requires Docker)
-just test-lib                         # all modules in ubuntu-stable
+# Library tests (requires Docker)
+just test-lib                         # lean tier in ubuntu-stable
 just test-lib ubuntu-stable --module <module>  # e.g. --module ospkg
-just test-lib-envs                    # all container environments
+just test-lib-all ubuntu-stable       # ordinary both tiers in one platform
+just test-lib-bootstrap ubuntu-stable # dedicated fresh bare profile
+just test-lib-complete ubuntu-stable  # ordinary all then bootstrap
+just test-lib-envs                    # lean tier in seven environments
+just test-lib-integration-envs        # integration tier in seven environments
+just test-lib-all-envs                # both tiers in seven environments
+just test-lib-bootstrap-envs          # bootstrap in seven bare profiles
+just test-lib-complete-envs           # seven jobs / 14 fresh containers in CI
 
 # Install framework tests (requires synced src/)
 just test-install

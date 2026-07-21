@@ -6,30 +6,12 @@
 
 bats_require_minimum_version 1.7.0
 
-setup_file() {
-  load 'helpers/common'
-  load 'helpers/bootstrap_tools'
-  # Provision a real jq onto PATH (copied into BATS_FILE_TMPDIR, a stable
-  # per-file directory) before any test's setup() installs the
-  # net__fetch_url_stdout stub below. install__state_dir is per-process
-  # session-scoped (a fresh random tmpdir every time __init__.bash is
-  # sourced), so a bare `bootstrap__jq` call here would NOT leave anything
-  # for later, separate test invocations to find via its "previously
-  # bootstrapped" fast path — only a real jq already on PATH short-circuits
-  # bootstrap__jq before it ever touches the network. Without this, several
-  # functions here (github__release_tags, github__resolve_version, ...) that
-  # parse JSON arrays via real jq would trigger a mid-test bootstrap__jq,
-  # which resolves jq's own version through that same stubbed net layer and
-  # mistakes a test's canned tag_name fixture for jq's real release data.
-  test_bootstrap__setup_file_jq_yq
-}
-
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  load 'helpers/bootstrap_tools'
+  load 'helpers/test_tools'
   reload_lib
-  test_bootstrap__prepend_tools_path
+  test_tools__wire_jq
   # Stub out the network-layer helpers so no real connections are made.
   net__ensure_fetch_tool() {
     _NET__FETCH_TOOL=curl

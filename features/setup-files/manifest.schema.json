@@ -21,7 +21,7 @@
     },
     "Backup": {
       "enum": ["auto", "true", "false"],
-      "description": "Whether to back up the pre-existing file/directory before this operation overwrites or deletes it. 'auto': back up outside devcontainers, skip inside (detected via REMOTE_CONTAINERS/CODESPACES env vars). 'true': always back up. 'false': never back up. Always a string, never a YAML boolean, to avoid ambiguity with 'auto'. Only valid on create and delete entries — the feature-level backup/backup_dir options are the fallback when omitted."
+      "description": "Whether to back up the pre-existing file/directory before this operation overwrites or deletes it. 'auto': back up outside devcontainers, skip inside (detected via REMOTE_CONTAINERS/CODESPACES env vars). 'true': always back up. 'false': never back up. A required backup must complete before the destructive operation begins. Backups use unique private capsules with source-path identity metadata. Always a string, never a YAML boolean, to avoid ambiguity with 'auto'. Only valid on create and delete entries — the feature-level backup/backup_dir options are the fallback when omitted."
     },
     "IfExists": {
       "enum": ["skip", "fail", "overwrite"],

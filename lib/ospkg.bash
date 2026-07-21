@@ -2783,20 +2783,25 @@ ospkg__run() {
     # Convert YAML (or JSON) to JSON via yq, then parse into phase arrays.
     # Temp files live inside _FILE__SESSION_ROOT so file__session_cleanup removes them
     # automatically on exit, even on unexpected failure.
-    local _ospkg__dir _json_tmp
+    local _ospkg__dir _manifest_tmp _json_tmp
     _ospkg__dir="$(file__tmpdir "ospkg")"
+    _manifest_tmp="$(mktemp "${_ospkg__dir}/manifest_XXXXXX")"
     _json_tmp="$(mktemp "${_ospkg__dir}/yaml_XXXXXX")"
 
     local -a _Y_PRESCRIPTS=() _Y_KEYS=() _Y_REPOS=() _Y_PPAS=() _Y_TAPS=() _Y_COPR=()
     local -a _Y_MODULES=() _Y_GROUPS=() _Y_PACKAGES=() _Y_CASKS=() _Y_SCRIPTS=()
 
     logging__info "Converting manifest to JSON via yq."
-    if [[ "$_manifest_content" == *$'\n'* ]]; then
-      printf '%s' "$_manifest_content" | "$_BOOTSTRAP__YQ_BIN" -o=json '.' - > "$_json_tmp"
-    else
-      "$_BOOTSTRAP__YQ_BIN" -o=json '.' - <<< "$_manifest_content" > "$_json_tmp" 2> /dev/null ||
-        echo "$_manifest_content" | "$_BOOTSTRAP__YQ_BIN" -o=json '.' - > "$_json_tmp"
+    if ! printf '%s' "$_manifest_content" > "$_manifest_tmp"; then
+      logging__error "Failed to materialize the package manifest for yq."
+      return 1
     fi
+    if ! "$_BOOTSTRAP__YQ_BIN" -o=json '.' - < "$_manifest_tmp" > "$_json_tmp"; then
+      rm -f "$_manifest_tmp" "$_json_tmp"
+      logging__error "Manifest conversion to JSON failed."
+      return 1
+    fi
+    rm -f "$_manifest_tmp"
 
     local _item _kind
     local _parsed_records

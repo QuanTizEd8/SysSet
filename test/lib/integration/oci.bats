@@ -8,23 +8,18 @@
 # Uses ghcr.io/quantized8/devfeats/install-jq as a stable, published test
 # subject. GITHUB_TOKEN is available in integration containers for auth.
 #
-# setup_file installs oras to /usr/local/bin so each test subprocess finds
-# it via command -v without needing to re-download it per test.
+# setup_suite provides immutable jq and ORAS copies for each test.
 
 bats_require_minimum_version 1.5.0
 
 _OCI_TEST_REF="ghcr.io/quantized8/devfeats/install-jq"
 
-setup_file() {
-  load '../helpers/common'
-  local _bin
-  _bin="$(bootstrap__oras)"
-  [[ -n "$_bin" ]] && install -m 755 "$_bin" /usr/local/bin/oras
-}
-
 setup() {
   load '../helpers/common'
+  load '../helpers/test_tools'
   reload_lib
+  test_tools__wire_jq_oras
+  lib_test__network_bounded
 }
 
 @test "oci__ensure_oras: succeeds and oras is available" {

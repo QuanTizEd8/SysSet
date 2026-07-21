@@ -67,8 +67,8 @@ pytest = "==9.0.3"
 [feature.test.tasks]
 test-py = "pytest --rootdir=. -c .config/pytest.ini test/proman"
 test-feats = "proman-test-run"
-test-lib-env = "proman-test-lib-matrix --env"
-test-lib-envs = "proman-test-lib-matrix"
+test-lib-platform = "proman-test-lib-matrix --platform"
+test-lib-platforms = "proman-test-lib-matrix"
 test-install-env = "proman-test-install-matrix --env"
 test-install-envs = "proman-test-install-matrix"
 

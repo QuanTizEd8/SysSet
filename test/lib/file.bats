@@ -478,10 +478,12 @@ setup() {
 # file__resolve_backup_policy
 # ---------------------------------------------------------------------------
 
-@test "file__resolve_backup_policy: true and false pass through unchanged" {
+@test "file__resolve_backup_policy: accepts exactly true and false" {
   run file__resolve_backup_policy true
+  assert_success
   assert_output "true"
   run file__resolve_backup_policy false
+  assert_success
   assert_output "false"
 }
 
@@ -489,6 +491,7 @@ setup() {
   os__is_devcontainer_runtime() { return 1; }
   export -f os__is_devcontainer_runtime
   run file__resolve_backup_policy auto
+  assert_success
   assert_output "true"
 }
 
@@ -496,58 +499,310 @@ setup() {
   os__is_devcontainer_runtime() { return 0; }
   export -f os__is_devcontainer_runtime
   run file__resolve_backup_policy auto
+  assert_success
   assert_output "false"
+}
+
+@test "file__resolve_backup_policy: rejects missing, empty, and unknown policies without stdout" {
+  local _policy
+  for _policy in __missing__ "" yes AUTO 1; do
+    if [[ "$_policy" == __missing__ ]]; then
+      run --separate-stderr file__resolve_backup_policy
+    else
+      run --separate-stderr file__resolve_backup_policy "$_policy"
+    fi
+    assert_failure
+    assert_output ""
+    assert_stderr --partial "expected 'auto', 'true', or 'false'"
+  done
 }
 
 # ---------------------------------------------------------------------------
 # file__backup_if_policy
 # ---------------------------------------------------------------------------
 
-@test "file__backup_if_policy: copies the file into backup_dir when policy resolves true" {
-  local _src="${BATS_TEST_TMPDIR}/src.txt"
-  echo content > "$_src"
+@test "file__backup_if_policy: creates a complete capsule with exact source identity" {
+  local _src="${BATS_TEST_TMPDIR}/source path"$'\n'"with-newline.txt"
+  printf 'content\n' > "$_src"
   local _dir="${BATS_TEST_TMPDIR}/backups"
-  mkdir -p "$_dir"
   run file__backup_if_policy "$_src" true "$_dir"
   assert_success
-  [[ -n "$output" ]]
-  [[ -f "$output" ]]
-  # Compare via shell string equality, not `diff`/`cmp` (diffutils is not
-  # installed on every distro's minimal test image, e.g. archlinux/fedora).
+  [[ "$output" == "$_dir"/backup.*.??????/item ]]
+  local _capsule="${output%/item}"
+  [[ -d "$_capsule" && -f "$output" && -f "${_capsule}/source-path" ]]
   [[ "$(cat "$output")" == "$(cat "$_src")" ]]
+  [[ "$(cat "${_capsule}/source-path")" == "$_src" ]]
+  [[ "$(wc -c < "${_capsule}/source-path")" -eq "${#_src}" ]]
+
+  local -a _children=()
+  shopt -s nullglob dotglob
+  _children=("${_capsule}"/*)
+  shopt -u nullglob dotglob
+  [[ ${#_children[@]} -eq 2 ]]
+  [[ "${_children[*]}" == *"${_capsule}/item"* ]]
+  [[ "${_children[*]}" == *"${_capsule}/source-path"* ]]
 }
 
-@test "file__backup_if_policy: no-ops (empty output) when the path does not exist" {
-  run file__backup_if_policy "${BATS_TEST_TMPDIR}/absent" true "${BATS_TEST_TMPDIR}"
-  assert_success
-  assert_output ""
-}
-
-@test "file__backup_if_policy: no-ops when policy resolves to false" {
-  local _src="${BATS_TEST_TMPDIR}/src2.txt"
-  echo x > "$_src"
-  run file__backup_if_policy "$_src" false "${BATS_TEST_TMPDIR}"
-  assert_success
-  assert_output ""
-}
-
-@test "file__backup_if_policy: fails when a backup is needed but no backup_dir is given" {
-  local _src="${BATS_TEST_TMPDIR}/src3.txt"
-  echo x > "$_src"
-  run file__backup_if_policy "$_src" true ""
+@test "file__backup_if_policy: validates policy before an absent-path no-op" {
+  run --separate-stderr file__backup_if_policy "${BATS_TEST_TMPDIR}/absent" unknown "${BATS_TEST_TMPDIR}"
   assert_failure
+  assert_output ""
+  assert_stderr --partial "expected 'auto', 'true', or 'false'"
 }
 
-@test "file__backup_if_policy: repeated backups of the same path do not collide" {
+@test "file__backup_if_policy: absent path with a valid true policy is an empty no-op" {
+  file__mkdir() { return 71; }
+  export -f file__mkdir
+  run file__backup_if_policy "${BATS_TEST_TMPDIR}/absent" true "${BATS_TEST_TMPDIR}/unused"
+  assert_success
+  assert_output ""
+}
+
+@test "file__backup_if_policy: false is an empty no-op before backup-dir validation" {
+  local _src="${BATS_TEST_TMPDIR}/src2.txt"
+  printf x > "$_src"
+  run file__backup_if_policy "$_src" false ""
+  assert_success
+  assert_output ""
+}
+
+@test "file__backup_if_policy: fails without stdout when a backup is needed but backup_dir is empty" {
+  local _src="${BATS_TEST_TMPDIR}/src3.txt"
+  printf x > "$_src"
+  run --separate-stderr file__backup_if_policy "$_src" true ""
+  assert_failure
+  assert_output ""
+  assert_stderr --partial "no backup directory provided"
+}
+
+@test "file__backup_if_policy: preserves a directory tree in item" {
+  local _src="${BATS_TEST_TMPDIR}/tree"
+  mkdir -p "${_src}/nested"
+  printf payload > "${_src}/nested/file"
+  run file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/dir-backups"
+  assert_success
+  [[ -d "$output" ]]
+  [[ "$(cat "${output}/nested/file")" == payload ]]
+}
+
+@test "file__backup_if_policy: preserves an ordinary symlink as a symlink" {
+  local _target="${BATS_TEST_TMPDIR}/target" _src="${BATS_TEST_TMPDIR}/link"
+  printf target > "$_target"
+  ln -s "$_target" "$_src"
+  run file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/link-backups"
+  assert_success
+  [[ -L "$output" ]]
+  [[ "$(readlink "$output")" == "$_target" ]]
+}
+
+@test "file__backup_if_policy: treats a dangling symlink as an existing object" {
+  local _src="${BATS_TEST_TMPDIR}/dangling" _target="${BATS_TEST_TMPDIR}/missing-target"
+  ln -s "$_target" "$_src"
+  run file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/dangling-backups"
+  assert_success
+  [[ -L "$output" ]]
+  [[ "$(readlink "$output")" == "$_target" ]]
+}
+
+@test "file__backup_if_policy: same fixed timestamp yields unique sequential capsules with changed content" {
   local _src="${BATS_TEST_TMPDIR}/src4.txt"
-  echo content > "$_src"
+  printf first > "$_src"
   local _dir="${BATS_TEST_TMPDIR}/backups2"
-  mkdir -p "$_dir"
+  date() { printf '20240102T030405Z\n'; }
+  export -f date
+
   run file__backup_if_policy "$_src" true "$_dir"
   local _first="$output"
-  sleep 1
+  printf second > "$_src"
   run file__backup_if_policy "$_src" true "$_dir"
   local _second="$output"
   [[ "$_first" != "$_second" ]]
   [[ -f "$_first" && -f "$_second" ]]
+  [[ "$(cat "$_first")" == first ]]
+  [[ "$(cat "$_second")" == second ]]
+  [[ "$_first" == "$_dir"/backup.20240102T030405Z.??????/item ]]
+  [[ "$_second" == "$_dir"/backup.20240102T030405Z.??????/item ]]
+}
+
+@test "file__backup_if_policy: concurrent fixed-timestamp backups reserve unique complete capsules" {
+  local _src="${BATS_TEST_TMPDIR}/concurrent-source" _dir="${BATS_TEST_TMPDIR}/concurrent-backups"
+  printf concurrent > "$_src"
+  date() { printf '20240102T030405Z\n'; }
+  export -f date
+
+  local _i
+  for _i in {1..8}; do
+    file__backup_if_policy "$_src" true "$_dir" > "${BATS_TEST_TMPDIR}/result.${_i}" &
+  done
+  local _wait_rc=0
+  wait || _wait_rc=$?
+  [[ $_wait_rc -eq 0 ]]
+
+  local -A _seen=()
+  local _item _capsule
+  for _i in {1..8}; do
+    IFS= read -r _item < "${BATS_TEST_TMPDIR}/result.${_i}"
+    [[ -n "$_item" && -z "${_seen[$_item]+set}" ]]
+    _seen["$_item"]=1
+    _capsule="${_item%/item}"
+    [[ -f "$_item" && "$(cat "$_item")" == concurrent ]]
+    [[ "$(cat "${_capsule}/source-path")" == "$_src" ]]
+  done
+  [[ ${#_seen[@]} -eq 8 ]]
+}
+
+@test "file__backup_if_policy: preserves portable file mode and timestamp" {
+  local _src="${BATS_TEST_TMPDIR}/metadata-source" _src_mode _dst_mode _src_mtime _dst_mtime
+  printf metadata > "$_src"
+  chmod 0640 "$_src"
+  touch -t 202001020304.05 "$_src"
+  run file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/metadata-backups"
+  assert_success
+
+  _src_mode="$(stat -c %a "$_src" 2> /dev/null || stat -f %Lp "$_src")"
+  _dst_mode="$(stat -c %a "$output" 2> /dev/null || stat -f %Lp "$output")"
+  _src_mtime="$(stat -c %Y "$_src" 2> /dev/null || stat -f %m "$_src")"
+  _dst_mtime="$(stat -c %Y "$output" 2> /dev/null || stat -f %m "$output")"
+  [[ "$_dst_mode" == "$_src_mode" ]]
+  [[ "$_dst_mtime" == "$_src_mtime" ]]
+  [[ "$(stat -c %a "${output%/item}/source-path" 2> /dev/null || stat -f %Lp "${output%/item}/source-path")" == 600 ]]
+}
+
+@test "file__backup_if_policy: mkdir failure is explicit and emits no stdout" {
+  local _src="${BATS_TEST_TMPDIR}/mkdir-source"
+  printf x > "$_src"
+  file__mkdir() { return 41; }
+  export -f file__mkdir
+  run --separate-stderr file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/mkdir-backups"
+  [[ $status -eq 41 ]]
+  assert_output ""
+  assert_stderr --partial "failed to create backup directory"
+}
+
+@test "file__backup_if_policy: date failure is explicit and emits no stdout" {
+  local _src="${BATS_TEST_TMPDIR}/date-source"
+  printf x > "$_src"
+  date() { return 42; }
+  export -f date
+  run --separate-stderr file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/date-backups"
+  [[ $status -eq 42 ]]
+  assert_output ""
+  assert_stderr --partial "valid UTC backup timestamp"
+}
+
+@test "file__backup_if_policy: invalid successful date output is rejected" {
+  local _src="${BATS_TEST_TMPDIR}/bad-date-source"
+  printf x > "$_src"
+  date() { printf invalid; }
+  export -f date
+  run --separate-stderr file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/bad-date-backups"
+  assert_failure
+  assert_output ""
+  assert_stderr --partial "valid UTC backup timestamp"
+}
+
+@test "file__backup_if_policy: mktemp failure is explicit and emits no stdout" {
+  local _src="${BATS_TEST_TMPDIR}/mktemp-source"
+  printf x > "$_src"
+  mktemp() {
+    if [[ "${*: -1}" == */backup.*.XXXXXX ]]; then
+      return 43
+    fi
+    command mktemp "$@"
+  }
+  export -f mktemp
+  run --separate-stderr file__backup_if_policy "$_src" true "${BATS_TEST_TMPDIR}/mktemp-backups"
+  [[ $status -eq 43 ]]
+  assert_output ""
+  assert_stderr --partial "failed to reserve a unique backup capsule"
+}
+
+@test "file__backup_if_policy: non-writable allocation path delegates mktemp to users__run_privileged" {
+  local _src="${BATS_TEST_TMPDIR}/priv-source" _dir="${BATS_TEST_TMPDIR}/priv-backups"
+  local _call_log="${BATS_TEST_TMPDIR}/priv-call"
+  printf x > "$_src"
+  file__mkdir() { mkdir -p "$@"; }
+  _file__backup_dir_is_writable() { return 1; }
+  users__run_privileged() {
+    printf '%s\n' "$*" > "$_call_log"
+    "$@"
+  }
+  export _call_log
+  export -f file__mkdir _file__backup_dir_is_writable users__run_privileged
+
+  run file__backup_if_policy "$_src" true "$_dir"
+  assert_success
+  [[ -f "$output" ]]
+  [[ "$(cat "$_call_log")" == mktemp\ -d\ "$_dir"/backup.*.XXXXXX ]]
+}
+
+@test "file__backup_if_policy: sidecar failure removes the capsule and preserves status" {
+  local _src="${BATS_TEST_TMPDIR}/sidecar-source" _dir="${BATS_TEST_TMPDIR}/sidecar-backups"
+  printf x > "$_src"
+  _file__write_backup_identity() { return 44; }
+  export -f _file__write_backup_identity
+  run --separate-stderr file__backup_if_policy "$_src" true "$_dir"
+  [[ $status -eq 44 ]]
+  assert_output ""
+  assert_stderr --partial "source-path write failed"
+  local -a _capsules=("$_dir"/backup.*)
+  [[ ! -e "${_capsules[0]}" ]]
+}
+
+@test "file__backup_if_policy: chmod failure removes the capsule and preserves status" {
+  local _src="${BATS_TEST_TMPDIR}/chmod-source" _dir="${BATS_TEST_TMPDIR}/chmod-backups"
+  printf x > "$_src"
+  file__chmod() { return 45; }
+  export -f file__chmod
+  run --separate-stderr file__backup_if_policy "$_src" true "$_dir"
+  [[ $status -eq 45 ]]
+  assert_output ""
+  assert_stderr --partial "source-path protection failed"
+  local -a _capsules=("$_dir"/backup.*)
+  [[ ! -e "${_capsules[0]}" ]]
+}
+
+@test "file__backup_if_policy: copy failure removes the capsule and preserves status" {
+  local _src="${BATS_TEST_TMPDIR}/copy-source" _dir="${BATS_TEST_TMPDIR}/copy-backups"
+  printf x > "$_src"
+  file__cp() { return 46; }
+  export -f file__cp
+  run --separate-stderr file__backup_if_policy "$_src" true "$_dir"
+  [[ $status -eq 46 ]]
+  assert_output ""
+  assert_stderr --partial "item copy failed"
+  local -a _capsules=("$_dir"/backup.*)
+  [[ ! -e "${_capsules[0]}" ]]
+}
+
+@test "file__backup_if_policy: cleanup failure reports an orphan without replacing primary status" {
+  local _src="${BATS_TEST_TMPDIR}/orphan-source" _dir="${BATS_TEST_TMPDIR}/orphan-backups"
+  printf x > "$_src"
+  file__cp() { return 47; }
+  file__rm() { return 59; }
+  export -f file__cp file__rm
+  run --separate-stderr file__backup_if_policy "$_src" true "$_dir"
+  [[ $status -eq 47 ]]
+  assert_output ""
+  assert_stderr --partial "cleanup also failed"
+  assert_stderr --partial "orphan remains"
+  local -a _capsules=("$_dir"/backup.*)
+  [[ -d "${_capsules[0]}" ]]
+  [[ -f "${_capsules[0]}/source-path" ]]
+}
+
+@test "file__backup_if_policy: final stdout failure retains the complete backup" {
+  local _src="${BATS_TEST_TMPDIR}/stdout-source" _dir="${BATS_TEST_TMPDIR}/stdout-backups"
+  printf x > "$_src"
+  _backup_with_failed_stdout() {
+    file__backup_if_policy "$1" true "$2" >&-
+  }
+  export -f _backup_with_failed_stdout
+  run --separate-stderr _backup_with_failed_stdout "$_src" "$_dir"
+  assert_failure
+  assert_output ""
+  local -a _capsules=("$_dir"/backup.*)
+  [[ ${#_capsules[@]} -eq 1 ]]
+  [[ -f "${_capsules[0]}/item" ]]
+  [[ -f "${_capsules[0]}/source-path" ]]
 }

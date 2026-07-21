@@ -187,11 +187,11 @@ _ctx__id_like_has() {
   #   <id_like-string>  Full `os.id_like` registry value.
   #
   # Returns: 0 when `<token>` is present; 1 otherwise.
-  local _want="${1,,}" _actual="$2" _tok
+  local _want="${1,,}" _actual="$2" _tok _found=false
   while IFS= read -r _tok; do
-    [[ -n "${_tok}" && "${_tok}" == "${_want}" ]] && return 0
+    [[ -n "${_tok}" && "${_tok}" == "${_want}" ]] && _found=true
   done < <(_ctx__id_like_tokens "${_actual}")
-  return 1
+  [[ "${_found}" == true ]]
 }
 
 _ctx__compare_eq() {

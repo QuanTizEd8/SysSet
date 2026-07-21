@@ -1,20 +1,20 @@
 #!/usr/bin/env bats
-# Integration tests for lib/bootstrap.bash — exercises the install path.
+# Dedicated bootstrap tests for lib/bootstrap.bash — exercises installation paths.
 #
-# install_tools.bats covers only the "tool already on PATH" fast path for
-# bootstrap__yq and bootstrap__oras. These tests exercise the install path
-# for ALL bootstrap functions: tool absent → package manager installs it →
-# command -v succeeds.
-#
-# The bare integration environments (ubuntu-stable+git, alpine-current+bash,
-# fedora-current+bash) ship only bash (and git for ubuntu), so most tools are
-# absent and will be installed by the bootstrap functions under test.
+# This file runs only in each logical platform's fresh bare bootstrap profile,
+# separate from prepared ordinary lean/integration tests. Individual base images
+# can still contain some tools; stronger absent-to-installed preconditions are a
+# follow-up hardening step, so these tests currently assert successful outcomes.
 
 bats_require_minimum_version 1.5.0
 
 setup() {
   load '../helpers/common'
   reload_lib
+  _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}/session"
+  _FILE__SESSION_OWNED=false
+  mkdir -p "$_FILE__SESSION_ROOT"
+  export _FILE__SESSION_ROOT _FILE__SESSION_OWNED
 }
 
 teardown() {
@@ -136,4 +136,22 @@ teardown() {
   [[ -n "$_path" && -x "$_path" ]]
   run "$_path" version
   assert_success
+}
+
+@test "bootstrap__jsonschema: installs an absent compatible binary" {
+  _BOOTSTRAP__JSONSCHEMA_BIN=""
+  command() {
+    if [[ "${1:-}" == -v && "${2:-}" == jsonschema ]]; then
+      return 1
+    fi
+    builtin command "$@"
+  }
+  export -f command
+
+  local _path
+  _path="$(bootstrap__jsonschema)"
+  [[ -n "$_path" && -f "$_path" && -x "$_path" && ! -L "$_path" ]]
+  run "$_path" version
+  assert_success
+  [[ "$output" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
 }

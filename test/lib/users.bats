@@ -1305,6 +1305,8 @@ alice"
 
 @test "users__first_writeable_path: uses platform-matching group over fallback" {
   load 'helpers/ctx'
+  load 'helpers/test_tools'
+  test_tools__wire_jq_yq
   ctx_test__reset
   ctx_test__seed_plat kernel=Darwin
   users__can_write() { return 0; }
@@ -1315,6 +1317,8 @@ alice"
 
 @test "users__first_writeable_path: skips non-matching group and uses fallback" {
   load 'helpers/ctx'
+  load 'helpers/test_tools'
+  test_tools__wire_jq_yq
   ctx_test__reset
   ctx_test__seed_plat kernel=linux
   users__can_write() { return 0; }
@@ -1325,6 +1329,8 @@ alice"
 
 @test "users__first_writeable_path: fails when no group's platform condition matches" {
   load 'helpers/ctx'
+  load 'helpers/test_tools'
+  test_tools__wire_jq_yq
   ctx_test__reset
   ctx_test__seed_plat kernel=linux
   users__can_write() { return 0; }
@@ -1337,6 +1343,8 @@ alice"
 
 @test "users__first_writeable_path: feat.version lte constraint selects matching group" {
   load 'helpers/ctx'
+  load 'helpers/test_tools'
+  test_tools__wire_jq_yq
   ctx_test__reset
   ctx__set feat.version=12.1.2
   users__can_write() { return 0; }

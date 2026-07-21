@@ -10,7 +10,6 @@ setup() {
   # Stub bootstrap__git to succeed by default; individual tests override as needed.
   bootstrap__git() { return 0; }
   export -f bootstrap__git
-  export DEVFEATS_NET_FETCH_RETRIES=1 DEVFEATS_NET_FETCH_DELAY=0
 }
 
 # ---------------------------------------------------------------------------
@@ -157,7 +156,7 @@ _install_git_stub() {
   assert_output "abc123deadbeefabc123deadbeefabc123deadbee"
 }
 
-@test "git__resolve_ref: fails when ls-remote fails (network error)" {
+@test "git__resolve_ref: fails on a persistent authentication error" {
   git() {
     case "${1:-}" in
       ls-remote)
@@ -175,7 +174,7 @@ _install_git_stub() {
 @test "git__resolve_ref: retries a transient ls-remote failure" {
   local _attempts="${BATS_TEST_TMPDIR}/attempts"
   printf '0' > "$_attempts"
-  export _attempts DEVFEATS_NET_FETCH_RETRIES=2
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=2 DEVFEATS_NET_FETCH_DELAY=0
   git() {
     local _n
     _n=$(($(cat "$_attempts") + 1))
@@ -197,7 +196,7 @@ _install_git_stub() {
 @test "git__resolve_ref: does not retry a certainly persistent authentication failure" {
   local _attempts="${BATS_TEST_TMPDIR}/attempts"
   printf '0' > "$_attempts"
-  export _attempts DEVFEATS_NET_FETCH_RETRIES=3
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=3 DEVFEATS_NET_FETCH_DELAY=0
   git() {
     printf '%s' "$(($(cat "$_attempts") + 1))" > "$_attempts"
     printf 'fatal: Authentication failed for https://example.com/repo.git\n' >&2
@@ -333,6 +332,8 @@ EOF
 
 @test "git__clone removes partial directory on clone failure" {
   local _dst="${BATS_TEST_TMPDIR}/bad_dst"
+  # Bound this deliberately unreachable endpoint without changing production policy.
+  lib_test__net_fetch_fail_fast
   run git__clone --url "https://0.0.0.0/nonexistent.git" --dir "$_dst"
   assert_failure
   [[ ! -d "$_dst" ]]
@@ -363,6 +364,7 @@ EOF
   export _GITFAKE_CLONE_FAIL=1
   _install_git_stub
 
+  lib_test__net_fetch_fail_fast
   run git__clone --url "https://example.com/r.git" --dir "${_dst}" --ref "main"
   assert_failure
   [[ ! -d "${_dst}" ]]
@@ -373,7 +375,7 @@ EOF
   printf '0' > "$_attempts"
   git__resolve_ref() { printf 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef\n'; }
   export -f git__resolve_ref
-  export _attempts DEVFEATS_NET_FETCH_RETRIES=2
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=2 DEVFEATS_NET_FETCH_DELAY=0
   git() {
     local _sub="${1:-}"
     if [[ "$_sub" == clone ]]; then
@@ -603,6 +605,7 @@ EOF
   export _GITFAKE_FETCH_FAIL=1
   _install_git_stub
 
+  lib_test__net_fetch_fail_fast
   run git__update "${_dir}" --ref "main"
   assert_failure
 }

@@ -6,18 +6,27 @@ import hashlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING, TextIO
 
 import yaml
 
 from proman.config import load as load_config
 
+if TYPE_CHECKING:
+    import threading
+    from collections.abc import Callable
+
 _DOCKER_GITHUB_ARG_LINES = "ARG GITHUB_TOKEN\nENV GITHUB_TOKEN=${GITHUB_TOKEN}\n"
 _BUILDKIT_PROGRESS_PLAIN = "plain"
+_RUN_FRAGMENT_PATH_RE = re.compile(
+    r"^[A-Za-z0-9_-][A-Za-z0-9_.-]*(/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$"
+)
 
 # POSIX sh retry helper injected into every env-bootstrap / scenario `setup:`
 # shell context (Dockerfile RUN heredocs, standalone `sh -c`, macOS `bash -c`).
@@ -56,6 +65,10 @@ def run_with_retry(
     *,
     attempts: int = 3,
     delay: float = 5,
+    output: TextIO | None = None,
+    cancel_event: threading.Event | None = None,
+    process_started: Callable[[subprocess.Popen[str]], None] | None = None,
+    process_finished: Callable[[subprocess.Popen[str]], None] | None = None,
     **kwargs: object,
 ) -> subprocess.CompletedProcess:
     """subprocess.run(cmd, check=True, **kwargs), retrying transient failures.
@@ -67,17 +80,78 @@ def run_with_retry(
     """
     result: subprocess.CompletedProcess | subprocess.CalledProcessError
     for attempt in range(1, attempts + 1):
-        result = _try_run(cmd, kwargs)
+        if cancel_event is None:
+            result = _try_run(cmd, kwargs)
+        else:
+            if (
+                kwargs.get("stdout") is subprocess.PIPE
+                or kwargs.get("stderr") is subprocess.PIPE
+                or kwargs.get("capture_output")
+            ):
+                message = "Cancellable commands require non-PIPE output streams."
+                raise ValueError(message)
+            if cancel_event.is_set():
+                message = "Command cancelled before launch."
+                raise InterruptedError(message)
+            proc = subprocess.Popen(cmd, start_new_session=os.name == "posix", **kwargs)
+            if process_started is not None:
+                process_started(proc)
+            try:
+                while True:
+                    returncode = proc.poll()
+                    if returncode is not None:
+                        break
+                    if cancel_event.wait(0.05):
+                        _terminate_process_group(proc)
+                        message = "Command cancelled."
+                        raise InterruptedError(message)
+                result = subprocess.CompletedProcess(cmd, returncode)
+                if returncode:
+                    result = subprocess.CalledProcessError(returncode, cmd)
+            finally:
+                if process_finished is not None:
+                    process_finished(proc)
         if isinstance(result, subprocess.CompletedProcess):
             return result
         if attempt < attempts:
-            print(
+            message = (
                 f"⚠️  command failed (attempt {attempt}/{attempts}); "
-                f"retrying in {delay}s: {' '.join(cmd)}",
-                file=sys.stderr,
+                f"retrying in {delay}s: {' '.join(cmd)}\n"
             )
-            time.sleep(delay)
+            if output is None:
+                print(message, end="", file=sys.stderr)
+            else:
+                output.write(message)
+                output.flush()
+            if cancel_event is None:
+                time.sleep(delay)
+            elif cancel_event.wait(delay):
+                message = "Command cancelled while waiting to retry."
+                raise InterruptedError(message)
     raise result
+
+
+def _terminate_process_group(proc: subprocess.Popen[str]) -> None:
+    """Terminate a subprocess and descendants started in their own POSIX session."""
+    if proc.poll() is not None:
+        return
+    try:
+        if os.name == "posix":
+            os.killpg(proc.pid, signal.SIGTERM)
+        else:
+            proc.terminate()
+        proc.wait(timeout=1)
+    except ProcessLookupError:
+        return
+    except subprocess.TimeoutExpired:
+        try:
+            if os.name == "posix":
+                os.killpg(proc.pid, signal.SIGKILL)
+            else:
+                proc.kill()
+        except ProcessLookupError:
+            return
+        proc.wait(timeout=1)
 
 
 def docker_buildkit_env(base: dict[str, str] | None = None) -> dict[str, str]:
@@ -90,15 +164,31 @@ def docker_buildkit_env(base: dict[str, str] | None = None) -> dict[str, str]:
 
 def load(path: Path | str) -> dict:
     """Load an environments YAML file and return its contents as a dict."""
-    with Path(path).open() as f:
-        return yaml.safe_load(f) or {}
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
 
 
 def is_macos(env_name: str, envs: dict) -> bool:
-    """Return True if the named environment uses a macOS runner image."""
-    env = envs.get(env_name, {})
-    image = env.get("image", "")
-    return bool(re.match(r"^macos", image))
+    """Return whether the nearest image in an environment chain is macOS."""
+    seen: set[str] = set()
+    cursor: str | None = env_name
+    while cursor is not None:
+        if cursor in seen:
+            message = f"Environment {env_name!r} has a cyclic from chain at {cursor!r}."
+            raise ValueError(message)
+        seen.add(cursor)
+        env = envs.get(cursor)
+        if not isinstance(env, dict):
+            message = f"Environment {cursor!r} is missing or is not a mapping."
+            raise ValueError(message)  # noqa: TRY004 - invalid config value
+        image = env.get("image")
+        if image is not None:
+            return isinstance(image, str) and bool(re.match(r"^macos", image))
+        parent = env.get("from")
+        if parent is not None and (not isinstance(parent, str) or not parent):
+            message = f"Environment {cursor!r} from must be a non-empty string."
+            raise ValueError(message)
+        cursor = parent
+    return False
 
 
 def resolve_attributes(env_name: str, envs: dict) -> dict:
@@ -114,6 +204,112 @@ def resolve_attributes(env_name: str, envs: dict) -> dict:
     from_env = env.get("from")
     inherited = resolve_attributes(from_env, envs) if from_env else {}
     return {**inherited, **env.get("attributes", {})}
+
+
+def _validate_build(env_name: str, env: dict, *, native_macos: bool) -> dict:
+    """Validate and return one environment's optional build declaration."""
+    if "build" not in env:
+        return {}
+    build = env["build"]
+    if not isinstance(build, dict):
+        message = f"Environment {env_name!r} build must be a mapping."
+        raise ValueError(message)  # noqa: TRY004 - invalid config value
+    unknown = set(build) - {"dockerfile", "runFragmentPath", "resolveAttempts"}
+    if unknown:
+        message = (
+            f"Environment {env_name!r} build has unknown keys: "
+            f"{', '.join(sorted(unknown))}."
+        )
+        raise ValueError(message)
+    sources = [key for key in ("dockerfile", "runFragmentPath") if key in build]
+    if len(sources) != 1:
+        message = (
+            f"Environment {env_name!r} build must declare exactly one of "
+            "dockerfile or runFragmentPath."
+        )
+        raise ValueError(message)
+    if sources[0] == "dockerfile":
+        commands = build["dockerfile"]
+        if not isinstance(commands, str) or not commands.strip():
+            message = f"Environment {env_name!r} dockerfile shell commands are empty."
+            raise ValueError(message)
+    elif native_macos:
+        message = (
+            f"Environment {env_name!r} uses runFragmentPath, which is unsupported "
+            "for native macOS environments."
+        )
+        raise ValueError(message)
+    attempts = build.get("resolveAttempts", 3)
+    if (
+        not isinstance(attempts, int)
+        or isinstance(attempts, bool)
+        or attempts < 1
+        or attempts > 3
+    ):
+        message = (
+            f"Environment {env_name!r} build.resolveAttempts must be an integer "
+            "from 1 through 3."
+        )
+        raise ValueError(message)
+    return build
+
+
+def validate_environment_chain(
+    env_name: str,
+    envs: dict,
+    *,
+    native_macos: bool | None = None,
+) -> tuple[str, ...]:
+    """Validate a complete ``from:`` chain and return it root-first."""
+    if env_name not in envs:
+        message = f"Unknown environment: {env_name!r}"
+        raise ValueError(message)
+    if native_macos is None:
+        native_macos = is_macos(env_name, envs)
+    chain: list[str] = []
+    seen: set[str] = set()
+    cursor: str | None = env_name
+    while cursor is not None:
+        if cursor in seen:
+            message = f"Environment {env_name!r} has a cyclic from chain at {cursor!r}."
+            raise ValueError(message)
+        seen.add(cursor)
+        env = envs.get(cursor)
+        if not isinstance(env, dict):
+            message = f"Environment {cursor!r} is missing or is not a mapping."
+            raise ValueError(message)  # noqa: TRY004 - invalid config value
+        _validate_build(cursor, env, native_macos=native_macos)
+        chain.append(cursor)
+        parent = env.get("from")
+        if parent is not None and (not isinstance(parent, str) or not parent):
+            message = f"Environment {cursor!r} from must be a non-empty string."
+            raise ValueError(message)
+        cursor = parent
+    chain.reverse()
+    return tuple(chain)
+
+
+def macos_build_commands(env_name: str, envs: dict) -> str:
+    """Return validated native macOS bootstrap commands in inheritance order."""
+    chain = validate_environment_chain(env_name, envs, native_macos=True)
+    commands = [
+        envs[name]["build"]["dockerfile"].strip()
+        for name in chain
+        if "build" in envs[name]
+    ]
+    return "\n".join(commands)
+
+
+def _resolve_attempts(env_name: str, envs: dict) -> int:
+    """Return the most-derived explicit Docker build retry budget."""
+    cursor: str | None = env_name
+    while cursor is not None:
+        env = envs[cursor]
+        build = env.get("build", {})
+        if "resolveAttempts" in build:
+            return build["resolveAttempts"]
+        cursor = env.get("from")
+    return 3
 
 
 def _collect_layers(
@@ -134,9 +330,9 @@ def _collect_layers(
     env = envs[env_name]
     from_env = env.get("from")
     image = env.get("image")
-    build = env.get("build", {})
+    build = _validate_build(env_name, env, native_macos=False)
     df_inline = build.get("dockerfile")
-    df_path = build.get("dockerfilePath")
+    fragment_path = build.get("runFragmentPath")
     env_vars = env.get("env_vars", {})
     my_args = env.get("args", {})  # args THIS level passes UP to its parent
 
@@ -157,18 +353,19 @@ def _collect_layers(
     # ARG lines for child_args — inserted before this layer's RUN block
     arg_lines = "".join(f"ARG {k}\n" for k in (child_args or {}))
 
-    if df_path:
-        raw = (envs_dir / df_path).read_text()
-        body += arg_lines
-        for line in raw.splitlines(keepends=True):
-            upper = line.upper().lstrip()
-            if upper.startswith(("FROM ", "ARG GITHUB_TOKEN", "ENV GITHUB_TOKEN")):
-                continue
-            body += line
-    elif df_inline:
+    if fragment_path:
+        raw = _load_run_fragment(envs_dir, fragment_path)
+        delimiter = _heredoc_delimiter(raw)
+        body += f"{arg_lines}RUN <<'{delimiter}'\nset -eux\n{RETRY_SHELL_PREAMBLE}{raw}"
+        if not raw.endswith("\n"):
+            body += "\n"
+        body += f"{delimiter}\n"
+    elif df_inline is not None:
         commands = df_inline.strip()
+        delimiter = _heredoc_delimiter(commands)
         body += (
-            f"{arg_lines}RUN <<'EOF'\nset -eux\n{RETRY_SHELL_PREAMBLE}{commands}\nEOF\n"
+            f"{arg_lines}RUN <<'{delimiter}'\nset -eux\n"
+            f"{RETRY_SHELL_PREAMBLE}{commands}\n{delimiter}\n"
         )
 
     if env_vars:
@@ -177,11 +374,85 @@ def _collect_layers(
     return base_image, body, build_args
 
 
+def _load_run_fragment(envs_dir: Path, value: object) -> str:
+    """Load a contained LF-only UTF-8 shell fragment without normalizing it."""
+    if not isinstance(value, str) or not value:
+        message = "runFragmentPath must be a non-empty relative path."
+        raise ValueError(message)
+    posix_relative = PurePosixPath(value)
+    if (
+        "\\" in value
+        or _RUN_FRAGMENT_PATH_RE.fullmatch(value) is None
+        or posix_relative.is_absolute()
+        or posix_relative.as_posix() != value
+        or any(part in {"", ".", ".."} for part in posix_relative.parts)
+    ):
+        message = (
+            f"Invalid runFragmentPath {value!r}: path must be normalized and relative."
+        )
+        raise ValueError(message)
+    relative = Path(*posix_relative.parts)
+    root = envs_dir.resolve()
+    candidate = envs_dir / relative
+    cursor = envs_dir
+    for part in relative.parts:
+        cursor /= part
+        if cursor.is_symlink():
+            message = (
+                f"Invalid runFragmentPath {value!r}: symlink path components "
+                "are not allowed."
+            )
+            raise ValueError(message)
+    try:
+        resolved = candidate.resolve(strict=True)
+        resolved.relative_to(root)
+    except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        message = (
+            f"Invalid runFragmentPath {value!r}: file is missing or outside test/envs."
+        )
+        raise ValueError(message) from exc
+    if candidate.is_symlink() or not resolved.is_file():
+        message = (
+            f"Invalid runFragmentPath {value!r}: expected a regular non-symlink file."
+        )
+        raise ValueError(message)
+
+    raw = resolved.read_bytes()
+    if b"\0" in raw or b"\r" in raw:
+        message = (
+            f"Invalid runFragmentPath {value!r}: file must be LF-only UTF-8 text "
+            "without NUL bytes."
+        )
+        raise ValueError(message)
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        message = f"Invalid runFragmentPath {value!r}: file must be UTF-8 text."
+        raise ValueError(message) from exc
+
+
+def _heredoc_delimiter(content: str) -> str:
+    """Choose a Dockerfile heredoc delimiter absent as an exact content line."""
+    lines = set(content.splitlines())
+    index = 0
+    while True:
+        suffix = "" if index == 0 else f"_{index}"
+        delimiter = f"DEVFEATS_RUN_FRAGMENT{suffix}"
+        if delimiter not in lines:
+            return delimiter
+        index += 1
+
+
 def resolve(
     env_name: str,
     envs: dict,
     scenario_args: dict | None = None,
     scenario_env_vars: dict | None = None,
+    *,
+    output: TextIO | None = None,
+    cancel_event: threading.Event | None = None,
+    process_started: Callable[[subprocess.Popen[str]], None] | None = None,
+    process_finished: Callable[[subprocess.Popen[str]], None] | None = None,
 ) -> str:
     """Resolve an environment name to a Docker image tag, building if needed."""
     env = envs.get(env_name)
@@ -189,8 +460,12 @@ def resolve(
         print(f"⛔ Unknown environment: {env_name!r}", file=sys.stderr)
         sys.exit(1)
 
-    if is_macos(env_name, envs):
-        return env["image"]
+    native_macos = is_macos(env_name, envs)
+    chain = validate_environment_chain(env_name, envs, native_macos=native_macos)
+    if native_macos:
+        return next(
+            envs[name]["image"] for name in reversed(chain) if "image" in envs[name]
+        )
 
     envs_dir = load_config().absolute_path("path.test_envs")
     base_image, body, build_args = _collect_layers(
@@ -244,7 +519,22 @@ def resolve(
         ]
         for k, v in build_args.items():
             cmd.extend(["--build-arg", f"{k}={v}"])
-        run_with_retry(cmd, env=docker_buildkit_env())
+        run_kwargs: dict[str, object] = {"env": docker_buildkit_env()}
+        if output is not None:
+            run_kwargs.update(
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+        run_with_retry(
+            cmd,
+            attempts=_resolve_attempts(env_name, envs),
+            output=output,
+            cancel_event=cancel_event,
+            process_started=process_started,
+            process_finished=process_finished,
+            **run_kwargs,
+        )
     finally:
         Path(df_tmp).unlink(missing_ok=True)
 

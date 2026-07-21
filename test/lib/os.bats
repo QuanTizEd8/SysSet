@@ -262,7 +262,7 @@ _os__platform_stub_release() {
   # pointing the function at it.  Since the function hard-codes the path we
   # test indirectly via the exported sentinel file in scope of a subshell.
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/container-sentinel.XXXXXX")"
   touch "$_tmp/.dockerenv"
   # Source os.bash in a subshell that replaces / with our tmpdir for the lookup.
   run bash -c "

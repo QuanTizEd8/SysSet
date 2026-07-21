@@ -17,6 +17,7 @@ from .environments import (
     RETRY_SHELL_PREAMBLE,
     _collect_layers,
     is_macos,
+    validate_environment_chain,
 )
 from .environments import load as load_envs
 from .scenarios import (
@@ -183,7 +184,13 @@ def generate(
         modes: list[str] = sc.get("modes", list(DEFAULT_MODES))
 
         for key, env_name, scenario in expand_envs(name, sc):
-            if is_macos(env_name, envs):
+            native_macos = is_macos(env_name, envs)
+            validate_environment_chain(
+                env_name,
+                envs,
+                native_macos=native_macos,
+            )
+            if native_macos:
                 continue
             if modes == ["standalone"]:
                 continue

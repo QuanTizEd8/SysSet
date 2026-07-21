@@ -35,7 +35,11 @@ just format                    # format all shell + Python files in place
 just lint                      # check-only lint — what CI runs
 
 # Run tests:
-just test-lib                  # library unit tests in a container (requires Docker)
+just test-lib                  # ordinary lean library tests in one prepared container
+just test-lib-all ubuntu-stable # ordinary both tiers in one logical platform
+just test-lib-bootstrap ubuntu-stable # bootstrap suite in a fresh bare container
+just test-lib-complete ubuntu-stable # ordinary then bootstrap, two containers
+just test-lib-integration-envs # ordinary integration across seven platforms
 just test-feats <feature>      # feature scenario tests (requires Docker)
 
 # Build and preview docs:

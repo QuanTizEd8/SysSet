@@ -79,7 +79,12 @@ create_conflicts:
           on_error: ignore
         - op: create
           dest: /opt/sf-conf/overwrite.txt
-          content: NEW
+          content: FIRST MANAGED VALUE
+          if_exists: overwrite
+          backup: 'true'
+        - op: create
+          dest: /opt/sf-conf/overwrite.txt
+          content: FINAL MANAGED VALUE
           if_exists: overwrite
           backup: 'true'
   tests: [create_conflicts]
@@ -337,7 +342,13 @@ chmod_move_touch_variants:
 # an embedded double quote then breaks devcontainer-features.env's
 # MANIFEST="..." quoting ("Bad substitution" from the shell that sources it).
 strict_vars_and_on_error:
+  setup: |
+    mkdir -p /opt/sf-strict
+    printf 'ORIGINAL CREATE CONTENT' > /opt/sf-strict/backup-create.txt
+    printf 'ORIGINAL DELETE CONTENT' > /opt/sf-strict/backup-delete.txt
   options:
+    backup_dir:
+      - /proc/devfeats-backup-must-fail
     manifest: |
       files:
         - op: create
@@ -348,6 +359,19 @@ strict_vars_and_on_error:
           dest: /opt/sf-strict/nonstrict-ok.txt
           content: '\${UNDEFINED_VAR_XYZ}'
           strict_vars: false
+        - op: create
+          dest: /opt/sf-strict/backup-create.txt
+          content: MUST NOT REPLACE ORIGINAL
+          if_exists: overwrite
+          backup: 'true'
+          on_error: ignore
+        - op: delete
+          dest: /opt/sf-strict/backup-delete.txt
+          backup: 'true'
+          on_error: ignore
+        - op: create
+          dest: /opt/sf-strict/continued-after-backup-errors.txt
+          content: continued
   tests: [strict_vars_and_on_error]
 
 user_scoped:
@@ -429,7 +453,11 @@ uninstall_reversal:
 
     printf 'overwritten content' > /opt/sf-existing/overwritten-file.txt
     OVER_HASH=$(sha256sum /opt/sf-existing/overwritten-file.txt | cut -d' ' -f1)
-    printf 'ORIGINAL BACKED UP CONTENT' > "$SHARE/backups/opt_sf-existing_overwritten-file.txt.bak"
+    OVER_CAPSULE="$SHARE/backups/backup.20260101T000000Z.ABC123"
+    mkdir -p "$OVER_CAPSULE"
+    printf 'ORIGINAL BACKED UP CONTENT' > "$OVER_CAPSULE/item"
+    printf '%s' /opt/sf-existing/overwritten-file.txt > "$OVER_CAPSULE/source-path"
+    chmod 600 "$OVER_CAPSULE/source-path"
 
     printf 'before\n# BEGIN sf-test\ninjected\n# END sf-test\nafter\n' > /opt/sf-existing/injected-block.txt
 
@@ -438,7 +466,11 @@ uninstall_reversal:
 
     printf 'deleted-file-content' > /opt/sf-existing/deleted-file.txt
     DELETED_HASH=$(sha256sum /opt/sf-existing/deleted-file.txt | cut -d' ' -f1)
-    printf 'ORIGINAL DELETED CONTENT BACKUP' > "$SHARE/backups/opt_sf-existing_deleted-file.txt.bak"
+    DELETE_CAPSULE="$SHARE/backups/backup.20260101T000001Z.DEF456"
+    mkdir -p "$DELETE_CAPSULE"
+    printf 'ORIGINAL DELETED CONTENT BACKUP' > "$DELETE_CAPSULE/item"
+    printf '%s' /opt/sf-existing/deleted-file.txt > "$DELETE_CAPSULE/source-path"
+    chmod 600 "$DELETE_CAPSULE/source-path"
 
     touch /opt/sf-existing/chmod-target.txt
     chmod 600 /opt/sf-existing/chmod-target.txt
@@ -454,7 +486,7 @@ uninstall_reversal:
        "backup_path":null,"timestamp_first":"2026-01-01T00:00:00Z","timestamp_last":"2026-01-01T00:00:00Z"},
       {"op":"create","dest":"/opt/sf-existing/overwritten-file.txt","created":false,
        "original_hash":"deadbeef","original_perms":null,"current_hash":"$OVER_HASH",
-       "backup_path":"$SHARE/backups/opt_sf-existing_overwritten-file.txt.bak",
+       "backup_path":"$OVER_CAPSULE/item",
        "timestamp_first":"2026-01-01T00:00:00Z","timestamp_last":"2026-01-01T00:00:00Z"},
       {"op":"inject","dest":"/opt/sf-existing/injected-block.txt","created":false,
        "begin_marker":"# BEGIN sf-test","end_marker":"# END sf-test",
@@ -468,7 +500,7 @@ uninstall_reversal:
        "backup_path":null,"timestamp_first":"2026-01-01T00:00:00Z","timestamp_last":"2026-01-01T00:00:00Z"},
       {"op":"delete","dest":"/opt/sf-existing/deleted-file.txt","created":false,
        "original_hash":"$DELETED_HASH","original_perms":null,"current_hash":null,
-       "backup_path":"$SHARE/backups/opt_sf-existing_deleted-file.txt.bak",
+       "backup_path":"$DELETE_CAPSULE/item",
        "timestamp_first":"2026-01-01T00:00:00Z","timestamp_last":"2026-01-01T00:00:00Z"},
       {"op":"chmod","dest":"/opt/sf-existing/chmod-target.txt","created":false,
        "original_hash":null,"original_perms":"644 root root","current_hash":null,

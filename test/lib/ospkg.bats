@@ -7,30 +7,9 @@ setup() {
   load 'helpers/common'
   load 'helpers/stubs'
   load 'helpers/ctx'
-}
-
-setup_file() {
-  load 'helpers/common'
-  OSPKG_JQ_READY=0
-  OSPKG_JQ_BIN=""
-  # Resolve the jq path in the SAME subshell as bootstrap__jq (its PATH export
-  # never leaves that process), then keep a stable copy in BATS_FILE_TMPDIR so
-  # manifest tests can put jq on PATH without re-bootstrapping it — offline/flaky
-  # on bare images, and unavoidable once a test relocates _FILE__SESSION_ROOT
-  # (which moves the bootstrap cache lookup away from this one).
-  local _jq_path
-  _jq_path="$(bash -c '. "$1/__init__.bash" && bootstrap__jq >&2 && command -v jq' _ "${LIB_ROOT}" 2> /dev/null)" || true
-  if [[ -n "${_jq_path}" && -x "${_jq_path}" ]]; then
-    cp "${_jq_path}" "${BATS_FILE_TMPDIR}/jq"
-    chmod +x "${BATS_FILE_TMPDIR}/jq"
-    OSPKG_JQ_BIN="${BATS_FILE_TMPDIR}/jq"
-    OSPKG_JQ_READY=1
-  fi
-  export OSPKG_JQ_READY OSPKG_JQ_BIN
-}
-
-_require_ospkg_jq() {
-  [[ "${OSPKG_JQ_READY:-0}" == "1" ]] || skip "jq bootstrap unavailable for ospkg manifest tests"
+  load 'helpers/test_tools'
+  test_tools__wire_jq
+  test_tools__stub_yq
 }
 
 # ---------------------------------------------------------------------------
@@ -515,7 +494,6 @@ EOF
 
 @test "ospkg__parse_manifest_yaml emits package records from plain packages list" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"packages":["curl","wget","git"]}' > "$_json_file"
@@ -529,7 +507,6 @@ EOF
 
 @test "ospkg__parse_manifest_yaml emits prescript record" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"prescripts":"echo hello\\n","packages":["curl"]}' > "$_json_file"
@@ -541,7 +518,6 @@ EOF
 
 @test "ospkg__parse_manifest_yaml filters packages with when clause" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # brew-only package should NOT appear for apt context.
@@ -556,7 +532,6 @@ EOF
 
 @test "ospkg__parse_manifest_yaml skips the manifest when top-level when mismatches" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"when":{"plat.pm":"brew"},"packages":["should-not-appear"]}' > "$_json_file"
@@ -568,7 +543,6 @@ EOF
 
 @test "ospkg__parse_manifest_yaml emits packages from pm-specific apt block" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"apt":{"packages":["libssl-dev"]},"brew":{"packages":["openssl"]}}' > "$_json_file"
@@ -581,7 +555,6 @@ EOF
 
 @test "ospkg__parse_manifest_yaml when clause supports version_codename" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   # jammy-only package should appear; bookworm-only should not.
@@ -597,7 +570,6 @@ EOF
 
 @test "ospkg__parse_manifest_yaml accepts repos as strings" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"repos":["deb http://deb.debian.org/debian stable main","deb http://example.invalid/debian stable main"],"packages":["tree"]}' \
@@ -645,7 +617,6 @@ _seed_apt_context_with_yq() {
   # Old code: rm -rf "$_OSPKG__YQ_TMPDIR"; _BOOTSTRAP__YQ_BIN= inside ospkg__run.
   # Fix: yq dir lives in _FILE__SESSION_ROOT for the process lifetime; ospkg__run
   # never deletes it.
-  _require_ospkg_jq
   _seed_apt_context_with_yq
 
   ospkg__run --manifest $'packages:\n  - regrpkg\n' --dry_run > /dev/null 2>&1
@@ -668,7 +639,6 @@ _seed_apt_context_with_yq() {
   # path) so a second call silently processed no packages.
   # Fix: _BOOTSTRAP__YQ_BIN persists; bootstrap__yq early-returns and the binary
   # at that path is still valid.
-  _require_ospkg_jq
   _seed_apt_context_with_yq
 
   local _log="${BATS_TEST_TMPDIR}/run.log"
@@ -824,7 +794,6 @@ _seed_apt_context_with_yq() {
   # failing yq was swallowed — ospkg__run returned 0 with nothing installed.
   # Fix: block is plain sequential code; a failing yq exits the function under
   # set -e.
-  _require_ospkg_jq
 
   run bash -c "
     source \"${LIB_ROOT}/__init__.bash\"
@@ -849,8 +818,30 @@ _seed_apt_context_with_yq() {
   assert_failure
 }
 
+@test "ospkg__run preserves single-line manifest bytes when feeding yq" {
+  _seed_apt_context
+  local _manifest_file="${BATS_TEST_TMPDIR}/single-line-manifest.json"
+  local _captured_input="${BATS_TEST_TMPDIR}/yq-input"
+  local _fake_yq="${BATS_TEST_TMPDIR}/bin/yq-capture"
+  mkdir -p "${BATS_TEST_TMPDIR}/bin"
+  printf '%s' '{"packages":["exact-byte-package"]}' > "${_manifest_file}"
+  printf '%s\n' \
+    '#!/bin/sh' \
+    '/bin/cat > "${YQ_CAPTURE}"' \
+    'printf '\''%s\n'\'' '\''{"packages":["exact-byte-package"]}'\''' > "${_fake_yq}"
+  chmod +x "${_fake_yq}"
+  export YQ_CAPTURE="${_captured_input}"
+  _BOOTSTRAP__YQ_BIN="${_fake_yq}"
+  bootstrap__yq() { return 0; }
+
+  run ospkg__run --manifest "${_manifest_file}" --dry_run
+
+  assert_success
+  assert_output --partial "[dry-run] packages: exact-byte-package"
+  cmp "${_manifest_file}" "${_captured_input}"
+}
+
 @test "ospkg__run fails when manifest parser returns non-zero" {
-  _require_ospkg_jq
 
   run bash -c "
     source \"${LIB_ROOT}/__init__.bash\"
@@ -893,7 +884,6 @@ YQ
 @test "ospkg__run build-group skips snapshot when manifest when yields no install actions" {
   # Regression: Linux-only build manifests on macOS must not snapshot via brew list
   # before `when` is evaluated (brew may be absent during reinstall).
-  _require_ospkg_jq
   reload_lib
 
   local _snap_log="${BATS_TEST_TMPDIR}/snapshot-calls"
@@ -926,12 +916,19 @@ YQ
   }
   export -f bootstrap__yq
 
+  local _long_comment="x" _manifest _i
+  for ((_i = 0; _i < 17; _i++)); do
+    _long_comment+="${_long_comment}"
+  done
+  _manifest=$'when:\n  kernel: linux\npackages:\n  - build-essential\n# '"${_long_comment}"
+
   run ospkg__run \
-    --manifest $'when:\n  kernel: linux\npackages:\n  - build-essential\n' \
+    --manifest "${_manifest}" \
     --build-group 'test::method-script'
 
   assert_success
   assert_output --partial "manifest has no install actions on this platform"
+  refute_output --partial "Broken pipe"
   [[ ! -s "$_snap_log" ]]
 }
 
@@ -1676,7 +1673,6 @@ _seed_managed_context() {
 # ---------------------------------------------------------------------------
 @test "ospkg__parse_manifest_yaml emits the command guard field on packages" {
   _seed_apt_context
-  _require_ospkg_jq
   local _json_file
   _json_file="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf '{"packages":[{"name":"ripgrep","command":"rg"},"curl"]}' > "$_json_file"
@@ -1712,13 +1708,12 @@ _prime_suite_jq_on_path() {
   # Put the suite's stable jq copy on PATH so ospkg__run's manifest parse
   # short-circuits bootstrap__jq (no network) even after _seed_apt_build_context
   # relocated _FILE__SESSION_ROOT away from the bootstrap cache.
-  [[ -n "${OSPKG_JQ_BIN:-}" && -x "${OSPKG_JQ_BIN}" ]] || return 0
+  [[ -n "${DEVFEATS_TEST_JQ_BIN:-}" && -x "${DEVFEATS_TEST_JQ_BIN}" ]] || return 1
   mkdir -p "${BATS_TEST_TMPDIR}/bin"
-  ln -sf "${OSPKG_JQ_BIN}" "${BATS_TEST_TMPDIR}/bin/jq"
+  ln -sf "${DEVFEATS_TEST_JQ_BIN}" "${BATS_TEST_TMPDIR}/bin/jq"
 }
 
 @test "ospkg__run: guarded run dep is promoted out of the build-dep registry" {
-  _require_ospkg_jq
   _seed_apt_build_context
   _seed_git_guard_manifest_yq
   # git is already on PATH (as if bootstrapped / build-installed) → guard fires.
@@ -1746,7 +1741,6 @@ _prime_suite_jq_on_path() {
 }
 
 @test "ospkg__run: guarded BUILD dep is NOT promoted (stays removable)" {
-  _require_ospkg_jq
   _seed_apt_build_context
   _seed_git_guard_manifest_yq
   _mock_snapshots "git" "git" # nothing newly installed under the build group
@@ -1770,7 +1764,6 @@ _prime_suite_jq_on_path() {
 # ---------------------------------------------------------------------------
 @test "ospkg__run YAML path works on macOS (portable mktemp)" {
   [[ "$(uname -s)" == "Darwin" ]] || skip "macOS-only"
-  _require_ospkg_jq
   reload_lib
 
   # A fake yq that ignores its arguments and emits a fixed JSON manifest.
@@ -3376,11 +3369,6 @@ _setup_resolve_version() {
   printf '#!/bin/sh\nprintf "bash:\n  Installed: (none)\n  Candidate: 5.2.21-2ubuntu1\n"\n' \
     > "${BATS_TEST_TMPDIR}/bin/apt-cache"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
-  cat > "${BATS_TEST_TMPDIR}/bin/yq" << 'YQ_EOF'
-#!/bin/sh
-printf '{"packages":[{"name":"bash","version":"stable"}]}\n'
-YQ_EOF
-  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
   local _manifest
   _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf 'packages:\n- name: bash\n  version: "{feat.version}"\n' > "${_manifest}"
@@ -3400,16 +3388,6 @@ YQ_EOF
   printf '#!/bin/sh\nprintf "zsh:\n  Installed: (none)\n  Candidate: 5.9-6ubuntu2\n"\n' \
     > "${BATS_TEST_TMPDIR}/bin/apt-cache"
   chmod +x "${BATS_TEST_TMPDIR}/bin/apt-cache"
-  # Fake yq so bootstrap__yq finds it via PATH without downloading (on systems
-  # like Alpine where yq is not pre-installed, the real bootstrap downloads yq
-  # and its progress output pollutes the captured output).
-  # Output is the JSON equivalent of the test manifest; {feat.version} is expanded
-  # via ctx before version resolution.
-  cat > "${BATS_TEST_TMPDIR}/bin/yq" << 'YQ_EOF'
-#!/bin/sh
-printf '{"packages":[{"name":"zsh","version":"{feat.version}"}]}\n'
-YQ_EOF
-  chmod +x "${BATS_TEST_TMPDIR}/bin/yq"
   local _manifest
   _manifest="$(mktemp "${BATS_TEST_TMPDIR}/manifest.XXXXXX")"
   printf 'packages:\n- name: zsh\n  version: "{feat.version}"\n' > "${_manifest}"

@@ -1,24 +1,17 @@
 #!/usr/bin/env bats
 # Integration tests for lib/json.bash — exercises real jq and sourcemeta/jsonschema.
 #
-# json__query calls bootstrap__jq, which installs jq via ospkg if absent.
-# json__validate calls bootstrap__jsonschema, which downloads sourcemeta/jsonschema.
-# All json function tests require real binaries and belong here.
+# All json function tests use immutable suite-cached real binaries.
 
 bats_require_minimum_version 1.5.0
 
 FIXTURES_DIR="${REPO_ROOT}/test/lib/fixtures/json"
 
-setup_file() {
-  load '../helpers/bootstrap_tools'
-  test_bootstrap__setup_file_jsonschema
-  test_bootstrap__setup_file_jq_yq
-}
-
 setup() {
   load '../helpers/common'
-  load '../helpers/bootstrap_tools'
+  load '../helpers/test_tools'
   reload_lib
+  test_tools__wire_jq_yq_jsonschema
 }
 
 @test "json__root_scalar_stdin prints string and numeric keys from stdin JSON" {
@@ -110,35 +103,10 @@ z"
 }
 
 # ---------------------------------------------------------------------------
-# bootstrap__jsonschema — downloads and caches sourcemeta/jsonschema binary
-# ---------------------------------------------------------------------------
-
-@test "bootstrap__jsonschema: returns path to a working binary" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
-  run bootstrap__jsonschema
-  assert_success
-  [[ -x "$output" ]]
-  run "$output" version
-  assert_success
-  [[ "$output" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-}
-
-@test "bootstrap__jsonschema: caches binary in _BOOTSTRAP__JSONSCHEMA_BIN" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
-  _BOOTSTRAP__JSONSCHEMA_BIN=""
-  bootstrap__jsonschema > /dev/null
-  [[ -n "${_BOOTSTRAP__JSONSCHEMA_BIN}" && -x "${_BOOTSTRAP__JSONSCHEMA_BIN}" ]]
-}
-
-# ---------------------------------------------------------------------------
 # json__validate — JSON Schema validation via sourcemeta/jsonschema
 # ---------------------------------------------------------------------------
 
 @test "json__validate: accepts a valid JSON instance" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
   run json__validate \
     "${FIXTURES_DIR}/valid.json" \
     "${FIXTURES_DIR}/simple.schema.json"
@@ -146,8 +114,6 @@ z"
 }
 
 @test "json__validate: rejects an instance with additionalProperties violation" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
   run json__validate \
     "${FIXTURES_DIR}/invalid.json" \
     "${FIXTURES_DIR}/simple.schema.json"
@@ -155,8 +121,6 @@ z"
 }
 
 @test "json__validate: error output mentions the offending field" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
   run json__validate \
     "${FIXTURES_DIR}/invalid.json" \
     "${FIXTURES_DIR}/simple.schema.json"
@@ -165,8 +129,6 @@ z"
 }
 
 @test "json__validate: fails when instance file does not exist" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
   run json__validate \
     "${BATS_TEST_TMPDIR}/nonexistent.json" \
     "${FIXTURES_DIR}/simple.schema.json"
@@ -174,8 +136,6 @@ z"
 }
 
 @test "json__validate: fails when schema file does not exist" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
   run json__validate \
     "${FIXTURES_DIR}/valid.json" \
     "${BATS_TEST_TMPDIR}/no-schema.json"
@@ -183,8 +143,6 @@ z"
 }
 
 @test "json__validate: accepts a valid ospkg manifest against ospkg schema" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
   run json__validate \
     "${FIXTURES_DIR}/valid-manifest.json" \
     "${REPO_ROOT}/features/install-os-pkg/manifest.schema.json"
@@ -192,8 +150,6 @@ z"
 }
 
 @test "json__validate: rejects an invalid ospkg manifest against ospkg schema" {
-  test_bootstrap__require_jsonschema
-  test_bootstrap__stub_jsonschema
   run json__validate \
     "${FIXTURES_DIR}/invalid-manifest.json" \
     "${REPO_ROOT}/features/install-os-pkg/manifest.schema.json"
@@ -273,8 +229,6 @@ bob"
 # ---------------------------------------------------------------------------
 
 @test "json__from_yaml: converts a YAML file to canonical JSON" {
-  test_bootstrap__require_yq
-  test_bootstrap__wire_tools_for_run
   local _f="${BATS_TEST_TMPDIR}/manifest.yaml"
   printf 'files:\n  - op: create\n    dest: /tmp/x\n' > "${_f}"
   run bash -c '. "$1/__init__.bash" && json__from_yaml "$2" | jq -c .' _ "${LIB_ROOT}" "${_f}"
@@ -283,8 +237,6 @@ bob"
 }
 
 @test "json__from_yaml: passes an already-JSON file through unchanged" {
-  test_bootstrap__require_yq
-  test_bootstrap__wire_tools_for_run
   local _f="${BATS_TEST_TMPDIR}/manifest.json"
   printf '{"a":1}' > "${_f}"
   run bash -c '. "$1/__init__.bash" && json__from_yaml "$2" | jq -c .' _ "${LIB_ROOT}" "${_f}"

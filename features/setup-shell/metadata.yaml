@@ -221,7 +221,11 @@ options:
   backup:
     type: string
     default: auto
-    description: Whether to back up files before a `reinstall` overwrites them.
+    description: |-
+      Whether to back up files before a `reinstall` overwrites them. A required
+      backup must complete before replacement begins; backup failure aborts the
+      reinstall. Each backup is stored in a unique private capsule with
+      source-path identity metadata.
     enum:
     - value: auto
       description: Back up outside devcontainers/Codespaces; skip inside (disposable container).
@@ -238,7 +242,9 @@ options:
       Ordered candidate directories for system/skel file backups. The first
       writable entry is used, resolved via `users__first_writeable_path` at run
       time. Per-user dotfile backups go to each target user's own share
-      directory instead, falling back to this resolved directory.
+      directory instead, falling back to this resolved directory. If the
+      selected directory cannot host a required backup, reinstall fails before
+      modifying the target file.
   preserve_managed_blocks:
     type: boolean
     default: true

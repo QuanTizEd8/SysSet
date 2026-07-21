@@ -210,18 +210,82 @@ build-docs-pkg: build-docs
 
 [
   group('test'),
-  doc('Run lib/ unit tests in a container env (default: ubuntu-stable). Args forwarded to run-unit.sh e.g. just test-lib ubuntu-stable --module ospkg.')
+  doc('Run ordinary lean lib/ tests for one logical platform (default: ubuntu-stable).')
 ]
-test-lib env="ubuntu-stable" *args:
-    just capture test-lib -- pixi run --environment test test-lib-env {{env}} {{args}}
+test-lib platform="ubuntu-stable" *args:
+    just capture test-lib -- pixi run --environment test test-lib-platform "$1" --workload ordinary --ordinary-tier lean -- "${@:2}"
 
 
 [
   group('test'),
-  doc('Run lib/ unit tests in all container environments (requires docker).')
+  doc('Run ordinary integration lib/ tests for one logical platform.')
+]
+test-lib-integration platform="ubuntu-stable" *args:
+    just capture test-lib-integration -- pixi run --environment test test-lib-platform "$1" --workload ordinary --ordinary-tier integration -- "${@:2}"
+
+
+[
+  group('test'),
+  doc('Run ordinary lean and integration lib/ tests for one logical platform.')
+]
+test-lib-all platform="ubuntu-stable" *args:
+    just capture test-lib-all -- pixi run --environment test test-lib-platform "$1" --workload ordinary --ordinary-tier all -- "${@:2}"
+
+
+[
+  group('test'),
+  doc('Run dedicated bootstrap tests in one fresh bare platform profile.')
+]
+test-lib-bootstrap platform="ubuntu-stable" *args:
+    just capture test-lib-bootstrap -- pixi run --environment test test-lib-platform "$1" --workload bootstrap -- "${@:2}"
+
+
+[
+  group('test'),
+  doc('Run ordinary all-tier then bootstrap in two fresh containers for one platform.')
+]
+test-lib-complete platform="ubuntu-stable" *args:
+    just capture test-lib-complete -- pixi run --environment test test-lib-platform "$1" --workload complete --ordinary-tier all -- "${@:2}"
+
+
+[
+  group('test'),
+  doc('Run ordinary lean lib/ tests across all seven prepared platform profiles.')
 ]
 test-lib-envs *args:
-    just capture test-lib-envs -- pixi run --environment test test-lib-envs {{args}}
+    just capture test-lib-envs -- pixi run --environment test test-lib-platforms --workload ordinary --ordinary-tier lean -- "$@"
+
+
+[
+  group('test'),
+  doc('Run ordinary integration tests across all seven logical Linux platforms.')
+]
+test-lib-integration-envs *args:
+    just capture test-lib-integration-envs -- pixi run --environment test test-lib-platforms --workload ordinary --ordinary-tier integration -- "$@"
+
+
+[
+  group('test'),
+  doc('Run ordinary lean and integration tests across all seven prepared profiles.')
+]
+test-lib-all-envs *args:
+    just capture test-lib-all-envs -- pixi run --environment test test-lib-platforms --workload ordinary --ordinary-tier all -- "$@"
+
+
+[
+  group('test'),
+  doc('Run dedicated bootstrap tests across all seven fresh bare profiles.')
+]
+test-lib-bootstrap-envs *args:
+    just capture test-lib-bootstrap-envs -- pixi run --environment test test-lib-platforms --workload bootstrap -- "$@"
+
+
+[
+  group('test'),
+  doc('Run ordinary all-tier then bootstrap across all seven logical platforms.')
+]
+test-lib-complete-envs *args:
+    just capture test-lib-complete-envs -- pixi run --environment test test-lib-platforms --workload complete --ordinary-tier all -- "$@"
 
 
 [
@@ -349,7 +413,7 @@ fetch-gha *args:
   doc('Run a command with live output and a timestamped log under .local/reports/<name>/.')
 ]
 capture name +command:
-    bash .dev/scripts/capture/single.sh {{name}} -- {{command}}
+    bash .dev/scripts/capture/single.sh "$1" -- "${@:2}"
 
 [
   private,

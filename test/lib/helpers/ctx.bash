@@ -51,8 +51,8 @@ ctx_test__fixtures_dir() {
 }
 
 ctx_test__require_yq() {
-  bootstrap__yq > /dev/null || return 1
-  bootstrap__yq
+  [[ -n "${DEVFEATS_TEST_YQ_BIN:-}" && -x "${DEVFEATS_TEST_YQ_BIN}" ]] || return 1
+  printf '%s\n' "${DEVFEATS_TEST_YQ_BIN}"
 }
 
 ctx_test__jq_compare() {
@@ -70,7 +70,7 @@ ctx_test__run_vector_file() {
   local _file="$1" _runner="$2"
   local _yq _count _i
   _yq="$(ctx_test__require_yq)" || {
-    echo "yq unavailable" >&2
+    echo "required suite-cached yq is missing" >&2
     return 1
   }
   _count="$("${_yq}" '. | length' "${_file}")"
@@ -84,8 +84,7 @@ ctx_test__run_vector_file() {
 
 ctx_test__jq_when() {
   local _yaml="$1" _when_json _ctx_json _result _yq
-  bootstrap__yq > /dev/null || return 1
-  _yq="$(bootstrap__yq)"
+  _yq="$(ctx_test__require_yq)" || return 1
   _when_json="$(printf '%s' "${_yaml}" | "${_yq}" -o=json '.' -)"
   _ctx_json="$(ctx__json)"
   _result="$(json__query -L "${LIB_ROOT}" --argjson ctx "${_ctx_json}" --argjson when "${_when_json}" \
@@ -255,17 +254,7 @@ ctx_test__stub_ospkg_pm() {
 }
 
 ctx_test__stub_darwin_platform() {
-  # Prime a host-platform jq BEFORE stubbing uname to Darwin. ctx__json needs
-  # jq, and if it isn't already on PATH (as in CI's minimal lib-test envs)
-  # bootstrap__jq downloads it for the *currently detected* platform. Once
-  # uname reports Darwin, that download would be a macOS jq — a Mach-O binary
-  # that can't execute on the Linux runner ("cannot execute binary file: Exec
-  # format error"), failing every ctx__json call in the darwin-stub tests.
-  # Bootstrapping here (while uname is still real) records the correct Linux jq
-  # in install-state, which the later stubbed ctx__json reuses instead of
-  # re-downloading. On a real macOS host this is a harmless no-op (jq is
-  # already present); the stub is only ever applied on Linux CI runners.
-  bootstrap__jq > /dev/null 2>&1 || true
+  # setup() wires the validated host-platform jq before uname is stubbed.
   # shellcheck disable=SC2329  # exported for use in subshells via export -f
   uname() {
     case "${1:-}" in

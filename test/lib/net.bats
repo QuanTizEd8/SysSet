@@ -225,26 +225,20 @@ EOF
 
 @test "bootstrap__ca_certs returns 0 when CA bundle is already present" {
   reload_lib
-  # Force the precondition deterministically instead of relying on it already
-  # being true on disk — whether a real bundle is present depends on the base
-  # image and (in the full suite) on integration/bootstrap.bats's unmocked
-  # install having already run earlier in the same container session. This
-  # test must be self-contained: it should pass the same way whether run as
-  # part of the full suite or in isolation (e.g. `--module net`).
-  #
-  # macOS short-circuits before ever checking bundle paths (see
-  # bootstrap__ca_certs's own uname check below), so there's no precondition
-  # to force there — and /etc/ssl/certs/ isn't writable by the test runner on
-  # macOS anyway (it's not even the real bundle location on that OS).
-  _created_ca_bundle=false
-  if [ "$(uname -s)" != "Darwin" ]; then
-    _ca_bundle="/etc/ssl/certs/ca-certificates.crt"
-    if [ ! -s "$_ca_bundle" ]; then
-      mkdir -p "$(dirname "$_ca_bundle")"
-      printf 'fake bundle for test\n' > "$_ca_bundle"
-      _created_ca_bundle=true
+  [[ "$(uname -s)" != "Darwin" ]] || skip "bundle-path lookup is not used on Darwin"
+
+  local _ca_bundle _found_ca_bundle=false
+  for _ca_bundle in \
+    /etc/ssl/certs/ca-certificates.crt \
+    /etc/ssl/ca-bundle.pem \
+    /etc/pki/tls/certs/ca-bundle.crt; do
+    if [[ -s "$_ca_bundle" ]]; then
+      _found_ca_bundle=true
+      break
     fi
-  fi
+  done
+  [[ "$_found_ca_bundle" == true ]] ||
+    fail "prepared/native test environment has none of the production-known CA bundles"
 
   # ospkg__install_tracked is stubbed to fail; if bootstrap__ca_certs tries to
   # install ca-certificates it will fail, proving the bundle was found directly.
@@ -260,12 +254,6 @@ EOF
   export -f uname
   run bootstrap__ca_certs
   assert_success
-}
-
-teardown() {
-  if [ "${_created_ca_bundle:-false}" = true ]; then
-    rm -f "$_ca_bundle"
-  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -355,6 +343,43 @@ _net_test__wget_success() {
   grep -Fx -- '--max-time' "${BATS_TEST_TMPDIR}/curl.args"
   grep -Fx -- '15' "${BATS_TEST_TMPDIR}/curl.args"
   assert_output --partial "Probing 'https://example.com/asset'"
+}
+
+@test "net__fetch_url_stdout applies environment timeout defaults" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  export DEVFEATS_NET_FETCH_CONNECT_TIMEOUT=7 DEVFEATS_NET_FETCH_MAX_TIME=11
+  curl() { _net_test__curl_success "$@"; }
+  export -f curl _net_test__curl_success
+
+  run net__fetch_url_stdout "https://example.com"
+
+  assert_success
+  grep -Fx -- '--connect-timeout' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '7' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '--max-time' "${BATS_TEST_TMPDIR}/curl.args"
+  grep -Fx -- '11' "${BATS_TEST_TMPDIR}/curl.args"
+}
+
+@test "net__fetch_url_stdout rejects invalid environment timeout defaults before transfer" {
+  reload_lib
+  _NET__FETCH_TOOL=curl
+  _NET__CA_CERTS_OK=true
+  export DEVFEATS_NET_FETCH_CONNECT_TIMEOUT=invalid DEVFEATS_NET_FETCH_MAX_TIME=11
+  local _called="${BATS_TEST_TMPDIR}/curl.called"
+  export _called
+  curl() {
+    : > "$_called"
+    return 0
+  }
+  export -f curl
+
+  run net__fetch_url_stdout "https://example.com"
+
+  assert_failure
+  assert_output --partial "invalid HTTP timeout configuration"
+  assert_file_not_exists "$_called"
 }
 
 @test "net__fetch_url_file atomically creates the destination parent and file" {

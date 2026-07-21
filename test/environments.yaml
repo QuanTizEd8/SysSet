@@ -7,6 +7,7 @@
 
 ubuntu-stable:
   image: ubuntu:24.04
+  lib_test_profile: bare
   attributes: {os.id: ubuntu, os.id_like: [debian], plat.pm: apt, plat.kernel: linux, plat.libc: gnu, plat.machine_release: [amd64, arm64], os.version_id: "24.04", os.version_codename: noble}
 
 ubuntu-current:
@@ -39,6 +40,7 @@ opensuse-leap-current:
 
 archlinux-current:
   image: archlinux:base-20260621.0.546891
+  lib_test_profile: bare
   attributes: {os.id: arch, plat.pm: pacman, plat.kernel: linux, plat.libc: gnu, plat.machine_release: [amd64]}
 
 # Base image is condaforge/miniforge3 (Debian-based); attributes reflect that
@@ -57,16 +59,19 @@ miniforge-current:
 
 alpine-current+bash:
   from: alpine-current
+  lib_test_profile: bare
   build:
     dockerfile: retry apk add --no-cache bash
 
 rockylinux-current+bash:
   from: rockylinux-current
+  lib_test_profile: bare
   build:
     dockerfile: retry dnf install -y bash
 
 opensuse-leap-current+bash:
   from: opensuse-leap-current
+  lib_test_profile: bare
   build:
     # zypper exits 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when some repos are
     # unreachable but the operation succeeds — treat that as success so a
@@ -83,11 +88,13 @@ opensuse-leap-current+bash:
 
 fedora-current+bash:
   from: fedora-current
+  lib_test_profile: bare
   build:
     dockerfile: retry dnf install -y bash
 
 debian-stable+bash:
   from: debian-stable
+  lib_test_profile: bare
   build:
     dockerfile: retry apt-get update -qq && retry apt-get install -y --no-install-recommends bash && rm -rf /var/lib/apt/lists/*
 
@@ -143,6 +150,59 @@ ubuntu-stable+curl:
 # Base images with a specific tool pre-installed.
 # Versioned variants ({base}+{tool}-{version}) are used for if_exists testing
 # and for providing a known pre-installed state.
+
+# Prepared library-test profiles contain pinned, immutable jq, yq, jsonschema,
+# and ORAS binaries plus ordinary-integration system prerequisites. The bundle
+# remains outside global PATH and is consumed only through the suite source-dir
+# contract.
+ubuntu-stable+lib-test-tools:
+  from: ubuntu-stable
+  lib_test_profile: prepared
+  build:
+    runFragmentPath: install-lib-test-tools.sh
+    resolveAttempts: 1
+
+debian-stable+bash+lib-test-tools:
+  from: debian-stable+bash
+  lib_test_profile: prepared
+  build:
+    runFragmentPath: install-lib-test-tools.sh
+    resolveAttempts: 1
+
+fedora-current+bash+lib-test-tools:
+  from: fedora-current+bash
+  lib_test_profile: prepared
+  build:
+    runFragmentPath: install-lib-test-tools.sh
+    resolveAttempts: 1
+
+rockylinux-current+bash+lib-test-tools:
+  from: rockylinux-current+bash
+  lib_test_profile: prepared
+  build:
+    runFragmentPath: install-lib-test-tools.sh
+    resolveAttempts: 1
+
+alpine-current+bash+lib-test-tools:
+  from: alpine-current+bash
+  lib_test_profile: prepared
+  build:
+    runFragmentPath: install-lib-test-tools.sh
+    resolveAttempts: 1
+
+opensuse-leap-current+bash+lib-test-tools:
+  from: opensuse-leap-current+bash
+  lib_test_profile: prepared
+  build:
+    runFragmentPath: install-lib-test-tools.sh
+    resolveAttempts: 1
+
+archlinux-current+lib-test-tools:
+  from: archlinux-current
+  lib_test_profile: prepared
+  build:
+    runFragmentPath: install-lib-test-tools.sh
+    resolveAttempts: 1
 
 ubuntu-stable+git:
   from: ubuntu-stable

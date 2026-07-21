@@ -6,6 +6,9 @@
 
 bats_require_minimum_version 1.5.0
 
+# Tests mutate the host package database and coordinate real package processes.
+export BATS_NO_PARALLELIZE_WITHIN_FILE=true
+
 # Small, widely-available package unlikely to be pre-installed in minimal containers.
 _OSPKG_INT_PKG=bc
 
@@ -25,6 +28,7 @@ _pkg_force_remove() {
 setup() {
   load '../helpers/common'
   reload_lib
+  lib_test__ospkg_network_bounded
   # Isolate sidecar / snapshot files in the per-test tmpdir so tests do not share state.
   export _FILE__SESSION_ROOT="${BATS_TEST_TMPDIR}"
   # Skip when the canary is already installed — we cannot safely use it as a marker.

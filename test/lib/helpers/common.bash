@@ -154,4 +154,31 @@ reload_lib() {
 lib_test__net_fetch_fail_fast() {
   export DEVFEATS_NET_FETCH_RETRIES=1
   export DEVFEATS_NET_FETCH_DELAY=0
+  export DEVFEATS_NET_FETCH_MAX_DELAY=0
+  export DEVFEATS_NET_FETCH_CONNECT_TIMEOUT=5
+  export DEVFEATS_NET_FETCH_MAX_TIME=10
+}
+
+# Bound real-network integration tests independently of production defaults.
+# Three attempts tolerate brief service/CDN failures without allowing one test
+# to consume minutes of sleeps or unbounded transport time.
+lib_test__network_bounded() {
+  export DEVFEATS_NET_FETCH_RETRIES=3
+  export DEVFEATS_NET_FETCH_DELAY=2
+  export DEVFEATS_NET_FETCH_MAX_DELAY=5
+  export DEVFEATS_NET_FETCH_CONNECT_TIMEOUT=10
+  export DEVFEATS_NET_FETCH_MAX_TIME=60
+}
+
+lib_test__ospkg_network_bounded() {
+  export DEVFEATS_OSPKG_RETRIES=2
+  export DEVFEATS_OSPKG_RETRY_DELAY=2
+}
+
+lib_test__npm_network_bounded() {
+  lib_test__network_bounded
+  export npm_config_fetch_retries=2
+  export npm_config_fetch_retry_mintimeout=1000
+  export npm_config_fetch_retry_maxtimeout=5000
+  export npm_config_fetch_timeout=60000
 }

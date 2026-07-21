@@ -6,7 +6,9 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   load 'helpers/ctx'
+  load 'helpers/test_tools'
   reload_lib
+  test_tools__wire_jq_yq
 }
 
 _when_jq_matches() {
@@ -17,7 +19,6 @@ _when_jq_matches() {
 }
 
 @test "when_vectors: bash/jq parity from fixture" {
-  bootstrap__yq > /dev/null || skip "yq unavailable"
   local _log="${BATS_TEST_TMPDIR}/when_vectors.log"
   ctx_test__run_when_vectors > "${_log}" 2>&1 || {
     cat "${_log}" >&2

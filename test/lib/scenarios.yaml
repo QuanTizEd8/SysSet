@@ -1,20 +1,76 @@
 ubuntu-stable:
-  env: ubuntu-stable
+  ordinary:
+    env: ubuntu-stable+lib-test-tools
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap:
+    env: ubuntu-stable
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: disabled
 
 debian-stable:
-  env: debian-stable+bash
+  ordinary:
+    env: debian-stable+bash+lib-test-tools
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap:
+    env: debian-stable+bash
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: disabled
 
 fedora-current:
-  env: fedora-current+bash
+  ordinary:
+    env: fedora-current+bash+lib-test-tools
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap:
+    env: fedora-current+bash
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: disabled
 
 rockylinux-current:
-  env: rockylinux-current+bash
+  ordinary:
+    env: rockylinux-current+bash+lib-test-tools
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap:
+    env: rockylinux-current+bash
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: disabled
 
 alpine-current:
-  env: alpine-current+bash
+  ordinary:
+    env: alpine-current+bash+lib-test-tools
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap:
+    env: alpine-current+bash
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: disabled
 
 opensuse-leap-current:
-  env: opensuse-leap-current+bash
+  ordinary:
+    env: opensuse-leap-current+bash+lib-test-tools
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap:
+    env: opensuse-leap-current+bash
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: disabled
 
 archlinux-current:
-  env: archlinux-current
+  ordinary:
+    env: archlinux-current+lib-test-tools
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap:
+    env: archlinux-current
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: disabled

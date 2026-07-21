@@ -18,9 +18,10 @@ bats_require_minimum_version 1.5.0
 # ---------------------------------------------------------------------------
 setup_file() {
   load '../helpers/common'
-  # Ensure git is available; bootstrap installs it via ospkg if absent.
-  bootstrap__git 2> /dev/null || true
-  command -v git > /dev/null 2>&1 || return 0
+  command -v git > /dev/null 2>&1 || {
+    echo "prepared integration environment is missing required git" >&2
+    return 1
+  }
 
   local _src="${BATS_FILE_TMPDIR}/src.git"
   git -c init.defaultBranch=main init --bare "${_src}" > /dev/null 2>&1
@@ -65,7 +66,7 @@ setup_file() {
 setup() {
   load '../helpers/common'
   reload_lib
-  command -v git > /dev/null 2>&1 || skip "real git is not available"
+  command -v git > /dev/null 2>&1 || fail "prepared integration environment is missing required git"
 
   # Read shared repo state written by setup_file.
   _REPO_URL="$(< "${BATS_FILE_TMPDIR}/repo_url")"
@@ -166,6 +167,8 @@ setup() {
 
 @test "git__clone: removes partial directory on clone failure" {
   local _dst="${BATS_TEST_TMPDIR}/bad_dst"
+  # Bound this deliberately unreachable endpoint without changing production policy.
+  lib_test__net_fetch_fail_fast
   run git__clone --url "https://0.0.0.0/nonexistent.git" --dir "${_dst}"
   assert_failure
   [[ ! -d "${_dst}" ]]

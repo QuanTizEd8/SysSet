@@ -40,8 +40,22 @@ def _make_valid_config() -> dict:
         run_docs=True,
         is_release=False,
         features_to_release=[],
-        unit_env_matrix=[{"name": "ubuntu-stable", "env": "ubuntu-latest"}],
-        unit_macos_matrix=[{"runner": "macos-latest", "clean_path": True}],
+        unit_env_matrix=[
+            {
+                "name": "ubuntu-stable",
+                "ordinary_env": "ubuntu-prepared",
+                "bootstrap_env": "ubuntu-bare",
+            },
+        ],
+        unit_macos_matrix=[
+            {
+                "env": "macos-current+brew",
+                "runner": "macos-latest",
+                "clean_path": True,
+                "path_prepend": "/opt/homebrew/bin:/usr/local/bin",
+                "integration": True,
+            },
+        ],
         install_env_matrix=[{"name": "ubuntu-stable", "env": "ubuntu-stable"}],
     )
 
@@ -94,9 +108,103 @@ def test_deploy_features_list_typed() -> None:
 
 
 def test_test_lib_linux_matrix_typed() -> None:
-    """Verify linux_matrix items must include both name and env fields."""
+    """Library matrix items require both concrete profile environments."""
     cfg = _make_valid_config()
-    cfg["test_lib"]["linux_matrix"] = [{"name": "x"}]  # missing "env"
+    cfg["test_lib"]["linux_matrix"] = [{"name": "x"}]
+    with pytest.raises(jsonschema.ValidationError):
+        _validate(cfg)
+    cfg["test_lib"]["linux_matrix"] = [
+        {
+            "name": "x",
+            "ordinary_env": "x-prepared",
+            "bootstrap_env": "x-bare",
+            "tier": "lean",
+        },
+    ]
+    with pytest.raises(jsonschema.ValidationError):
+        _validate(cfg)
+
+
+def test_test_lib_linux_matrix_rejects_unsafe_or_empty_identifiers() -> None:
+    """Linux scenario names are runtime-safe and environment keys are nonempty."""
+    cfg = _make_valid_config()
+    cfg["test_lib"]["linux_matrix"] = [
+        {"name": "../unsafe", "ordinary_env": "prepared", "bootstrap_env": "bare"},
+    ]
+    with pytest.raises(jsonschema.ValidationError):
+        _validate(cfg)
+    cfg["test_lib"]["linux_matrix"] = [
+        {"name": "safe", "ordinary_env": "", "bootstrap_env": "bare"},
+    ]
+    with pytest.raises(jsonschema.ValidationError):
+        _validate(cfg)
+
+
+def test_test_lib_macos_matrix_matches_emitted_shape() -> None:
+    """A representative emitted macOS matrix entry validates."""
+    cfg = _make_valid_config()
+    cfg["test_lib"]["macos_matrix"] = [
+        {
+            "env": "macos-current+brew",
+            "runner": "macos-26",
+            "clean_path": True,
+            "path_prepend": "/opt/homebrew/bin:/usr/local/bin",
+            "integration": True,
+        },
+    ]
+    _validate(cfg)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {
+            "runner": "macos-26",
+            "clean_path": True,
+            "path_prepend": "",
+            "integration": False,
+        },
+        {
+            "env": 26,
+            "runner": "macos-26",
+            "clean_path": True,
+            "path_prepend": "",
+            "integration": False,
+        },
+        {
+            "env": "macos-current",
+            "runner": 26,
+            "clean_path": True,
+            "path_prepend": "",
+            "integration": False,
+        },
+        {
+            "env": "macos-current",
+            "runner": "macos-26",
+            "clean_path": "true",
+            "path_prepend": "",
+            "integration": False,
+        },
+        {
+            "env": "macos-current",
+            "runner": "macos-26",
+            "clean_path": True,
+            "path_prepend": [],
+            "integration": False,
+        },
+        {
+            "env": "macos-current",
+            "runner": "macos-26",
+            "clean_path": True,
+            "path_prepend": "",
+            "integration": "false",
+        },
+    ],
+)
+def test_test_lib_macos_matrix_rejects_missing_or_wrong_types(entry: dict) -> None:
+    """Entries for macOS require every emitted field with its exact type."""
+    cfg = _make_valid_config()
+    cfg["test_lib"]["macos_matrix"] = [entry]
     with pytest.raises(jsonschema.ValidationError):
         _validate(cfg)
 

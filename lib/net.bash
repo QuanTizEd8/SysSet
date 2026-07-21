@@ -274,7 +274,7 @@ _net__fetch_cleanup() {
 }
 
 _net__fetch() {
-  # @brief _net__fetch <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Internal: download URL via curl or wget.
+  # @brief _net__fetch <url> <dest> [--retries N] [--delay N] [--connect-timeout N] [--max-time N] [--header <H>]... [--netrc-file <path>] — Internal: download URL via curl or wget.
   #
   # <dest> is the output file path (its parent directory is created if missing),
   # or empty string for stdout output.
@@ -282,7 +282,8 @@ _net__fetch() {
   # transport errors and HTTP statuses so both clients have identical behavior.
   local _url="$1" _dest="$2"
   shift 2
-  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _max_delay="${DEVFEATS_NET_FETCH_MAX_DELAY:-300}" _hdrs='' _netrc='' _head=false _connect_timeout='' _max_time=''
+  local _max="${DEVFEATS_NET_FETCH_RETRIES:-60}" _delay="${DEVFEATS_NET_FETCH_DELAY:-5}" _max_delay="${DEVFEATS_NET_FETCH_MAX_DELAY:-300}" _hdrs='' _netrc='' _head=false
+  local _connect_timeout="${DEVFEATS_NET_FETCH_CONNECT_TIMEOUT:-}" _max_time="${DEVFEATS_NET_FETCH_MAX_TIME:-}"
   while [ $# -gt 0 ]; do
     case "$1" in
       --retries)
@@ -342,6 +343,11 @@ _net__fetch() {
   fi
   if ! [[ "$_max" =~ ^[0-9]+$ ]] || ! [[ "$_delay" =~ ^[0-9]+$ ]] || ! [[ "$_max_delay" =~ ^[0-9]+$ ]]; then
     logging__error "invalid HTTP retry configuration (retries='${_max}', delay='${_delay}', max-delay='${_max_delay}')."
+    return 1
+  fi
+  if { [ -n "$_connect_timeout" ] && ! [[ "$_connect_timeout" =~ ^[0-9]+$ ]]; } ||
+    { [ -n "$_max_time" ] && ! [[ "$_max_time" =~ ^[0-9]+$ ]]; }; then
+    logging__error "invalid HTTP timeout configuration (connect-timeout='${_connect_timeout}', max-time='${_max_time}')."
     return 1
   fi
   [ "$_max" -gt 0 ] || _max=1
@@ -480,7 +486,7 @@ _net__fetch() {
 }
 
 net__fetch_url_stdout() {
-  # @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
+  # @brief net__fetch_url_stdout <url> [--retries N] [--delay N] [--connect-timeout N] [--max-time N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to stdout with retries. Auto-detects curl/wget.
   #
   # Both curl and wget retry by default, excluding only certainly persistent
   # local/request failures. Calls
@@ -490,9 +496,17 @@ net__fetch_url_stdout() {
   #   <url>                URL to download.
   #   --retries N          Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
   #   --delay N            Seconds between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
-  #   DEVFEATS_NET_FETCH_MAX_DELAY caps server-provided Retry-After delays (default: 300).
+  #   --connect-timeout N  Connection timeout in seconds; overrides DEVFEATS_NET_FETCH_CONNECT_TIMEOUT.
+  #   --max-time N         Per-attempt curl transfer timeout in seconds; wget maps this to its network timeout.
   #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
   #   --netrc-file <path>  Optional netrc file for HTTP authentication.
+  #
+  # Env:
+  #   DEVFEATS_NET_FETCH_RETRIES          Maximum attempts when --retries is omitted (default: 60).
+  #   DEVFEATS_NET_FETCH_DELAY            Delay in seconds when --delay is omitted (default: 5).
+  #   DEVFEATS_NET_FETCH_MAX_DELAY        Cap for server-provided Retry-After delays (default: 300).
+  #   DEVFEATS_NET_FETCH_CONNECT_TIMEOUT  Connection timeout in seconds when the flag is omitted (default: unset).
+  #   DEVFEATS_NET_FETCH_MAX_TIME         Curl transfer/wget network timeout in seconds when the flag is omitted (default: unset).
   #
   # Stdout: downloaded content.
   #
@@ -504,7 +518,7 @@ net__fetch_url_stdout() {
 }
 
 net__fetch_url_file() {
-  # @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
+  # @brief net__fetch_url_file <url> <dest> [--retries N] [--delay N] [--connect-timeout N] [--max-time N] [--header <H>]... [--netrc-file <path>] — Download `<url>` to `<dest>` with retries. Auto-detects curl/wget.
   #
   # Both curl and wget retry by default, excluding only certainly persistent
   # local/request failures. Calls
@@ -515,9 +529,17 @@ net__fetch_url_file() {
   #   <dest>               Destination file path; its parent directory is created if missing.
   #   --retries N          Maximum number of attempts (default: 60, or DEVFEATS_NET_FETCH_RETRIES).
   #   --delay N            Seconds between failures (default: 5, or DEVFEATS_NET_FETCH_DELAY).
-  #   DEVFEATS_NET_FETCH_MAX_DELAY caps server-provided Retry-After delays (default: 300).
+  #   --connect-timeout N  Connection timeout in seconds; overrides DEVFEATS_NET_FETCH_CONNECT_TIMEOUT.
+  #   --max-time N         Per-attempt curl transfer timeout in seconds; wget maps this to its network timeout.
   #   --header <H>         Request header (e.g. `Authorization: Bearer $TOKEN`); repeatable.
   #   --netrc-file <path>  Optional netrc file for HTTP authentication.
+  #
+  # Env:
+  #   DEVFEATS_NET_FETCH_RETRIES          Maximum attempts when --retries is omitted (default: 60).
+  #   DEVFEATS_NET_FETCH_DELAY            Delay in seconds when --delay is omitted (default: 5).
+  #   DEVFEATS_NET_FETCH_MAX_DELAY        Cap for server-provided Retry-After delays (default: 300).
+  #   DEVFEATS_NET_FETCH_CONNECT_TIMEOUT  Connection timeout in seconds when the flag is omitted (default: unset).
+  #   DEVFEATS_NET_FETCH_MAX_TIME         Curl transfer/wget network timeout in seconds when the flag is omitted (default: unset).
   #
   # Returns: 0 on success, non-zero on HTTP error or timeout.
   local _url="$1" _dest="$2"
@@ -532,7 +554,8 @@ net__probe_url() {
   # Uses the same curl/wget selection, HTTP status classification, Retry-After
   # handling, and retry configuration as file downloads without fetching the
   # response body. Returns non-zero for permanent HTTP errors or exhausted
-  # transient failures.
+  # transient failures. DEVFEATS_NET_FETCH_CONNECT_TIMEOUT and
+  # DEVFEATS_NET_FETCH_MAX_TIME provide defaults for the corresponding flags.
   local _url="$1"
   shift
   logging__download "Probing '${_url}'."

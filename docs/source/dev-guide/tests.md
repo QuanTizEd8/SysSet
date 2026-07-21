@@ -9,7 +9,7 @@ The test suite has four layers, each targeting a different scope:
 | Feature scenario tests | `test/features/<id>/` | devcontainer CLI + plain Docker | Yes (Linux) |
 | Build system tests | `test/proman/` | pytest | No |
 
-\* Library unit tests run natively via `run-unit.sh` (used by `just test` and `just work`); `just test-lib` runs the same tests inside a container matrix, which needs Docker.
+\* Library tests run natively via `run-unit.sh` (used by `just test` and `just work`); matrix recipes select a logical platform, an ordinary/bootstrap workload, and (for ordinary) a tier. The complete command uses separate prepared and bare containers as documented in {doc}`tests/lib`.
 
 ::::{grid} 1
 :gutter: 3

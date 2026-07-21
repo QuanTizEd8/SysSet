@@ -26,16 +26,18 @@ core_ops:
       cmd: bash -c '[ "$(grep -c "\"op\":" /usr/local/share/quantized8/devfeats/setup-files/state.json)" = "8" ]'
 
 create_conflicts:
-  description: Verifies if_exists skip/fail/overwrite and backup on create.
+  description: Verifies if_exists skip/fail/overwrite and that repeated overwrite preserves one backup of the true original.
   checks:
     - title: skip left existing file untouched
       cmd: grep -qF 'PRE-EXISTING' /opt/sf-conf/skip.txt
     - title: fail left existing file untouched
       cmd: grep -qF 'PRE-EXISTING' /opt/sf-conf/fail.txt
     - title: overwrite replaced content
-      cmd: grep -qF 'NEW' /opt/sf-conf/overwrite.txt
-    - title: backup of overwritten file exists
-      cmd: bash -c 'find /usr/local/share -name "*overwrite.txt.*" 2>/dev/null | grep -q .'
+      cmd: grep -qxF 'FINAL MANAGED VALUE' /opt/sf-conf/overwrite.txt
+    - title: exactly one capsule preserves the true original content
+      cmd: bash -c 'set -- /usr/local/share/quantized8/devfeats/setup-files/backups/backup.*.??????/item; test "$#" = 1 && test -f "$1" && grep -qxF PRE-EXISTING "$1"'
+    - title: capsule identity records the overwritten source path exactly
+      cmd: bash -c 'set -- /usr/local/share/quantized8/devfeats/setup-files/backups/backup.*.??????/source-path; test "$#" = 1 && test -f "$1" && grep -qxF /opt/sf-conf/overwrite.txt "$1"'
 
 create_variants:
   description: Verifies create from a local src file with preserve_perms, and a recursive directory-tree copy with an exclude glob.
@@ -132,7 +134,7 @@ chmod_move_touch_variants:
       cmd: test -f /opt/sf-cmt/touch-existing-fail.txt
 
 strict_vars_and_on_error:
-  description: Verifies strict_vars true/false semantics for an undefined variable reference, and that on_error=ignore does not block subsequent entries.
+  description: Verifies strict_vars, on_error=ignore, and that failed required backups cannot precede destructive create/delete operations.
   checks:
     - title: strict_vars=true (default) rejects an undefined variable, entry has no effect
       cmd: bash -c '! test -e /opt/sf-strict/strict-fail.txt'
@@ -140,6 +142,12 @@ strict_vars_and_on_error:
       cmd: test -f /opt/sf-strict/nonstrict-ok.txt
     - title: strict_vars=false result content is empty
       cmd: bash -c '[ -z "$(cat /opt/sf-strict/nonstrict-ok.txt)" ]'
+    - title: failed create backup leaves the original file untouched
+      cmd: grep -qxF 'ORIGINAL CREATE CONTENT' /opt/sf-strict/backup-create.txt
+    - title: failed delete backup leaves the original file present and untouched
+      cmd: grep -qxF 'ORIGINAL DELETE CONTENT' /opt/sf-strict/backup-delete.txt
+    - title: ignored backup failures do not block later entries
+      cmd: grep -qxF continued /opt/sf-strict/continued-after-backup-errors.txt
 
 user_scoped:
   description: Verifies system-scoped vs user-scoped entries, var substitution, explicit users list, and the `all` keyword.

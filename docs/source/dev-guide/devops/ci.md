@@ -8,7 +8,7 @@ The CI/CD stack lives under `.github/workflows/`. All workflows are reusable and
 |------|------|---------|
 | `main.yaml` | Orchestrator | Detects what to run, calls all reusable workflows |
 | `lint.yaml` | Reusable | Shell format-check + shellcheck, Python format-check + ruff, and devcontainer-feature.json schema validation |
-| `test-lib.yaml` | Reusable | Library unit tests (BATS) in container matrix |
+| `test-lib.yaml` | Reusable | Library ordinary and bootstrap workloads (BATS) across seven dual-profile Linux platforms |
 | `test-dev.yaml` | Reusable | Python unit tests for proman (pytest) |
 | `test-install.yaml` | Reusable | Install-framework tests (BATS over synced `install.bash`) |
 | `test-features.yaml` | Reusable | Feature scenario tests (devcontainer + standalone + macOS) |
@@ -124,8 +124,12 @@ Two parallel groups:
 
 | Group | How it runs |
 |-------|-------------|
-| Linux container matrix | ubuntu-latest runner; each environment from `test/lib/scenarios.yaml` runs in its own Docker container (Ubuntu, Debian, Fedora, Rocky, Alpine, openSUSE, Arch) |
-| macOS | Native macOS runners; installs bash ≥4 via `brew install bash` before running |
+| Linux container matrix | Seven logical platform jobs from `test/lib/scenarios.yaml`; each runs prepared ordinary and bare bootstrap profiles sequentially in two fresh containers (14 executions) |
+| macOS | Native ordinary-suite runners; installs bash ≥4, then uses the shared checksum-verifying installer to prepare pinned Darwin jq/yq/jsonschema/ORAS assets under `RUNNER_TEMP` without changing global `PATH` (separate macOS bootstrap isolation remains later work) |
+
+Both library job groups have a 120-minute job timeout. Individual real-network
+tests use shorter client-specific retry and transfer budgets, so this outer
+limit is a final guard against a hung package manager or third-party process.
 
 ### Install Framework Tests
 

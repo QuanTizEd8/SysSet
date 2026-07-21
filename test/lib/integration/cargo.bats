@@ -15,7 +15,10 @@ _CARGO_TEST_URI="https://crates.io/api/v1/crates/ripgrep"
 
 setup() {
   load '../helpers/common'
+  load '../helpers/test_tools'
   reload_lib
+  test_tools__wire_jq
+  lib_test__network_bounded
 }
 
 @test "cargo__resolve_version_uri (real): exact prefix '13' resolves to 13.0.0" {

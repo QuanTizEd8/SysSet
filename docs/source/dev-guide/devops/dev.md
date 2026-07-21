@@ -119,8 +119,10 @@ Run `just --list` for the current authoritative task list with descriptions. The
 | `format-sh-check` | — | `bash .dev/scripts/format/shfmt.sh --check` |
 | `format-py` | `format-py` | `ruff format` |
 | `format-py-check` | `format-py-check` | `ruff format --check` |
-| `test-lib` | `test-lib-env` | `proman-test-lib-matrix --env` (single env, Docker) |
-| `test-lib-envs` | `test-lib-envs` | `proman-test-lib-matrix` (all envs, Docker) |
+| `test-lib`, `test-lib-integration`, `test-lib-all` | `test-lib-platform` | One platform's prepared ordinary profile at lean, integration, or all tier |
+| `test-lib-bootstrap`, `test-lib-complete` | `test-lib-platform` | One platform's bare bootstrap profile, or ordinary all then bootstrap |
+| `test-lib-envs`, `test-lib-integration-envs`, `test-lib-all-envs` | `test-lib-platforms` | Ordinary tier across seven logical platforms |
+| `test-lib-bootstrap-envs`, `test-lib-complete-envs` | `test-lib-platforms` | Bootstrap or complete workload across seven logical platforms |
 | `test-py` | `test-py` | `pytest test/proman` |
 | `test-feats` | `test-feats` | `proman-test-run` |
 | `test-feats-macos` | `test-feats` | `proman-test-run --mode macos` |

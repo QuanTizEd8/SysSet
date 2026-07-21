@@ -44,9 +44,15 @@ same reason.
 
 The retry budget can be adjusted for constrained environments with
 `DEVFEATS_NET_FETCH_RETRIES`, `DEVFEATS_NET_FETCH_DELAY`, and
-`DEVFEATS_NET_FETCH_MAX_DELAY`. Tests that intentionally exercise unreachable
-network paths should set the retry count to `1` and the delay to `0` so they
-remain deterministic and fast.
+`DEVFEATS_NET_FETCH_MAX_DELAY`. HTTP transfers also accept
+`--connect-timeout` and `--max-time`; callers that cannot pass flags directly
+can set `DEVFEATS_NET_FETCH_CONNECT_TIMEOUT` and
+`DEVFEATS_NET_FETCH_MAX_TIME`. Curl applies the latter as a per-attempt transfer
+ceiling; wget, which has no equivalent whole-transfer option, maps it to its
+network-operation timeout. Neither value caps the whole retry sequence. Tests
+that intentionally exercise unreachable network paths should use
+`lib_test__net_fetch_fail_fast`; real-network integration tests should use the
+bounded helper matching their client.
 
 Feature-specific installers may invoke clients that perform their own network
 operations, such as npm, Cargo, nvm, conda, rustup, or `gh extension install`.

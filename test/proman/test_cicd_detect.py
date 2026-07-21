@@ -626,6 +626,48 @@ def test_merge_release_feature_test_ids_unions_changed(
 # ── compute_unit_env_matrix ───────────────────────────────────────────────────
 
 
+def test_repository_unit_env_matrix_has_seven_dual_profile_platforms() -> None:
+    """CI emits seven ordered logical platforms with both concrete env keys."""
+    cfg.clear_cache()
+    assert cd.compute_unit_env_matrix() == [
+        {
+            "name": "ubuntu-stable",
+            "ordinary_env": "ubuntu-stable+lib-test-tools",
+            "bootstrap_env": "ubuntu-stable",
+        },
+        {
+            "name": "debian-stable",
+            "ordinary_env": "debian-stable+bash+lib-test-tools",
+            "bootstrap_env": "debian-stable+bash",
+        },
+        {
+            "name": "fedora-current",
+            "ordinary_env": "fedora-current+bash+lib-test-tools",
+            "bootstrap_env": "fedora-current+bash",
+        },
+        {
+            "name": "rockylinux-current",
+            "ordinary_env": "rockylinux-current+bash+lib-test-tools",
+            "bootstrap_env": "rockylinux-current+bash",
+        },
+        {
+            "name": "alpine-current",
+            "ordinary_env": "alpine-current+bash+lib-test-tools",
+            "bootstrap_env": "alpine-current+bash",
+        },
+        {
+            "name": "opensuse-leap-current",
+            "ordinary_env": "opensuse-leap-current+bash+lib-test-tools",
+            "bootstrap_env": "opensuse-leap-current+bash",
+        },
+        {
+            "name": "archlinux-current",
+            "ordinary_env": "archlinux-current+lib-test-tools",
+            "bootstrap_env": "archlinux-current",
+        },
+    ]
+
+
 def test_compute_unit_env_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -633,22 +675,117 @@ def test_compute_unit_env_matrix(
     """Verify unit env matrix is built from scenarios.yaml entries."""
     _use_tmp_repo(monkeypatch, tmp_path)
     _write(
+        tmp_path / "test/environments.yaml",
+        "bare-a:\n  image: ubuntu:latest\n  lib_test_profile: bare\n"
+        "ordinary-a:\n  from: bare-a\n  lib_test_profile: prepared\n"
+        "bare-b:\n  image: debian:latest\n  lib_test_profile: bare\n"
+        "ordinary-b:\n  from: bare-b\n  lib_test_profile: prepared\n",
+    )
+    _write(
         tmp_path / "test/lib/scenarios.yaml",
         """\
-defaults:
-  options:
-    log_level: trace
 ubuntu-stable:
-  env: ubuntu-latest
+  ordinary:
+    env: ordinary-a
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap: {env: bare-a, env_vars: {DEVFEATS_TEST_TOOL_CACHE: disabled}}
 debian-bookworm:
-  env: debian-latest
+  ordinary:
+    env: ordinary-b
+    env_vars:
+      DEVFEATS_TEST_TOOL_CACHE: required
+      DEVFEATS_TEST_TOOL_SOURCE_DIR: /opt/devfeats/lib-test-tools/bin
+  bootstrap: {env: bare-b, env_vars: {DEVFEATS_TEST_TOOL_CACHE: disabled}}
 """,
     )
     result = cd.compute_unit_env_matrix()
     assert result == [
-        {"name": "ubuntu-stable", "env": "ubuntu-latest"},
-        {"name": "debian-bookworm", "env": "debian-latest"},
+        {
+            "name": "ubuntu-stable",
+            "ordinary_env": "ordinary-a",
+            "bootstrap_env": "bare-a",
+        },
+        {
+            "name": "debian-bookworm",
+            "ordinary_env": "ordinary-b",
+            "bootstrap_env": "bare-b",
+        },
     ]
+
+
+def test_compute_unit_env_matrix_rejects_stale_tier(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Scenario-owned tiers fail CI matrix generation as stale configuration."""
+    _use_tmp_repo(monkeypatch, tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu:latest\n  lib_test_profile: prepared\n",
+    )
+    _write(
+        tmp_path / "test/lib/scenarios.yaml",
+        """\
+broken:
+  ordinary:
+    env: ubuntu-latest
+    tier: lean
+  bootstrap: {env: ubuntu-latest}
+""",
+    )
+    with pytest.raises(ValueError, match=r"unknown keys.*tier"):
+        cd.compute_unit_env_matrix()
+
+
+@pytest.mark.parametrize(
+    ("scenario_yaml", "message"),
+    [
+        (
+            """\
+../unsafe:
+  ordinary: {env: ubuntu-latest}
+  bootstrap: {env: ubuntu-latest}
+""",
+            "name .* is invalid",
+        ),
+        (
+            """\
+unknown-env:
+  ordinary: {env: missing}
+  bootstrap: {env: ubuntu-latest}
+""",
+            "unknown environment",
+        ),
+        (
+            """\
+bad-vars:
+  ordinary:
+    env: ubuntu-latest
+    env_vars:
+      COUNT: 1
+  bootstrap: {env: ubuntu-latest}
+""",
+            "env_vars must map strings to strings",
+        ),
+    ],
+)
+def test_compute_unit_env_matrix_rejects_runtime_unsafe_configuration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    scenario_yaml: str,
+    message: str,
+) -> None:
+    """Detection rejects names, environments, and env vars unsafe at runtime."""
+    _use_tmp_repo(monkeypatch, tmp_path)
+    _write(
+        tmp_path / "test/environments.yaml",
+        "ubuntu-latest:\n  image: ubuntu:latest\n  lib_test_profile: prepared\n",
+    )
+    _write(tmp_path / "test/lib/scenarios.yaml", scenario_yaml)
+    with pytest.raises(ValueError, match=message):
+        cd.compute_unit_env_matrix()
 
 
 # ── compute_unit_macos_matrix ─────────────────────────────────────────────────

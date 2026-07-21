@@ -15,7 +15,10 @@ _GITHUB_TEST_REPO="jqlang/jq"
 
 setup() {
   load '../helpers/common'
+  load '../helpers/test_tools'
   reload_lib
+  test_tools__wire_jq
+  lib_test__network_bounded
 }
 
 @test "github__latest_tag: returns a tag for a known repo" {

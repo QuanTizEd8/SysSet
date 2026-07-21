@@ -228,7 +228,7 @@ setup() {
 
 @test "argparse__validate_path: accepts existing file for -f" {
   local _tmpfile
-  _tmpfile="$(mktemp)"
+  _tmpfile="$(mktemp "${BATS_TEST_TMPDIR}/argparse-file.XXXXXX")"
   export MY_VAR="${_tmpfile}"
   run argparse__validate_path MY_VAR -f
   assert_success

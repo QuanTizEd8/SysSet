@@ -23,7 +23,12 @@ from proman.feature_env import resolved_env_vars
 
 from .checks import install_failure_patterns
 from .codegen import _render_group
-from .environments import RETRY_SHELL_PREAMBLE, docker_buildkit_env, resolve
+from .environments import (
+    RETRY_SHELL_PREAMBLE,
+    docker_buildkit_env,
+    macos_build_commands,
+    resolve,
+)
 from .environments import load as load_envs
 from .feature_logs import (
     DEVFEATS_LOG_BIND_DIR_ENV,
@@ -34,6 +39,7 @@ from .feature_logs import (
     patch_devcontainer_scenario_logging,
 )
 from .gen_devcontainer import generate
+from .github_auth import ensure_github_token
 from .loader import FeatureTestError, FeatureTestLoader
 from .names import FeatureTestRun, host_log_path
 from .scenarios import (
@@ -695,10 +701,9 @@ def _run_macos(
                 # feature options are exported, matching standalone mode behaviour.
                 base_env = _build_macos_base_env(env_name, envs)
 
-                env_def = envs.get(env_name, {})
                 # macOS: `build.dockerfile` is env bootstrap shell (not Docker). Linux
                 # envs use it as Dockerfile RUN body via environments.resolve().
-                env_build = env_def.get("build", {}).get("dockerfile", "")
+                env_build = macos_build_commands(env_name, envs)
                 if env_build:
                     subprocess.run(
                         ["bash", "-c", RETRY_SHELL_PREAMBLE + env_build],
@@ -830,29 +835,6 @@ def _save_macos_feature_log(feature: str, key: str, options: dict) -> None:
     shutil.copy2(src, dest)
 
 
-def _ensure_github_token() -> None:
-    """Fall back to `gh auth token` when GITHUB_TOKEN isn't set.
-
-    Feature installs and generated Dockerfiles read GITHUB_TOKEN to
-    authenticate GitHub API calls (release/tag resolution). Concurrent
-    Docker test runs easily exhaust the unauthenticated rate limit
-    otherwise; `gh` is already a required devcontainer tool and the
-    fallback stays silent (same as the existing unauthenticated fallback
-    in proman.release.detect) when `gh` is missing or not logged in.
-    """
-    if os.environ.get("GITHUB_TOKEN") or not shutil.which("gh"):
-        return
-    result = subprocess.run(
-        ["gh", "auth", "token"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    token = result.stdout.strip()
-    if token:
-        os.environ["GITHUB_TOKEN"] = token
-
-
 def main() -> None:
     """Entry point for proman-test-run CLI."""
     parser = argparse.ArgumentParser(
@@ -896,7 +878,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    _ensure_github_token()
+    ensure_github_token()
 
     cfg = load_config()
     os.environ.setdefault("REPO_ROOT", str(cfg.root_path))

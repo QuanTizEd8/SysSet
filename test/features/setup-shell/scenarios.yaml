@@ -53,6 +53,21 @@ if_exists_reinstall_foreign_bashrc:
     setup_zsh: false
   tests: [if_exists_reinstall_foreign_bashrc, reinstall_backup]
 
+reinstall_backup_failure:
+  # A required backup must complete before reinstall replaces an existing
+  # file. /proc cannot host the requested capsule, even for root.
+  envs: [debian-stable]
+  modes: [standalone]
+  setup: printf '\n# BACKUP FAILURE MUST PRESERVE THIS LINE\n' >> /etc/bash.bashrc
+  options:
+    if_exists_sys: reinstall
+    backup: 'true'
+    backup_dir:
+      - /proc/devfeats-backup-must-fail
+    setup_zsh: false
+  expect_install_failure: true
+  tests: [reinstall_backup_failure]
+
 if_exists_update_foreign_bashrc:
   # A stock /etc/bash.bashrc with a custom admin line; update injects our marker
   # blocks; the golden fixture captures the custom line preserved alongside them.

@@ -504,9 +504,13 @@ _ss__resolved_backup_root() {
       [[ -n "$_p" ]] && _bd_args+=("$(users__expand_path "$_p" 2> /dev/null || printf '%s' "$_p")")
     done <<< "${BACKUP_DIR:-}"
     if ((${#_bd_args[@]})); then
-      _SS_BACKUP_ROOT="$(users__first_writeable_path -- "${_bd_args[@]}" 2> /dev/null || true)"
+      _SS_BACKUP_ROOT="$(users__first_writeable_path -- "${_bd_args[@]}" 2> /dev/null)" || {
+        logging__error "setup-shell: no configured backup_dir candidate is writable."
+        return 1
+      }
+    else
+      _SS_BACKUP_ROOT="${_FEAT_SHARE_DIR_ROOT}/backups"
     fi
-    [[ -n "${_SS_BACKUP_ROOT:-}" ]] || _SS_BACKUP_ROOT="${_FEAT_SHARE_DIR_ROOT}/backups"
   fi
   printf '%s' "${_SS_BACKUP_ROOT}"
 }
@@ -554,7 +558,9 @@ _ss__apply_target() {
       # fail assemble solely when the file is absent (nothing to preserve).
       local _preserved=""
       if [[ "$_mode" == reinstall && "$_exists" == true ]]; then
-        file__backup_if_policy "$_path" "${BACKUP:-auto}" "$(_ss__backup_dir_for_scope "$_scope")" > /dev/null || true
+        local _backup_dir
+        _backup_dir="$(_ss__backup_dir_for_scope "$_scope")" || return 1
+        file__backup_if_policy "$_path" "${BACKUP:-auto}" "$_backup_dir" > /dev/null || return 1
         _preserved="$(_ss__collect_preserved_blocks "$_path")"
       fi
       file__mkdir "$(dirname "$_path")"

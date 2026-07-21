@@ -1,10 +1,11 @@
 #!/usr/bin/env bats
 # Integration tests for lib/npm.bash — npm__install_bundled against real network.
 #
-# All tests require a real internet connection and are skipped unless
-# SYSSET_RUN_INTEGRATION_DEPS=1 is set.  They perform actual Node.js and npm
-# package downloads (via the bundled npm shipped with Node.js) to verify
-# correct end-to-end behavior of npm__install_bundled and related functions.
+# These tests run whenever the integration tier is selected and require a real
+# internet connection. They perform actual Node.js and npm package downloads
+# (via the bundled npm shipped with Node.js) to verify correct end-to-end
+# behavior of npm__install_bundled and related functions. Alpine alone is
+# skipped because the pre-built Node.js binaries are linked against glibc.
 #
 # Two fixture packages are used:
 #
@@ -13,13 +14,16 @@
 #
 #   esbuild       — has a postinstall script that calls bare 'node install.js'
 #                   to fetch a platform-specific native binary.  Exercises the
-#                   lifecycle-script code path; requires --scripts-prepend-node-path
-#                   so that 'node' is findable when using an off-PATH bundled Node.
+#                   lifecycle-script code path and verifies that the bundled
+#                   Node.js bin directory is prepended to PATH for npm scripts.
 #
 # Note: optional platform-dep resolution (the primary motivation for the
 # bundled-npm approach) is exercised by the install-codex feature tests.
 
 bats_require_minimum_version 1.5.0
+
+# Tests share one file-scoped installation prefix and install log.
+export BATS_NO_PARALLELIZE_WITHIN_FILE=true
 
 _NPM_INT_PKG="semver"
 _NPM_INT_PKG_VER="7.6.3"
@@ -31,14 +35,18 @@ _NPM_INT_CMD="semver"
 
 setup() {
   load '../helpers/common'
+  load '../helpers/test_tools'
   reload_lib
+  test_tools__wire_jq
+  lib_test__npm_network_bounded
 
   if [[ "$(os__platform 2> /dev/null)" == "alpine" ]]; then
     skip "pre-built Node.js from nodejs.org is not supported on Alpine (musl libc)"
   fi
 
-  # Shared prefix reused across tests in this file.  npm__install_bundled is
-  # idempotent, so only the first test triggers the real download.
+  # Shared prefix reused by the common layout/runtime assertions. Its first
+  # setup downloads the fixture; later setups reuse it. Update, uninstall, and
+  # esbuild tests use separate prefixes and perform their own downloads.
   _INT_PREFIX="${BATS_FILE_TMPDIR}/semver-bundled"
 
   if ! npm__is_bundled "${_INT_PREFIX}/bin/${_NPM_INT_CMD}" 2> /dev/null; then
@@ -48,7 +56,7 @@ setup() {
       --cmd "$_NPM_INT_CMD" \
       --prefix "$_INT_PREFIX" \
       > "${BATS_FILE_TMPDIR}/install.log" 2>&1 ||
-      skip "npm__install_bundled failed; see ${BATS_FILE_TMPDIR}/install.log"
+      fail "npm__install_bundled failed; see ${BATS_FILE_TMPDIR}/install.log"
   fi
 }
 
@@ -244,8 +252,9 @@ setup() {
 
 @test "npm__install_bundled (real): installs a package whose postinstall calls bare 'node'" {
   # esbuild has a postinstall script ('node install.js') that downloads the
-  # platform-specific native binary.  Without --scripts-prepend-node-path=true
-  # this fails with 'node: not found' (exit 127) when node is not on PATH.
+  # platform-specific native binary. npm 10 removed
+  # --scripts-prepend-node-path, so production explicitly prepends the bundled
+  # Node.js bin directory to PATH for lifecycle scripts.
   local _esbuild_prefix="${BATS_TEST_TMPDIR}/esbuild-bundled"
   run npm__install_bundled \
     --package "esbuild" \

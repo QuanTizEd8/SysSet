@@ -162,7 +162,18 @@ reinstall_backup:
   description: reinstall backed up the original bashrc before replacing it.
   checks:
     - title: a backup of the original bashrc exists
-      cmd: bash -c 'ls /usr/local/share/*/*/setup-shell/backups/etc_bash.bashrc.* > /dev/null 2>&1'
+      cmd: bash -c 'find /usr/local/share -path "*/setup-shell/backups/backup.*.??????/item" -type f -exec grep -lF "MY_CUSTOM_BASHRC_LINE" {} \; | grep -q .'
+    - title: backup capsule records the original path exactly
+      cmd: bash -c 'find /usr/local/share -path "*/setup-shell/backups/backup.*.??????/source-path" -type f -exec grep -lFx /etc/bash.bashrc {} \; | grep -q .'
+
+reinstall_backup_failure:
+  description: A failed required backup aborts reinstall before the existing target is replaced.
+  checks:
+    - kind: install_failure
+      title: backup failure is reported
+      pattern: "no configured backup_dir candidate is writable"
+    - title: original bashrc content survives the failed reinstall
+      cmd: grep -qF 'BACKUP FAILURE MUST PRESERVE THIS LINE' /etc/bash.bashrc
 
 reinstall_preserves_managed_block:
   description: reinstall preserves a foreign guarded managed block by default.

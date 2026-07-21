@@ -457,51 +457,151 @@ file__resolve_backup_policy() {
   #   <policy>  One of "auto", "true", "false".
   #
   # Stdout: "true" or "false".
-  local _policy="${1:-auto}"
+  #
+  # Returns: 0 on success, non-zero when <policy> is missing, empty, or unknown.
+  local _policy="${1-}"
   case "$_policy" in
     true) printf 'true\n' ;;
     false) printf 'false\n' ;;
-    *)
+    auto)
       if os__is_devcontainer_runtime; then
         printf 'false\n'
       else
         printf 'true\n'
       fi
       ;;
+    *)
+      logging__error "file__resolve_backup_policy: expected 'auto', 'true', or 'false'; got '${_policy}'."
+      return 1
+      ;;
   esac
+}
+
+_file__write_backup_identity() {
+  # @brief _file__write_backup_identity <path> <sidecar> — Internal: write <path> without a trailing newline.
+  local _path="$1" _sidecar="$2" _rc=0
+  if [[ -w "${_sidecar%/*}" ]]; then
+    printf '%s' "$_path" > "$_sidecar" || _rc=$?
+  else
+    # Keep the path in a positional parameter: embedding it in the command would
+    # corrupt paths containing shell metacharacters or newlines.
+    # shellcheck disable=SC2016
+    users__run_privileged sh -c 'printf %s "$1" > "$2"' _ "$_path" "$_sidecar" || _rc=$?
+  fi
+  return "$_rc"
+}
+
+_file__backup_dir_is_writable() {
+  # @brief _file__backup_dir_is_writable <dir> — Internal: test direct capsule allocation permission.
+  [[ -w "$1" ]]
+}
+
+_file__discard_failed_backup() {
+  # @brief _file__discard_failed_backup <capsule> <step> <primary_rc> — Internal: remove a partial backup.
+  local _capsule="$1" _step="$2" _primary_rc="$3" _cleanup_rc=0
+  ((_primary_rc != 0)) || _primary_rc=1
+  logging__error "file__backup_if_policy: ${_step} failed; discarding incomplete backup '${_capsule}'."
+  file__rm -rf "$_capsule" || _cleanup_rc=$?
+  if ((_cleanup_rc != 0)); then
+    logging__error "file__backup_if_policy: cleanup also failed; incomplete backup orphan remains at '${_capsule}'."
+  fi
+  return "$_primary_rc"
 }
 
 file__backup_if_policy() {
   # @brief file__backup_if_policy <path> <policy> <backup_dir> — Back up <path> into <backup_dir> when <policy> (resolved via file__resolve_backup_policy) is "true".
   #
-  # No-ops (prints nothing, returns 0) when <path> does not exist or the
-  # resolved policy is "false". The backup name is a slugified copy of <path>
-  # (slashes replaced with underscores) suffixed with a UTC timestamp, so
-  # repeated backups of the same path never collide.
+  # Resolves and validates <policy> before examining <path>. No-ops (prints
+  # nothing, returns 0) when the policy resolves to "false", or when <path>
+  # does not exist (a dangling symlink counts as existing and is backed up).
+  #
+  # A successful backup is a private capsule named
+  # `backup.<UTC timestamp>.<unique suffix>`. It contains `item`, the copied
+  # object, and a mode-0600 `source-path` identity sidecar containing the exact
+  # source path without a trailing newline. `item` preserves portable object
+  # type, content, permissions, and timestamps through `cp -pPR`; hard-link
+  # relationships, extended attributes, ACLs, and other platform-specific
+  # metadata are not guaranteed to be preserved.
+  #
+  # Allocation of the capsule name and directory is atomic. Populating the
+  # capsule is not atomic; an incomplete capsule is removed when any population
+  # step fails. A cleanup failure is reported as an orphan while the original
+  # failure status remains authoritative. If the final stdout write fails, the
+  # already complete backup is retained.
   #
   # Args:
   #   <path>        File or directory to back up (need not exist).
   #   <policy>      "auto", "true", or "false" (see file__resolve_backup_policy).
   #   <backup_dir>  Directory to copy the backup into. Required when a backup is taken.
   #
-  # Stdout: the backup path, only when a backup was actually taken.
+  # Stdout: the `item` path, only after the backup capsule is complete.
   #
-  # Returns: 0 on success (including no-op cases), 1 if a backup is needed but <backup_dir> is empty.
+  # Returns: 0 on success (including no-op cases); non-zero on invalid policy, allocation, population, or output failure.
   local _path="${1-}" _policy="${2-}" _backup_dir="${3-}"
-  [[ -e "$_path" ]] || return 0
-  [[ "$(file__resolve_backup_policy "$_policy")" == "true" ]] || return 0
+  local _resolved="" _ts="" _capsule="" _item="" _rc=0
+
+  _resolved="$(file__resolve_backup_policy "$_policy")" || _rc=$?
+  if ((_rc != 0)); then
+    return "$_rc"
+  fi
+  [[ "$_resolved" == "false" ]] && return 0
+  [[ -e "$_path" || -L "$_path" ]] || return 0
+
   if [[ -z "$_backup_dir" ]]; then
     logging__error "file__backup_if_policy: no backup directory provided for '${_path}'."
     return 1
   fi
-  local _slug _ts _dest
-  _slug="$(printf '%s' "$_path" | tr '/' '_')"
-  _slug="${_slug#_}"
-  _ts="$(date -u +%Y%m%dT%H%M%SZ)"
-  _dest="${_backup_dir}/${_slug}.${_ts}"
-  file__mkdir "$_backup_dir"
-  file__cp -r "$_path" "$_dest"
-  printf '%s\n' "$_dest"
+
+  file__mkdir "$_backup_dir" || _rc=$?
+  if ((_rc != 0)); then
+    logging__error "file__backup_if_policy: failed to create backup directory '${_backup_dir}'."
+    return "$_rc"
+  fi
+
+  _rc=0
+  _ts="$(date -u +%Y%m%dT%H%M%SZ)" || _rc=$?
+  if ((_rc != 0)) || [[ ! "$_ts" =~ ^[0-9]{8}T[0-9]{6}Z$ ]]; then
+    logging__error "file__backup_if_policy: failed to obtain a valid UTC backup timestamp."
+    ((_rc != 0)) || _rc=1
+    return "$_rc"
+  fi
+
+  _rc=0
+  if _file__backup_dir_is_writable "$_backup_dir"; then
+    _capsule="$(mktemp -d "${_backup_dir%/}/backup.${_ts}.XXXXXX")" || _rc=$?
+  else
+    _capsule="$(users__run_privileged mktemp -d "${_backup_dir%/}/backup.${_ts}.XXXXXX")" || _rc=$?
+  fi
+  if ((_rc != 0)) || [[ -z "$_capsule" ]]; then
+    logging__error "file__backup_if_policy: failed to reserve a unique backup capsule in '${_backup_dir}'."
+    ((_rc != 0)) || _rc=1
+    return "$_rc"
+  fi
+
+  _item="${_capsule}/item"
+  _rc=0
+  _file__write_backup_identity "$_path" "${_capsule}/source-path" || _rc=$?
+  if ((_rc != 0)); then
+    _file__discard_failed_backup "$_capsule" "source-path write" "$_rc" || _rc=$?
+    return "$_rc"
+  fi
+
+  _rc=0
+  file__chmod 0600 "${_capsule}/source-path" || _rc=$?
+  if ((_rc != 0)); then
+    _file__discard_failed_backup "$_capsule" "source-path protection" "$_rc" || _rc=$?
+    return "$_rc"
+  fi
+
+  _rc=0
+  file__cp -pPR -- "$_path" "$_item" || _rc=$?
+  if ((_rc != 0)); then
+    _file__discard_failed_backup "$_capsule" "item copy" "$_rc" || _rc=$?
+    return "$_rc"
+  fi
+
+  printf '%s\n' "$_item" || return $?
+  return 0
 }
 
 file__detect_type() {

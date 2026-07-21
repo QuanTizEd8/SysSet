@@ -6,7 +6,6 @@ bats_require_minimum_version 1.5.0
 setup() {
   load 'helpers/common'
   reload_lib
-  export DEVFEATS_NET_FETCH_RETRIES=1 DEVFEATS_NET_FETCH_DELAY=0
 }
 
 _test_sha256_file() {
@@ -22,6 +21,13 @@ _test_sha256_file() {
   return 1
 }
 
+_oci_test__unexpected_oras() {
+  printf 'invalid reference format: unexpected ORAS mock invocation:' >&2
+  printf ' %q' "$@" >&2
+  printf '\n' >&2
+  return 1
+}
+
 _mock_oras_pull_outdir() {
   local _i
   for ((_i = 1; _i <= $#; _i++)); do
@@ -31,7 +37,7 @@ _mock_oras_pull_outdir() {
       return 0
     fi
   done
-  return 1
+  _oci_test__unexpected_oras "$@"
 }
 
 _mock_tar_fixture_bin() {
@@ -96,7 +102,7 @@ EOF
 @test "_oci__oras_capture retries transient registry failures" {
   local _attempts="${BATS_TEST_TMPDIR}/attempts"
   printf '0' > "$_attempts"
-  export _attempts DEVFEATS_NET_FETCH_RETRIES=2
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=2 DEVFEATS_NET_FETCH_DELAY=0
   oras() {
     local _n
     _n=$(($(cat "$_attempts") + 1))
@@ -118,7 +124,7 @@ EOF
 @test "_oci__oras_capture does not retry permanent registry failures" {
   local _attempts="${BATS_TEST_TMPDIR}/attempts"
   printf '0' > "$_attempts"
-  export _attempts DEVFEATS_NET_FETCH_RETRIES=3
+  export _attempts DEVFEATS_NET_FETCH_RETRIES=3 DEVFEATS_NET_FETCH_DELAY=0
   oras() {
     printf '%s' "$(($(cat "$_attempts") + 1))" > "$_attempts"
     printf 'denied: authentication required\n' >&2
@@ -129,6 +135,26 @@ EOF
   run _oci__oras_capture "ghcr.io/acme/feature" 0 oras manifest fetch
   assert_failure
   assert [ "$(cat "$_attempts")" -eq 1 ]
+}
+
+@test "_oci__oras_capture classifies an unexpected mock invocation without retrying or sleeping" {
+  local _attempts="${BATS_TEST_TMPDIR}/attempts"
+  local _sleep_log="${BATS_TEST_TMPDIR}/sleep"
+  printf '0' > "$_attempts"
+  export _attempts _sleep_log DEVFEATS_NET_FETCH_RETRIES=3 DEVFEATS_NET_FETCH_DELAY=5
+  oras() {
+    printf '%s' "$(($(cat "$_attempts") + 1))" > "$_attempts"
+    _oci_test__unexpected_oras "$@"
+  }
+  sleep() {
+    printf '%s\n' "$*" >> "$_sleep_log"
+  }
+  export -f oras sleep
+
+  run _oci__oras_capture "ghcr.io/acme/feature" 0 oras manifest fetch
+  assert_failure
+  assert [ "$(cat "$_attempts")" -eq 1 ]
+  assert_file_not_exists "$_sleep_log"
 }
 
 @test "_oci__retryable_error retries unknown registry diagnostics and rejects credential failures" {
@@ -204,7 +230,7 @@ EOF
 
 @test "oci__pull_feature_tgz validates pulled archive shape" {
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/oci.XXXXXX")"
   local _good="${_tmp}/good.tgz"
   local _bad="${_tmp}/bad.tgz"
   printf '%s\n' "good archive fixture" > "$_good"
@@ -236,7 +262,7 @@ EOF
       cp "$_good" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
-    return 1
+    _oci_test__unexpected_oras "$@"
   }
   export -f oras
 
@@ -247,7 +273,7 @@ EOF
 
 @test "oci__pull_feature_tgz performs registry login from SYSSET_OCI_AUTH" {
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/oci.XXXXXX")"
   local _good="${_tmp}/good.tgz"
   local _bad="${_tmp}/bad.tgz"
   printf '%s\n' "good archive fixture" > "$_good"
@@ -281,7 +307,7 @@ EOF
       cp "$_good" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
-    return 1
+    _oci_test__unexpected_oras "$@"
   }
   export -f oras
 
@@ -296,7 +322,7 @@ EOF
 
 @test "oci__list_tags authenticates using SYSSET_OCI_AUTH_FILE" {
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/oci.XXXXXX")"
   local _authf="${_tmp}/auth.txt"
   local _log="${_tmp}/log"
   printf '%s' 'ghcr.io|user1|tok1' > "$_authf"
@@ -314,7 +340,7 @@ EOF
       printf '%s\n' "1.0.0"
       return 0
     fi
-    return 1
+    _oci_test__unexpected_oras "$@"
   }
   export -f oras
 
@@ -329,7 +355,7 @@ EOF
 
 @test "oci__list_tags uses GITHUB_TOKEN for ghcr.io when SYSSET_OCI_AUTH is unset" {
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/oci.XXXXXX")"
   local _log="${_tmp}/log"
 
   oras() {
@@ -345,7 +371,7 @@ EOF
       printf '%s\n' "1.0.0"
       return 0
     fi
-    return 1
+    _oci_test__unexpected_oras "$@"
   }
   export -f oras
 
@@ -362,7 +388,7 @@ EOF
 
 @test "oci__pull_feature_tgz fails invalid archive shape" {
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/oci.XXXXXX")"
   local _bad="${_tmp}/bad.tgz"
   local _good="${_tmp}/good.tgz"
   printf '%s\n' "bad archive fixture" > "$_bad"
@@ -383,7 +409,7 @@ EOF
       cp "$_bad" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
-    return 1
+    _oci_test__unexpected_oras "$@"
   }
   export -f oras
 
@@ -394,7 +420,7 @@ EOF
 
 @test "oci__pull_feature_tgz fails on manifest digest mismatch" {
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/oci.XXXXXX")"
   local _good="${_tmp}/good.tgz"
   local _bad="${_tmp}/bad.tgz"
   printf '%s\n' "good archive fixture" > "$_good"
@@ -421,7 +447,7 @@ EOF
       cp "$_good" "$_out/devcontainer-feature-x.tgz"
       return 0
     fi
-    return 1
+    _oci_test__unexpected_oras "$@"
   }
   export -f oras
 
@@ -432,7 +458,7 @@ EOF
 
 @test "oci__pull_feature_tgz supports plain-http mirrors for pull and manifest" {
   local _tmp
-  _tmp="$(mktemp -d)"
+  _tmp="$(mktemp -d "${BATS_TEST_TMPDIR}/oci.XXXXXX")"
   local _good="${_tmp}/good.tgz"
   local _bad="${_tmp}/bad.tgz"
   printf '%s\n' "good archive fixture" > "$_good"
@@ -449,21 +475,27 @@ EOF
       return 0
     fi
     if [[ "${1-}" == "manifest" && "${2-}" == "fetch" ]]; then
-      [[ "${ORAS_PLAIN_HTTP-}" == "1" || "${3-}" == "--plain-http" ]] || return 1
+      if [[ "${ORAS_PLAIN_HTTP-}" != "1" && "${3-}" != "--plain-http" ]]; then
+        printf 'unsupported protocol: plain HTTP was not enabled\n' >&2
+        return 1
+      fi
       cat << EOF
 {"layers":[{"mediaType":"application/vnd.devcontainers.layer.v1+tgz","digest":"sha256:${_hash}"}]}
 EOF
       return 0
     fi
     if [[ "${1-}" == "pull" ]]; then
-      [[ "${ORAS_PLAIN_HTTP-}" == "1" || "${2-}" == "--plain-http" ]] || return 1
+      if [[ "${ORAS_PLAIN_HTTP-}" != "1" && "${2-}" != "--plain-http" ]]; then
+        printf 'unsupported protocol: plain HTTP was not enabled\n' >&2
+        return 1
+      fi
       local _out_dir=""
       _out_dir="$(_mock_oras_pull_outdir "$@")" || return 1
       mkdir -p "$_out_dir"
       cp "$_good" "$_out_dir/devcontainer-feature-x.tgz"
       return 0
     fi
-    return 1
+    _oci_test__unexpected_oras "$@"
   }
   export -f oras
 

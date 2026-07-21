@@ -7,7 +7,9 @@ setup() {
   load 'helpers/common'
   load 'helpers/stubs'
   load 'helpers/ctx'
+  load 'helpers/test_tools'
   reload_lib
+  test_tools__wire_jq_yq
   ctx_test__reset
 }
 

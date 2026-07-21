@@ -3,15 +3,10 @@
 
 bats_require_minimum_version 1.5.0
 
-setup_file() {
-  load 'helpers/bootstrap_tools'
-  test_bootstrap__setup_file_jq_yq
-}
-
 setup() {
   load 'helpers/common'
   load 'helpers/stubs'
-  load 'helpers/bootstrap_tools'
+  load 'helpers/test_tools'
   reload_lib
   # proc__run_command_form parses its JSON argument via json__query → jq. The
   # bash -c subshells below source only a minimal module subset (file/logging/
@@ -19,7 +14,7 @@ setup() {
   # dependencies (install/github/net/os/uri). Prime the cached jq onto PATH —
   # inherited by those subshells — so bootstrap__jq short-circuits at
   # `command -v jq` and never enters that path.
-  test_bootstrap__prime_jq
+  test_tools__wire_jq
 }
 
 @test "proc__run_command_form runs JSON string via sh -c" {

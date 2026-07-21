@@ -429,7 +429,7 @@
       }
     },
     "test_lib": {
-      "description": "Config slice for the test-lib reusable workflow (shell library unit tests).",
+      "description": "Config slice for the test-lib reusable workflow (shell library tests).",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -444,7 +444,7 @@
       ],
       "properties": {
         "enabled": {
-          "description": "Whether to run any library unit test jobs.",
+          "description": "Whether to run any library test jobs.",
           "type": "boolean"
         },
         "linux_enabled": {
@@ -452,7 +452,7 @@
           "type": "boolean"
         },
         "macos_enabled": {
-          "description": "Whether native macOS unit tests (test-lib-macos) should run.",
+          "description": "Whether native macOS library tests (test-lib-macos) should run.",
           "type": "boolean"
         },
         "ci_image": {
@@ -468,46 +468,72 @@
           "type": "string"
         },
         "linux_matrix": {
-          "description": "Linux distro environments to run unit tests against, sourced from test/lib/scenarios.yaml.",
+          "description": "Logical Linux platforms and their isolated ordinary/bootstrap environments, sourced from test/lib/scenarios.yaml.",
           "type": "array",
           "items": {
-            "description": "A single Linux unit test environment.",
+            "description": "A logical Linux library-test platform with two concrete profiles.",
             "type": "object",
             "additionalProperties": false,
             "required": [
               "name",
-              "env"
+              "ordinary_env",
+              "bootstrap_env"
             ],
             "properties": {
               "name": {
                 "description": "Human-readable environment name used in the job display name.",
-                "type": "string"
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]*$"
               },
-              "env": {
-                "description": "Docker image reference for the test container.",
-                "type": "string"
+              "ordinary_env": {
+                "description": "Prepared environment key for lean/integration ordinary tests.",
+                "type": "string",
+                "minLength": 1
+              },
+              "bootstrap_env": {
+                "description": "Bare environment key for bootstrap installation tests.",
+                "type": "string",
+                "minLength": 1
               }
             }
           }
         },
         "macos_matrix": {
-          "description": "macOS runners to run unit tests on natively, sourced from test/environments.yaml.",
+          "description": "macOS runners to run library tests on natively, sourced from test/environments.yaml.",
           "type": "array",
           "items": {
-            "description": "A single macOS unit test runner.",
+            "description": "A single macOS library test runner.",
             "type": "object",
             "additionalProperties": false,
             "required": [
+              "env",
               "runner",
-              "clean_path"
+              "clean_path",
+              "path_prepend",
+              "integration"
             ],
             "properties": {
+              "env": {
+                "description": "Test-environment key used as the job display name.",
+                "type": "string",
+                "minLength": 1
+              },
               "runner": {
                 "description": "GHA runs-on label for the macOS runner.",
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               },
               "clean_path": {
                 "description": "Whether to strip GHA pre-installed tools from PATH before running tests.",
+                "type": "boolean"
+              },
+              "path_prepend": {
+                "description": "Colon-separated paths prepended after PATH isolation.",
+                "type": "string"
+              },
+              "integration": {
+                "description": "Whether this runner executes both lean and integration tiers.",
                 "type": "boolean"
               }
             }

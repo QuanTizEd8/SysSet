@@ -70,6 +70,7 @@ just lint-sh-check     # verify no shellcheck issues in the assembled install.ba
 ```bash
 just sync-src          # lib/ is copied into each feature's src/*/lib/
 just test-lib ubuntu-stable --module <module>   # run unit tests for that module (requires Docker)
+just test-lib-integration-envs                  # run integration tests in all seven ordinary profiles
 ```
 
 **Editing test assertions:** modify `test/features/<id>/checks.yaml` — test scripts are rendered on-the-fly by the test runner; no sync step is needed.
@@ -77,8 +78,16 @@ just test-lib ubuntu-stable --module <module>   # run unit tests for that module
 ## 4. Run Tests
 
 ```bash
-just test-lib                  # library unit tests — requires Docker
+just test-lib                  # ordinary lean library tests — requires Docker
 just test-lib ubuntu-stable --module <module>  # single module, e.g. --module ospkg
+just test-lib-all ubuntu-stable # ordinary lean + integration in one platform
+just test-lib-bootstrap ubuntu-stable # dedicated fresh bare profile
+just test-lib-complete ubuntu-stable # ordinary all then bootstrap
+just test-lib-envs             # lean tier in all seven Linux environments
+just test-lib-integration-envs # integration tier in all seven Linux environments
+just test-lib-all-envs         # both tiers in all seven Linux environments
+just test-lib-bootstrap-envs   # bootstrap suite in all seven bare profiles
+just test-lib-complete-envs    # complete workload in seven jobs / 14 containers
 just test-feats <feature>      # feature scenario tests — requires Docker
 just test-py                   # proman Python unit tests
 ```
@@ -118,7 +127,7 @@ just build-docs        # one-shot build to .local/build/docs/
 just sync-src-check    # verify src/ is current (CI runs this)
 just format-check      # check formatting without writing
 just lint              # shellcheck + ruff
-just test-lib          # library unit tests (one container image; requires Docker)
+just test-lib          # lean library tests (one container image; requires Docker)
 just release-detect    # preview which features need a new release (queries GitHub API)
 ```
 

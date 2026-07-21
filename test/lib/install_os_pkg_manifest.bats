@@ -9,9 +9,7 @@
 # opensuse-leap, arch). A case with a missing <platform>.expected file is
 # skipped; a case with an empty file asserts zero packages are resolved.
 #
-# yq is auto-installed via bootstrap__yq. setup_file() runs it
-# once and caches the binary, so individual tests do not re-download. Tests
-# skip when yq cannot be installed (no network / not root).
+# jq and yq are immutable suite-level test prerequisites.
 
 bats_require_minimum_version 1.5.0
 
@@ -20,25 +18,11 @@ bats_require_minimum_version 1.5.0
 # ---------------------------------------------------------------------------
 CASES_DIR="${REPO_ROOT}/test/lib/cases/install-os-pkg"
 
-setup_file() {
-  load 'helpers/bootstrap_tools'
-  test_bootstrap__setup_file_jq_yq
-}
-
 setup() {
   load 'helpers/common'
-  load 'helpers/bootstrap_tools'
+  load 'helpers/test_tools'
   load 'helpers/stubs'
-}
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-# _require_manifest_prereqs — skip the test if jq or yq is unavailable.
-_require_manifest_prereqs() {
-  test_bootstrap__require_jq
-  test_bootstrap__require_yq
+  test_tools__wire_jq_yq
 }
 
 # _seed_context <pm> <id> [<id_like>] [<version_id>]
@@ -46,8 +30,8 @@ _require_manifest_prereqs() {
 # Reloads ospkg.bash, fakes the PM binary using a restricted PATH so
 # _ospkg__detect picks exactly the right PM, then restores the real PATH with
 # the fake dir prepended.  Seeds the unified ctx registry for cross-platform
-# manifest tests.  Overrides bootstrap__yq to use the pre-installed yq binary
-# cached in setup_file().
+# manifest tests. The per-test helper points bootstrap__yq at the immutable
+# suite copy.
 _seed_context() {
   local _pm="$1" _id="$2" _id_like="${3:-}" _version_id="${4:-}"
 
@@ -76,9 +60,9 @@ _seed_context() {
   # GitHub-release download. That download path calls os__release_arch →
   # `uname -m`, which create_fake_bin's `uname` stub answers with "Linux"
   # (it prints "Linux" for every argument), breaking arch detection. yq is
-  # invoked via its stubbed path (test_bootstrap__stub_yq), but jq is invoked
+  # invoked via its test-only stub, but jq is invoked
   # as a bare `jq` after bootstrap__jq, so it must be resolvable on PATH.
-  ln -sf "${TEST_BOOTSTRAP_JQ_BIN}" "${BATS_TEST_TMPDIR}/bin/jq"
+  ln -sf "${DEVFEATS_TEST_JQ_BIN}" "${BATS_TEST_TMPDIR}/bin/jq"
 
   ctx__reset
   ctx__set "plat.pm=${_pm}"
@@ -89,9 +73,8 @@ _seed_context() {
   ctx__set "os.version_id=${_version_id}"
   _CTX__REGISTRY_INITIALIZED=true
 
-  # Point bootstrap__yq at the pre-installed binary to avoid re-downloading
-  # yq on every test (TEST_BOOTSTRAP_YQ_BIN is exported by setup_file()).
-  test_bootstrap__stub_yq
+  # Point bootstrap__yq at the immutable suite-cached binary.
+  test_tools__wire_yq
 
   # Fake PMs (e.g. apk, pacman) exit 0 for all calls, which makes
   # ospkg__is_installed report every package as already installed and skip it.
@@ -146,37 +129,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case comments_and_blank on ubuntu: resolves expected packages" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "comments_and_blank" "ubuntu"
 }
 
 @test "manifest case comments_and_blank on debian: resolves expected packages" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "comments_and_blank" "debian"
 }
 
 @test "manifest case comments_and_blank on alpine: resolves expected packages" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "comments_and_blank" "alpine"
 }
 
 @test "manifest case comments_and_blank on fedora: resolves expected packages" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "comments_and_blank" "fedora"
 }
 
 @test "manifest case comments_and_blank on opensuse-leap: resolves expected packages" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "comments_and_blank" "opensuse-leap"
 }
 
 @test "manifest case comments_and_blank on arch: resolves expected packages" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "comments_and_blank" "arch"
 }
@@ -188,25 +165,21 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case id_selectors on ubuntu: common-apt-pkg and ubuntu-only" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "id_selectors" "ubuntu"
 }
 
 @test "manifest case id_selectors on debian: common-apt-pkg and debian-only" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "id_selectors" "debian"
 }
 
 @test "manifest case id_selectors on alpine: no expected file — skips" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "id_selectors" "alpine"
 }
 
 @test "manifest case id_selectors on fedora: no expected file — skips" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "id_selectors" "fedora"
 }
@@ -218,37 +191,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case implicit_leading_block on ubuntu: universal plus apt-specific" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "implicit_leading_block" "ubuntu"
 }
 
 @test "manifest case implicit_leading_block on debian: universal plus apt-specific" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "implicit_leading_block" "debian"
 }
 
 @test "manifest case implicit_leading_block on alpine: universal only" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "implicit_leading_block" "alpine"
 }
 
 @test "manifest case implicit_leading_block on fedora: universal only" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "implicit_leading_block" "fedora"
 }
 
 @test "manifest case implicit_leading_block on opensuse-leap: universal only" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "implicit_leading_block" "opensuse-leap"
 }
 
 @test "manifest case implicit_leading_block on arch: universal only" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "implicit_leading_block" "arch"
 }
@@ -262,7 +229,6 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case key_section on ubuntu: resolves packages, logs key, no file" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
 
   run ospkg__run --manifest "$(cat "${CASES_DIR}/key_section/manifest.yaml")" --dry_run
@@ -280,7 +246,6 @@ _assert_manifest_pkgs() {
 }
 
 @test "manifest case key_section on alpine: resolves packages, logs key, no file" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
 
   run ospkg__run --manifest "$(cat "${CASES_DIR}/key_section/manifest.yaml")" --dry_run
@@ -298,7 +263,6 @@ _assert_manifest_pkgs() {
 }
 
 @test "manifest case key_section on fedora: resolves packages, logs key, no file" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
 
   run ospkg__run --manifest "$(cat "${CASES_DIR}/key_section/manifest.yaml")" --dry_run
@@ -322,37 +286,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case multi_pkg_sections on ubuntu: apt packages only" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "multi_pkg_sections" "ubuntu"
 }
 
 @test "manifest case multi_pkg_sections on debian: apt packages only" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "multi_pkg_sections" "debian"
 }
 
 @test "manifest case multi_pkg_sections on alpine: apk packages only" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "multi_pkg_sections" "alpine"
 }
 
 @test "manifest case multi_pkg_sections on arch: pacman packages only" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "multi_pkg_sections" "arch"
 }
 
 @test "manifest case multi_pkg_sections on fedora: resolves 0 packages (no dnf section)" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "multi_pkg_sections" "fedora"
 }
 
 @test "manifest case multi_pkg_sections on opensuse-leap: resolves 0 packages (no zypper section)" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "multi_pkg_sections" "opensuse-leap"
 }
@@ -365,37 +323,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case nested_group_selectors on ubuntu: group + apt-only-in-nested" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "nested_group_selectors" "ubuntu"
 }
 
 @test "manifest case nested_group_selectors on debian: group + apt-only-in-nested" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "nested_group_selectors" "debian"
 }
 
 @test "manifest case nested_group_selectors on alpine: group + apk-only-in-nested" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "nested_group_selectors" "alpine"
 }
 
 @test "manifest case nested_group_selectors on fedora: ungrouped package only" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "nested_group_selectors" "fedora"
 }
 
 @test "manifest case nested_group_selectors on opensuse-leap: ungrouped package only" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "nested_group_selectors" "opensuse-leap"
 }
 
 @test "manifest case nested_group_selectors on arch: ungrouped package only" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "nested_group_selectors" "arch"
 }
@@ -407,37 +359,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case or_selectors on ubuntu: apt-only and apt-or-apk" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "or_selectors" "ubuntu"
 }
 
 @test "manifest case or_selectors on debian: apt-only and apt-or-apk" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "or_selectors" "debian"
 }
 
 @test "manifest case or_selectors on alpine: apk-only and apt-or-apk" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "or_selectors" "alpine"
 }
 
 @test "manifest case or_selectors on arch: resolves 0 packages (pacman has no match)" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "or_selectors" "arch"
 }
 
 @test "manifest case or_selectors on fedora: resolves 0 packages (dnf has no match)" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "or_selectors" "fedora"
 }
 
 @test "manifest case or_selectors on opensuse-leap: resolves 0 packages (zypper has no match)" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "or_selectors" "opensuse-leap"
 }
@@ -448,37 +394,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case pm_overrides on ubuntu: selects pkg-apt" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "pm_overrides" "ubuntu"
 }
 
 @test "manifest case pm_overrides on debian: selects pkg-apt" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "pm_overrides" "debian"
 }
 
 @test "manifest case pm_overrides on alpine: selects pkg-apk" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "pm_overrides" "alpine"
 }
 
 @test "manifest case pm_overrides on fedora: selects pkg-dnf" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "pm_overrides" "fedora"
 }
 
 @test "manifest case pm_overrides on opensuse-leap: selects pkg-zypper" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "pm_overrides" "opensuse-leap"
 }
 
 @test "manifest case pm_overrides on arch: selects pkg-pacman" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "pm_overrides" "arch"
 }
@@ -490,37 +430,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case pm_selectors on ubuntu: always-installed + apt-only" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "pm_selectors" "ubuntu"
 }
 
 @test "manifest case pm_selectors on debian: always-installed + apt-only" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "pm_selectors" "debian"
 }
 
 @test "manifest case pm_selectors on alpine: always-installed + apk-only" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "pm_selectors" "alpine"
 }
 
 @test "manifest case pm_selectors on fedora: always-installed + dnf-only" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "pm_selectors" "fedora"
 }
 
 @test "manifest case pm_selectors on opensuse-leap: always-installed + zypper-only" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "pm_selectors" "opensuse-leap"
 }
 
 @test "manifest case pm_selectors on arch: always-installed + pacman-only" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "pm_selectors" "arch"
 }
@@ -532,37 +466,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case section_selectors on ubuntu: always-installed + apt section" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   _assert_manifest_pkgs "section_selectors" "ubuntu"
 }
 
 @test "manifest case section_selectors on debian: always-installed + apt section" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   _assert_manifest_pkgs "section_selectors" "debian"
 }
 
 @test "manifest case section_selectors on alpine: always-installed + apk section" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "section_selectors" "alpine"
 }
 
 @test "manifest case section_selectors on fedora: always-installed + dnf section" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "section_selectors" "fedora"
 }
 
 @test "manifest case section_selectors on opensuse-leap: always-installed + zypper section" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "section_selectors" "opensuse-leap"
 }
 
 @test "manifest case section_selectors on arch: always-installed + pacman section" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "section_selectors" "arch"
 }
@@ -575,37 +503,31 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest case version_selectors on ubuntu 24.04: always + ubuntu2404-pkg" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "24.04"
   _assert_manifest_pkgs "version_selectors" "ubuntu"
 }
 
 @test "manifest case version_selectors on debian 13: always + debian13-pkg" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "13"
   _assert_manifest_pkgs "version_selectors" "debian"
 }
 
 @test "manifest case version_selectors on alpine: always only (no version match)" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   _assert_manifest_pkgs "version_selectors" "alpine"
 }
 
 @test "manifest case version_selectors on fedora: always only (no version match)" {
-  _require_manifest_prereqs
   _seed_context "dnf" "fedora" "" "40"
   _assert_manifest_pkgs "version_selectors" "fedora"
 }
 
 @test "manifest case version_selectors on opensuse-leap: always only (no version match)" {
-  _require_manifest_prereqs
   _seed_context "zypper" "opensuse-leap" "" "15.5"
   _assert_manifest_pkgs "version_selectors" "opensuse-leap"
 }
 
 @test "manifest case version_selectors on arch: always only (no version match)" {
-  _require_manifest_prereqs
   _seed_context "pacman" "arch" "" ""
   _assert_manifest_pkgs "version_selectors" "arch"
 }
@@ -615,35 +537,30 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest feat.version lte: package included when ctx matches" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   ctx__set feat.version=12.1.2
   local _manifest=$'packages:\n  - name: old-tool\n    when:\n      feat.version:\n        lte: "12.1.2"'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/semver_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"old-tool"* ]]
 }
 
 @test "manifest feat.version lte: package excluded when ctx too high" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   ctx__set feat.version=14.0.0
   local _manifest=$'packages:\n  - name: old-tool\n    when:\n      feat.version:\n        lte: "12.1.2"'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/semver_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"old-tool"* ]]
 }
 
 @test "manifest feat.version lte: ospkg__run uses feat.version from ctx registry" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   ctx__set feat.version=12.1.2
   local _manifest=$'packages:\n  - name: old-tool\n    when:\n      feat.version:\n        lte: "12.1.2"'
@@ -657,13 +574,11 @@ _assert_manifest_pkgs() {
 # ---------------------------------------------------------------------------
 
 @test "manifest when os.id: package included on matching distro" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   local _manifest=$'packages:\n  - name: ubuntu-pkg\n    when:\n      os.id: ubuntu\n  - name: always'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/osid_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"ubuntu-pkg"* ]]
@@ -671,13 +586,11 @@ _assert_manifest_pkgs() {
 }
 
 @test "manifest when os.id: package excluded on non-matching distro" {
-  _require_manifest_prereqs
   _seed_context "apt" "debian" "" "12"
   local _manifest=$'packages:\n  - name: ubuntu-pkg\n    when:\n      os.id: ubuntu\n  - name: always'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/osid_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"ubuntu-pkg"* ]]
@@ -685,68 +598,58 @@ _assert_manifest_pkgs() {
 }
 
 @test "manifest when os.version_codename: package included on matching codename" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   ctx__set os.version_codename=jammy
   local _manifest=$'packages:\n  - name: jammy-pkg\n    when:\n      os.version_codename: [jammy, noble]\n  - name: always'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/codename_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"jammy-pkg"* ]]
 }
 
 @test "manifest when os.version_codename: package excluded on non-matching codename" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   ctx__set os.version_codename=focal
   local _manifest=$'packages:\n  - name: jammy-pkg\n    when:\n      os.version_codename: [jammy, noble]'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/codename_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"jammy-pkg"* ]]
 }
 
 @test "manifest when plat.pm: package included on matching PM" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   local _manifest=$'packages:\n  - name: apt-pkg\n    when:\n      plat.pm: apt'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/pm_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"apt-pkg"* ]]
 }
 
 @test "manifest when plat.pm: package excluded on non-matching PM" {
-  _require_manifest_prereqs
   _seed_context "apk" "alpine" "" "3.20"
   local _manifest=$'packages:\n  - name: apt-pkg\n    when:\n      plat.pm: apt'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/pm_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" != *"apt-pkg"* ]]
 }
 
 @test "manifest when feat.version operator dict: package included when version matches" {
-  _require_manifest_prereqs
   _seed_context "apt" "ubuntu" "debian" "22.04"
   ctx__set feat.version=12.1.2
   local _manifest=$'packages:\n  - name: old-pkg\n    when:\n      feat.version:\n        gte: "10.0.0"\n        lte: "12.1.2"'
   local _json_tmp _parsed
-  bootstrap__yq > /dev/null
   _json_tmp="$(mktemp "${BATS_TEST_TMPDIR}/fver_XXXXXX")"
-  printf '%s' "${_manifest}" | "${TEST_BOOTSTRAP_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
+  printf '%s' "${_manifest}" | "${DEVFEATS_TEST_YQ_BIN}" -o=json '.' - > "${_json_tmp}"
   _parsed="$(ospkg__parse_manifest_yaml "${_json_tmp}")"
   rm -f "${_json_tmp}"
   [[ "${_parsed}" == *"old-pkg"* ]]

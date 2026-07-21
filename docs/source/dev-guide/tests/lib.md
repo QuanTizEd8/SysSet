@@ -1,6 +1,6 @@
 # Library Unit Tests
 
-Unit tests for `lib/` live under `test/lib/`. Each `.bats` file covers one module. Tests run without Docker by sourcing lib files directly into the bats test process. The full suite runs on both Linux and macOS in CI.
+Unit tests for `lib/` live under `test/lib/`. Each `.bats` file covers one module. Tests run without Docker by sourcing lib files directly into the bats test process. The ordinary suite runs on both Linux and macOS in CI.
 
 ## Vendor Libraries
 
@@ -21,10 +21,30 @@ Never edit files under `test/lib/bats/` — they are vendored.
 
 ## Test Tiers
 
-The suite has two tiers:
+Ordinary tests have two tiers:
 
-- **Lean tier (default):** `test/lib/*.bats` only. Suitable for distro containers that install just `bash`. Run by `just test-lib` and all CI library jobs.
-- **Integration tier:** `test/lib/integration/*.bats`. Requires real `git`, `jq`, and other tools to be present. Enable with `bash .dev/scripts/test/run-unit.sh --integration`.
+- **Lean tier (default):** `test/lib/*.bats` only. In the Linux matrix it runs in the same prepared ordinary profile as integration tests; the tier name describes test selection, not a bash-only image contract. Run by `just test-lib` and `just test-lib-envs`.
+- **Integration tier:** `test/lib/integration/*.bats`. Exercises real tools, package managers, and network services. Run by `just test-lib-integration` for one platform, `just test-lib-integration-envs` for all platforms, or natively with `bash .dev/scripts/test/run-unit.sh --tier integration`.
+
+Use `--tier all` for the exact union of both tiers. Tier selection never recurses into the vendored BATS files under `test/lib/bats/`.
+
+The matrix has seven logical Linux platforms (Ubuntu, Debian, Fedora, Rocky Linux, Alpine, openSUSE, and Arch). Each platform maps to two concrete profiles: a prepared **ordinary** image for lean/integration tests and a fresh bare **bootstrap** image for `test/lib/bootstrap/bootstrap.bats`. `complete` runs ordinary first and bootstrap second in separate containers; bootstrap still runs when ordinary fails. CI keeps seven Linux jobs, with two sequential fresh container executions per job (14 executions total).
+
+Every ordinary image contains a pinned, checksum-verified bundle of jq 1.8.2, yq 4.53.2, Sourcemeta JSON Schema CLI 16.2.0, and ORAS 1.3.2 at `/opt/devfeats/lib-test-tools/bin`. It also contains the system prerequisites used by ordinary integration tests (including Git, GPG, archive tools, account-management utilities, and `flock` or `shlock` for BATS concurrency). The bundle is deliberately outside global `PATH`: the ordinary profile passes both `DEVFEATS_TEST_TOOL_CACHE=required` and the absolute `DEVFEATS_TEST_TOOL_SOURCE_DIR`; the suite exposes only its suite-scoped copies. The bootstrap profile passes only `DEVFEATS_TEST_TOOL_CACHE=disabled`, receives no source directory, and starts from the distinct bare image.
+
+`--module <name>` filters the selected tier. Repeatable native-runner `--path <file>` instead selects exact, non-symlink `.bats` files directly under `test/lib/`, `test/lib/integration/`, or `test/lib/bootstrap/`; it cannot be combined with `--tier` or `--module`. Matrix mode rejects explicit paths so callers cannot cross profile boundaries. Use `--filter=<regex>` when a filter value begins with `--`. `--matrix-jobs` bounds concurrent logical platforms; the two profiles for a platform never overlap.
+
+### Opt-in BATS Concurrency
+
+BATS execution remains serial by default (`--jobs 1`) while full-suite stress testing and benchmarks are staged. An ordinary run may opt into 2 through 256 workers with `--jobs <n>`. The runner keeps test files in their canonical sequential order and parallelizes tests only within the active file. This preserves one TAP stream and prevents different modules' fixtures from overlapping.
+
+Three integration modules remain serial within their file even when a larger job count is requested: npm shares a file-scoped installation prefix and log, ospkg mutates the real package database and coordinates package-manager processes, and users exercises an ordered lifecycle against the passwd/group databases. Bootstrap tests are runner-global serial and reject every `--jobs` value greater than 1.
+
+Real-network integration modules opt into bounded test profiles: shared HTTP/ORAS calls use three attempts with short sleeps plus per-attempt connection and transfer timeouts, package-manager calls use two outer attempts, and npm uses its native bounded fetch settings. Production defaults are unchanged. The CI library jobs also have a 120-minute hard ceiling so a hung third-party client cannot consume the runner indefinitely.
+
+Within-file concurrency requires either `flock` or `shlock` on `PATH`. Prepared environments install and verify a provider automatically. For an unprepared native environment, install util-linux on Linux or run `brew install flock` on macOS; otherwise use `--jobs 1`. A selection-only `--list-files` call does not require a lock provider.
+
+Treat matrix and BATS concurrency as multiplicative: up to `--matrix-jobs M` environments, each using `--jobs N`, can demand roughly `M × N` concurrent test workers in addition to container and service overhead. Choose both limits for the host's CPU, memory, network, and package-manager capacity.
 
 Install framework tests live separately under `test/install/` — see {doc}`install`.
 
@@ -175,14 +195,24 @@ Dual-threshold tests should set `LOG_FILE` before setup and compare console capt
 ## Running Tests Locally
 
 ```bash
-just test-lib                                        # all modules
-bash .dev/scripts/test/run-unit.sh --module os       # single module
+just test-lib                                        # ordinary lean in ubuntu-stable
+just test-lib-integration ubuntu-stable              # ordinary integration in one platform
+just test-lib-all ubuntu-stable                      # ordinary lean + integration
+just test-lib-bootstrap ubuntu-stable                # dedicated fresh bare profile
+just test-lib-complete ubuntu-stable                 # ordinary all then bootstrap
+just test-lib-envs                                   # lean tier in all seven Linux environments
+just test-lib-integration-envs                       # integration tier in all seven Linux environments
+just test-lib-all-envs                               # both tiers in all seven Linux environments
+just test-lib-bootstrap-envs                         # bootstrap in all seven bare profiles
+just test-lib-complete-envs                          # complete workload on all seven platforms
+bash .dev/scripts/test/run-unit.sh --module os       # native lean module
+bash .dev/scripts/test/run-unit.sh --tier integration --module json
+bash .dev/scripts/test/run-unit.sh --tier all        # native lean + integration
+bash .dev/scripts/test/run-unit.sh --path test/lib/os.bats  # one exact file
 bash .dev/scripts/test/run-unit.sh --filter "platform"  # filter by test-name regex
 bash .dev/scripts/test/run-unit.sh --jobs 1          # serial (for debugging)
-test/lib/bats/bats-core/bin/bats test/lib/os.bats    # direct bats (no sync step)
-
-# Integration tier (requires real git, jq, etc.)
-bash .dev/scripts/test/run-unit.sh --integration
+bash .dev/scripts/test/run-unit.sh --module os --jobs 4  # opt-in within-file workers
+DEVFEATS_TEST_TOOL_CACHE=required test/lib/bats/bats-core/bin/bats test/lib/os.bats
 ```
 
 ## macOS Considerations
@@ -190,6 +220,8 @@ bash .dev/scripts/test/run-unit.sh --integration
 macOS ships bash 3.2 (GPL licence change). All `lib/` modules require bash ≥4.
 
 `.dev/scripts/test/run-unit.sh` handles this automatically: it detects `BASH_VERSINFO[0] < 4`, finds `/opt/homebrew/bin/bash` (Apple Silicon) or `/usr/local/bin/bash` (Intel), and re-execs itself. Install bash ≥4 locally: `brew install bash`.
+
+The macOS CI ordinary job invokes the same verified installer into a private directory under `RUNNER_TEMP`, then passes that absolute directory through `DEVFEATS_TEST_TOOL_SOURCE_DIR`. The installer selects the pinned Darwin assets directly, prepares `flock`, GPG, and XZ through Homebrew for integration prerequisites and opt-in concurrency readiness, and does not prepend the bundle to global `PATH`. Separate native macOS bootstrap isolation remains later work.
 
 macOS-specific values to assert explicitly:
 
@@ -219,7 +251,7 @@ Library unit tests run via two jobs triggered by changes to `lib/**` or `test/li
 
 | Job | How it runs |
 |-----|-------------|
-| Linux matrix | ubuntu-latest runner; each environment from `test/lib/scenarios.yaml` (Ubuntu, Debian, Fedora, Rocky, Alpine, openSUSE, Arch) runs in its own Docker container |
-| macOS | Native macOS runners; bash ≥4 installed via `brew install bash` automatically by CI |
+| Linux matrix | Seven logical platform jobs. Each complete job runs ordinary lean+integration in one prepared container, then bootstrap in a separate fresh bare container: 14 concrete executions. |
+| macOS | Native ordinary-suite Homebrew environments run both ordinary tiers; bash ≥4 and a private pinned Darwin test-tool bundle are prepared automatically. Separate macOS bootstrap isolation is later work. |
 
 Local macOS runs handle the bash ≥4 requirement via the re-exec in `run-unit.sh`.

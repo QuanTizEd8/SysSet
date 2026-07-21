@@ -11,7 +11,10 @@ bats_require_minimum_version 1.5.0
 setup_file() {
   load '../helpers/common'
 
-  bootstrap__gpg
+  command -v gpg > /dev/null 2>&1 || {
+    echo "prepared integration environment is missing required gpg" >&2
+    return 1
+  }
 
   # Isolated GNUPGHOME so we don't pollute the system keyring.
   export GNUPGHOME="${BATS_FILE_TMPDIR}/gnupg"

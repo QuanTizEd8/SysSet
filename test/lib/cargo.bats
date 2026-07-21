@@ -7,19 +7,14 @@
 
 bats_require_minimum_version 1.7.0
 
-setup_file() {
-  load 'helpers/bootstrap_tools'
-  test_bootstrap__setup_file_jq_yq
-}
-
 setup() {
   load 'helpers/common'
-  load 'helpers/bootstrap_tools'
+  load 'helpers/test_tools'
   reload_lib
   # cargo__resolve_version_uri parses crate JSON via json__query → jq. Put the
   # cached jq on PATH so bootstrap__jq short-circuits instead of running its
   # download path (whose release fetch a net stub could otherwise hijack).
-  test_bootstrap__prime_jq
+  test_tools__wire_jq
   # Stub out network-layer helpers so no real connections are made even if a
   # test forgets to stub _cargo__registry_get.
   net__ensure_fetch_tool() {

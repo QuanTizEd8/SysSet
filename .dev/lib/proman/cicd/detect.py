@@ -35,6 +35,7 @@ from proman.config import load as load_config
 from proman.git import git_repo_root
 from proman.release.detect import detect_releasable
 from proman.test.effective import load_effective
+from proman.test.lib_scenarios import load_and_validate as load_lib_scenarios
 from proman.test.scenarios import (
     DEFAULT_MODES,
     expand_envs,
@@ -431,25 +432,30 @@ def compute_install_env_matrix() -> list[dict[str, str]]:
 
 
 def compute_unit_env_matrix() -> list[dict[str, str]]:
-    """Compute Linux environment entries for unit tests.
+    """Compute validated Linux platform/profile entries for library tests.
 
     Returns
     -------
     list of dict
-        ``{"name": scenario_key, "env": env_name}`` for every non-``defaults``
-        entry in ``test/lib/scenarios.yaml``, preserving file order.
+        ``{"name", "ordinary_env", "bootstrap_env"}`` for every logical
+        platform in ``test/lib/scenarios.yaml``, preserving file order.
     """
-    data: dict = (
-        yaml.safe_load(
-            load_config()
-            .absolute_path("path.test_lib_scenarios")
-            .read_text(
-                encoding="utf-8",
-            ),
-        )
-        or {}
+    environments = yaml.safe_load(
+        load_config()
+        .absolute_path("path.test_environments")
+        .read_text(encoding="utf-8")
     )
-    return [{"name": k, "env": v["env"]} for k, v in data.items() if k != "defaults"]
+    platforms = load_lib_scenarios(
+        load_config().absolute_path("path.test_lib_scenarios"), environments
+    )
+    return [
+        {
+            "name": name,
+            "ordinary_env": profiles["ordinary"]["env"],
+            "bootstrap_env": profiles["bootstrap"]["env"],
+        }
+        for name, profiles in platforms.items()
+    ]
 
 
 def _parse_feature_list(s: str) -> list[str]:

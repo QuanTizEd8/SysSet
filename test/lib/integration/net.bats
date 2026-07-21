@@ -9,6 +9,7 @@ bats_require_minimum_version 1.5.0
 setup() {
   load '../helpers/common'
   reload_lib
+  lib_test__network_bounded
 }
 
 @test "net__fetch_url_stdout: downloads a small public URL to stdout" {

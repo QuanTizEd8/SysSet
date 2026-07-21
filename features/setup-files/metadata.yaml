@@ -102,7 +102,11 @@ options:
   backup:
     type: string
     default: auto
-    description: Whether to back up files before they are overwritten or deleted.
+    description: |-
+      Whether to back up files before they are overwritten or deleted. A
+      required backup must complete before the destructive operation begins;
+      failure aborts that entry according to its `on_error` policy. Each backup
+      is stored in a unique private capsule with source-path identity metadata.
     enum:
       - value: auto
         description: Back up outside devcontainers; skip inside.
@@ -118,7 +122,8 @@ options:
       ${HOME}/.local/share/${{ _project.namespace }}$/${{ id }}$/backups
     description: |
       Ordered candidate directories for backups. The first writable entry is used,
-      resolved via users__first_writeable_path at run time.
+      resolved via users__first_writeable_path at run time. The selected value is
+      preserved for lifecycle-stage manifests.
 
   # add_current_user / add_remote_user / add_container_user / add_users:
   # inherited from shared options (enabled via _options.configure_users above).
