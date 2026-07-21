@@ -734,6 +734,106 @@ def test_empty_lib_root_is_equivalent_to_unset(
     assert context.lib_bind is None
 
 
+def test_run_streamed_tees_bytes_to_stdout_and_log(tmp_path: Path) -> None:
+    log = tmp_path / "stream.log"
+    event = threading.Event()
+    registry = lm.ProcessRegistry(event)
+
+    class _BinStdout:
+        def __init__(self) -> None:
+            self.buffer = io.BytesIO()
+
+        def flush(self) -> None:
+            pass
+
+    fake = _BinStdout()
+    with redirect_stdout(fake):  # type: ignore[type-var]
+        rc = lm._run_streamed(
+            ["sh", "-c", "printf 'alpha\\nbeta\\n'"], log, event, registry
+        )
+
+    assert rc == 0
+    # Bytes reach the live stream AND the capture log verbatim.
+    assert fake.buffer.getvalue() == b"alpha\nbeta\n"
+    assert log.read_bytes() == b"alpha\nbeta\n"
+
+
+def test_single_platform_streams_live_and_skips_buffered_replay(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    profiles = {"ordinary": {"env": "test-env"}}
+
+    def fake_run_platform(*args: object) -> list[lm.ProfileResult]:
+        assert args[-1] is True  # single platform ⇒ stream mode
+        logs_dir = args[8]
+        assert isinstance(logs_dir, Path)
+        log = logs_dir / "platform--ordinary.log"
+        log.write_text(
+            "── Summary: 5/5 completed, 4 passed, 0 failed, 1 skipped,"
+            " 0 TODO, 0 incomplete ──\n",
+            encoding="utf-8",
+        )
+        return [
+            lm.ProfileResult("platform", "ordinary", "test-env", 0, log, streamed=True)
+        ]
+
+    monkeypatch.setattr(lm, "_run_platform", fake_run_platform)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = lm._execute_matrix(
+            [("platform", profiles)],
+            "ordinary",
+            "lean",
+            1,
+            [],
+            _context(),
+            {},
+            tmp_path,
+        )
+    out = buf.getvalue()
+
+    assert rc == 0
+    # Streamed output is not replayed a second time at the end.
+    assert "══ Buffered profile output ══" not in out
+    assert "Matrix: 1 passed, 0 failed" in out
+    # The rolled-up total reflects the real test count, not the profile count.
+    assert (
+        "Total: 5 tests completed across 1 profile(s)"
+        " — 4 passed, 0 failed, 1 skipped" in out
+    )
+
+
+def test_rolled_up_total_sums_profiles_and_notes_missing_summaries(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a.log").write_text(
+        "── Summary: 1769/1769 completed, 1738 passed, 0 failed, 31 skipped,"
+        " 0 TODO, 0 incomplete ──\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "b.log").write_text(
+        "── Summary: 18/18 completed, 18 passed, 0 failed, 0 skipped,"
+        " 0 TODO, 0 incomplete ──\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "c.log").write_text(
+        "Environment resolution failed for 'x': boom\n", encoding="utf-8"
+    )
+    results = [
+        lm.ProfileResult("p", "ordinary", "e", 0, tmp_path / "a.log"),
+        lm.ProfileResult("p", "bootstrap", "e", 0, tmp_path / "b.log"),
+        lm.ProfileResult("p", "ordinary", "e", 1, tmp_path / "c.log"),
+    ]
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        lm._print_test_total(results)
+    out = buf.getvalue()
+
+    assert "Total: 1787 tests completed across 2 profile(s)" in out
+    assert "1756 passed, 0 failed, 31 skipped" in out
+    assert "1 profile(s) reported no test summary" in out
+
+
 def test_resolution_does_not_swallow_keyboard_interrupt(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -756,6 +856,7 @@ def test_resolution_does_not_swallow_keyboard_interrupt(
             tmp_path,
             threading.Event(),
             lm.ProcessRegistry(threading.Event()),
+            stream=False,
         )
 
 
@@ -882,6 +983,7 @@ def test_profile_result_metadata_never_retains_large_output(
         log_path,
         event,
         lm.ProcessRegistry(event),
+        stream=False,
     )
     assert result.returncode == 0
     assert result.log_path.stat().st_size == 2 * 1024 * 1024
@@ -925,6 +1027,7 @@ def test_profile_cancellation_terminates_child_process_group(
                 tmp_path / "cancel.log",
                 event,
                 registry,
+                stream=False,
             )
         )
 

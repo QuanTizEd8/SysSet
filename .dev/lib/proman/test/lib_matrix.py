@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -37,6 +38,9 @@ class ProfileResult:
     env_name: str
     returncode: int
     log_path: Path
+    # True when this profile's output was streamed live (single-platform runs),
+    # so the end-of-run replay skips it instead of printing it a second time.
+    streamed: bool = False
 
 
 @dataclass(frozen=True)
@@ -344,6 +348,7 @@ def _run_profile(  # noqa: PLR0913
     log_path: Path,
     cancel_event: threading.Event,
     registry: ProcessRegistry,
+    stream: bool,  # noqa: FBT001
 ) -> ProfileResult:
     cmd = _build_profile_command(
         platform,
@@ -359,32 +364,71 @@ def _run_profile(  # noqa: PLR0913
     if cancel_event.is_set():
         message = "Profile launch cancelled."
         raise InterruptedError(message)
-    # A subprocess writes bytes directly to this descriptor; opening it as
-    # binary makes that contract explicit and avoids implying Python encoding.
-    with log_path.open("ab") as output:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            text=True,
-            start_new_session=os.name == "posix",
-        )
-        registry.add(proc)
-        try:
-            while proc.poll() is None:
-                if cancel_event.wait(0.05):
-                    registry.terminate(proc)
-                    break
-            returncode = proc.wait()
-        finally:
-            registry.discard(proc)
+    if stream:
+        returncode = _run_streamed(cmd, log_path, cancel_event, registry)
+    else:
+        # A subprocess writes bytes directly to this descriptor; opening it as
+        # binary makes that contract explicit and avoids implying Python encoding.
+        with log_path.open("ab") as output:
+            proc = subprocess.Popen(
+                cmd,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                text=True,
+                start_new_session=os.name == "posix",
+            )
+            registry.add(proc)
+            try:
+                while proc.poll() is None:
+                    if cancel_event.wait(0.05):
+                        registry.terminate(proc)
+                        break
+                returncode = proc.wait()
+            finally:
+                registry.discard(proc)
     return ProfileResult(
         platform,
         profile_name,
         profile["env"],
         returncode,
         log_path,
+        streamed=stream,
     )
+
+
+def _run_streamed(
+    cmd: list[str],
+    log_path: Path,
+    cancel_event: threading.Event,
+    registry: ProcessRegistry,
+) -> int:
+    """Run a profile subprocess, teeing its bytes live to stdout and the log.
+
+    Used for single-platform runs (workers == 1) where there is no interleaving
+    risk, so output appears live instead of being buffered until the end. Bytes
+    are copied verbatim (binary) so non-UTF-8 output cannot break the tee.
+    Cancellation is handled by the registry terminating the process group, which
+    closes the pipe and ends the read loop.
+    """
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        start_new_session=os.name == "posix",
+    )
+    registry.add(proc)
+    try:
+        with log_path.open("ab") as output:
+            for chunk in iter(lambda: proc.stdout.read(65536), b""):
+                if cancel_event.is_set():
+                    registry.terminate(proc)
+                    break
+                sys.stdout.buffer.write(chunk)
+                sys.stdout.buffer.flush()
+                output.write(chunk)
+        return proc.wait()
+    finally:
+        registry.discard(proc)
 
 
 def _run_platform(  # noqa: PLR0913
@@ -399,6 +443,7 @@ def _run_platform(  # noqa: PLR0913
     logs_dir: Path,
     cancel_event: threading.Event,
     registry: ProcessRegistry,
+    stream: bool,  # noqa: FBT001
 ) -> list[ProfileResult]:
     """Resolve and run selected profiles serially for one platform."""
     results: list[ProfileResult] = []
@@ -409,21 +454,38 @@ def _run_platform(  # noqa: PLR0913
         env_name = profile["env"]
         log_path = logs_dir / f"{platform}--{profile_name}.log"
         try:
-            with log_path.open("a", encoding="utf-8") as output:
+            if stream:
                 image = resolve(
                     env_name,
                     envs,
-                    output=output,
+                    output=sys.stdout,
                     cancel_event=cancel_event,
                     process_started=registry.add,
                     process_finished=registry.discard,
                 )
+            else:
+                with log_path.open("a", encoding="utf-8") as output:
+                    image = resolve(
+                        env_name,
+                        envs,
+                        output=output,
+                        cancel_event=cancel_event,
+                        process_started=registry.add,
+                        process_finished=registry.discard,
+                    )
         except InterruptedError:
             break
         except (Exception, SystemExit) as exc:  # noqa: BLE001 - aggregate resolution
+            message = f"Environment resolution failed for {env_name!r}: {exc}\n"
             with log_path.open("a", encoding="utf-8") as output:
-                output.write(f"Environment resolution failed for {env_name!r}: {exc}\n")
-            results.append(ProfileResult(platform, profile_name, env_name, 1, log_path))
+                output.write(message)
+            if stream:
+                sys.stdout.write(message)
+            results.append(
+                ProfileResult(
+                    platform, profile_name, env_name, 1, log_path, streamed=stream
+                )
+            )
             continue
         if cancel_event.is_set():
             break
@@ -440,6 +502,7 @@ def _run_platform(  # noqa: PLR0913
                 log_path,
                 cancel_event,
                 registry,
+                stream,
             )
         except InterruptedError:
             break
@@ -455,6 +518,57 @@ def _replay_log(log_path: Path) -> None:
     """Replay arbitrary subprocess bytes without letting decoding abort a matrix."""
     with log_path.open(encoding="utf-8", errors="backslashreplace") as output:
         shutil.copyfileobj(output, sys.stdout)
+
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+# run-unit.sh prints one such line per profile (see its summary printf).
+_SUMMARY_RE = re.compile(
+    r"Summary:\s*(\d+)(?:/\d+)?\s+completed[^,]*,\s*"
+    r"(\d+)\s+passed,\s*(\d+)\s+failed,\s*(\d+)\s+skipped"
+)
+
+
+def _profile_summary(log_path: Path) -> dict[str, int] | None:
+    """Extract completed/passed/failed/skipped counts from a profile's log."""
+    if not log_path.is_file():
+        return None
+    text = _ANSI_RE.sub(
+        "", log_path.read_text(encoding="utf-8", errors="backslashreplace")
+    )
+    match = None
+    for match in _SUMMARY_RE.finditer(text):  # noqa: B007 - keep the last match
+        pass
+    if match is None:
+        return None
+    return {
+        "completed": int(match.group(1)),
+        "passed": int(match.group(2)),
+        "failed": int(match.group(3)),
+        "skipped": int(match.group(4)),
+    }
+
+
+def _print_test_total(results: list[ProfileResult]) -> None:
+    """Print one rolled-up test total across every profile in the run.
+
+    The per-profile ``Matrix:`` line counts profiles, not tests, so the last
+    number on screen can look tiny (e.g. an 18-test bootstrap profile). This
+    sums the actual test counts each profile reported so the true total is the
+    final line.
+    """
+    summaries = [s for r in results if (s := _profile_summary(r.log_path))]
+    if not summaries:
+        return
+    completed = sum(s["completed"] for s in summaries)
+    passed = sum(s["passed"] for s in summaries)
+    failed = sum(s["failed"] for s in summaries)
+    skipped = sum(s["skipped"] for s in summaries)
+    missing = len(results) - len(summaries)
+    note = f"; {missing} profile(s) reported no test summary" if missing else ""
+    print(
+        f"Total: {completed} tests completed across {len(summaries)} profile(s)"
+        f" — {passed} passed, {failed} failed, {skipped} skipped{note}"
+    )
 
 
 def _execute_matrix(
@@ -473,6 +587,11 @@ def _execute_matrix(
     registry = ProcessRegistry(cancel_event)
     results: dict[str, list[ProfileResult]] = {}
     workers = min(matrix_jobs, len(selected))
+    # With a single worker (one platform, or serial multi-platform) there is no
+    # interleaving risk, so stream each profile's output live instead of
+    # buffering it until the end. This is the common CI case (one platform per
+    # job) and restores live progress there.
+    stream_mode = workers == 1
     futures: dict[str, Future[list[ProfileResult]]] = {}
     executor = ThreadPoolExecutor(max_workers=workers)
     interrupted = False
@@ -491,6 +610,7 @@ def _execute_matrix(
                 logs_dir,
                 cancel_event,
                 registry,
+                stream_mode,
             )
         pending = set(futures.values())
         while pending:
@@ -564,10 +684,17 @@ def _execute_matrix(
     ordered_results = [
         result for platform, _profiles in selected for result in results[platform]
     ]
-    print("\n══ Buffered profile output ══")
-    for result in ordered_results:
-        print(f"\n══ {result.platform}/{result.profile} [{result.env_name}] ══")
-        if result.log_path.is_file():
+    # Streamed profiles already printed live; only replay the ones that were
+    # buffered (multi-platform runs, and synthesized failure/cancel results).
+    to_replay = [
+        result
+        for result in ordered_results
+        if not result.streamed and result.log_path.is_file()
+    ]
+    if to_replay:
+        print("\n══ Buffered profile output ══")
+        for result in to_replay:
+            print(f"\n══ {result.platform}/{result.profile} [{result.env_name}] ══")
             _replay_log(result.log_path)
 
     failed = sum(result.returncode != 0 for result in ordered_results)
@@ -581,6 +708,7 @@ def _execute_matrix(
             state = f"FAIL ({result.returncode})"
         print(f"  {result.platform}/{result.profile}: {state}")
     print(f"Matrix: {len(ordered_results) - failed} passed, {failed} failed")
+    _print_test_total(ordered_results)
     if interrupted:
         return 130
     return 0 if failed == 0 else 1
